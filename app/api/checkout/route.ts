@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import Stripe from 'stripe'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
 
@@ -42,13 +42,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    // Fetch shop-specific fees
+    const svc = createServiceClient()
+    const { data: shop } = await svc.from('dd_shops').select('service_fee_pct, delivery_fee, min_order').eq('id', shopId).single()
+    const shopFeeRate = shop ? shop.service_fee_pct / 100 : SERVICE_FEE_RATE
+    const shopDeliveryFee = shop ? shop.delivery_fee : DEFAULT_DELIVERY_FEE
+
     // Calculate totals
     const subtotal = items.reduce(
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
       0
     )
-    const deliveryFee = DEFAULT_DELIVERY_FEE
-    const serviceFee = Math.round(subtotal * SERVICE_FEE_RATE * 100) / 100
+    const deliveryFee = shopDeliveryFee
+    const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
     const tipAmount = tip || 0
     const total = Math.round((subtotal + deliveryFee + serviceFee + tipAmount) * 100) / 100
 
