@@ -12,6 +12,7 @@ interface Shop {
   service_fee_pct: number
   delivery_fee: number
   min_order: number
+  tax_rate: number
   created_at: string
   owner: { name: string; email: string } | null
 }
@@ -69,7 +70,7 @@ export default function AdminShops() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['Shop', 'Owner', 'City', 'Commission %', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions'].map(h => (
+                {['Shop', 'Owner', 'City', 'Commission %', 'Tax Rate %', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                 ))}
               </tr>
@@ -84,6 +85,13 @@ export default function AdminShops() {
                     <input type="number" step="0.5" min="0" max="50" value={shop.service_fee_pct}
                       onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, service_fee_pct: parseFloat(e.target.value) || 0 } : s))}
                       onBlur={e => updateShopField(shop.id, 'service_fee_pct', parseFloat(e.target.value) || 0)}
+                      style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
+                    />%
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <input type="number" step="0.25" min="0" max="15" value={shop.tax_rate}
+                      onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, tax_rate: parseFloat(e.target.value) || 0 } : s))}
+                      onBlur={e => updateShopField(shop.id, 'tax_rate', parseFloat(e.target.value) || 0)}
                       style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
                     />%
                   </td>
@@ -129,7 +137,7 @@ export default function AdminShops() {
                 </tr>
               ))}
               {shops.length === 0 && (
-                <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shops found</td></tr>
+                <tr><td colSpan={10} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shops found</td></tr>
               )}
             </tbody>
           </table>

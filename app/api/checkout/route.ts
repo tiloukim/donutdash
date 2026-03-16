@@ -44,19 +44,21 @@ export async function POST(request: NextRequest) {
 
     // Fetch shop-specific fees
     const svc = createServiceClient()
-    const { data: shop } = await svc.from('dd_shops').select('service_fee_pct, delivery_fee, min_order').eq('id', shopId).single()
+    const { data: shop } = await svc.from('dd_shops').select('service_fee_pct, delivery_fee, min_order, tax_rate').eq('id', shopId).single()
     const shopFeeRate = shop ? shop.service_fee_pct / 100 : SERVICE_FEE_RATE
     const shopDeliveryFee = shop ? shop.delivery_fee : DEFAULT_DELIVERY_FEE
+    const shopTaxRate = shop?.tax_rate ? shop.tax_rate / 100 : 0
 
     // Calculate totals
     const subtotal = items.reduce(
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
       0
     )
+    const tax = Math.round(subtotal * shopTaxRate * 100) / 100
     const deliveryFee = shopDeliveryFee
     const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
     const tipAmount = tip || 0
-    const total = Math.round((subtotal + deliveryFee + serviceFee + tipAmount) * 100) / 100
+    const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount) * 100) / 100
 
     // Create the order in Supabase
     const { data: order, error: orderError } = await supabase
@@ -66,6 +68,7 @@ export async function POST(request: NextRequest) {
         shop_id: shopId,
         status: 'pending',
         subtotal,
+        tax,
         delivery_fee: deliveryFee,
         service_fee: serviceFee,
         tip: tipAmount,
@@ -124,6 +127,18 @@ export async function POST(request: NextRequest) {
         quantity: item.quantity,
       })
     )
+
+    // Add tax line item
+    if (tax > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: { name: 'Sales Tax' },
+          unit_amount: Math.round(tax * 100),
+        },
+        quantity: 1,
+      })
+    }
 
     // Add delivery fee line item
     lineItems.push({

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
@@ -19,11 +19,30 @@ export default function CheckoutPage() {
   const [instructions, setInstructions] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
 
-  const deliveryFee = DEFAULT_DELIVERY_FEE
-  const serviceFee = total * SERVICE_FEE_RATE
+  useEffect(() => {
+    if (!shopId) return
+    fetch(`/api/shops/${shopId}`)
+      .then(r => r.json())
+      .then(data => {
+        const s = data?.shop || data
+        if (s && s.service_fee_pct !== undefined) {
+          setShopFees({
+            service_fee_pct: s.service_fee_pct,
+            delivery_fee: s.delivery_fee,
+            tax_rate: s.tax_rate || 0,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [shopId])
+
+  const deliveryFee = shopFees.delivery_fee
+  const serviceFee = Math.round(total * (shopFees.service_fee_pct / 100) * 100) / 100
+  const tax = Math.round(total * (shopFees.tax_rate / 100) * 100) / 100
   const tip = tipParam
-  const grandTotal = total + deliveryFee + serviceFee + tip
+  const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + tip) * 100) / 100
 
   if (count === 0) {
     return (
@@ -200,6 +219,12 @@ export default function CheckoutPage() {
                 <span style={{ color: '#666' }}>Subtotal</span>
                 <span>${total.toFixed(2)}</span>
               </div>
+              {tax > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                  <span style={{ color: '#666' }}>Tax ({shopFees.tax_rate}%)</span>
+                  <span>${tax.toFixed(2)}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
                 <span style={{ color: '#666' }}>Delivery Fee</span>
                 <span>${deliveryFee.toFixed(2)}</span>

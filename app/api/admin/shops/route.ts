@@ -43,6 +43,7 @@ export async function PATCH(request: NextRequest) {
     if ('service_fee_pct' in fields) allowed.service_fee_pct = fields.service_fee_pct
     if ('delivery_fee' in fields) allowed.delivery_fee = fields.delivery_fee
     if ('min_order' in fields) allowed.min_order = fields.min_order
+    if ('tax_rate' in fields) allowed.tax_rate = fields.tax_rate
 
     const { data: shop, error } = await svc
       .from('dd_shops')
