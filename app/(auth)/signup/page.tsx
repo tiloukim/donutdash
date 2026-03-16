@@ -53,7 +53,13 @@ export default function SignupPage() {
 
       if (data.user) {
         await refreshUser()
-        router.push('/')
+        if (role === 'shop_owner') {
+          router.push('/partner-setup')
+        } else if (role === 'driver') {
+          router.push('/driver')
+        } else {
+          router.push('/')
+        }
       }
     } catch {
       setError('An unexpected error occurred.')
