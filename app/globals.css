@@ -197,7 +197,7 @@ img {
 
 @media (max-width: 768px) {
   .nav-logo-img {
-    height: 60px !important;
+    height: 90px !important;
     margin-top: 0px !important;
   }
 
@@ -229,7 +229,7 @@ img {
   }
 
   .nav-logo-img {
-    height: 55px !important;
+    height: 83px !important;
     margin-top: 0px !important;
   }
 }
