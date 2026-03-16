@@ -7,7 +7,12 @@ export default function ShopDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/shop/stats').then(r => r.json()).then(setStats).finally(() => setLoading(false))
+    fetch('/api/shop/stats')
+      .then(r => r.json())
+      .then(data => {
+        if (data.todayOrders !== undefined) setStats(data)
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   if (loading) return <div>Loading dashboard...</div>
