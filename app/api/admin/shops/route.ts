@@ -35,11 +35,18 @@ export async function PATCH(request: NextRequest) {
     if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await request.json()
-    const { id, is_active } = body
+    const { id, ...fields } = body
+
+    // Only allow these fields to be updated
+    const allowed: Record<string, any> = {}
+    if ('is_active' in fields) allowed.is_active = fields.is_active
+    if ('service_fee_pct' in fields) allowed.service_fee_pct = fields.service_fee_pct
+    if ('delivery_fee' in fields) allowed.delivery_fee = fields.delivery_fee
+    if ('min_order' in fields) allowed.min_order = fields.min_order
 
     const { data: shop, error } = await svc
       .from('dd_shops')
-      .update({ is_active })
+      .update(allowed)
       .eq('id', id)
       .select()
       .single()
