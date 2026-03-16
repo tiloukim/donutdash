@@ -41,6 +41,7 @@ export interface MenuItem {
   description: string | null
   price: number
   image_url: string | null
+  images: string[] | null
   category: 'donuts' | 'coffee' | 'breakfast' | 'drinks' | 'other'
   is_available: boolean
   is_featured: boolean
