@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function GET() {
   try {
@@ -14,7 +14,10 @@ export async function GET() {
       return NextResponse.json({ user: null }, { status: 401 })
     }
 
-    const { data: user, error: dbError } = await supabase
+    // Use service client to bypass RLS for user lookup and creation
+    const svc = createServiceClient()
+
+    const { data: user, error: dbError } = await svc
       .from('dd_users')
       .select('*')
       .eq('auth_id', authUser.id)
@@ -23,7 +26,7 @@ export async function GET() {
     if (dbError || !user) {
       // User exists in auth but not in dd_users table - auto-create
       const meta = authUser.user_metadata || {}
-      const { data: newUser, error: insertError } = await supabase
+      const { data: newUser, error: insertError } = await svc
         .from('dd_users')
         .insert({
           auth_id: authUser.id,
@@ -36,6 +39,7 @@ export async function GET() {
         .single()
 
       if (insertError) {
+        console.error('Failed to create dd_user:', insertError)
         return NextResponse.json({ user: null }, { status: 500 })
       }
 
