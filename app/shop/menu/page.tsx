@@ -6,12 +6,24 @@ import type { MenuItem } from '@/lib/types'
 const CATEGORIES = ['all', 'donuts', 'coffee', 'breakfast', 'drinks', 'other']
 const emptyItem = { name: '', description: '', price: '', category: 'donuts', image_url: '', is_available: true, is_featured: false }
 
+async function uploadImage(file: File): Promise<string | null> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await fetch('/api/upload', { method: 'POST', body: formData })
+  if (!res.ok) return null
+  const data = await res.json()
+  return data.url
+}
+
 export default function ShopMenu() {
   const [items, setItems] = useState<MenuItem[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [editing, setEditing] = useState<any>(null)
   const [showForm, setShowForm] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
 
   const fetchItems = useCallback(async () => {
     const res = await fetch('/api/shop/menu')
@@ -23,11 +35,27 @@ export default function ShopMenu() {
 
   const saveItem = async () => {
     if (!editing?.name || !editing?.price) return
+    let imageUrl = editing.image_url || ''
+    if (imageFile) {
+      setUploading(true)
+      const url = await uploadImage(imageFile)
+      setUploading(false)
+      if (url) imageUrl = url
+    }
     const method = editing.id ? 'PUT' : 'POST'
-    await fetch('/api/shop/menu', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...editing, price: parseFloat(editing.price) }) })
+    await fetch('/api/shop/menu', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...editing, image_url: imageUrl, price: parseFloat(editing.price) }) })
     setEditing(null)
     setShowForm(false)
+    setImageFile(null)
+    setImagePreview(null)
     fetchItems()
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
   }
 
   const deleteItem = async (id: string) => {
@@ -57,7 +85,7 @@ export default function ShopMenu() {
             }}>{c}</button>
           ))}
         </div>
-        <button onClick={() => { setEditing({ ...emptyItem }); setShowForm(true) }} style={{ padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>+ Add Item</button>
+        <button onClick={() => { setEditing({ ...emptyItem }); setShowForm(true); setImageFile(null); setImagePreview(null) }} style={{ padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>+ Add Item</button>
       </div>
 
       {showForm && (
@@ -68,15 +96,21 @@ export default function ShopMenu() {
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Price ($)</label><input style={inputStyle} type="number" step="0.01" value={editing?.price || ''} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
             <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Description</label><input style={inputStyle} value={editing?.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} /></div>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Category</label><select style={inputStyle} value={editing?.category || 'donuts'} onChange={e => setEditing({ ...editing, category: e.target.value })}>{CATEGORIES.filter(c => c !== 'all').map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Image URL</label><input style={inputStyle} value={editing?.image_url || ''} onChange={e => setEditing({ ...editing, image_url: e.target.value })} /></div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#888', display: 'block', marginBottom: 4 }}>Image</label>
+              {(imagePreview || editing?.image_url) && (
+                <img src={imagePreview || editing?.image_url} alt="Preview" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8, marginBottom: 8 }} />
+              )}
+              <input type="file" accept="image/*" onChange={handleImageChange} style={{ fontSize: 13 }} />
+            </div>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
               <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_available ?? true} onChange={e => setEditing({ ...editing, is_available: e.target.checked })} /> Available</label>
               <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_featured ?? false} onChange={e => setEditing({ ...editing, is_featured: e.target.checked })} /> Featured</label>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button onClick={saveItem} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#FF1493', color: '#fff', border: 'none', cursor: 'pointer' }}>Save</button>
-            <button onClick={() => { setShowForm(false); setEditing(null) }} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#f5f5f5', color: '#666', border: 'none', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={saveItem} disabled={uploading} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: uploading ? '#ccc' : '#FF1493', color: '#fff', border: 'none', cursor: uploading ? 'not-allowed' : 'pointer' }}>{uploading ? 'Uploading...' : 'Save'}</button>
+            <button onClick={() => { setShowForm(false); setEditing(null); setImageFile(null); setImagePreview(null) }} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#f5f5f5', color: '#666', border: 'none', cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
@@ -98,7 +132,7 @@ export default function ShopMenu() {
                 {item.is_available ? 'Available' : 'Unavailable'}
               </button>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => { setEditing({ ...item, price: item.price.toString() }); setShowForm(true) }} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f9f9f9', cursor: 'pointer' }}>Edit</button>
+                <button onClick={() => { setEditing({ ...item, price: item.price.toString() }); setShowForm(true); setImageFile(null); setImagePreview(null) }} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f9f9f9', cursor: 'pointer' }}>Edit</button>
                 <button onClick={() => deleteItem(item.id)} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #FECACA', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer' }}>Delete</button>
               </div>
             </div>
