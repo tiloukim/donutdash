@@ -16,7 +16,7 @@ export default function Footer() {
       }}>
         <div>
           <div style={{ marginBottom: '0.75rem' }}>
-            <img src="/logo.png" alt="DonutDash" style={{ height: '36px', width: 'auto', filter: 'brightness(1.1)' }} />
+            <img src="/logo.png" alt="DonutDash" style={{ height: '54px', width: 'auto', filter: 'brightness(1.1)' }} />
           </div>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: 1.6 }}>
             Delicious donuts delivered fast to your door. Fresh from your favorite local shops.
