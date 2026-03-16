@@ -197,8 +197,18 @@ img {
 
 @media (max-width: 768px) {
   .nav-logo-img {
-    height: 50px !important;
+    height: 60px !important;
     margin-top: 0px !important;
+  }
+
+  .nav-inner {
+    justify-content: center !important;
+    position: relative;
+  }
+
+  .mobile-menu-btn {
+    position: absolute !important;
+    right: 1rem;
   }
 
   .footer-grid {
@@ -219,7 +229,7 @@ img {
   }
 
   .nav-logo-img {
-    height: 44px !important;
+    height: 55px !important;
     margin-top: 0px !important;
   }
 }
