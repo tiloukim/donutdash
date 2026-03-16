@@ -46,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const sidebar = (
     <>
       <div style={{ padding: '24px 20px 16px' }}>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>🍩 DonutDash</h2>
+        <img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} />
         <span style={{ background: '#6366F1', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block', letterSpacing: 1 }}>ADMIN</span>
       </div>
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>

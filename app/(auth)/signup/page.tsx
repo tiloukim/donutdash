@@ -91,9 +91,8 @@ export default function SignupPage() {
         boxShadow: '0 8px 40px rgba(255, 20, 147, 0.08)',
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
-            <span style={{ fontSize: '2rem' }}>🍩</span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#FF1493' }}>DonutDash</span>
+          <Link href="/" style={{ display: 'inline-block', textDecoration: 'none' }}>
+            <img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} />
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1A1A2E', marginTop: '1rem' }}>
             Create an account

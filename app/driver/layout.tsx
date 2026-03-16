@@ -32,7 +32,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <aside style={{ width: 220, background: '#2D1B00', color: '#fff', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50 }}>
         <div style={{ padding: '24px 20px 16px' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800 }}>🍩 DonutDash</h2>
+          <img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} />
           <span style={{ background: '#FF8C00', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block' }}>DRIVER</span>
         </div>
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>
