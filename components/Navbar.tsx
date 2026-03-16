@@ -26,7 +26,7 @@ export default function Navbar() {
     <nav className="nav-container">
       <div className="nav-inner">
         <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <img src="/logo.png" alt="DonutDash" style={{ height: '100px', width: 'auto', position: 'relative', zIndex: 101 }} />
+          <img src="/logo.png" alt="DonutDash" style={{ height: '100px', width: 'auto', position: 'relative', zIndex: 101, marginTop: '20px' }} />
         </Link>
 
         <div className="nav-links">
