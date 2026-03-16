@@ -49,6 +49,7 @@ img {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid #f0f0f0;
+  overflow: visible;
 }
 
 .nav-inner {
@@ -58,7 +59,8 @@ img {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  height: 80px;
+  overflow: visible;
 }
 
 .nav-links {
