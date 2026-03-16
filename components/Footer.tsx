@@ -15,9 +15,8 @@ export default function Footer() {
         gap: '2rem',
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>🍩</span>
-            <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#FF69B4' }}>DonutDash</span>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <img src="/logo.png" alt="DonutDash" style={{ height: '36px', width: 'auto', filter: 'brightness(1.1)' }} />
           </div>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: 1.6 }}>
             Delicious donuts delivered fast to your door. Fresh from your favorite local shops.

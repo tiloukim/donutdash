@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   title: 'DonutDash - Delicious Donuts Delivered Fast',
   description:
     'Order fresh donuts, coffee, and breakfast treats from the best local donut shops. Fast delivery to your door.',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
 }
 
 export default function RootLayout({

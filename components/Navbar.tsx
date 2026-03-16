@@ -25,11 +25,8 @@ export default function Navbar() {
   return (
     <nav className="nav-container">
       <div className="nav-inner">
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
-          <span style={{ fontSize: '1.75rem' }}>🍩</span>
-          <span style={{ fontSize: '1.35rem', fontWeight: 700, color: '#FF1493', letterSpacing: '-0.5px' }}>
-            DonutDash
-          </span>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <img src="/logo.png" alt="DonutDash" style={{ height: '40px', width: 'auto' }} />
         </Link>
 
         <div className="nav-links">
