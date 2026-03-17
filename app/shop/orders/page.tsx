@@ -1,24 +1,89 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 const FILTERS = ['all', 'pending', 'confirmed', 'preparing', 'ready_for_pickup']
+
+// Play alert sound using Web Audio API
+function playNewOrderSound() {
+  try {
+    const ctx = new AudioContext()
+    const playBeep = (time: number, freq: number) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = freq
+      osc.type = 'sine'
+      gain.gain.value = 0.4
+      osc.start(time)
+      osc.stop(time + 0.2)
+    }
+    // Distinct rising tone pattern for new orders
+    playBeep(ctx.currentTime, 660)
+    playBeep(ctx.currentTime + 0.3, 880)
+    playBeep(ctx.currentTime + 0.6, 1100)
+    playBeep(ctx.currentTime + 0.9, 880)
+    playBeep(ctx.currentTime + 1.2, 1100)
+  } catch {
+    // Audio not available
+  }
+}
 
 export default function ShopOrders() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [updating, setUpdating] = useState<string | null>(null)
+  const knownOrderIdsRef = useRef<Set<string>>(new Set())
+  const isFirstLoadRef = useRef(true)
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
 
   const fetchOrders = useCallback(async () => {
     const url = filter === 'all' ? '/api/shop/orders' : `/api/shop/orders?status=${filter}`
     const res = await fetch(url)
-    if (res.ok) setOrders(await res.json())
+    if (res.ok) {
+      const data = await res.json()
+      // Check for new pending orders (not on first load)
+      if (!isFirstLoadRef.current) {
+        const newPendingOrders = data.filter(
+          (o: any) => o.status === 'pending' && !knownOrderIdsRef.current.has(o.id)
+        )
+        if (newPendingOrders.length > 0) {
+          playNewOrderSound()
+          // Vibrate if supported (mobile)
+          if (navigator.vibrate) {
+            navigator.vibrate([300, 100, 300, 100, 300])
+          }
+          // Browser notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            newPendingOrders.forEach((o: any) => {
+              new Notification('🍩 New Order!', {
+                body: `Order #${o.id.slice(0, 8)} - $${o.total?.toFixed(2)} from ${o.customer?.name || 'Customer'}`,
+                icon: '/logo.png',
+                tag: `new-order-${o.id}`,
+                requireInteraction: true,
+              })
+            })
+          }
+        }
+      }
+      isFirstLoadRef.current = false
+      // Update known order IDs
+      knownOrderIdsRef.current = new Set(data.map((o: any) => o.id))
+      setOrders(data)
+    }
     setLoading(false)
   }, [filter])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
-  useEffect(() => { const i = setInterval(fetchOrders, 15000); return () => clearInterval(i) }, [fetchOrders])
+  useEffect(() => { const i = setInterval(fetchOrders, 8000); return () => clearInterval(i) }, [fetchOrders])
 
   const updateStatus = async (orderId: string, status: string) => {
     setUpdating(orderId)

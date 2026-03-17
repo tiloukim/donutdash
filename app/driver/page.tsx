@@ -14,11 +14,15 @@ export default function DriverDashboard() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const prevOfferIdRef = useRef<string | null>(null)
 
-  // Check for existing offer on mount
+  // Check online status and existing offer on mount
   useEffect(() => {
-    fetch('/api/driver/offer').then(r => r.json()).then(data => {
-      if (data?.id) {
-        setOffer(data)
+    Promise.all([
+      fetch('/api/driver/online').then(r => r.json()).catch(() => ({ online: false })),
+      fetch('/api/driver/offer').then(r => r.json()).catch(() => null),
+    ]).then(([statusData, offerData]) => {
+      if (statusData?.online) setIsOnline(true)
+      if (offerData?.id) {
+        setOffer(offerData)
         setIsOnline(true)
       }
       setLoading(false)
@@ -158,6 +162,19 @@ export default function DriverDashboard() {
     intervalRef.current = setInterval(checkOffer, 5000)
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [isOnline, offer])
+
+  // Heartbeat: keep online status alive while on this page
+  useEffect(() => {
+    if (!isOnline) return
+    const heartbeat = setInterval(() => {
+      fetch('/api/driver/online', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ online: true }),
+      }).catch(() => {})
+    }, 30000) // every 30 seconds
+    return () => clearInterval(heartbeat)
+  }, [isOnline])
 
   const toggleOnline = async () => {
     const newState = !isOnline
