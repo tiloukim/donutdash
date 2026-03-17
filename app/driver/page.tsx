@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function DriverDashboard() {
   const [isOnline, setIsOnline] = useState(false)
@@ -9,22 +10,33 @@ export default function DriverDashboard() {
   const [countdown, setCountdown] = useState(0)
   const [responding, setResponding] = useState(false)
   const [locationError, setLocationError] = useState('')
+  const [driverId, setDriverId] = useState<string | null>(null)
   const watchIdRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const prevOfferIdRef = useRef<string | null>(null)
+  const supabaseRef = useRef(createClient())
+
+  // Fetch full offer details from API (needed for nested joins that realtime doesn't provide)
+  const fetchOfferDetails = useCallback(async () => {
+    const res = await fetch('/api/driver/offer')
+    const data = await res.json()
+    if (data?.id) setOffer(data)
+  }, [])
 
   // Check online status and existing offer on mount
   useEffect(() => {
     Promise.all([
       fetch('/api/driver/online').then(r => r.json()).catch(() => ({ online: false })),
       fetch('/api/driver/offer').then(r => r.json()).catch(() => null),
-    ]).then(([statusData, offerData]) => {
+      fetch('/api/me').then(r => r.json()).catch(() => ({ user: null })),
+    ]).then(([statusData, offerData, meData]) => {
       if (statusData?.online) setIsOnline(true)
       if (offerData?.id) {
         setOffer(offerData)
         setIsOnline(true)
       }
+      if (meData?.user?.id) setDriverId(meData.user.id)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -146,7 +158,36 @@ export default function DriverDashboard() {
     }
   }, [isOnline])
 
-  // Poll for offers when online and no current offer
+  // Supabase Realtime: listen for new delivery offers in real-time
+  useEffect(() => {
+    if (!isOnline || !driverId || offer) return
+
+    const supabase = supabaseRef.current
+    const channel = supabase
+      .channel('driver-offers')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'dd_delivery_offers',
+          filter: `driver_id=eq.${driverId}`,
+        },
+        (payload) => {
+          if (payload.new?.status === 'pending') {
+            // New offer arrived — fetch full details from API
+            fetchOfferDetails()
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [isOnline, driverId, offer, fetchOfferDetails])
+
+  // Fallback polling: check for offers every 10s in case realtime misses something
   useEffect(() => {
     if (!isOnline || offer) {
       if (intervalRef.current) clearInterval(intervalRef.current)
@@ -159,7 +200,7 @@ export default function DriverDashboard() {
       }).catch(() => {})
     }
 
-    intervalRef.current = setInterval(checkOffer, 5000)
+    intervalRef.current = setInterval(checkOffer, 10000)
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [isOnline, offer])
 

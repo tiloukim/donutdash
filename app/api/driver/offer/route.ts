@@ -15,6 +15,27 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Clean up any expired offers for this driver (backup for cron)
+  const { data: expiredOffers } = await svc
+    .from('dd_delivery_offers')
+    .select('id, delivery_id')
+    .eq('driver_id', ddUser.id)
+    .eq('status', 'pending')
+    .lt('expires_at', new Date().toISOString())
+
+  if (expiredOffers?.length) {
+    await svc
+      .from('dd_delivery_offers')
+      .update({ status: 'expired' })
+      .in('id', expiredOffers.map(o => o.id))
+
+    // Reassign each expired delivery to the next driver
+    const deliveryIds = [...new Set(expiredOffers.map(o => o.delivery_id))]
+    for (const deliveryId of deliveryIds) {
+      assignNextDriver(deliveryId).catch(() => {})
+    }
+  }
+
   const { data: offer } = await svc
     .from('dd_delivery_offers')
     .select('*, delivery:dd_deliveries(*, order:dd_orders(*, shop:dd_shops(name, address, city, lat, lng), customer:dd_users!customer_id(name), dd_order_items(*)))')
