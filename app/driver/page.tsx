@@ -11,6 +11,8 @@ export default function DriverDashboard() {
   const [locationError, setLocationError] = useState('')
   const watchIdRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const prevOfferIdRef = useRef<string | null>(null)
 
   // Check for existing offer on mount
   useEffect(() => {
@@ -22,6 +24,61 @@ export default function DriverDashboard() {
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
+
+  // Request notification permission when going online
+  useEffect(() => {
+    if (isOnline && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [isOnline])
+
+  // Alert when new offer arrives
+  useEffect(() => {
+    if (!offer || offer.id === prevOfferIdRef.current) return
+    prevOfferIdRef.current = offer.id
+
+    // Play alert sound
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgidDbsGEcBj+a2teleQkAeli51teleQkAeli51teleQkAeli51teleQkAeli51t+lgA==')
+      }
+      // Use a proper notification sound - play a repeated beep pattern
+      const ctx = new AudioContext()
+      const playBeep = (time: number) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.value = 880
+        osc.type = 'sine'
+        gain.gain.value = 0.3
+        osc.start(time)
+        osc.stop(time + 0.15)
+      }
+      playBeep(ctx.currentTime)
+      playBeep(ctx.currentTime + 0.25)
+      playBeep(ctx.currentTime + 0.5)
+    } catch {
+      // Audio not available
+    }
+
+    // Vibrate if supported
+    if (navigator.vibrate) {
+      navigator.vibrate([200, 100, 200, 100, 200])
+    }
+
+    // Browser notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const shopName = offer.delivery?.order?.shop?.name || 'New Order'
+      const earnings = (offer.delivery?.driver_earnings || 4.00).toFixed(2)
+      new Notification('New Delivery Offer!', {
+        body: `${shopName} - Earn $${earnings}`,
+        icon: '/logo.png',
+        tag: 'delivery-offer',
+        requireInteraction: true,
+      })
+    }
+  }, [offer])
 
   // Countdown timer for offer
   useEffect(() => {
