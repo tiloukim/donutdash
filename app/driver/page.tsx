@@ -3,23 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-// Shared AudioContext for driver alerts
-let driverAudioCtx: AudioContext | null = null
-
-function getDriverAudioCtx(): AudioContext | null {
-  try {
-    if (!driverAudioCtx || driverAudioCtx.state === 'closed') {
-      driverAudioCtx = new AudioContext()
-    }
-    if (driverAudioCtx.state === 'suspended') {
-      driverAudioCtx.resume()
-    }
-    return driverAudioCtx
-  } catch {
-    return null
-  }
-}
-
 export default function DriverDashboard() {
   const [isOnline, setIsOnline] = useState(false)
   const [offer, setOffer] = useState<any>(null)
@@ -28,10 +11,9 @@ export default function DriverDashboard() {
   const [responding, setResponding] = useState(false)
   const [locationError, setLocationError] = useState('')
   const [driverId, setDriverId] = useState<string | null>(null)
-  const [soundEnabled, setSoundEnabled] = useState(false)
   const watchIdRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const alertAudioRef = useRef<HTMLAudioElement | null>(null)
   const prevOfferIdRef = useRef<string | null>(null)
   const supabaseRef = useRef(createClient())
 
@@ -71,25 +53,17 @@ export default function DriverDashboard() {
     if (!offer || offer.id === prevOfferIdRef.current) return
     prevOfferIdRef.current = offer.id
 
-    // Play alert sound using shared AudioContext
-    const ctx = getDriverAudioCtx()
-    if (ctx) {
-      const playBeep = (time: number, freq: number) => {
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        osc.frequency.value = freq
-        osc.type = 'sine'
-        gain.gain.value = 0.4
-        osc.start(time)
-        osc.stop(time + 0.15)
+    // Play looping alert sound until driver responds
+    try {
+      if (!alertAudioRef.current) {
+        alertAudioRef.current = new Audio('/alert.wav')
+        alertAudioRef.current.loop = true
       }
-      playBeep(ctx.currentTime, 880)
-      playBeep(ctx.currentTime + 0.25, 1100)
-      playBeep(ctx.currentTime + 0.5, 880)
-      playBeep(ctx.currentTime + 0.75, 1100)
-      playBeep(ctx.currentTime + 1.0, 880)
+      alertAudioRef.current.volume = 1.0
+      alertAudioRef.current.currentTime = 0
+      alertAudioRef.current.play().catch(() => {})
+    } catch {
+      // Audio not available
     }
 
     // Vibrate if supported
@@ -233,18 +207,25 @@ export default function DriverDashboard() {
 
   const toggleOnline = async () => {
     const newState = !isOnline
-    // Unlock audio on user tap (browser autoplay policy)
-    if (newState && !soundEnabled) {
-      const ctx = getDriverAudioCtx()
-      if (ctx) {
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        gain.gain.value = 0 // silent unlock
-        osc.start()
-        osc.stop(ctx.currentTime + 0.01)
-        setSoundEnabled(true)
+    // Pre-load and unlock audio on Go Online tap (mobile browsers require user gesture)
+    if (newState) {
+      try {
+        if (!alertAudioRef.current) {
+          alertAudioRef.current = new Audio('/alert.wav')
+          alertAudioRef.current.loop = true
+        }
+        // Play silently to unlock audio on mobile, then pause
+        alertAudioRef.current.volume = 0.01
+        await alertAudioRef.current.play().catch(() => {})
+        setTimeout(() => {
+          if (alertAudioRef.current) {
+            alertAudioRef.current.pause()
+            alertAudioRef.current.currentTime = 0
+            alertAudioRef.current.volume = 1.0
+          }
+        }, 100)
+      } catch {
+        // Audio not available
       }
     }
     await fetch('/api/driver/online', {
@@ -253,12 +234,24 @@ export default function DriverDashboard() {
       body: JSON.stringify({ online: newState }),
     })
     setIsOnline(newState)
-    if (!newState) setOffer(null)
+    if (!newState) {
+      setOffer(null)
+      // Stop alert sound if playing
+      if (alertAudioRef.current) {
+        alertAudioRef.current.pause()
+        alertAudioRef.current.currentTime = 0
+      }
+    }
   }
 
   const respondToOffer = async (action: 'accept' | 'decline') => {
     if (!offer) return
     setResponding(true)
+    // Stop alert sound
+    if (alertAudioRef.current) {
+      alertAudioRef.current.pause()
+      alertAudioRef.current.currentTime = 0
+    }
     const res = await fetch('/api/driver/offer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
