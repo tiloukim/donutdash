@@ -50,10 +50,12 @@ export default function Footer() {
         <div>
           <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>For Business</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <Link href="/signup" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>
+            <Link href="/shop" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
               Become a Partner
             </Link>
-            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Drive with Us</span>
+            <Link href="/driver" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+              Drive with Us
+            </Link>
           </div>
         </div>
       </div>

@@ -73,14 +73,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         ))}
       </nav>
       <div style={{ padding: '16px 8px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-        <Link href="/" style={{ display: 'block', padding: '8px 12px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 13 }}>
-          ← Back to App
-        </Link>
+        <div style={{ padding: '8px 12px', color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{user.name}</div>
         <button
-          onClick={() => signOut()}
+          onClick={() => signOut('/admin')}
           style={{ display: 'block', width: '100%', padding: '8px 12px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}
         >
-          Logout
+          Sign Out
         </button>
       </div>
     </>

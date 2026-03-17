@@ -56,8 +56,8 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
           ))}
         </nav>
         <div style={{ padding: '16px 8px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-          <Link href="/" style={{ display: 'block', padding: '8px 12px', color: '#fff', textDecoration: 'none', fontSize: 13, opacity: 0.8 }}>← Back to App</Link>
-          <button onClick={() => signOut()} style={{ display: 'block', width: '100%', padding: '8px 12px', color: '#FFB6C1', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>Logout</button>
+          <div style={{ padding: '8px 12px', color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>{user.name}</div>
+          <button onClick={() => signOut('/shop')} style={{ display: 'block', width: '100%', padding: '8px 12px', color: '#FFB6C1', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>Sign Out</button>
         </div>
       </aside>
       <main style={{ flex: 1, marginLeft: 220, background: '#FFF5F8' }}>

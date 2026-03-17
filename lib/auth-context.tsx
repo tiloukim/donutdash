@@ -17,7 +17,7 @@ interface AuthContextValue {
   supabase: SupabaseClient
   loading: boolean
   role: User['role'] | null
-  signOut: () => Promise<void>
+  signOut: (redirectTo?: string) => Promise<void>
   refreshUser: () => Promise<void>
 }
 
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (redirectTo?: string) => {
     // Set driver offline before signing out
     if (user?.role === 'driver') {
       await fetch('/api/driver/online', {
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await supabase.auth.signOut()
     setUser(null)
-    window.location.href = '/'
+    window.location.href = redirectTo || '/'
   }, [supabase, user?.role])
 
   const refreshUser = useCallback(async () => {

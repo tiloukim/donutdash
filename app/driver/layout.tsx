@@ -57,6 +57,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
           .driver-header { padding: 16px 24px; }
           .driver-header h1 { font-size: 20px; }
           .driver-bottom-nav { display: none; }
+          .driver-signout-btn { display: none; }
         }
       `}</style>
 
@@ -81,8 +82,8 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
             ))}
           </nav>
           <div style={{ padding: '16px 8px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <Link href="/" style={{ display: 'block', padding: '8px 12px', color: '#D4A574', textDecoration: 'none', fontSize: 13 }}>← Back to App</Link>
-            <button onClick={() => signOut()} style={{ display: 'block', width: '100%', padding: '8px 12px', color: '#FF8C00', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>Logout</button>
+            <div style={{ padding: '8px 12px', color: '#D4A574', fontSize: 12 }}>{user.name}</div>
+            <button onClick={() => signOut('/driver')} style={{ display: 'block', width: '100%', padding: '8px 12px', color: '#FF8C00', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>Sign Out</button>
           </div>
         </aside>
 
@@ -90,7 +91,16 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
         <main className="driver-main">
           <header className="driver-header">
             <h1>{NAV_ITEMS.find(n => n.href === pathname)?.label || 'Driver'}</h1>
-            <span style={{ fontSize: 13, color: '#666' }}>{user.name}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 13, color: '#666' }}>{user.name}</span>
+              <button
+                onClick={() => signOut('/driver')}
+                className="driver-signout-btn"
+                style={{ background: 'none', border: '1px solid #FF8C00', color: '#FF8C00', padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Sign Out
+              </button>
+            </div>
           </header>
           <div className="driver-content">{children}</div>
         </main>
