@@ -13,13 +13,26 @@ export default function ShopSettings() {
     fetch('/api/shop/settings').then(r => r.json()).then(setShop).finally(() => setLoading(false))
   }, [])
 
+  const [error, setError] = useState('')
+
   const save = async () => {
     setSaving(true)
     setSaved(false)
-    await fetch('/api/shop/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shop) })
+    setError('')
+    try {
+      const res = await fetch('/api/shop/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shop) })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Failed to save')
+      } else {
+        setShop(data)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      }
+    } catch {
+      setError('Network error')
+    }
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
   }
 
   const useCurrentLocation = () => {
@@ -118,6 +131,7 @@ export default function ShopSettings() {
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
           {saved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Saved!</span>}
+          {error && <span style={{ color: '#DC2626', fontSize: 13, fontWeight: 600 }}>{error}</span>}
         </div>
       </div>
     </div>
