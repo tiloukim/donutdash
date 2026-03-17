@@ -181,7 +181,7 @@ export default function ActiveDelivery() {
       </div>
 
       {/* Order Details */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
         <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #FFE8D6' }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>PICKUP</h3>
           <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.shop?.name}</p>

@@ -20,7 +20,7 @@ export default function DriverEarnings() {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginBottom: 24 }}>
         {cards.map(c => (
           <div key={c.label} style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #FFE8D6', textAlign: 'center' }}>
             <div style={{ fontSize: 28, fontWeight: 800, color: c.color }}>${c.value.toFixed(2)}</div>
