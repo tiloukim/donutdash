@@ -29,7 +29,15 @@ export default function LoginPage() {
         return
       }
 
-      await refreshUser()
+      const userData = await refreshUser()
+      // Role-based redirect after login
+      const res = await fetch('/api/me')
+      if (res.ok) {
+        const { user: me } = await res.json()
+        if (me?.role === 'driver') { router.push('/driver'); return }
+        if (me?.role === 'shop_owner') { router.push('/shop'); return }
+        if (me?.role === 'admin') { router.push('/admin'); return }
+      }
       router.push('/')
     } catch {
       setError('An unexpected error occurred.')

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
+import RoleAuthForm from '@/components/RoleAuthForm'
 
 const NAV_ITEMS = [
   { href: '/driver', label: 'Home', icon: '📍' },
@@ -20,12 +21,16 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
 
   if (!user || (role !== 'driver' && role !== 'admin')) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: 16, padding: 20 }}>
-        <div style={{ fontSize: 48 }}>🔒</div>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Access Denied</h1>
-        <p style={{ color: '#666', textAlign: 'center' }}>You need a driver account to access this dashboard.</p>
-        <Link href="/" style={{ background: '#FF8C00', color: '#fff', padding: '12px 24px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>Back to Home</Link>
-      </div>
+      <RoleAuthForm
+        role="driver"
+        roleLabel="Driver"
+        accentColor="#FF8C00"
+        accentHover="#E67E00"
+        bgGradient="linear-gradient(135deg, #FFFAF0 0%, #FFFFFF 50%, #FFF5E6 100%)"
+        icon="🚗"
+        tagline="Sign in to start delivering"
+        redirectTo="/driver"
+      />
     )
   }
 

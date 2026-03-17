@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
+import RoleAuthForm from '@/components/RoleAuthForm'
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: '📊' },
@@ -29,12 +30,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!user || role !== 'admin') {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: 16, background: '#F8F9FA' }}>
-        <div style={{ fontSize: 48 }}>🔒</div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1A1A2E' }}>Access Denied</h1>
-        <p style={{ color: '#666' }}>You need an admin account to access this panel.</p>
-        <Link href="/" style={{ background: '#6366F1', color: '#fff', padding: '12px 24px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>Back to Home</Link>
-      </div>
+      <RoleAuthForm
+        role="admin"
+        roleLabel="Admin"
+        accentColor="#6366F1"
+        accentHover="#818CF8"
+        bgGradient="linear-gradient(135deg, #F0F0FF 0%, #FFFFFF 50%, #F8F9FA 100%)"
+        icon="🛡️"
+        tagline="Admin panel access"
+        redirectTo="/admin"
+      />
     )
   }
 

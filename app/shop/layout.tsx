@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
+import RoleAuthForm from '@/components/RoleAuthForm'
 
 const NAV_ITEMS = [
   { href: '/shop', label: 'Dashboard', icon: '📊' },
@@ -22,12 +23,16 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
 
   if (!user || (role !== 'shop_owner' && role !== 'admin')) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: 16 }}>
-        <div style={{ fontSize: 48 }}>🔒</div>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Access Denied</h1>
-        <p style={{ color: '#666' }}>You need a shop owner account to access this dashboard.</p>
-        <Link href="/" style={{ background: '#FF1493', color: '#fff', padding: '12px 24px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>Back to Home</Link>
-      </div>
+      <RoleAuthForm
+        role="shop_owner"
+        roleLabel="Shop Owner"
+        accentColor="#FF1493"
+        accentHover="#FF69B4"
+        bgGradient="linear-gradient(135deg, #FFF0F5 0%, #FFFFFF 50%, #FFFAF0 100%)"
+        icon="🍩"
+        tagline="Manage your donut shop"
+        redirectTo="/shop"
+      />
     )
   }
 
