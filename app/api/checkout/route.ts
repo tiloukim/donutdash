@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import Stripe from 'stripe'
+import { SquareClient, SquareEnvironment } from 'square'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
+import crypto from 'crypto'
 
-function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2026-02-25.clover',
+function getSquareClient() {
+  return new SquareClient({
+    token: process.env.SQUARE_ACCESS_TOKEN!,
+    environment: process.env.SQUARE_ENVIRONMENT === 'production'
+      ? SquareEnvironment.Production
+      : SquareEnvironment.Sandbox,
   })
 }
 
@@ -44,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch shop-specific fees
     const svc = createServiceClient()
-    const { data: shop } = await svc.from('dd_shops').select('service_fee_pct, delivery_fee, min_order, tax_rate').eq('id', shopId).single()
+    const { data: shop } = await svc.from('dd_shops').select('name, service_fee_pct, delivery_fee, min_order, tax_rate').eq('id', shopId).single()
     const shopFeeRate = shop ? shop.service_fee_pct / 100 : SERVICE_FEE_RATE
     const shopDeliveryFee = shop ? shop.delivery_fee : DEFAULT_DELIVERY_FEE
     const shopTaxRate = shop?.tax_rate ? shop.tax_rate / 100 : 0
@@ -73,7 +77,7 @@ export async function POST(request: NextRequest) {
         service_fee: serviceFee,
         tip: tipAmount,
         total,
-        payment_method: 'stripe',
+        payment_method: 'square',
         delivery_address,
         delivery_city: delivery_city || '',
         delivery_instructions: delivery_instructions || null,
@@ -112,89 +116,93 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: itemsError.message }, { status: 500 })
     }
 
-    // Create Stripe Checkout Session
+    // Create Square Checkout
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const square = getSquareClient()
 
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map(
-      (item: { name: string; price: number; quantity: number }) => ({
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: item.name,
-          },
-          unit_amount: Math.round(item.price * 100),
-        },
-        quantity: item.quantity,
-      })
-    )
+    // Build line items for Square
+    const squareLineItems = items.map((item: { name: string; price: number; quantity: number }) => ({
+      name: item.name,
+      quantity: String(item.quantity),
+      basePriceMoney: {
+        amount: BigInt(Math.round(item.price * 100)),
+        currency: 'USD',
+      },
+    }))
 
-    // Add tax line item
+    // Add tax
     if (tax > 0) {
-      lineItems.push({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: 'Sales Tax' },
-          unit_amount: Math.round(tax * 100),
+      squareLineItems.push({
+        name: 'Sales Tax',
+        quantity: '1',
+        basePriceMoney: {
+          amount: BigInt(Math.round(tax * 100)),
+          currency: 'USD',
         },
-        quantity: 1,
       })
     }
 
-    // Add delivery fee line item
-    lineItems.push({
-      price_data: {
-        currency: 'usd',
-        product_data: { name: 'Delivery Fee' },
-        unit_amount: Math.round(deliveryFee * 100),
+    // Add delivery fee
+    squareLineItems.push({
+      name: 'Delivery Fee',
+      quantity: '1',
+      basePriceMoney: {
+        amount: BigInt(Math.round(deliveryFee * 100)),
+        currency: 'USD',
       },
-      quantity: 1,
     })
 
-    // Add service fee line item
-    lineItems.push({
-      price_data: {
-        currency: 'usd',
-        product_data: { name: 'Service Fee' },
-        unit_amount: Math.round(serviceFee * 100),
+    // Add service fee
+    squareLineItems.push({
+      name: 'Service Fee',
+      quantity: '1',
+      basePriceMoney: {
+        amount: BigInt(Math.round(serviceFee * 100)),
+        currency: 'USD',
       },
-      quantity: 1,
     })
 
-    // Add tip line item if any
+    // Add tip
     if (tipAmount > 0) {
-      lineItems.push({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: 'Driver Tip' },
-          unit_amount: Math.round(tipAmount * 100),
+      squareLineItems.push({
+        name: 'Driver Tip',
+        quantity: '1',
+        basePriceMoney: {
+          amount: BigInt(Math.round(tipAmount * 100)),
+          currency: 'USD',
         },
-        quantity: 1,
       })
     }
 
-    const stripe = getStripe()
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      mode: 'payment',
-      customer_email: ddUser.email,
-      metadata: {
-        order_id: order.id,
-        customer_id: ddUser.id,
+    const checkoutResponse = await square.checkout.paymentLinks.create({
+      idempotencyKey: crypto.randomUUID(),
+      order: {
+        locationId: process.env.SQUARE_LOCATION_ID!,
+        lineItems: squareLineItems,
+        referenceId: order.id,
       },
-      success_url: `${origin}/checkout/success?order_id=${order.id}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/cart`,
+      checkoutOptions: {
+        redirectUrl: `${origin}/checkout/success?order_id=${order.id}`,
+        merchantSupportEmail: ddUser.email,
+      },
+      paymentNote: `DonutDash Order #${order.id.slice(0, 8)} - ${shop?.name || 'Order'}`,
     })
 
-    // Update order with payment session id
+    const paymentLink = checkoutResponse.paymentLink
+    if (!paymentLink?.url) {
+      console.error('Square checkout error: no payment link returned', checkoutResponse)
+      return NextResponse.json({ error: 'Failed to create checkout' }, { status: 500 })
+    }
+
+    // Update order with payment link id
     await supabase
       .from('dd_orders')
-      .update({ payment_id: session.id })
+      .update({ payment_id: paymentLink.id })
       .eq('id', order.id)
 
-    return NextResponse.json({ url: session.url, orderId: order.id })
+    return NextResponse.json({ url: paymentLink.url, orderId: order.id })
   } catch (err) {
     console.error('Checkout error:', err)
-    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to create checkout session' }, { status: 500 })
   }
 }
