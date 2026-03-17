@@ -4,48 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 
 const FILTERS = ['all', 'pending', 'confirmed', 'preparing', 'ready_for_pickup']
 
-// Shared AudioContext to avoid browser autoplay restrictions
-let sharedAudioCtx: AudioContext | null = null
-
-function getAudioContext(): AudioContext | null {
-  try {
-    if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
-      sharedAudioCtx = new AudioContext()
-    }
-    // Resume if suspended (browser autoplay policy)
-    if (sharedAudioCtx.state === 'suspended') {
-      sharedAudioCtx.resume()
-    }
-    return sharedAudioCtx
-  } catch {
-    return null
-  }
-}
-
-// Play alert sound using Web Audio API
-function playNewOrderSound() {
-  const ctx = getAudioContext()
-  if (!ctx) return
-
-  const playBeep = (time: number, freq: number) => {
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.frequency.value = freq
-    osc.type = 'sine'
-    gain.gain.value = 0.4
-    osc.start(time)
-    osc.stop(time + 0.2)
-  }
-  // Distinct rising tone pattern for new orders
-  playBeep(ctx.currentTime, 660)
-  playBeep(ctx.currentTime + 0.3, 880)
-  playBeep(ctx.currentTime + 0.6, 1100)
-  playBeep(ctx.currentTime + 0.9, 880)
-  playBeep(ctx.currentTime + 1.2, 1100)
-}
-
 export default function ShopOrders() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,6 +12,7 @@ export default function ShopOrders() {
   const [soundEnabled, setSoundEnabled] = useState(false)
   const knownOrderIdsRef = useRef<Set<string>>(new Set())
   const isFirstLoadRef = useRef(true)
+  const alertAudioRef = useRef<HTMLAudioElement | null>(null)
 
   // Request notification permission on mount
   useEffect(() => {
@@ -62,32 +21,62 @@ export default function ShopOrders() {
     }
   }, [])
 
-  // Enable sound on any user interaction (required by browser autoplay policy)
-  useEffect(() => {
+  // Enable sound: pre-load audio file on first tap
+  const enableSound = useCallback(async () => {
     if (soundEnabled) return
-
-    const enableSound = () => {
-      const ctx = getAudioContext()
-      if (ctx) {
-        // Play a silent beep to unlock audio
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        gain.gain.value = 0 // silent
-        osc.start()
-        osc.stop(ctx.currentTime + 0.01)
-        setSoundEnabled(true)
+    try {
+      if (!alertAudioRef.current) {
+        alertAudioRef.current = new Audio('/order-alert.wav')
+        alertAudioRef.current.loop = true
       }
-    }
-
-    document.addEventListener('click', enableSound, { once: true })
-    document.addEventListener('touchstart', enableSound, { once: true })
-    return () => {
-      document.removeEventListener('click', enableSound)
-      document.removeEventListener('touchstart', enableSound)
+      // Play silently to unlock on mobile
+      alertAudioRef.current.volume = 0.01
+      await alertAudioRef.current.play().catch(() => {})
+      setTimeout(() => {
+        if (alertAudioRef.current) {
+          alertAudioRef.current.pause()
+          alertAudioRef.current.currentTime = 0
+          alertAudioRef.current.volume = 1.0
+        }
+      }, 100)
+      setSoundEnabled(true)
+    } catch {
+      // Audio not available
     }
   }, [soundEnabled])
+
+  // Auto-enable on any interaction
+  useEffect(() => {
+    if (soundEnabled) return
+    const handler = () => enableSound()
+    document.addEventListener('click', handler, { once: true })
+    document.addEventListener('touchstart', handler, { once: true })
+    return () => {
+      document.removeEventListener('click', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [soundEnabled, enableSound])
+
+  const playOrderAlert = () => {
+    try {
+      if (!alertAudioRef.current) {
+        alertAudioRef.current = new Audio('/order-alert.wav')
+        alertAudioRef.current.loop = true
+      }
+      alertAudioRef.current.volume = 1.0
+      alertAudioRef.current.currentTime = 0
+      alertAudioRef.current.play().catch(() => {})
+    } catch {
+      // Audio not available
+    }
+  }
+
+  const stopAlert = () => {
+    if (alertAudioRef.current) {
+      alertAudioRef.current.pause()
+      alertAudioRef.current.currentTime = 0
+    }
+  }
 
   const fetchOrders = useCallback(async () => {
     const url = filter === 'all' ? '/api/shop/orders' : `/api/shop/orders?status=${filter}`
@@ -100,7 +89,7 @@ export default function ShopOrders() {
           (o: any) => o.status === 'pending' && !knownOrderIdsRef.current.has(o.id)
         )
         if (newPendingOrders.length > 0) {
-          playNewOrderSound()
+          playOrderAlert()
           // Vibrate if supported (mobile)
           if (navigator.vibrate) {
             navigator.vibrate([300, 100, 300, 100, 300])
@@ -119,7 +108,6 @@ export default function ShopOrders() {
         }
       }
       isFirstLoadRef.current = false
-      // Update known order IDs
       knownOrderIdsRef.current = new Set(data.map((o: any) => o.id))
       setOrders(data)
     }
@@ -131,6 +119,7 @@ export default function ShopOrders() {
 
   const updateStatus = async (orderId: string, status: string) => {
     setUpdating(orderId)
+    stopAlert() // Stop sound when shop acts on the order
     await fetch(`/api/orders/${orderId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
     await fetchOrders()
     setUpdating(null)
@@ -140,23 +129,10 @@ export default function ShopOrders() {
 
   return (
     <div>
-      {/* Sound enable banner — browsers require a tap before audio can play */}
+      {/* Sound enable banner */}
       {!soundEnabled && (
         <div
-          onClick={() => {
-            const ctx = getAudioContext()
-            if (ctx) {
-              const osc = ctx.createOscillator()
-              const gain = ctx.createGain()
-              osc.connect(gain)
-              gain.connect(ctx.destination)
-              gain.gain.value = 0.2
-              osc.frequency.value = 880
-              osc.start()
-              osc.stop(ctx.currentTime + 0.1)
-              setSoundEnabled(true)
-            }
-          }}
+          onClick={enableSound}
           style={{
             background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 10,
             padding: '12px 16px', marginBottom: 16, cursor: 'pointer',
@@ -168,6 +144,17 @@ export default function ShopOrders() {
             <div style={{ fontWeight: 700, fontSize: 13, color: '#92400E' }}>Tap here to enable order alerts</div>
             <div style={{ fontSize: 12, color: '#B45309' }}>Sound notifications require a tap to activate</div>
           </div>
+        </div>
+      )}
+
+      {soundEnabled && (
+        <div style={{
+          background: '#ECFDF5', border: '1px solid #10B981', borderRadius: 10,
+          padding: '8px 16px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', gap: 8,
+          fontSize: 12, color: '#065F46', fontWeight: 600,
+        }}>
+          🔔 Sound alerts enabled — you will hear a ring when new orders arrive
         </div>
       )}
 
