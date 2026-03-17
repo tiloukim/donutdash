@@ -35,15 +35,35 @@ export async function POST(req: NextRequest) {
 
   const { online } = await req.json()
 
-  const { error } = await svc
+  // Check if driver already has a location record
+  const { data: existing } = await svc
     .from('dd_driver_locations')
-    .upsert({
-      driver_id: ddUser.id,
-      lat: 0,
-      lng: 0,
-      is_online: !!online,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'driver_id' })
+    .select('id')
+    .eq('driver_id', ddUser.id)
+    .maybeSingle()
+
+  let error
+  if (existing) {
+    // Only update online status, don't overwrite GPS coordinates
+    ;({ error } = await svc
+      .from('dd_driver_locations')
+      .update({
+        is_online: !!online,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('driver_id', ddUser.id))
+  } else {
+    // First time — create record with 0,0 (GPS will update via /api/driver/location)
+    ;({ error } = await svc
+      .from('dd_driver_locations')
+      .insert({
+        driver_id: ddUser.id,
+        lat: 0,
+        lng: 0,
+        is_online: !!online,
+        updated_at: new Date().toISOString(),
+      }))
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ online: !!online })
