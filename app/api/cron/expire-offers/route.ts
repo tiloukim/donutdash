@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
 
-// This endpoint should be called periodically (e.g., every 30 seconds via Vercel Cron or client-side)
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Verify the request is from Vercel Cron
+  const authHeader = req.headers.get('authorization')
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const svc = createServiceClient()
 
   // Find expired pending offers
