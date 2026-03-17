@@ -28,8 +28,6 @@ export async function PUT(req: Request) {
   for (const key of allowed) {
     if (body[key] !== undefined) updates[key] = body[key]
   }
-  updates.updated_at = new Date().toISOString()
-
   const { data, error } = await ctx.svc.from('dd_shops').update(updates).eq('id', ctx.shop.id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
