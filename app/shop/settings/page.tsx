@@ -9,35 +9,8 @@ export default function ShopSettings() {
   const [saved, setSaved] = useState(false)
   const [geoLoading, setGeoLoading] = useState(false)
   const [error, setError] = useState('')
-  const [locationAutoSet, setLocationAutoSet] = useState(false)
-  const autoDetectDone = useRef(false)
-
   useEffect(() => {
-    fetch('/api/shop/settings').then(r => r.json()).then(data => {
-      setShop(data)
-      // Auto-detect location if shop has no coordinates
-      if ((!data.lat || !data.lng) && navigator.geolocation && !autoDetectDone.current) {
-        autoDetectDone.current = true
-        setGeoLoading(true)
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const lat = pos.coords.latitude
-            const lng = pos.coords.longitude
-            setShop((s: any) => ({ ...s, lat, lng }))
-            setGeoLoading(false)
-            setLocationAutoSet(true)
-            // Auto-save the coordinates immediately
-            fetch('/api/shop/settings', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...data, lat, lng }),
-            }).catch(() => {})
-          },
-          () => setGeoLoading(false),
-          { enableHighAccuracy: true, timeout: 10000 }
-        )
-      }
-    }).finally(() => setLoading(false))
+    fetch('/api/shop/settings').then(r => r.json()).then(setShop).finally(() => setLoading(false))
   }, [])
 
   const save = async () => {
@@ -52,7 +25,6 @@ export default function ShopSettings() {
       } else {
         setShop(data)
         setSaved(true)
-        setLocationAutoSet(false)
         setTimeout(() => setSaved(false), 3000)
       }
     } catch {
@@ -84,23 +56,6 @@ export default function ShopSettings() {
 
   return (
     <div style={{ maxWidth: 600 }}>
-      {/* Auto-location banner */}
-      {locationAutoSet && (
-        <div style={{
-          background: '#ECFDF5', border: '1px solid #10B981', borderRadius: 10,
-          padding: '12px 16px', marginBottom: 16,
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <span style={{ fontSize: 20 }}>📍</span>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#065F46' }}>Location auto-detected and saved!</div>
-            <div style={{ fontSize: 12, color: '#047857' }}>
-              Your shop location has been set to your current GPS position ({shop.lat?.toFixed(4)}, {shop.lng?.toFixed(4)})
-            </div>
-          </div>
-        </div>
-      )}
-
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div><label style={labelStyle}>Shop Name</label><input style={inputStyle} value={shop.name || ''} onChange={e => setShop({ ...shop, name: e.target.value })} /></div>
@@ -124,7 +79,7 @@ export default function ShopSettings() {
                   background: '#FF1493', color: '#fff', border: 'none', cursor: 'pointer',
                 }}
               >
-                {geoLoading ? 'Detecting...' : '📍 Update to Current Location'}
+                {geoLoading ? 'Detecting...' : '📍 Set to Shop Location'}
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -153,7 +108,7 @@ export default function ShopSettings() {
             </div>
             {(!shop.lat || !shop.lng) && !geoLoading && (
               <p style={{ fontSize: 11, color: '#DC2626', marginTop: 8, fontWeight: 600 }}>
-                Location is required for driver delivery. Tap "Update to Current Location" while at your shop.
+                Location is required for driver delivery. Go to your shop and tap &quot;Set to Shop Location&quot;, then click Save.
               </p>
             )}
             {geoLoading && (
@@ -163,9 +118,12 @@ export default function ShopSettings() {
             )}
             {shop.lat && shop.lng && !geoLoading && (
               <p style={{ fontSize: 11, color: '#10B981', marginTop: 8 }}>
-                Location set: {shop.lat.toFixed(6)}, {shop.lng.toFixed(6)}
+                Shop location saved: {shop.lat.toFixed(6)}, {shop.lng.toFixed(6)}
               </p>
             )}
+            <p style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+              Only update this while you are physically at the shop. This location is used to match nearby drivers.
+            </p>
           </div>
 
           <div><label style={labelStyle}>Phone</label><input style={inputStyle} value={shop.phone || ''} onChange={e => setShop({ ...shop, phone: e.target.value })} /></div>

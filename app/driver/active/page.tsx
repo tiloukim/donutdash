@@ -202,23 +202,72 @@ export default function ActiveDelivery() {
       {/* Order Details */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
         <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #FFE8D6' }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>PICKUP</h3>
-          <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.shop?.name}</p>
-          <p style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
-            {delivery.order?.shop?.address}, {delivery.order?.shop?.city}
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>PICKUP</h3>
+              <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.shop?.name}</p>
+              <p style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
+                {delivery.order?.shop?.address}, {delivery.order?.shop?.city}
+              </p>
+            </div>
+            {(delivery.status === 'assigned') && (
+              <button
+                onClick={() => {
+                  const addr = encodeURIComponent(`${delivery.order?.shop?.address}, ${delivery.order?.shop?.city}, ${delivery.order?.shop?.state}`)
+                  const lat = shopLat
+                  const lng = shopLng
+                  // Try Google Maps first, falls back to Apple Maps on iOS
+                  const url = lat && lng
+                    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+                    : `https://www.google.com/maps/dir/?api=1&destination=${addr}`
+                  window.open(url, '_blank')
+                }}
+                style={{
+                  padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                  background: '#3B82F6', color: '#fff', border: 'none', cursor: 'pointer',
+                  whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
+                }}
+              >
+                🧭 Navigate
+              </button>
+            )}
+          </div>
         </div>
         <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #FFE8D6' }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>DELIVER TO</h3>
-          <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.customer?.name || 'Customer'}</p>
-          <p style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
-            {delivery.order?.delivery_address}, {delivery.order?.delivery_city}
-          </p>
-          {delivery.order?.delivery_instructions && (
-            <p style={{ fontSize: 12, color: '#FF8C00', marginTop: 6 }}>
-              Note: {delivery.order.delivery_instructions}
-            </p>
-          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>DELIVER TO</h3>
+              <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.customer?.name || 'Customer'}</p>
+              <p style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
+                {delivery.order?.delivery_address}, {delivery.order?.delivery_city}
+              </p>
+              {delivery.order?.delivery_instructions && (
+                <p style={{ fontSize: 12, color: '#FF8C00', marginTop: 6 }}>
+                  Note: {delivery.order.delivery_instructions}
+                </p>
+              )}
+            </div>
+            {(delivery.status === 'picked_up' || delivery.status === 'delivering') && (
+              <button
+                onClick={() => {
+                  const addr = encodeURIComponent(`${delivery.order?.delivery_address}, ${delivery.order?.delivery_city}`)
+                  const lat = custLat
+                  const lng = custLng
+                  const url = lat && lng
+                    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+                    : `https://www.google.com/maps/dir/?api=1&destination=${addr}`
+                  window.open(url, '_blank')
+                }}
+                style={{
+                  padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                  background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer',
+                  whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
+                }}
+              >
+                🧭 Navigate
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
