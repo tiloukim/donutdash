@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export default function ShopSettings() {
   const [shop, setShop] = useState<any>(null)
@@ -8,12 +8,37 @@ export default function ShopSettings() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [geoLoading, setGeoLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [locationAutoSet, setLocationAutoSet] = useState(false)
+  const autoDetectDone = useRef(false)
 
   useEffect(() => {
-    fetch('/api/shop/settings').then(r => r.json()).then(setShop).finally(() => setLoading(false))
+    fetch('/api/shop/settings').then(r => r.json()).then(data => {
+      setShop(data)
+      // Auto-detect location if shop has no coordinates
+      if ((!data.lat || !data.lng) && navigator.geolocation && !autoDetectDone.current) {
+        autoDetectDone.current = true
+        setGeoLoading(true)
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude
+            const lng = pos.coords.longitude
+            setShop((s: any) => ({ ...s, lat, lng }))
+            setGeoLoading(false)
+            setLocationAutoSet(true)
+            // Auto-save the coordinates immediately
+            fetch('/api/shop/settings', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...data, lat, lng }),
+            }).catch(() => {})
+          },
+          () => setGeoLoading(false),
+          { enableHighAccuracy: true, timeout: 10000 }
+        )
+      }
+    }).finally(() => setLoading(false))
   }, [])
-
-  const [error, setError] = useState('')
 
   const save = async () => {
     setSaving(true)
@@ -27,6 +52,7 @@ export default function ShopSettings() {
       } else {
         setShop(data)
         setSaved(true)
+        setLocationAutoSet(false)
         setTimeout(() => setSaved(false), 3000)
       }
     } catch {
@@ -43,8 +69,11 @@ export default function ShopSettings() {
         setShop((s: any) => ({ ...s, lat: pos.coords.latitude, lng: pos.coords.longitude }))
         setGeoLoading(false)
       },
-      () => setGeoLoading(false),
-      { enableHighAccuracy: true }
+      () => {
+        setGeoLoading(false)
+        setError('Could not get location. Please allow location access.')
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
     )
   }
 
@@ -55,6 +84,23 @@ export default function ShopSettings() {
 
   return (
     <div style={{ maxWidth: 600 }}>
+      {/* Auto-location banner */}
+      {locationAutoSet && (
+        <div style={{
+          background: '#ECFDF5', border: '1px solid #10B981', borderRadius: 10,
+          padding: '12px 16px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ fontSize: 20 }}>📍</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#065F46' }}>Location auto-detected and saved!</div>
+            <div style={{ fontSize: 12, color: '#047857' }}>
+              Your shop location has been set to your current GPS position ({shop.lat?.toFixed(4)}, {shop.lng?.toFixed(4)})
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div><label style={labelStyle}>Shop Name</label><input style={inputStyle} value={shop.name || ''} onChange={e => setShop({ ...shop, name: e.target.value })} /></div>
@@ -69,16 +115,16 @@ export default function ShopSettings() {
           {/* Location Coordinates */}
           <div style={{ background: '#FFF5F8', borderRadius: 10, padding: 16, border: '1px solid #FFE4EF' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <label style={{ ...labelStyle, marginBottom: 0 }}>Shop Location (GPS Coordinates)</label>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Shop Location (GPS)</label>
               <button
                 onClick={useCurrentLocation}
                 disabled={geoLoading}
                 style={{
-                  padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                  padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
                   background: '#FF1493', color: '#fff', border: 'none', cursor: 'pointer',
                 }}
               >
-                {geoLoading ? 'Getting...' : 'Use Current Location'}
+                {geoLoading ? 'Detecting...' : '📍 Update to Current Location'}
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -105,12 +151,17 @@ export default function ShopSettings() {
                 />
               </div>
             </div>
-            {(!shop.lat || !shop.lng) && (
+            {(!shop.lat || !shop.lng) && !geoLoading && (
               <p style={{ fontSize: 11, color: '#DC2626', marginTop: 8, fontWeight: 600 }}>
-                Location is required for driver delivery assignments. Please set your coordinates.
+                Location is required for driver delivery. Tap "Update to Current Location" while at your shop.
               </p>
             )}
-            {shop.lat && shop.lng && (
+            {geoLoading && (
+              <p style={{ fontSize: 11, color: '#FF8C00', marginTop: 8, fontWeight: 600 }}>
+                Detecting your location...
+              </p>
+            )}
+            {shop.lat && shop.lng && !geoLoading && (
               <p style={{ fontSize: 11, color: '#10B981', marginTop: 8 }}>
                 Location set: {shop.lat.toFixed(6)}, {shop.lng.toFixed(6)}
               </p>
