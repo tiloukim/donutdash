@@ -63,6 +63,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // When shop accepts order (pending → confirmed), create delivery and assign driver
   if (currentOrder?.status === 'pending' && body.status === 'confirmed' && order) {
     try {
+      console.log('[ORDER ACCEPT] Order', id, '- Shop accepted, starting driver assignment')
+      console.log('[ORDER ACCEPT] Shop coords:', order.shop?.lat, order.shop?.lng)
+      console.log('[ORDER ACCEPT] Delivery coords:', order.delivery_lat, order.delivery_lng)
+
       // Check if delivery record already exists
       const { data: existingDelivery } = await svc
         .from('dd_deliveries')
@@ -74,6 +78,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
       if (existingDelivery) {
         deliveryId = existingDelivery.id
+        console.log('[ORDER ACCEPT] Existing delivery found:', deliveryId)
       } else {
         // Calculate distance and earnings
         const shopLat = order.shop?.lat || 0
@@ -84,7 +89,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 2
         const earnings = calculateDriverEarnings(dist, order.tip || 0)
 
-        const { data: delivery } = await svc
+        console.log('[ORDER ACCEPT] Creating delivery - distance:', dist, 'earnings:', earnings)
+
+        const { data: delivery, error: deliveryError } = await svc
           .from('dd_deliveries')
           .insert({
             order_id: id,
@@ -100,16 +107,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           .select()
           .single()
 
-        if (delivery) deliveryId = delivery.id
-        else deliveryId = ''
+        if (deliveryError) {
+          console.error('[ORDER ACCEPT] Failed to create delivery:', deliveryError)
+          deliveryId = ''
+        } else if (delivery) {
+          deliveryId = delivery.id
+          console.log('[ORDER ACCEPT] Delivery created:', deliveryId)
+        } else {
+          deliveryId = ''
+        }
       }
 
       // Auto-assign nearest driver
       if (deliveryId) {
-        await assignNextDriver(deliveryId)
+        console.log('[ORDER ACCEPT] Calling assignNextDriver for delivery:', deliveryId)
+        const result = await assignNextDriver(deliveryId)
+        console.log('[ORDER ACCEPT] assignNextDriver result:', result ? 'offer sent' : 'no driver found')
+      } else {
+        console.log('[ORDER ACCEPT] No delivery ID, skipping driver assignment')
       }
     } catch (err) {
-      console.error('Auto-assign driver error:', err)
+      console.error('[ORDER ACCEPT] Auto-assign driver error:', err)
       // Don't fail the order update if driver assignment fails
     }
   }

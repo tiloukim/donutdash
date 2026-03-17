@@ -10,6 +10,8 @@ export async function findNearestAvailableDrivers(shopLat: number, shopLng: numb
     .select('driver_id, lat, lng')
     .eq('is_online', true)
 
+  console.log('[DRIVER FIND] Online drivers:', onlineDrivers?.length || 0, onlineDrivers?.map(d => ({ id: d.driver_id, lat: d.lat, lng: d.lng })))
+
   if (!onlineDrivers?.length) return []
 
   // Filter out excluded drivers and busy ones
@@ -19,17 +21,22 @@ export async function findNearestAvailableDrivers(shopLat: number, shopLng: numb
     .in('status', ['assigned', 'picked_up', 'delivering'])
 
   const busyIds = new Set((busyDrivers || []).map(d => d.driver_id))
-  const excludeSet = new Set(excludeDriverIds)
 
-  // Check for pending offers
+  // Check for pending offers (only non-expired ones)
   const { data: pendingOffers } = await svc
     .from('dd_delivery_offers')
-    .select('driver_id')
+    .select('driver_id, expires_at')
     .eq('status', 'pending')
+    .gte('expires_at', new Date().toISOString())
 
   const pendingIds = new Set((pendingOffers || []).map(o => o.driver_id))
+  const excludeSet = new Set(excludeDriverIds)
 
-  return onlineDrivers
+  console.log('[DRIVER FIND] Busy drivers:', [...busyIds])
+  console.log('[DRIVER FIND] Pending offer drivers:', [...pendingIds])
+  console.log('[DRIVER FIND] Excluded drivers:', excludeDriverIds)
+
+  const available = onlineDrivers
     .filter(d => !busyIds.has(d.driver_id) && !excludeSet.has(d.driver_id) && !pendingIds.has(d.driver_id))
     .map(d => ({
       driver_id: d.driver_id,
@@ -39,6 +46,11 @@ export async function findNearestAvailableDrivers(shopLat: number, shopLng: numb
     }))
     .filter(d => d.distance <= MAX_DRIVER_DISTANCE_MILES)
     .sort((a, b) => a.distance - b.distance)
+
+  console.log('[DRIVER FIND] Available after filters:', available.length, available.map(d => ({ id: d.driver_id, dist: d.distance.toFixed(2) })))
+  console.log('[DRIVER FIND] Max distance:', MAX_DRIVER_DISTANCE_MILES, 'miles')
+
+  return available
 }
 
 export async function createDeliveryOffer(deliveryId: string, driverId: string) {
@@ -69,11 +81,21 @@ export async function assignNextDriver(deliveryId: string) {
     .eq('id', deliveryId)
     .single()
 
-  if (!delivery || delivery.driver_id) return null
+  if (!delivery) {
+    console.log('[ASSIGN] Delivery not found:', deliveryId)
+    return null
+  }
+  if (delivery.driver_id) {
+    console.log('[ASSIGN] Delivery already has driver:', delivery.driver_id)
+    return null
+  }
 
   const shopLat = delivery.order?.shop?.lat
   const shopLng = delivery.order?.shop?.lng
-  if (!shopLat || !shopLng) return null
+  if (!shopLat || !shopLng) {
+    console.log('[ASSIGN] Shop has no coordinates - shopLat:', shopLat, 'shopLng:', shopLng)
+    return null
+  }
 
   // Get drivers who already declined/expired for this delivery
   const { data: prevOffers } = await svc
