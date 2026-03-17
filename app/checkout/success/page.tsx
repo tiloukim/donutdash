@@ -48,7 +48,7 @@ function SuccessContent() {
           </h1>
 
           <p style={{ color: '#666', fontSize: '1.05rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-            Your order has been confirmed and we&apos;re finding a driver for you now. You&apos;ll see live tracking once a driver accepts.
+            Your order has been sent to the shop. Once they accept it, we&apos;ll find a driver and you can track your delivery live.
           </p>
 
           {orderId && (

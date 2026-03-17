@@ -33,6 +33,25 @@ export default function ActiveDelivery() {
 
   useEffect(() => { fetchActive() }, [fetchActive])
 
+  // Heartbeat: keep driver online while on active delivery page
+  useEffect(() => {
+    if (!delivery) return
+    const heartbeat = setInterval(() => {
+      fetch('/api/driver/online', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ online: true }),
+      }).catch(() => {})
+    }, 30000)
+    // Send immediately on mount
+    fetch('/api/driver/online', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ online: true }),
+    }).catch(() => {})
+    return () => clearInterval(heartbeat)
+  }, [delivery])
+
   // Track driver location while active
   useEffect(() => {
     if (!delivery) return

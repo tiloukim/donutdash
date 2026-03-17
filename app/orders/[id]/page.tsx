@@ -31,21 +31,28 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
       .finally(() => setLoading(false))
   }, [id])
 
-  // Poll for driver tracking when order is in transit
+  // Poll for order status updates and driver tracking
   useEffect(() => {
     if (!order) return
-    const trackable = ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'delivering']
-    if (!trackable.includes(order.status)) return
+    const finalStatuses = ['delivered', 'cancelled']
+    if (finalStatuses.includes(order.status)) return
 
-    const fetchTracking = () => {
+    const poll = () => {
+      // Refresh order status
+      fetch(`/api/orders/${id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setOrder(data) })
+        .catch(() => {})
+
+      // Fetch driver tracking
       fetch(`/api/driver/track/${id}`)
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data) setTracking(data) })
         .catch(() => {})
     }
 
-    fetchTracking()
-    const interval = setInterval(fetchTracking, 5000)
+    poll()
+    const interval = setInterval(poll, 5000)
     return () => clearInterval(interval)
   }, [id, order?.status])
 
@@ -70,8 +77,8 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: '20px 16px', minHeight: '100vh' }}>
-      <Link href="/" style={{ color: '#FF8C00', textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
-        ← Back
+      <Link href="/orders" style={{ color: '#FF8C00', textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
+        ← My Orders
       </Link>
 
       <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E', marginTop: 16, marginBottom: 4 }}>
@@ -95,6 +102,54 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           </div>
         )}
       </div>
+
+      {/* Status Timeline */}
+      {order.status !== 'cancelled' && (
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: '16px 20px',
+          border: '1px solid #FFE8D6', marginBottom: 20,
+        }}>
+          {(() => {
+            const steps = [
+              { key: 'pending', label: 'Order Placed', icon: '📋' },
+              { key: 'confirmed', label: 'Shop Confirmed', icon: '✓' },
+              { key: 'preparing', label: 'Preparing', icon: '👨‍🍳' },
+              { key: 'ready_for_pickup', label: 'Ready', icon: '📦' },
+              { key: 'picked_up', label: 'Picked Up', icon: '🏪' },
+              { key: 'delivering', label: 'On the Way', icon: '🚗' },
+              { key: 'delivered', label: 'Delivered', icon: '✅' },
+            ]
+            const statusOrder = steps.map(s => s.key)
+            const currentIdx = statusOrder.indexOf(order.status)
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, overflowX: 'auto' }}>
+                {steps.map((step, i) => {
+                  const done = i <= currentIdx
+                  const isCurrent = i === currentIdx
+                  return (
+                    <div key={step.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 36 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', fontSize: 12,
+                        background: done ? (isCurrent ? '#FF8C00' : '#10B981') : '#f0f0f0',
+                        color: done ? '#fff' : '#bbb',
+                        fontWeight: 700,
+                        border: isCurrent ? '2px solid #FF8C00' : 'none',
+                        boxShadow: isCurrent ? '0 0 0 3px rgba(255,140,0,0.2)' : 'none',
+                      }}>
+                        {step.icon}
+                      </div>
+                      <div style={{ fontSize: 9, fontWeight: 600, color: done ? '#333' : '#bbb', marginTop: 4, textAlign: 'center', lineHeight: 1.2 }}>
+                        {step.label}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+        </div>
+      )}
 
       {/* Live Map */}
       {hasMap && (
