@@ -21,7 +21,7 @@ export default function ShopOrders() {
     }
   }, [])
 
-  // Enable sound: pre-load audio file on first tap
+  // Enable sound: pre-load audio file
   const enableSound = useCallback(async () => {
     if (soundEnabled) return
     try {
@@ -40,20 +40,27 @@ export default function ShopOrders() {
         }
       }, 100)
       setSoundEnabled(true)
+      // Remember so we auto-unlock on next visit
+      try { localStorage.setItem('dd_shop_sound', '1') } catch {}
     } catch {
       // Audio not available
     }
   }, [soundEnabled])
 
-  // Auto-enable on any interaction
+  // Auto-enable on ANY interaction (click, tap, scroll, keypress)
+  // This makes it feel permanent — the first touch on the page unlocks audio
   useEffect(() => {
     if (soundEnabled) return
     const handler = () => enableSound()
-    document.addEventListener('click', handler, { once: true })
-    document.addEventListener('touchstart', handler, { once: true })
+    document.addEventListener('click', handler)
+    document.addEventListener('touchstart', handler)
+    document.addEventListener('keydown', handler, { once: true })
+    document.addEventListener('scroll', handler, { once: true })
     return () => {
       document.removeEventListener('click', handler)
       document.removeEventListener('touchstart', handler)
+      document.removeEventListener('keydown', handler)
+      document.removeEventListener('scroll', handler)
     }
   }, [soundEnabled, enableSound])
 
@@ -129,34 +136,17 @@ export default function ShopOrders() {
 
   return (
     <div>
-      {/* Sound enable banner */}
-      {!soundEnabled && (
-        <div
-          onClick={enableSound}
-          style={{
-            background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 10,
-            padding: '12px 16px', marginBottom: 16, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 20 }}>🔔</span>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#92400E' }}>Tap here to enable order alerts</div>
-            <div style={{ fontSize: 12, color: '#B45309' }}>Sound notifications require a tap to activate</div>
-          </div>
-        </div>
-      )}
-
-      {soundEnabled && (
-        <div style={{
-          background: '#ECFDF5', border: '1px solid #10B981', borderRadius: 10,
-          padding: '8px 16px', marginBottom: 16,
-          display: 'flex', alignItems: 'center', gap: 8,
-          fontSize: 12, color: '#065F46', fontWeight: 600,
-        }}>
-          🔔 Sound alerts enabled — you will hear a ring when new orders arrive
-        </div>
-      )}
+      {/* Sound status */}
+      <div style={{
+        background: soundEnabled ? '#ECFDF5' : '#FFF7ED',
+        border: `1px solid ${soundEnabled ? '#10B981' : '#FF8C00'}`,
+        borderRadius: 10,
+        padding: '8px 16px', marginBottom: 16,
+        display: 'flex', alignItems: 'center', gap: 8,
+        fontSize: 12, color: soundEnabled ? '#065F46' : '#9A3412', fontWeight: 600,
+      }}>
+        {soundEnabled ? '🔔 Sound alerts ON — you will hear a ring when new orders arrive' : '🔕 Tap anywhere on this page to enable sound alerts'}
+      </div>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
         {FILTERS.map(f => (

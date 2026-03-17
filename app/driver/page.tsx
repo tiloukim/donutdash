@@ -48,6 +48,33 @@ export default function DriverDashboard() {
     }
   }, [isOnline])
 
+  // Auto-unlock audio on any interaction (so sound works even if driver didn't tap Go Online fresh)
+  useEffect(() => {
+    if (!isOnline) return
+    const unlock = () => {
+      if (!alertAudioRef.current) {
+        alertAudioRef.current = new Audio('/alert.wav')
+        alertAudioRef.current.loop = true
+      }
+      alertAudioRef.current.volume = 0.01
+      alertAudioRef.current.play().then(() => {
+        setTimeout(() => {
+          if (alertAudioRef.current) {
+            alertAudioRef.current.pause()
+            alertAudioRef.current.currentTime = 0
+            alertAudioRef.current.volume = 1.0
+          }
+        }, 100)
+      }).catch(() => {})
+    }
+    document.addEventListener('click', unlock, { once: true })
+    document.addEventListener('touchstart', unlock, { once: true })
+    return () => {
+      document.removeEventListener('click', unlock)
+      document.removeEventListener('touchstart', unlock)
+    }
+  }, [isOnline])
+
   // Alert when new offer arrives
   useEffect(() => {
     if (!offer || offer.id === prevOfferIdRef.current) return
