@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
@@ -18,6 +18,15 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
   const { user, loading, role, signOut } = useAuth()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [shopName, setShopName] = useState<string>('')
+
+  useEffect(() => {
+    if (!user || (role !== 'shop_owner' && role !== 'admin')) return
+    fetch('/api/shop/settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.name) setShopName(data.name) })
+      .catch(() => {})
+  }, [user, role])
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: 18 }}>Loading...</div>
 
@@ -40,7 +49,11 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
     <>
       <div style={{ padding: '24px 20px 16px' }}>
         <img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} />
-        <span style={{ background: '#fff', color: '#FF1493', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block' }}>SHOP</span>
+        <div style={{ marginTop: 6 }}>
+          <span style={{ background: '#fff', color: '#FF1493', fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 4, display: 'inline-block' }}>
+            {shopName || 'SHOP'}
+          </span>
+        </div>
       </div>
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>
         {NAV_ITEMS.map(item => (
