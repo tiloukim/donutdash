@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         delivery_city,
         delivery_instructions: delivery_instructions || null,
         payment_id: payment_id || null,
-        payment_method: 'stripe',
+        payment_method: 'square',
       })
       .select()
       .single()
