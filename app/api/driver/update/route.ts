@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Cannot transition from ${delivery.status} to ${status}` }, { status: 400 })
   }
 
-  const updateData: any = { status, updated_at: new Date().toISOString() }
+  const updateData: any = { status }
   if (status === 'picked_up') updateData.picked_up_at = new Date().toISOString()
   if (status === 'delivered') updateData.delivered_at = new Date().toISOString()
 

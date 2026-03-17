@@ -3,6 +3,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+// Shared AudioContext for driver alerts
+let driverAudioCtx: AudioContext | null = null
+
+function getDriverAudioCtx(): AudioContext | null {
+  try {
+    if (!driverAudioCtx || driverAudioCtx.state === 'closed') {
+      driverAudioCtx = new AudioContext()
+    }
+    if (driverAudioCtx.state === 'suspended') {
+      driverAudioCtx.resume()
+    }
+    return driverAudioCtx
+  } catch {
+    return null
+  }
+}
+
 export default function DriverDashboard() {
   const [isOnline, setIsOnline] = useState(false)
   const [offer, setOffer] = useState<any>(null)
@@ -11,6 +28,7 @@ export default function DriverDashboard() {
   const [responding, setResponding] = useState(false)
   const [locationError, setLocationError] = useState('')
   const [driverId, setDriverId] = useState<string | null>(null)
+  const [soundEnabled, setSoundEnabled] = useState(false)
   const watchIdRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -53,29 +71,25 @@ export default function DriverDashboard() {
     if (!offer || offer.id === prevOfferIdRef.current) return
     prevOfferIdRef.current = offer.id
 
-    // Play alert sound
-    try {
-      if (!audioRef.current) {
-        audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgidDbsGEcBj+a2teleQkAeli51teleQkAeli51teleQkAeli51teleQkAeli51t+lgA==')
-      }
-      // Use a proper notification sound - play a repeated beep pattern
-      const ctx = new AudioContext()
-      const playBeep = (time: number) => {
+    // Play alert sound using shared AudioContext
+    const ctx = getDriverAudioCtx()
+    if (ctx) {
+      const playBeep = (time: number, freq: number) => {
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
         osc.connect(gain)
         gain.connect(ctx.destination)
-        osc.frequency.value = 880
+        osc.frequency.value = freq
         osc.type = 'sine'
-        gain.gain.value = 0.3
+        gain.gain.value = 0.4
         osc.start(time)
         osc.stop(time + 0.15)
       }
-      playBeep(ctx.currentTime)
-      playBeep(ctx.currentTime + 0.25)
-      playBeep(ctx.currentTime + 0.5)
-    } catch {
-      // Audio not available
+      playBeep(ctx.currentTime, 880)
+      playBeep(ctx.currentTime + 0.25, 1100)
+      playBeep(ctx.currentTime + 0.5, 880)
+      playBeep(ctx.currentTime + 0.75, 1100)
+      playBeep(ctx.currentTime + 1.0, 880)
     }
 
     // Vibrate if supported
@@ -219,6 +233,20 @@ export default function DriverDashboard() {
 
   const toggleOnline = async () => {
     const newState = !isOnline
+    // Unlock audio on user tap (browser autoplay policy)
+    if (newState && !soundEnabled) {
+      const ctx = getDriverAudioCtx()
+      if (ctx) {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        gain.gain.value = 0 // silent unlock
+        osc.start()
+        osc.stop(ctx.currentTime + 0.01)
+        setSoundEnabled(true)
+      }
+    }
     await fetch('/api/driver/online', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

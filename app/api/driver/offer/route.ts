@@ -121,18 +121,22 @@ export async function POST(req: NextRequest) {
     .eq('id', offer_id)
 
   // Assign driver to delivery
-  await svc.from('dd_deliveries')
+  const { error: deliveryError } = await svc.from('dd_deliveries')
     .update({
       driver_id: ddUser.id,
       status: 'assigned',
       driver_earnings: earnings,
-      updated_at: new Date().toISOString(),
     })
     .eq('id', offer.delivery_id)
 
+  if (deliveryError) {
+    console.error('[OFFER ACCEPT] Failed to assign driver to delivery:', deliveryError)
+    return NextResponse.json({ error: 'Failed to assign delivery' }, { status: 500 })
+  }
+
   // Update order status
   await svc.from('dd_orders')
-    .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+    .update({ status: 'confirmed' })
     .eq('id', offer.delivery?.order_id)
 
   return NextResponse.json({ accepted: true, delivery_id: offer.delivery_id })

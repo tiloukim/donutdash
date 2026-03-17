@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
   // Atomically assign - only works if driver_id is still null
   const { data, error } = await svc.from('dd_deliveries')
-    .update({ driver_id: ddUser.id, status: 'assigned', updated_at: new Date().toISOString() })
+    .update({ driver_id: ddUser.id, status: 'assigned' })
     .eq('id', delivery_id)
     .is('driver_id', null)
     .select()
