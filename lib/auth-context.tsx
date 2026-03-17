@@ -45,10 +45,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    // Set driver offline before signing out
+    if (user?.role === 'driver') {
+      await fetch('/api/driver/online', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ online: false }),
+      }).catch(() => {})
+    }
     await supabase.auth.signOut()
     setUser(null)
     window.location.href = '/'
-  }, [supabase])
+  }, [supabase, user?.role])
 
   const refreshUser = useCallback(async () => {
     await fetchUser()

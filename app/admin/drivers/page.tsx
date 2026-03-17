@@ -8,6 +8,8 @@ interface Driver {
   email: string
   phone: string | null
   is_active: boolean
+  is_online: boolean
+  last_seen: string | null
   created_at: string
   deliveryCount: number
   totalEarnings: number
@@ -35,7 +37,7 @@ export default function AdminDrivers() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['Driver', 'Email', 'Phone', 'Deliveries', 'Earnings', 'Status', 'Joined'].map(h => (
+                {['Driver', 'Email', 'Phone', 'Deliveries', 'Earnings', 'Online', 'Account', 'Joined'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                 ))}
               </tr>
@@ -51,6 +53,15 @@ export default function AdminDrivers() {
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
                       display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      background: driver.is_online ? '#D1FAE5' : '#F3F4F6',
+                      color: driver.is_online ? '#065F46' : '#6B7280',
+                    }}>
+                      {driver.is_online ? 'Online' : 'Offline'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{
+                      display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
                       background: driver.is_active ? '#D1FAE5' : '#FEE2E2',
                       color: driver.is_active ? '#065F46' : '#991B1B',
                     }}>
@@ -63,7 +74,7 @@ export default function AdminDrivers() {
                 </tr>
               ))}
               {drivers.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No drivers found</td></tr>
+                <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No drivers found</td></tr>
               )}
             </tbody>
           </table>
