@@ -140,3 +140,25 @@ export interface CartItem {
   image_url: string | null
   special_instructions: string | null
 }
+
+export interface DriverLocation {
+  id: string
+  driver_id: string
+  lat: number
+  lng: number
+  heading: number | null
+  speed: number | null
+  is_online: boolean
+  updated_at: string
+}
+
+export interface DeliveryOffer {
+  id: string
+  delivery_id: string
+  driver_id: string
+  status: 'pending' | 'accepted' | 'declined' | 'expired'
+  expires_at: string
+  responded_at: string | null
+  created_at: string
+  delivery?: Delivery
+}

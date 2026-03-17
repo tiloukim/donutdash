@@ -1,281 +1,155 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
-import Navbar from '@/components/Navbar'
-import OrderStatusBadge from '@/components/OrderStatusBadge'
-import { ORDER_STATUS_LABELS } from '@/lib/constants'
-import type { Order } from '@/lib/types'
+import dynamic from 'next/dynamic'
 
-const PROGRESS_STEPS = [
-  'pending',
-  'confirmed',
-  'preparing',
-  'ready_for_pickup',
-  'picked_up',
-  'delivering',
-  'delivered',
-]
+const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
-export default function OrderDetailPage() {
-  const params = useParams()
-  const orderId = params.id as string
-  const [order, setOrder] = useState<Order | null>(null)
+const STATUS_LABELS: Record<string, { label: string; color: string; icon: string }> = {
+  pending: { label: 'Order Received', color: '#F59E0B', icon: '📋' },
+  confirmed: { label: 'Confirmed', color: '#3B82F6', icon: '✓' },
+  preparing: { label: 'Preparing', color: '#8B5CF6', icon: '👨‍🍳' },
+  ready_for_pickup: { label: 'Ready for Pickup', color: '#10B981', icon: '📦' },
+  picked_up: { label: 'Driver Picked Up', color: '#FF8C00', icon: '🏪' },
+  delivering: { label: 'On the Way', color: '#FF8C00', icon: '🚗' },
+  delivered: { label: 'Delivered', color: '#10B981', icon: '✅' },
+  cancelled: { label: 'Cancelled', color: '#EF4444', icon: '✗' },
+}
+
+export default function OrderTrackingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const [order, setOrder] = useState<any>(null)
+  const [tracking, setTracking] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
-  const fetchOrder = () => {
-    fetch(`/api/orders/${orderId}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Order not found')
-        return res.json()
-      })
-      .then(data => setOrder(data.order))
-      .catch(() => setError('Order not found'))
+  useEffect(() => {
+    // Fetch order details
+    fetch(`/api/orders/${id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(setOrder)
       .finally(() => setLoading(false))
-  }
+  }, [id])
 
+  // Poll for driver tracking when order is in transit
   useEffect(() => {
-    if (!orderId) return
-    fetchOrder()
-  }, [orderId])
+    if (!order) return
+    const trackable = ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'delivering']
+    if (!trackable.includes(order.status)) return
 
-  // Auto-refresh every 10 seconds
-  useEffect(() => {
-    if (!orderId || error) return
-    const interval = setInterval(() => {
-      fetch(`/api/orders/${orderId}`)
-        .then(res => res.json())
-        .then(data => { if (data.order) setOrder(data.order) })
+    const fetchTracking = () => {
+      fetch(`/api/driver/track/${id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setTracking(data) })
         .catch(() => {})
-    }, 10000)
+    }
+
+    fetchTracking()
+    const interval = setInterval(fetchTracking, 5000)
     return () => clearInterval(interval)
-  }, [orderId, error])
+  }, [id, order?.status])
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh' }}>
-        <Navbar />
-        <div style={{ maxWidth: '700px', margin: '0 auto', padding: '2rem 1.5rem' }}>
-          <div style={{ height: '24px', width: '200px', background: '#f5f5f5', borderRadius: '6px', marginBottom: '2rem' }} />
-          <div style={{ height: '100px', background: '#f5f5f5', borderRadius: '14px', marginBottom: '1rem' }} />
-          <div style={{ height: '200px', background: '#f5f5f5', borderRadius: '14px' }} />
-        </div>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      Loading...
+    </div>
+  )
 
-  if (error || !order) {
-    return (
-      <div style={{ minHeight: '100vh' }}>
-        <Navbar />
-        <div style={{ textAlign: 'center', padding: '6rem 1rem' }}>
-          <span style={{ fontSize: '4rem', display: 'block', marginBottom: '1rem' }}>😕</span>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Order not found</h1>
-          <p style={{ color: '#888', marginBottom: '2rem' }}>The order you are looking for does not exist.</p>
-          <Link href="/orders" style={{
-            background: '#FF1493', color: 'white', padding: '0.75rem 2rem',
-            borderRadius: '10px', fontWeight: 600, display: 'inline-block',
-          }}>
-            My Orders
-          </Link>
-        </div>
-      </div>
-    )
-  }
+  if (!order) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontSize: 48 }}>🔍</div>
+      <h1 style={{ fontSize: 20, fontWeight: 700 }}>Order Not Found</h1>
+      <Link href="/" style={{ color: '#FF8C00', fontWeight: 600 }}>Back to Home</Link>
+    </div>
+  )
 
-  const currentStepIndex = PROGRESS_STEPS.indexOf(order.status)
-  const isCancelled = order.status === 'cancelled'
+  const statusInfo = STATUS_LABELS[order.status] || STATUS_LABELS.pending
+  const shopLat = order.shop?.lat
+  const shopLng = order.shop?.lng
+  const hasMap = tracking?.location && shopLat && shopLng
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Navbar />
+    <div style={{ maxWidth: 600, margin: '0 auto', padding: '20px 16px', minHeight: '100vh' }}>
+      <Link href="/" style={{ color: '#FF8C00', textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
+        ← Back
+      </Link>
 
-      <main style={{ flex: 1, padding: '2rem 1.5rem' }}>
-        <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            marginBottom: '2rem', flexWrap: 'wrap', gap: '0.5rem',
-          }}>
-            <div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1A1A2E' }}>
-                Order #{order.id.slice(0, 8).toUpperCase()}
-              </h1>
-              <p style={{ color: '#888', fontSize: '0.85rem' }}>
-                {new Date(order.created_at).toLocaleDateString('en-US', {
-                  month: 'long', day: 'numeric', year: 'numeric',
-                  hour: '2-digit', minute: '2-digit',
-                })}
-              </p>
-            </div>
-            <OrderStatusBadge status={order.status} />
+      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E', marginTop: 16, marginBottom: 4 }}>
+        Track Order
+      </h1>
+      <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>
+        #{id.slice(0, 8)}
+      </p>
+
+      {/* Status Badge */}
+      <div style={{
+        background: `${statusInfo.color}15`,
+        borderRadius: 12, padding: 20, textAlign: 'center',
+        border: `1px solid ${statusInfo.color}30`, marginBottom: 20,
+      }}>
+        <div style={{ fontSize: 32, marginBottom: 8 }}>{statusInfo.icon}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: statusInfo.color }}>{statusInfo.label}</div>
+        {tracking?.estimated_duration_min && (
+          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
+            Est. {tracking.estimated_duration_min} min
           </div>
+        )}
+      </div>
 
-          {/* Progress Bar */}
-          {!isCancelled && (
-            <div style={{
-              background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
-              padding: '1.5rem', marginBottom: '1.5rem',
-            }}>
-              <h3 style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '1.25rem', color: '#1A1A2E' }}>
-                Order Progress
-              </h3>
-              <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between' }}>
-                {/* Background line */}
-                <div style={{
-                  position: 'absolute', top: '12px', left: '12px', right: '12px',
-                  height: '3px', background: '#f0f0f0', zIndex: 0,
-                }} />
-                {/* Active line */}
-                <div style={{
-                  position: 'absolute', top: '12px', left: '12px',
-                  width: `${Math.max(0, currentStepIndex / (PROGRESS_STEPS.length - 1)) * (100 - (24 / 7))}%`,
-                  height: '3px', background: '#FF1493', zIndex: 1,
-                  transition: 'width 0.5s ease',
-                }} />
+      {/* Live Map */}
+      {hasMap && (
+        <div style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 20, height: 250, border: '1px solid #FFE8D6' }}>
+          <DeliveryMap
+            shopLat={shopLat}
+            shopLng={shopLng}
+            customerLat={order.delivery_lat}
+            customerLng={order.delivery_lng}
+            driverLat={tracking.location.lat}
+            driverLng={tracking.location.lng}
+          />
+        </div>
+      )}
 
-                {PROGRESS_STEPS.map((step, i) => {
-                  const isActive = i <= currentStepIndex
-                  const isCurrent = i === currentStepIndex
-                  return (
-                    <div key={step} style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center',
-                      position: 'relative', zIndex: 2, flex: 1,
-                    }}>
-                      <div style={{
-                        width: '26px', height: '26px', borderRadius: '50%',
-                        background: isActive ? '#FF1493' : 'white',
-                        border: isActive ? 'none' : '2px solid #ddd',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: isCurrent ? '0 0 0 4px rgba(255, 20, 147, 0.2)' : 'none',
-                        transition: 'all 0.3s',
-                      }}>
-                        {isActive && (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                          </svg>
-                        )}
-                      </div>
-                      <span style={{
-                        fontSize: '0.65rem', color: isActive ? '#FF1493' : '#888',
-                        fontWeight: isActive ? 600 : 400,
-                        textAlign: 'center', marginTop: '0.4rem',
-                        maxWidth: '60px', lineHeight: 1.2,
-                      }}>
-                        {ORDER_STATUS_LABELS[step]}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {isCancelled && (
-            <div style={{
-              background: '#F8D7DA', borderRadius: '14px', padding: '1.25rem',
-              marginBottom: '1.5rem', textAlign: 'center',
-            }}>
-              <p style={{ color: '#721C24', fontWeight: 600 }}>This order has been cancelled.</p>
-            </div>
-          )}
-
-          {/* Order Items */}
+      {/* Driver Info */}
+      {tracking?.driver && (
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: 16,
+          border: '1px solid #FFE8D6', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
           <div style={{
-            background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
-            padding: '1.5rem', marginBottom: '1.5rem',
+            width: 44, height: 44, borderRadius: '50%', background: '#FF8C00',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 20, fontWeight: 700,
           }}>
-            <h3 style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '1rem', color: '#1A1A2E' }}>
-              Order Items
-              {order.shop && (
-                <span style={{ fontWeight: 400, color: '#888', fontSize: '0.9rem', marginLeft: '0.5rem' }}>
-                  from {order.shop.name}
-                </span>
-              )}
-            </h3>
-
-            {order.items?.map(item => (
-              <div key={item.id} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '0.6rem 0', borderBottom: '1px solid #f8f8f8',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{
-                    width: '40px', height: '40px', borderRadius: '8px', flexShrink: 0,
-                    background: item.image_url
-                      ? `url(${item.image_url}) center/cover no-repeat`
-                      : 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {!item.image_url && <span style={{ fontSize: '1rem' }}>🍩</span>}
-                  </div>
-                  <div>
-                    <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>{item.name}</span>
-                    <span style={{ color: '#888', fontSize: '0.8rem', marginLeft: '0.5rem' }}>x{item.quantity}</span>
-                  </div>
-                </div>
-                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>${(item.price * item.quantity).toFixed(2)}</span>
-              </div>
-            ))}
-
-            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
-                <span style={{ color: '#666' }}>Subtotal</span>
-                <span>${order.subtotal.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
-                <span style={{ color: '#666' }}>Delivery Fee</span>
-                <span>${order.delivery_fee.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
-                <span style={{ color: '#666' }}>Service Fee</span>
-                <span>${order.service_fee.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
-                <span style={{ color: '#666' }}>Tip</span>
-                <span>${order.tip.toFixed(2)}</span>
-              </div>
-              <div style={{
-                display: 'flex', justifyContent: 'space-between',
-                borderTop: '1px solid #f0f0f0', paddingTop: '0.6rem', marginTop: '0.4rem',
-              }}>
-                <span style={{ fontWeight: 700, fontSize: '1.05rem' }}>Total</span>
-                <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#FF1493' }}>
-                  ${order.total.toFixed(2)}
-                </span>
-              </div>
-            </div>
+            {tracking.driver.name?.[0] || '?'}
           </div>
-
-          {/* Delivery Address */}
-          <div style={{
-            background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
-            padding: '1.5rem', marginBottom: '1.5rem',
-          }}>
-            <h3 style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.75rem', color: '#1A1A2E' }}>
-              Delivery Address
-            </h3>
-            <p style={{ color: '#666', fontSize: '0.9rem' }}>{order.delivery_address}</p>
-            {order.delivery_city && (
-              <p style={{ color: '#666', fontSize: '0.9rem' }}>{order.delivery_city}</p>
-            )}
-            {order.delivery_instructions && (
-              <p style={{ color: '#888', fontSize: '0.85rem', marginTop: '0.5rem', fontStyle: 'italic' }}>
-                Note: {order.delivery_instructions}
-              </p>
-            )}
-          </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <Link href="/orders" style={{
-              color: '#FF1493', fontWeight: 600, fontSize: '0.95rem',
-            }}>
-              &larr; Back to Orders
-            </Link>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{tracking.driver.name}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>Your delivery driver</div>
           </div>
         </div>
-      </main>
+      )}
+
+      {/* Order Items */}
+      <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #FFE8D6' }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>ORDER DETAILS</h3>
+        {order.items?.map((item: any) => (
+          <div key={item.id} style={{
+            display: 'flex', justifyContent: 'space-between', padding: '8px 0',
+            borderBottom: '1px solid #f5f5f5',
+          }}>
+            <span style={{ fontSize: 14 }}>{item.name} x{item.quantity}</span>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>${(item.price * item.quantity).toFixed(2)}</span>
+          </div>
+        ))}
+        <div style={{ borderTop: '1px solid #eee', marginTop: 8, paddingTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16 }}>
+            <span>Total</span>
+            <span style={{ color: '#FF8C00' }}>${order.total?.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

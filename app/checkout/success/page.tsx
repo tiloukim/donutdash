@@ -1,12 +1,20 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { useCart } from '@/lib/cart-context'
 
 export default function CheckoutSuccessPage() {
+  return (
+    <Suspense>
+      <SuccessContent />
+    </Suspense>
+  )
+}
+
+function SuccessContent() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get('order_id') || ''
   const { clearCart } = useCart()
@@ -14,6 +22,16 @@ export default function CheckoutSuccessPage() {
   useEffect(() => {
     clearCart()
   }, [clearCart])
+
+  // Confirm the order and trigger driver auto-assignment
+  useEffect(() => {
+    if (!orderId) return
+    fetch('/api/checkout/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId }),
+    }).catch(() => {})
+  }, [orderId])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -30,7 +48,7 @@ export default function CheckoutSuccessPage() {
           </h1>
 
           <p style={{ color: '#666', fontSize: '1.05rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-            Your order has been confirmed and is being prepared. You will receive updates on your delivery status.
+            Your order has been confirmed and we&apos;re finding a driver for you now. You&apos;ll see live tracking once a driver accepts.
           </p>
 
           {orderId && (
@@ -50,6 +68,7 @@ export default function CheckoutSuccessPage() {
               <Link href={`/orders/${orderId}`} style={{
                 background: '#FF1493', color: 'white', padding: '0.85rem 2rem',
                 borderRadius: '10px', fontWeight: 700, fontSize: '0.95rem',
+                textDecoration: 'none',
               }}>
                 Track Order
               </Link>
@@ -57,7 +76,7 @@ export default function CheckoutSuccessPage() {
             <Link href="/shops" style={{
               background: 'white', color: '#FF1493', padding: '0.85rem 2rem',
               borderRadius: '10px', fontWeight: 700, fontSize: '0.95rem',
-              border: '2px solid #FF1493',
+              border: '2px solid #FF1493', textDecoration: 'none',
             }}>
               Continue Browsing
             </Link>
