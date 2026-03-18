@@ -16,7 +16,7 @@ export async function GET() {
       .select(`
         *,
         customer:dd_users!customer_id(name, email),
-        shop:dd_shops!shop_id(name),
+        shop:dd_shops!shop_id(name, lat, lng),
         items:dd_order_items(name, price, quantity),
         delivery:dd_deliveries(driver_earnings, driver_id, status, base_pay, distance_miles, driver:dd_users!driver_id(name))
       `)

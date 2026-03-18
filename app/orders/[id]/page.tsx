@@ -244,7 +244,9 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
   const statusInfo = STATUS_LABELS[order.status] || STATUS_LABELS.pending
   const shopLat = order.shop?.lat
   const shopLng = order.shop?.lng
-  const hasMap = tracking?.location && shopLat && shopLng
+  // Customer sees driver map only from picked_up onwards
+  const trackableForCustomer = ['picked_up', 'delivering']
+  const hasMap = tracking?.location && shopLat && shopLng && trackableForCustomer.includes(order.status)
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: '20px 16px', minHeight: '100vh' }}>

@@ -1,8 +1,18 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import dynamic from 'next/dynamic'
+
+const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
 const FILTERS = ['all', 'pending', 'confirmed', 'preparing', 'ready_for_pickup']
+const TRACKABLE_STATUSES = ['confirmed', 'preparing', 'ready_for_pickup']
+
+interface TrackingData {
+  delivery_status: string
+  driver: { name: string }
+  location: { lat: number; lng: number }
+}
 
 export default function ShopOrders() {
   const [orders, setOrders] = useState<any[]>([])
@@ -13,6 +23,66 @@ export default function ShopOrders() {
   const knownOrderIdsRef = useRef<Set<string>>(new Set())
   const isFirstLoadRef = useRef(true)
   const alertAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Tracking state
+  const [expandedTracking, setExpandedTracking] = useState<Set<string>>(new Set())
+  const [trackingData, setTrackingData] = useState<Record<string, TrackingData | null>>({})
+  const [shopLocation, setShopLocation] = useState<{ lat: number; lng: number } | null>(null)
+
+  // Fetch shop settings for lat/lng on mount
+  useEffect(() => {
+    const fetchShopSettings = async () => {
+      try {
+        const res = await fetch('/api/shop/settings')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.lat && data.lng) {
+            setShopLocation({ lat: data.lat, lng: data.lng })
+          }
+        }
+      } catch {
+        // Shop settings not available
+      }
+    }
+    fetchShopSettings()
+  }, [])
+
+  // Poll driver tracking for expanded orders
+  useEffect(() => {
+    if (expandedTracking.size === 0) return
+
+    const fetchTracking = async () => {
+      for (const orderId of expandedTracking) {
+        try {
+          const res = await fetch(`/api/driver/track/${orderId}`)
+          if (res.ok) {
+            const data = await res.json()
+            setTrackingData(prev => ({ ...prev, [orderId]: data }))
+          } else {
+            setTrackingData(prev => ({ ...prev, [orderId]: null }))
+          }
+        } catch {
+          setTrackingData(prev => ({ ...prev, [orderId]: null }))
+        }
+      }
+    }
+
+    fetchTracking()
+    const interval = setInterval(fetchTracking, 5000)
+    return () => clearInterval(interval)
+  }, [expandedTracking])
+
+  const toggleTracking = (orderId: string) => {
+    setExpandedTracking(prev => {
+      const next = new Set(prev)
+      if (next.has(orderId)) {
+        next.delete(orderId)
+      } else {
+        next.add(orderId)
+      }
+      return next
+    })
+  }
 
   // Request notification permission on mount
   useEffect(() => {
@@ -163,36 +233,150 @@ export default function ShopOrders() {
         <div style={{ background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', color: '#888', border: '1px solid #FFE4EF' }}>No orders found</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {orders.map((o: any) => (
-            <div key={o.id} style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #FFE4EF' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <div>
-                  <span style={{ fontWeight: 700, color: '#FF1493' }}>#{o.id.slice(0, 8)}</span>
-                  <span style={{ marginLeft: 12, fontSize: 13, color: '#888' }}>{new Date(o.created_at).toLocaleString()}</span>
+          {orders.map((o: any) => {
+            const isTrackable = TRACKABLE_STATUSES.includes(o.status)
+            const isExpanded = expandedTracking.has(o.id)
+            const tracking = trackingData[o.id]
+
+            return (
+              <div key={o.id} style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #FFE4EF' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div>
+                    <span style={{ fontWeight: 700, color: '#FF1493' }}>#{o.id.slice(0, 8)}</span>
+                    <span style={{ marginLeft: 12, fontSize: 13, color: '#888' }}>{new Date(o.created_at).toLocaleString()}</span>
+                  </div>
+                  <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: o.status === 'pending' ? '#FEF3C7' : o.status === 'confirmed' ? '#DBEAFE' : o.status === 'preparing' ? '#E0E7FF' : '#D1FAE5', color: o.status === 'pending' ? '#92400E' : o.status === 'confirmed' ? '#1E40AF' : o.status === 'preparing' ? '#3730A3' : '#065F46' }}>
+                    {o.status.replace(/_/g, ' ')}
+                  </span>
                 </div>
-                <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: o.status === 'pending' ? '#FEF3C7' : o.status === 'confirmed' ? '#DBEAFE' : o.status === 'preparing' ? '#E0E7FF' : '#D1FAE5', color: o.status === 'pending' ? '#92400E' : o.status === 'confirmed' ? '#1E40AF' : o.status === 'preparing' ? '#3730A3' : '#065F46' }}>
-                  {o.status.replace(/_/g, ' ')}
-                </span>
-              </div>
-              <div style={{ fontSize: 14, marginBottom: 8 }}>
-                <strong>Customer:</strong> {o.customer?.name || 'N/A'} &bull; <strong>Address:</strong> {o.delivery_address}
-              </div>
-              <div style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
-                {o.items?.map((item: any, i: number) => <span key={i}>{item.name} x{item.quantity}{i < o.items.length - 1 ? ', ' : ''}</span>)}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 700, color: '#10B981', fontSize: 16 }}>${o.total.toFixed(2)}</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {o.status === 'pending' && <>
-                    <button onClick={() => updateStatus(o.id, 'confirmed')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}>Accept</button>
-                    <button onClick={() => updateStatus(o.id, 'cancelled')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', border: 'none', cursor: 'pointer' }}>Reject</button>
-                  </>}
-                  {o.status === 'confirmed' && <button onClick={() => updateStatus(o.id, 'preparing')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>Start Preparing</button>}
-                  {o.status === 'preparing' && <button onClick={() => updateStatus(o.id, 'ready_for_pickup')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer' }}>Ready for Pickup</button>}
+                <div style={{ fontSize: 14, marginBottom: 8 }}>
+                  <strong>Customer:</strong> {o.customer?.name || 'N/A'} &bull; <strong>Address:</strong> {o.delivery_address}
                 </div>
+                <div style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
+                  {o.items?.map((item: any, i: number) => <span key={i}>{item.name} x{item.quantity}{i < o.items.length - 1 ? ', ' : ''}</span>)}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, color: '#10B981', fontSize: 16 }}>${o.total.toFixed(2)}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {o.status === 'pending' && <>
+                      <button onClick={() => updateStatus(o.id, 'confirmed')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}>Accept</button>
+                      <button onClick={() => updateStatus(o.id, 'cancelled')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', border: 'none', cursor: 'pointer' }}>Reject</button>
+                    </>}
+                    {o.status === 'confirmed' && <button onClick={() => updateStatus(o.id, 'preparing')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>Start Preparing</button>}
+                    {o.status === 'preparing' && <button onClick={() => updateStatus(o.id, 'ready_for_pickup')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer' }}>Ready for Pickup</button>}
+                  </div>
+                </div>
+
+                {/* Driver Tracking Section */}
+                {isTrackable && (
+                  <div style={{ marginTop: 12, borderTop: '1px solid #FFE4EF', paddingTop: 12 }}>
+                    <button
+                      onClick={() => toggleTracking(o.id)}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        background: isExpanded ? '#FF1493' : '#FFF0F5',
+                        color: isExpanded ? '#fff' : '#FF1493',
+                        border: '1px solid #FF1493',
+                        cursor: 'pointer',
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      {isExpanded ? 'Hide Driver Tracking' : 'Track Driver'}
+                      <span style={{ fontSize: 10 }}>{isExpanded ? '▲' : '▼'}</span>
+                    </button>
+
+                    {isExpanded && (
+                      <div style={{ marginTop: 12 }}>
+                        {!shopLocation ? (
+                          <div style={{
+                            padding: 20,
+                            textAlign: 'center',
+                            color: '#888',
+                            fontSize: 13,
+                            background: '#FFF0F5',
+                            borderRadius: 8,
+                          }}>
+                            Loading shop location...
+                          </div>
+                        ) : tracking === null ? (
+                          <div style={{
+                            padding: 20,
+                            textAlign: 'center',
+                            color: '#888',
+                            fontSize: 13,
+                            background: '#FFF0F5',
+                            borderRadius: 8,
+                          }}>
+                            No driver assigned yet. Waiting for driver...
+                          </div>
+                        ) : tracking === undefined ? (
+                          <div style={{
+                            padding: 20,
+                            textAlign: 'center',
+                            color: '#888',
+                            fontSize: 13,
+                            background: '#FFF0F5',
+                            borderRadius: 8,
+                          }}>
+                            Loading tracking data...
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{
+                              borderRadius: 10,
+                              overflow: 'hidden',
+                              border: '2px solid #FF1493',
+                              height: 280,
+                            }}>
+                              <DeliveryMap
+                                shopLat={shopLocation.lat}
+                                shopLng={shopLocation.lng}
+                                driverLat={tracking.location?.lat}
+                                driverLng={tracking.location?.lng}
+                              />
+                            </div>
+                            <div style={{
+                              marginTop: 10,
+                              padding: '10px 14px',
+                              background: '#FFF0F5',
+                              borderRadius: 8,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: 13,
+                            }}>
+                              <div>
+                                <span style={{ fontWeight: 700, color: '#FF1493' }}>Driver: </span>
+                                <span style={{ color: '#333' }}>{tracking.driver?.name || 'Unknown'}</span>
+                              </div>
+                              <span style={{
+                                padding: '3px 10px',
+                                borderRadius: 12,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                background: '#FFE4EF',
+                                color: '#FF1493',
+                                textTransform: 'capitalize',
+                              }}>
+                                {tracking.delivery_status?.replace(/_/g, ' ') || 'En route'}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

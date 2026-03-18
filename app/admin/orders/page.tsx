@@ -1,7 +1,10 @@
 'use client'
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { ORDER_STATUS_LABELS, SHOP_COMMISSION_RATE } from '@/lib/constants'
+
+const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
 interface OrderItem {
   name: string
@@ -27,7 +30,7 @@ interface OrderRow {
   delivery_address: string
   created_at: string
   customer: { name: string; email: string } | null
-  shop: { name: string } | null
+  shop: { name: string; lat: number | null; lng: number | null } | null
   items: OrderItem[]
   delivery: DeliveryInfo[]
 }
@@ -41,6 +44,103 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   delivering: { bg: '#EDE9FE', text: '#5B21B6' },
   delivered: { bg: '#D1FAE5', text: '#065F46' },
   cancelled: { bg: '#FEE2E2', text: '#991B1B' },
+}
+
+const ACTIVE_DELIVERY_STATUSES = ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'delivering']
+
+interface TrackingData {
+  delivery_status: string
+  driver: { name: string; avatar_url?: string } | null
+  location: { lat: number; lng: number; updated_at?: string } | null
+}
+
+function DriverTracker({ orderId, shop }: { orderId: string; shop: { lat: number | null; lng: number | null } | null }) {
+  const [tracking, setTracking] = useState<TrackingData | null>(null)
+  const [error, setError] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const fetchTracking = useCallback(() => {
+    fetch(`/api/driver/track/${orderId}`)
+      .then(r => {
+        if (!r.ok) throw new Error()
+        return r.json()
+      })
+      .then(data => { setTracking(data); setError(false) })
+      .catch(() => setError(true))
+  }, [orderId])
+
+  useEffect(() => {
+    fetchTracking()
+    intervalRef.current = setInterval(fetchTracking, 5000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [fetchTracking])
+
+  if (error || !tracking) return null
+  if (!shop?.lat || !shop?.lng) return null
+
+  const statusLabel = ORDER_STATUS_LABELS[tracking.delivery_status] || tracking.delivery_status || '-'
+  const lastUpdated = tracking.location?.updated_at
+    ? new Date(tracking.location.updated_at).toLocaleString('en-US', {
+        hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
+      })
+    : null
+
+  return (
+    <div style={{ flex: '1 1 100%', marginTop: 16 }}>
+      <div style={{
+        fontSize: 12, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase',
+        letterSpacing: 0.5, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: '50%', background: '#22C55E',
+          display: 'inline-block', animation: 'pulse 2s infinite',
+        }} />
+        Live Driver Tracking
+      </div>
+      <div style={{
+        display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap',
+      }}>
+        <div style={{
+          flex: '1 1 400px', height: 300, borderRadius: 10,
+          overflow: 'hidden', border: '2px solid #6366F1',
+        }}>
+          <DeliveryMap
+            shopLat={shop.lat}
+            shopLng={shop.lng}
+            driverLat={tracking.location?.lat}
+            driverLng={tracking.location?.lng}
+          />
+        </div>
+        <div style={{
+          flex: '0 1 220px', background: '#fff', borderRadius: 10,
+          border: '1px solid #E5E7EB', padding: 16,
+        }}>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 2 }}>DRIVER</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
+              {tracking.driver?.name || 'Unknown'}
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 2 }}>DELIVERY STATUS</div>
+            <span style={{
+              display: 'inline-block', padding: '3px 10px', borderRadius: 20,
+              fontSize: 11, fontWeight: 600, background: '#EEF2FF', color: '#6366F1',
+            }}>
+              {statusLabel}
+            </span>
+          </div>
+          {lastUpdated && (
+            <div>
+              <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 2 }}>LAST UPDATED</div>
+              <div style={{ fontSize: 13, color: '#374151' }}>{lastUpdated}</div>
+            </div>
+          )}
+        </div>
+      </div>
+      <style>{`@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+    </div>
+  )
 }
 
 function SummaryCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -239,6 +339,11 @@ export default function AdminOrders() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* Live Driver Tracking */}
+                            {ACTIVE_DELIVERY_STATUSES.includes(order.status) && (
+                              <DriverTracker orderId={order.id} shop={order.shop} />
+                            )}
                           </div>
                         </td>
                       </tr>
