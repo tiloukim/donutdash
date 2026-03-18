@@ -27,6 +27,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
+  // Geocode the shop address to get GPS coordinates
+  let lat: number | null = null
+  let lng: number | null = null
+  try {
+    const fullAddress = `${address}, ${city}, ${state} ${zip}`
+    const geoRes = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
+      { headers: { 'User-Agent': 'DonutDash/1.0' } }
+    )
+    const geoData = await geoRes.json()
+    if (geoData?.[0]) {
+      lat = parseFloat(geoData[0].lat)
+      lng = parseFloat(geoData[0].lon)
+    }
+  } catch {
+    // Geocoding failed — shop can set location manually later
+  }
+
   // Generate slug from name
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
@@ -43,6 +61,8 @@ export async function POST(req: Request) {
     city,
     state,
     zip,
+    lat,
+    lng,
     phone: phone || null,
     is_active: true,
   }).select().single()
