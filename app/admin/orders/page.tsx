@@ -173,7 +173,7 @@ export default function AdminOrders() {
                         </span>
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: '#6B7280', whiteSpace: 'nowrap' }}>
-                        {new Date(order.created_at).toLocaleDateString()}
+                        {new Date(order.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                       </td>
                     </tr>
 
