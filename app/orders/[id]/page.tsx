@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, use } from 'react'
+import { useState, useEffect, useRef, use, useCallback } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
@@ -27,6 +27,36 @@ const STATUS_MESSAGES: Record<string, string> = {
   cancelled: 'Your order has been cancelled.',
 }
 
+function StarRating({ value, onChange, label }: { value: number; onChange: (v: number) => void; label: string }) {
+  const [hover, setHover] = useState(0)
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6 }}>{label}</div>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {[1, 2, 3, 4, 5].map(star => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => onChange(star)}
+            onMouseEnter={() => setHover(star)}
+            onMouseLeave={() => setHover(0)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 2,
+              fontSize: 28, lineHeight: 1, transition: 'transform 0.15s',
+              transform: (hover === star) ? 'scale(1.2)' : 'scale(1)',
+              color: star <= (hover || value) ? '#FF1493' : '#ddd',
+              filter: star <= (hover || value) ? 'drop-shadow(0 1px 2px rgba(255,20,147,0.3))' : 'none',
+            }}
+            aria-label={`${star} star`}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function OrderTrackingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [order, setOrder] = useState<any>(null)
@@ -35,6 +65,63 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
   const [statusUpdate, setStatusUpdate] = useState<string | null>(null)
   const prevStatusRef = useRef<string | null>(null)
   const alertAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Review state
+  const [shopRating, setShopRating] = useState(0)
+  const [driverRating, setDriverRating] = useState(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewSubmitted, setReviewSubmitted] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
+  const [existingReview, setExistingReview] = useState<any>(null)
+
+  // Fetch existing review when order is delivered
+  const fetchReview = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/orders/${id}/review`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.review) {
+          setExistingReview(data.review)
+          setShopRating(data.review.shop_rating)
+          setDriverRating(data.review.driver_rating)
+          setReviewComment(data.review.comment || '')
+          setReviewSubmitted(true)
+        }
+      }
+    } catch {}
+  }, [id])
+
+  const submitReview = async () => {
+    if (shopRating === 0 || driverRating === 0) {
+      setReviewError('Please rate both the shop and the driver.')
+      return
+    }
+    setReviewSubmitting(true)
+    setReviewError(null)
+    try {
+      const res = await fetch(`/api/orders/${id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop_rating: shopRating,
+          driver_rating: driverRating,
+          comment: reviewComment,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setReviewSubmitted(true)
+        setExistingReview(data.review)
+      } else {
+        setReviewError(data.error || 'Failed to submit review.')
+      }
+    } catch {
+      setReviewError('Network error. Please try again.')
+    } finally {
+      setReviewSubmitting(false)
+    }
+  }
 
   // Request notification permission
   useEffect(() => {
@@ -71,6 +158,13 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
       })
       .finally(() => setLoading(false))
   }, [id])
+
+  // Fetch existing review when order is delivered
+  useEffect(() => {
+    if (order?.status === 'delivered') {
+      fetchReview()
+    }
+  }, [order?.status, fetchReview])
 
   // Poll for order status updates and driver tracking
   useEffect(() => {
@@ -296,6 +390,101 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </div>
+
+      {/* Review Section - only shown when delivered */}
+      {order.status === 'delivered' && (
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: 20,
+          border: '1px solid #FFB6C1', marginTop: 20,
+          boxShadow: '0 2px 12px rgba(255, 20, 147, 0.08)',
+        }}>
+          {reviewSubmitted ? (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FF1493', marginBottom: 8 }}>
+                Thank you for your review!
+              </h3>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Shop</div>
+                  <div style={{ color: '#FF1493', fontSize: 20, letterSpacing: 2 }}>
+                    {'★'.repeat(shopRating)}{'☆'.repeat(5 - shopRating)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Driver</div>
+                  <div style={{ color: '#FF1493', fontSize: 20, letterSpacing: 2 }}>
+                    {'★'.repeat(driverRating)}{'☆'.repeat(5 - driverRating)}
+                  </div>
+                </div>
+              </div>
+              {reviewComment && (
+                <p style={{ fontSize: 13, color: '#666', marginTop: 12, fontStyle: 'italic' }}>
+                  &ldquo;{reviewComment}&rdquo;
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#FF1493', marginBottom: 4 }}>
+                Rate Your Experience
+              </h3>
+              <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>
+                How was your order? Your feedback helps us improve.
+              </p>
+
+              <StarRating value={shopRating} onChange={setShopRating} label="Shop Rating" />
+              <StarRating value={driverRating} onChange={setDriverRating} label="Driver Rating" />
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6 }}>
+                  Comments (optional)
+                </div>
+                <textarea
+                  value={reviewComment}
+                  onChange={e => setReviewComment(e.target.value)}
+                  placeholder="Tell us about your experience..."
+                  maxLength={500}
+                  style={{
+                    width: '100%', minHeight: 80, borderRadius: 8,
+                    border: '1px solid #FFB6C1', padding: '10px 12px',
+                    fontSize: 14, resize: 'vertical', outline: 'none',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#FF1493' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#FFB6C1' }}
+                />
+              </div>
+
+              {reviewError && (
+                <div style={{
+                  background: '#FFF0F5', color: '#FF1493', borderRadius: 8,
+                  padding: '8px 12px', fontSize: 13, marginBottom: 12,
+                  border: '1px solid #FFB6C1',
+                }}>
+                  {reviewError}
+                </div>
+              )}
+
+              <button
+                onClick={submitReview}
+                disabled={reviewSubmitting || shopRating === 0 || driverRating === 0}
+                style={{
+                  width: '100%', padding: '12px 0', borderRadius: 10,
+                  background: (shopRating > 0 && driverRating > 0) ? '#FF1493' : '#FFB6C1',
+                  color: '#fff', fontWeight: 700, fontSize: 15,
+                  border: 'none', cursor: (shopRating > 0 && driverRating > 0) ? 'pointer' : 'not-allowed',
+                  opacity: reviewSubmitting ? 0.7 : 1,
+                  transition: 'background 0.2s, opacity 0.2s',
+                }}
+              >
+                {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

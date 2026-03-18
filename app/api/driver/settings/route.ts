@@ -10,7 +10,12 @@ export async function GET() {
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  return NextResponse.json({ name: ddUser.name, phone: ddUser.phone, email: ddUser.email })
+  return NextResponse.json({
+    name: ddUser.name,
+    phone: ddUser.phone,
+    email: ddUser.email,
+    avatar_url: ddUser.avatar_url || '',
+  })
 }
 
 export async function PUT(req: Request) {
@@ -22,15 +27,25 @@ export async function PUT(req: Request) {
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { name, phone } = await req.json()
+  const { name, phone, avatar_url } = await req.json()
 
   const { data, error } = await svc.from('dd_users')
-    .update({ name, phone, updated_at: new Date().toISOString() })
+    .update({
+      name,
+      phone,
+      avatar_url: avatar_url || null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', ddUser.id)
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ name: data.name, phone: data.phone, email: data.email })
+  return NextResponse.json({
+    name: data.name,
+    phone: data.phone,
+    email: data.email,
+    avatar_url: data.avatar_url || '',
+  })
 }

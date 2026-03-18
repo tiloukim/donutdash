@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
       delivery_city,
       delivery_instructions,
       tip,
+      promo_code,
+      promo_discount,
     } = body
 
     if (!shopId || !items || items.length === 0 || !delivery_address) {
@@ -93,7 +95,8 @@ export async function POST(request: NextRequest) {
     const tax = Math.round(subtotal * shopTaxRate * 100) / 100
     const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
     const tipAmount = tip || 0
-    const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount) * 100) / 100
+    const promoDiscount = promo_discount && promo_discount > 0 ? Math.round(promo_discount * 100) / 100 : 0
+    const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100
 
     // Create the order in Supabase
     const { data: order, error: orderError } = await supabase
@@ -114,6 +117,8 @@ export async function POST(request: NextRequest) {
         delivery_lat: deliveryLat,
         delivery_lng: deliveryLng,
         delivery_instructions: delivery_instructions || null,
+        promo_code: promo_code || null,
+        promo_discount: promoDiscount || 0,
       })
       .select()
       .single()
@@ -194,6 +199,18 @@ export async function POST(request: NextRequest) {
         currency: 'USD',
       },
     })
+
+    // Add promo discount (as negative line item)
+    if (promoDiscount > 0) {
+      squareLineItems.push({
+        name: `Promo: ${promo_code || 'Discount'}`,
+        quantity: '1',
+        basePriceMoney: {
+          amount: BigInt(-Math.round(promoDiscount * 100)),
+          currency: 'USD',
+        },
+      })
+    }
 
     // Add tip
     if (tipAmount > 0) {

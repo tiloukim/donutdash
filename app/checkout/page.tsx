@@ -21,6 +21,19 @@ export default function CheckoutPage() {
   const [error, setError] = useState('')
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
 
+  // Promo code state
+  const [promoInput, setPromoInput] = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [promoError, setPromoError] = useState('')
+  const [promoApplied, setPromoApplied] = useState<{
+    code: string
+    discount_type: 'percent' | 'fixed' | 'free_delivery'
+    discount_value: number
+    description: string
+    min_order: number
+    max_discount: number | null
+  } | null>(null)
+
   useEffect(() => {
     if (!shopId) return
     fetch(`/api/shops/${shopId}`)
@@ -42,7 +55,69 @@ export default function CheckoutPage() {
   const serviceFee = Math.round(total * (shopFees.service_fee_pct / 100) * 100) / 100
   const tax = Math.round(total * (shopFees.tax_rate / 100) * 100) / 100
   const tip = tipParam
-  const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + tip) * 100) / 100
+
+  // Calculate promo discount
+  let promoDiscount = 0
+  if (promoApplied) {
+    if (promoApplied.discount_type === 'percent') {
+      promoDiscount = Math.round(total * (promoApplied.discount_value / 100) * 100) / 100
+      if (promoApplied.max_discount && promoDiscount > promoApplied.max_discount) {
+        promoDiscount = promoApplied.max_discount
+      }
+    } else if (promoApplied.discount_type === 'fixed') {
+      promoDiscount = promoApplied.discount_value
+    } else if (promoApplied.discount_type === 'free_delivery') {
+      promoDiscount = deliveryFee
+    }
+  }
+
+  const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + tip - promoDiscount) * 100) / 100
+
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) {
+      setPromoError('Please enter a promo code')
+      return
+    }
+    setPromoLoading(true)
+    setPromoError('')
+    try {
+      const res = await fetch('/api/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoInput.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.valid) {
+        setPromoError(data.error || 'Invalid promo code')
+        setPromoApplied(null)
+        return
+      }
+      if (data.min_order && total < data.min_order) {
+        setPromoError(`Minimum order of $${data.min_order.toFixed(2)} required`)
+        setPromoApplied(null)
+        return
+      }
+      setPromoApplied({
+        code: promoInput.trim().toUpperCase(),
+        discount_type: data.discount_type,
+        discount_value: data.discount_value,
+        description: data.description,
+        min_order: data.min_order,
+        max_discount: data.max_discount,
+      })
+      setPromoError('')
+    } catch {
+      setPromoError('Failed to validate promo code')
+    } finally {
+      setPromoLoading(false)
+    }
+  }
+
+  const handleRemovePromo = () => {
+    setPromoApplied(null)
+    setPromoInput('')
+    setPromoError('')
+  }
 
   if (count === 0) {
     return (
@@ -113,6 +188,8 @@ export default function CheckoutPage() {
           delivery_city: city,
           delivery_instructions: instructions || null,
           tip,
+          promo_code: promoApplied?.code || null,
+          promo_discount: promoDiscount || 0,
         }),
       })
 
@@ -192,6 +269,80 @@ export default function CheckoutPage() {
             </div>
           </div>
 
+          {/* Promo Code */}
+          <div style={{
+            background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
+            padding: '1.5rem', marginBottom: '1.5rem',
+          }}>
+            <h3 style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '1rem', color: '#1A1A2E' }}>
+              Promo Code
+            </h3>
+            {promoApplied ? (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: '#FFF0F5', border: '1px solid #FF1493', borderRadius: '10px',
+                padding: '0.75rem 1rem',
+              }}>
+                <div>
+                  <span style={{ fontWeight: 700, color: '#FF1493', fontSize: '0.95rem' }}>
+                    {promoApplied.code}
+                  </span>
+                  <span style={{ color: '#333', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                    — {promoApplied.description}
+                  </span>
+                </div>
+                <button
+                  onClick={handleRemovePromo}
+                  style={{
+                    background: 'none', border: 'none', color: '#FF1493',
+                    fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem',
+                    padding: '0.25rem 0.5rem',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    placeholder="Enter promo code"
+                    value={promoInput}
+                    onChange={e => { setPromoInput(e.target.value); setPromoError('') }}
+                    onKeyDown={e => { if (e.key === 'Enter') handleApplyPromo() }}
+                    style={{
+                      flex: 1, padding: '0.75rem 1rem', borderRadius: '10px',
+                      border: promoError ? '1px solid #dc3545' : '1px solid #ddd',
+                      fontSize: '0.95rem', outline: 'none', textTransform: 'uppercase',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                    onBlur={e => (e.currentTarget.style.borderColor = promoError ? '#dc3545' : '#ddd')}
+                  />
+                  <button
+                    onClick={handleApplyPromo}
+                    disabled={promoLoading}
+                    style={{
+                      background: '#FF1493', color: 'white', border: 'none',
+                      borderRadius: '10px', padding: '0.75rem 1.25rem',
+                      fontWeight: 600, fontSize: '0.95rem',
+                      cursor: promoLoading ? 'not-allowed' : 'pointer',
+                      opacity: promoLoading ? 0.7 : 1,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {promoLoading ? '...' : 'Apply'}
+                  </button>
+                </div>
+                {promoError && (
+                  <p style={{ color: '#dc3545', fontSize: '0.8rem', marginTop: '0.5rem', marginBottom: 0 }}>
+                    {promoError}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Order Summary */}
           <div style={{
             background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
@@ -237,6 +388,12 @@ export default function CheckoutPage() {
                 <span style={{ color: '#666' }}>Tip</span>
                 <span>${tip.toFixed(2)}</span>
               </div>
+              {promoDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                  <span style={{ color: '#FF1493', fontWeight: 600 }}>Promo ({promoApplied?.code})</span>
+                  <span style={{ color: '#FF1493', fontWeight: 600 }}>-${promoDiscount.toFixed(2)}</span>
+                </div>
+              )}
               <div style={{
                 display: 'flex', justifyContent: 'space-between',
                 borderTop: '1px solid #f0f0f0', paddingTop: '0.75rem', marginTop: '0.5rem',
