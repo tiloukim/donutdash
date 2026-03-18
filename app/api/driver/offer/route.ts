@@ -103,17 +103,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Accept
-  // Calculate earnings based on distance
+  // Calculate earnings based on distance + tip
   const shopLat = offer.delivery?.order?.shop?.lat
   const shopLng = offer.delivery?.order?.shop?.lng
   const dropLat = offer.delivery?.dropoff_lat
   const dropLng = offer.delivery?.dropoff_lng
-  let earnings = 4.00
+  const tip = offer.delivery?.order?.tip || 0
+  let dist = offer.delivery?.distance_miles || 2 // default 2 miles
   if (shopLat && shopLng && dropLat && dropLng) {
-    const dist = haversineDistance(shopLat, shopLng, dropLat, dropLng)
-    const tip = offer.delivery?.order?.tip || 0
-    earnings = calculateDriverEarnings(dist, tip)
+    dist = haversineDistance(shopLat, shopLng, dropLat, dropLng)
   }
+  const earnings = calculateDriverEarnings(dist, tip)
 
   // Update offer
   await svc.from('dd_delivery_offers')
