@@ -33,6 +33,37 @@ export default function ActiveDelivery() {
 
   useEffect(() => { fetchActive() }, [fetchActive])
 
+  // Keep screen awake during active delivery (prevents GPS from stopping)
+  useEffect(() => {
+    if (!delivery) return
+    let wakeLock: any = null
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await (navigator as any).wakeLock.request('screen')
+        }
+      } catch {
+        // Wake lock not supported or failed
+      }
+    }
+
+    requestWakeLock()
+
+    // Re-acquire wake lock when page becomes visible again
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      if (wakeLock) wakeLock.release().catch(() => {})
+    }
+  }, [delivery])
+
   // Heartbeat: keep driver online while on active delivery page
   useEffect(() => {
     if (!delivery) return

@@ -111,6 +111,36 @@ export default function DriverDashboard() {
     }
   }, [offer])
 
+  // Keep screen awake while online (prevents GPS from stopping)
+  useEffect(() => {
+    if (!isOnline) return
+    let wakeLock: any = null
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await (navigator as any).wakeLock.request('screen')
+        }
+      } catch {
+        // Wake lock not supported or failed
+      }
+    }
+
+    requestWakeLock()
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      if (wakeLock) wakeLock.release().catch(() => {})
+    }
+  }, [isOnline])
+
   // Countdown timer for offer
   useEffect(() => {
     if (!offer) { setCountdown(0); return }
@@ -395,6 +425,9 @@ export default function DriverDashboard() {
           <div style={{ fontSize: 40, marginBottom: 12 }}>📡</div>
           <p style={{ color: '#888', fontSize: 15 }}>Scanning for nearby orders...</p>
           <p style={{ color: '#bbb', fontSize: 12, marginTop: 8 }}>You&apos;ll be notified when a delivery is available</p>
+          <p style={{ color: '#FF8C00', fontSize: 11, marginTop: 12, background: '#FFF7ED', padding: '8px 12px', borderRadius: 8, display: 'inline-block' }}>
+            Keep this tab open to receive offers and share your GPS
+          </p>
         </div>
       )}
     </div>
