@@ -219,7 +219,7 @@ export default function CartPage() {
                 <span style={{ fontWeight: 500 }}>${total.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                <span style={{ color: '#666' }}>Delivery Fee</span>
+                <span style={{ color: '#666' }}>Delivery Fee <span style={{ fontSize: '0.75rem', color: '#aaa' }}>(varies by distance)</span></span>
                 <span style={{ fontWeight: 500 }}>${deliveryFee.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>

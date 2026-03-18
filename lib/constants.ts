@@ -1,6 +1,10 @@
 export const SERVICE_FEE_RATE = 0.15
 
-export const DEFAULT_DELIVERY_FEE = 3.99
+// Delivery fee charged to customer (base + per mile)
+// Must cover driver pay + admin margin
+export const DELIVERY_FEE_BASE = 2.99       // Flat base fee
+export const DELIVERY_FEE_PER_MILE = 0.99   // Per mile charge to customer
+export const DEFAULT_DELIVERY_FEE = 4.99     // Default when distance unknown
 
 export const MIN_ORDER_AMOUNT = 10
 
