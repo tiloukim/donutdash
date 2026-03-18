@@ -200,18 +200,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Add promo discount (as negative line item)
-    if (promoDiscount > 0) {
-      squareLineItems.push({
-        name: `Promo: ${promo_code || 'Discount'}`,
-        quantity: '1',
-        basePriceMoney: {
-          amount: BigInt(-Math.round(promoDiscount * 100)),
-          currency: 'USD',
-        },
-      })
-    }
-
     // Add tip
     if (tipAmount > 0) {
       squareLineItems.push({
@@ -224,13 +212,27 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Build Square order with optional discount
+    const squareOrder: any = {
+      locationId: process.env.SQUARE_LOCATION_ID!,
+      lineItems: squareLineItems,
+      referenceId: order.id,
+    }
+
+    if (promoDiscount > 0) {
+      squareOrder.discounts = [{
+        name: `Promo: ${promo_code || 'Discount'}`,
+        amountMoney: {
+          amount: BigInt(Math.round(promoDiscount * 100)),
+          currency: 'USD',
+        },
+        scope: 'ORDER',
+      }]
+    }
+
     const checkoutResponse = await square.checkout.paymentLinks.create({
       idempotencyKey: crypto.randomUUID(),
-      order: {
-        locationId: process.env.SQUARE_LOCATION_ID!,
-        lineItems: squareLineItems,
-        referenceId: order.id,
-      },
+      order: squareOrder,
       checkoutOptions: {
         redirectUrl: `${origin}/checkout/success?order_id=${order.id}`,
         merchantSupportEmail: ddUser.email,
