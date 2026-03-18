@@ -27,12 +27,21 @@ export async function GET() {
 
     // Recalculate driver earnings if stored as 0 or null
     const enrichedOrders = (orders || []).map(order => {
-      const delivery = (order.delivery as any)?.[0]
-      if (delivery && (!delivery.driver_earnings || delivery.driver_earnings === 0)) {
-        const basePay = delivery.base_pay || 2.50
-        const dist = delivery.distance_miles || 2
-        const tip = order.tip || 0
-        delivery.driver_earnings = Math.round((basePay + dist * 0.55 + tip) * 100) / 100
+      let delivery = (order.delivery as any)?.[0]
+      const tip = order.tip || 0
+
+      if (delivery) {
+        // Delivery exists but earnings is 0/null — recalculate
+        if (!delivery.driver_earnings || delivery.driver_earnings === 0) {
+          const basePay = delivery.base_pay || 2.50
+          const dist = delivery.distance_miles || 2
+          delivery.driver_earnings = Math.round((basePay + dist * 0.55 + tip) * 100) / 100
+        }
+      } else if (order.status !== 'cancelled' && order.status !== 'pending') {
+        // No delivery record — estimate driver pay for display
+        const dist = 2 // default estimate
+        const estimated = Math.round((2.50 + dist * 0.55 + tip) * 100) / 100
+        ;(order as any).delivery = [{ driver_earnings: estimated, driver_id: null, status: 'estimated', driver: null }]
       }
       return order
     })
