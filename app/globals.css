@@ -168,8 +168,21 @@ img {
   border-radius: 3px;
 }
 
+/* Desktop/Mobile visibility */
+.mobile-only {
+  display: none;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: flex !important;
+  }
+
   .mobile-menu-btn {
     display: block;
   }

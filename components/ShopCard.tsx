@@ -14,7 +14,7 @@ function StarRating({ rating }: { rating: number }) {
       stars.push(<span key={i} style={{ color: '#ddd' }}>&#9733;</span>)
     }
   }
-  return <span style={{ fontSize: '0.85rem' }}>{stars}</span>
+  return <span style={{ fontSize: '11px', lineHeight: 1 }}>{stars}</span>
 }
 
 export default function ShopCard({ shop }: { shop: Shop }) {
@@ -23,26 +23,14 @@ export default function ShopCard({ shop }: { shop: Shop }) {
       <div
         style={{
           background: 'white',
-          borderRadius: '14px',
+          borderRadius: '12px',
           overflow: 'hidden',
-          border: '1px solid #f0f0f0',
-          transition: 'all 0.25s ease',
-          cursor: 'pointer',
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.transform = 'translateY(-4px)'
-          e.currentTarget.style.boxShadow = '0 8px 30px rgba(255, 20, 147, 0.15)'
-          e.currentTarget.style.borderColor = '#FF69B4'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.transform = 'translateY(0)'
-          e.currentTarget.style.boxShadow = 'none'
-          e.currentTarget.style.borderColor = '#f0f0f0'
+          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
         }}
       >
         <div style={{
           width: '100%',
-          height: '180px',
+          aspectRatio: '1',
           background: shop.image_url
             ? `url(${shop.image_url}) center/cover no-repeat`
             : 'linear-gradient(135deg, #FF69B4, #FF1493)',
@@ -51,28 +39,49 @@ export default function ShopCard({ shop }: { shop: Shop }) {
           justifyContent: 'center',
         }}>
           {!shop.image_url && (
-            <span style={{ fontSize: '3rem' }}>🍩</span>
+            <span style={{ fontSize: '2.5rem' }}>🍩</span>
           )}
         </div>
 
-        <div style={{ padding: '1rem 1.25rem' }}>
-          <h3 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
+        <div style={{ padding: '8px 10px 10px' }}>
+          <h3 style={{
+            fontWeight: 700,
+            fontSize: '14px',
+            color: '#1A1A2E',
+            margin: 0,
+            lineHeight: 1.3,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
             {shop.name}
           </h3>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            marginTop: '4px',
+          }}>
             <StarRating rating={shop.rating} />
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1A1A2E' }}>{shop.rating.toFixed(1)}</span>
-            <span style={{ fontSize: '0.8rem', color: '#888' }}>({shop.review_count})</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A2E' }}>
+              {shop.rating.toFixed(1)}
+            </span>
+            <span style={{ fontSize: '11px', color: '#999' }}>
+              ({shop.review_count})
+            </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.85rem', color: '#666' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              🕐 20-35 min
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              ${shop.delivery_fee.toFixed(2)} delivery
-            </span>
+          <div style={{
+            fontSize: '12px',
+            color: '#777',
+            marginTop: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+          }}>
+            <span>🕐</span>
+            <span>15-25 min</span>
           </div>
         </div>
       </div>
