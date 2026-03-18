@@ -226,8 +226,8 @@ export default function CheckoutPage() {
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-                <span style={{ color: '#666' }}>Delivery Fee</span>
-                <span>${deliveryFee.toFixed(2)}</span>
+                <span style={{ color: '#666' }}>Delivery Fee <span style={{ fontSize: '0.7rem', color: '#aaa' }}>(based on distance)</span></span>
+                <span>${deliveryFee.toFixed(2)}*</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
                 <span style={{ color: '#666' }}>Service Fee</span>
@@ -248,6 +248,10 @@ export default function CheckoutPage() {
               </div>
             </div>
           </div>
+
+          <p style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: '1rem', marginTop: '-0.5rem' }}>
+            *Delivery fee is calculated based on distance from shop to your address. Final amount determined at order placement.
+          </p>
 
           {error && (
             <div style={{

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { SquareClient, SquareEnvironment } from 'square'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from '@/lib/constants'
+import { haversineDistance } from '@/lib/osrm'
 import crypto from 'crypto'
 
 function getSquareClient() {
@@ -46,23 +47,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Fetch shop-specific fees
+    // Fetch shop info including coordinates
     const svc = createServiceClient()
-    const { data: shop } = await svc.from('dd_shops').select('name, service_fee_pct, delivery_fee, min_order, tax_rate').eq('id', shopId).single()
+    const { data: shop } = await svc.from('dd_shops').select('name, service_fee_pct, delivery_fee, min_order, tax_rate, lat, lng').eq('id', shopId).single()
     const shopFeeRate = shop ? shop.service_fee_pct / 100 : SERVICE_FEE_RATE
-    const shopDeliveryFee = shop ? shop.delivery_fee : DEFAULT_DELIVERY_FEE
     const shopTaxRate = shop?.tax_rate ? shop.tax_rate / 100 : 0
-
-    // Calculate totals
-    const subtotal = items.reduce(
-      (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
-      0
-    )
-    const tax = Math.round(subtotal * shopTaxRate * 100) / 100
-    const deliveryFee = shopDeliveryFee
-    const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
-    const tipAmount = tip || 0
-    const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount) * 100) / 100
 
     // Geocode delivery address to get coordinates
     let deliveryLat: number | null = null
@@ -81,6 +70,23 @@ export async function POST(request: NextRequest) {
     } catch {
       // Geocoding failed — continue without coordinates
     }
+
+    // Calculate distance-based delivery fee
+    let distanceMiles = 2 // default
+    if (deliveryLat && deliveryLng && shop?.lat && shop?.lng) {
+      distanceMiles = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
+    }
+    const deliveryFee = Math.round((DELIVERY_FEE_BASE + distanceMiles * DELIVERY_FEE_PER_MILE) * 100) / 100
+
+    // Calculate totals
+    const subtotal = items.reduce(
+      (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
+      0
+    )
+    const tax = Math.round(subtotal * shopTaxRate * 100) / 100
+    const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
+    const tipAmount = tip || 0
+    const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount) * 100) / 100
 
     // Create the order in Supabase
     const { data: order, error: orderError } = await supabase
