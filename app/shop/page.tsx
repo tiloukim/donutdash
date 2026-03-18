@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { SHOP_COMMISSION_RATE } from '@/lib/constants'
 
 export default function ShopDashboard() {
   const [stats, setStats] = useState<{ todayOrders: number; todayRevenue: number; pendingOrders: number; totalOrders: number; recentOrders: any[] }>({ todayOrders: 0, todayRevenue: 0, pendingOrders: 0, totalOrders: 0, recentOrders: [] })
@@ -17,11 +18,16 @@ export default function ShopDashboard() {
 
   if (loading) return <div>Loading dashboard...</div>
 
+  const shopEarnings = stats.todayRevenue * (1 - SHOP_COMMISSION_RATE)
+  const commission = stats.todayRevenue * SHOP_COMMISSION_RATE
+
   const cards = [
     { label: "Today's Orders", value: stats.todayOrders, color: '#FF1493', icon: '📦' },
-    { label: "Today's Revenue", value: `$${stats.todayRevenue.toFixed(2)}`, color: '#10B981', icon: '💰' },
-    { label: 'Pending Orders', value: stats.pendingOrders, color: '#FF8C00', icon: '⏳' },
-    { label: 'Total Orders', value: stats.totalOrders, color: '#6366F1', icon: '📊' },
+    { label: "Today's Sales", value: `$${stats.todayRevenue.toFixed(2)}`, color: '#6366F1', icon: '📊' },
+    { label: "Your Earnings", value: `$${shopEarnings.toFixed(2)}`, color: '#10B981', icon: '💰' },
+    { label: `Commission (${(SHOP_COMMISSION_RATE * 100).toFixed(0)}%)`, value: `$${commission.toFixed(2)}`, color: '#FF8C00', icon: '🏷️' },
+    { label: 'Pending Orders', value: stats.pendingOrders, color: '#DC2626', icon: '⏳' },
+    { label: 'Total Orders', value: stats.totalOrders, color: '#888', icon: '📋' },
   ]
 
   return (
@@ -48,7 +54,8 @@ export default function ShopDashboard() {
               <tr style={{ borderBottom: '1px solid #FFE4EF' }}>
                 <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Order</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Customer</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Total</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Subtotal</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>You Earn</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Status</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Date</th>
               </tr>
@@ -58,7 +65,8 @@ export default function ShopDashboard() {
                 <tr key={o.id} style={{ borderBottom: '1px solid #FFF0F5' }}>
                   <td style={{ padding: '10px 16px', fontWeight: 600, color: '#FF1493' }}>#{o.id.slice(0, 8)}</td>
                   <td style={{ padding: '10px 16px' }}>{o.customer?.name || 'Customer'}</td>
-                  <td style={{ padding: '10px 16px', fontWeight: 700, color: '#10B981' }}>${o.total.toFixed(2)}</td>
+                  <td style={{ padding: '10px 16px' }}>${(o.subtotal || o.total).toFixed(2)}</td>
+                  <td style={{ padding: '10px 16px', fontWeight: 700, color: '#10B981' }}>${((o.subtotal || o.total) * (1 - SHOP_COMMISSION_RATE)).toFixed(2)}</td>
                   <td style={{ padding: '10px 16px' }}>
                     <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: o.status === 'delivered' ? '#D1FAE5' : o.status === 'pending' ? '#FEF3C7' : '#E0E7FF', color: o.status === 'delivered' ? '#065F46' : o.status === 'pending' ? '#92400E' : '#3730A3' }}>
                       {o.status.replace(/_/g, ' ')}

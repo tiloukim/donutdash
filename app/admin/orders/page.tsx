@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useState } from 'react'
-import { ORDER_STATUS_LABELS } from '@/lib/constants'
+import { ORDER_STATUS_LABELS, SHOP_COMMISSION_RATE } from '@/lib/constants'
 
 interface OrderItem {
   name: string
@@ -78,13 +78,15 @@ export default function AdminOrders() {
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading orders...</div>
 
   const totalRevenue = orders.reduce((s, o) => s + (o.total || 0), 0)
-  const platformProfit = orders.reduce((s, o) => s + (o.service_fee || 0), 0)
+  const serviceFees = orders.reduce((s, o) => s + (o.service_fee || 0), 0)
+  const shopCommissions = orders.reduce((s, o) => s + ((o.subtotal || 0) * SHOP_COMMISSION_RATE), 0)
   const driverPayouts = orders.reduce((s, o) => {
     const d = o.delivery?.[0]
     return s + (d?.driver_earnings || 0)
   }, 0)
   const deliveryFees = orders.reduce((s, o) => s + (o.delivery_fee || 0), 0)
   const tipsCollected = orders.reduce((s, o) => s + (o.tip || 0), 0)
+  const totalAdminProfit = serviceFees + shopCommissions + deliveryFees - driverPayouts
 
   const fmt = (n: number) => '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
@@ -93,10 +95,12 @@ export default function AdminOrders() {
       {/* Summary Cards */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
         <SummaryCard label="Total Revenue" value={fmt(totalRevenue)} sub={`${orders.length} orders`} />
-        <SummaryCard label="Platform Profit" value={fmt(platformProfit)} sub="Service fees" />
-        <SummaryCard label="Driver Payouts" value={fmt(driverPayouts)} sub="Driver earnings" />
-        <SummaryCard label="Delivery Fees" value={fmt(deliveryFees)} sub="Collected from customers" />
-        <SummaryCard label="Tips Collected" value={fmt(tipsCollected)} sub="Passed to drivers" />
+        <SummaryCard label="Net Admin Profit" value={fmt(totalAdminProfit)} sub="After driver payouts" />
+        <SummaryCard label="Shop Commissions" value={fmt(shopCommissions)} sub={`${(SHOP_COMMISSION_RATE * 100).toFixed(0)}% of subtotals`} />
+        <SummaryCard label="Service Fees" value={fmt(serviceFees)} sub="From customers" />
+        <SummaryCard label="Delivery Fees" value={fmt(deliveryFees)} sub="From customers" />
+        <SummaryCard label="Driver Payouts" value={fmt(driverPayouts)} sub="Paid to drivers" />
+        <SummaryCard label="Tips" value={fmt(tipsCollected)} sub="100% to drivers" />
       </div>
 
       {/* Orders Table */}
@@ -105,7 +109,7 @@ export default function AdminOrders() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['', 'Order ID', 'Customer', 'Shop', 'Subtotal', 'Delivery Fee', 'Service Fee', 'Tip', 'Total', 'Driver Earnings', 'Status', 'Date'].map(h => (
+                {['', 'Order ID', 'Customer', 'Shop', 'Subtotal', 'Shop Commission', 'Shop Receives', 'Delivery Fee', 'Service Fee', 'Tip', 'Total', 'Driver Pay', 'Admin Profit', 'Status', 'Date'].map(h => (
                   <th key={h || 'expand'} style={{
                     padding: '12px 12px',
                     textAlign: h === '' ? 'center' : 'left',
@@ -142,14 +146,23 @@ export default function AdminOrders() {
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#6B7280' }}>{order.shop?.name || '-'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 13 }}>${(order.subtotal || 0).toFixed(2)}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#6366F1', fontWeight: 600 }}>
+                        ${((order.subtotal || 0) * SHOP_COMMISSION_RATE).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#059669' }}>
+                        ${((order.subtotal || 0) * (1 - SHOP_COMMISSION_RATE)).toFixed(2)}
+                      </td>
                       <td style={{ padding: '10px 12px', fontSize: 13 }}>${(order.delivery_fee || 0).toFixed(2)}</td>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#6366F1', fontWeight: 600 }}>
                         ${(order.service_fee || 0).toFixed(2)}
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 13 }}>${(order.tip || 0).toFixed(2)}</td>
                       <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#059669', fontWeight: 600 }}>
+                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#DC2626', fontWeight: 600 }}>
                         ${(delivery?.driver_earnings || 0).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#059669', fontWeight: 700 }}>
+                        ${(((order.subtotal || 0) * SHOP_COMMISSION_RATE) + (order.service_fee || 0) + (order.delivery_fee || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
@@ -167,7 +180,7 @@ export default function AdminOrders() {
                     {/* Expanded detail row */}
                     {isExpanded && (
                       <tr style={{ background: '#F9FAFB' }}>
-                        <td colSpan={12} style={{ padding: '16px 24px' }}>
+                        <td colSpan={15} style={{ padding: '16px 24px' }}>
                           <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
                             {/* Items */}
                             <div style={{ flex: '1 1 300px' }}>

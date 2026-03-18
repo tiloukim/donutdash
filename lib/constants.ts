@@ -1,5 +1,8 @@
 export const SERVICE_FEE_RATE = 0.15
 
+// Platform commission from shops (DoorDash charges 15-30%)
+export const SHOP_COMMISSION_RATE = 0.15  // 15% commission on food subtotal
+
 // Delivery fee charged to customer (base + per mile)
 // Must cover driver pay + admin margin
 export const DELIVERY_FEE_BASE = 2.99       // Flat base fee
