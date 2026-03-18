@@ -35,8 +35,8 @@ export default function AdminDrivers() {
 
   useEffect(() => {
     fetchDrivers()
-    // Poll every 10 seconds to update driver locations
-    const interval = setInterval(fetchDrivers, 10000)
+    // Poll every 5 seconds for live tracking
+    const interval = setInterval(fetchDrivers, 5000)
     return () => clearInterval(interval)
   }, [])
 
