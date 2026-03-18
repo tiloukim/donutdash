@@ -50,11 +50,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Shop hours check (temporarily disabled for testing)
-    // const shopStatus = await isShopOpen(shopId)
-    // if (!shopStatus.open) {
-    //   return NextResponse.json({ error: `Sorry, this shop is currently closed. ${shopStatus.message}` }, { status: 400 })
-    // }
+    // Check if shop is currently open
+    const shopStatus = await isShopOpen(shopId)
+    if (!shopStatus.open) {
+      return NextResponse.json({ error: `Sorry, this shop is currently closed. ${shopStatus.message}` }, { status: 400 })
+    }
 
     // Fetch shop info including coordinates
     const svc = createServiceClient()
