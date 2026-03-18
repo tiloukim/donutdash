@@ -15,8 +15,9 @@ export default function ShopSetupPage() {
   const [description, setDescription] = useState('')
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
-  const [state, setState] = useState('CA')
+  const [state, setState] = useState('')
   const [zip, setZip] = useState('')
+  const [country, setCountry] = useState('US')
   const [phone, setPhone] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,6 +36,7 @@ export default function ShopSetupPage() {
           city,
           state,
           zip,
+          country,
           phone,
         }),
       })
@@ -130,34 +132,68 @@ export default function ShopSetupPage() {
               onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px', gap: '0.75rem' }}>
+          <div>
+            <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
+              Country *
+            </label>
+            <select value={country} onChange={e => setCountry(e.target.value)} required
+              style={{ ...inputStyle, background: 'white' }}>
+              <option value="US">United States</option>
+              <option value="CA">Canada</option>
+              <option value="KH">Cambodia</option>
+              <option value="TH">Thailand</option>
+              <option value="VN">Vietnam</option>
+              <option value="LA">Laos</option>
+              <option value="MM">Myanmar</option>
+              <option value="PH">Philippines</option>
+              <option value="MY">Malaysia</option>
+              <option value="SG">Singapore</option>
+              <option value="ID">Indonesia</option>
+              <option value="JP">Japan</option>
+              <option value="KR">South Korea</option>
+              <option value="CN">China</option>
+              <option value="TW">Taiwan</option>
+              <option value="IN">India</option>
+              <option value="AU">Australia</option>
+              <option value="NZ">New Zealand</option>
+              <option value="GB">United Kingdom</option>
+              <option value="FR">France</option>
+              <option value="DE">Germany</option>
+              <option value="MX">Mexico</option>
+              <option value="BR">Brazil</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div>
               <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
                 City *
               </label>
               <input type="text" value={city} onChange={e => setCity(e.target.value)} required
-                placeholder="Los Angeles" style={inputStyle}
+                placeholder="City" style={inputStyle}
                 onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
                 onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
             </div>
             <div>
               <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
-                State *
+                State / Province
               </label>
-              <input type="text" value={state} onChange={e => setState(e.target.value)} required
-                maxLength={2} style={inputStyle}
+              <input type="text" value={state} onChange={e => setState(e.target.value)}
+                placeholder="State or Province" style={inputStyle}
                 onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
                 onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
             </div>
-            <div>
-              <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
-                ZIP *
-              </label>
-              <input type="text" value={zip} onChange={e => setZip(e.target.value)} required
-                placeholder="90001" style={inputStyle}
-                onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
-            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
+              ZIP / Postal Code
+            </label>
+            <input type="text" value={zip} onChange={e => setZip(e.target.value)}
+              placeholder="Postal code" style={inputStyle}
+              onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+              onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
           </div>
 
           <div>

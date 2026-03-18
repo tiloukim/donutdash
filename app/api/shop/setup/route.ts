@@ -21,17 +21,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'You already have a shop' }, { status: 400 })
   }
 
-  const { name, description, address, city, state, zip, phone } = await req.json()
+  const { name, description, address, city, state, zip, country, phone } = await req.json()
 
-  if (!name || !address || !city || !state || !zip) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  if (!name || !address || !city) {
+    return NextResponse.json({ error: 'Missing required fields (name, address, city)' }, { status: 400 })
   }
 
   // Geocode the shop address to get GPS coordinates
   let lat: number | null = null
   let lng: number | null = null
   try {
-    const fullAddress = `${address}, ${city}, ${state} ${zip}`
+    const fullAddress = `${address}, ${city}${state ? ', ' + state : ''}${zip ? ' ' + zip : ''}${country ? ', ' + country : ''}`
     const geoRes = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
       { headers: { 'User-Agent': 'DonutDash/1.0' } }
