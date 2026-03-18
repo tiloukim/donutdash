@@ -8,6 +8,171 @@ import OrderStatusBadge from '@/components/OrderStatusBadge'
 import { useAuth } from '@/lib/auth-context'
 import type { Order } from '@/lib/types'
 
+function OrderCard({ order }: { order: Order }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const formattedDate = new Date(order.created_at).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+
+  return (
+    <div style={{
+      background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
+      overflow: 'hidden', transition: 'all 0.2s',
+    }}>
+      {/* Collapsed header - always visible */}
+      <div
+        style={{
+          padding: '1.25rem', cursor: 'pointer', transition: 'all 0.2s',
+        }}
+        onClick={() => setExpanded(prev => !prev)}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = '#FFF5FA'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'white'
+        }}
+      >
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+          marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem',
+        }}>
+          <div>
+            <h3 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem' }}>
+              {order.shop?.name || 'Order'}
+            </h3>
+            <p style={{ color: '#888', fontSize: '0.8rem' }}>
+              {formattedDate}
+            </p>
+          </div>
+          <OrderStatusBadge status={order.status} />
+        </div>
+
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          fontSize: '0.9rem',
+        }}>
+          <span style={{ color: '#888' }}>
+            {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontWeight: 700, color: '#FF1493' }}>
+              ${Number(order.total).toFixed(2)}
+            </span>
+            <span style={{
+              display: 'inline-block', transition: 'transform 0.2s',
+              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              fontSize: '0.75rem', color: '#aaa',
+            }}>
+              ▼
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div style={{
+          borderTop: '1px solid #f0f0f0', padding: '1.25rem',
+          background: '#FEFAFC',
+        }}>
+          {/* Items list */}
+          {order.items && order.items.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1A1A2E', marginBottom: '0.5rem' }}>
+                Items Ordered
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {order.items.map((item: any, idx: number) => (
+                  <div key={idx} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    fontSize: '0.85rem', padding: '0.4rem 0',
+                    borderBottom: idx < (order.items?.length || 0) - 1 ? '1px solid #f5f0f2' : 'none',
+                  }}>
+                    <span style={{ color: '#333' }}>
+                      <span style={{
+                        display: 'inline-block', background: '#FF149315', color: '#FF1493',
+                        borderRadius: '6px', padding: '0.1rem 0.4rem', fontSize: '0.75rem',
+                        fontWeight: 600, marginRight: '0.5rem',
+                      }}>
+                        x{item.quantity}
+                      </span>
+                      {item.name}
+                    </span>
+                    <span style={{ color: '#555', fontWeight: 500 }}>
+                      ${(Number(item.price) * Number(item.quantity)).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Cost breakdown */}
+          <div style={{
+            background: 'white', borderRadius: '10px', padding: '0.75rem 1rem',
+            border: '1px solid #f0f0f0', marginBottom: '1rem',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
+                <span>Subtotal</span>
+                <span>${Number(order.subtotal || 0).toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
+                <span>Delivery Fee</span>
+                <span>${Number(order.delivery_fee || 0).toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
+                <span>Service Fee</span>
+                <span>${Number(order.service_fee || 0).toFixed(2)}</span>
+              </div>
+              {Number(order.tip || 0) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
+                  <span>Tip</span>
+                  <span>${Number(order.tip).toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between',
+                borderTop: '1px solid #eee', paddingTop: '0.4rem', marginTop: '0.2rem',
+                fontWeight: 700, color: '#1A1A2E', fontSize: '0.95rem',
+              }}>
+                <span>Total</span>
+                <span style={{ color: '#FF1493' }}>${Number(order.total).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery address */}
+          {order.delivery_address && (
+            <div style={{ marginBottom: '1rem' }}>
+              <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1A1A2E', marginBottom: '0.25rem' }}>
+                Delivery Address
+              </h4>
+              <p style={{ fontSize: '0.85rem', color: '#666', lineHeight: 1.4 }}>
+                {order.delivery_address}
+              </p>
+            </div>
+          )}
+
+          {/* Track order link */}
+          <Link href={`/orders/${order.id}`} style={{
+            display: 'block', textAlign: 'center', background: '#FF1493', color: 'white',
+            padding: '0.6rem 1.5rem', borderRadius: '10px', fontWeight: 600,
+            fontSize: '0.9rem', textDecoration: 'none', transition: 'background 0.2s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#E0117F' }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#FF1493' }}
+          >
+            Track Order
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
@@ -70,51 +235,7 @@ export default function OrdersPage() {
           ) : orders.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {orders.map(order => (
-                <Link key={order.id} href={`/orders/${order.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div style={{
-                    background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
-                    padding: '1.25rem', transition: 'all 0.2s', cursor: 'pointer',
-                  }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = '#FF69B4'
-                      e.currentTarget.style.boxShadow = '0 4px 16px rgba(255, 20, 147, 0.1)'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = '#f0f0f0'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-                      marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem',
-                    }}>
-                      <div>
-                        <h3 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem' }}>
-                          {order.shop?.name || 'Order'}
-                        </h3>
-                        <p style={{ color: '#888', fontSize: '0.8rem' }}>
-                          {new Date(order.created_at).toLocaleDateString('en-US', {
-                            month: 'short', day: 'numeric', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit',
-                          })}
-                        </p>
-                      </div>
-                      <OrderStatusBadge status={order.status} />
-                    </div>
-
-                    <div style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      fontSize: '0.9rem',
-                    }}>
-                      <span style={{ color: '#888' }}>
-                        {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
-                      </span>
-                      <span style={{ fontWeight: 700, color: '#FF1493' }}>
-                        ${order.total.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
+                <OrderCard key={order.id} order={order} />
               ))}
             </div>
           ) : (

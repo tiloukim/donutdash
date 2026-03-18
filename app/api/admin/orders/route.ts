@@ -13,7 +13,13 @@ export async function GET() {
 
     const { data: orders, error } = await svc
       .from('dd_orders')
-      .select('*, customer:dd_users!customer_id(name, email), shop:dd_shops!shop_id(name)')
+      .select(`
+        *,
+        customer:dd_users!customer_id(name, email),
+        shop:dd_shops!shop_id(name),
+        items:dd_order_items(name, price, quantity),
+        delivery:dd_deliveries(driver_earnings, driver_id, status, driver:dd_users!driver_id(name))
+      `)
       .order('created_at', { ascending: false })
       .limit(200)
 

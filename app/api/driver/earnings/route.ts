@@ -11,7 +11,7 @@ export async function GET() {
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { data: deliveries } = await svc.from('dd_deliveries')
-    .select('*, order:dd_orders(*, shop:dd_shops(name), delivery_address)')
+    .select('*, order:dd_orders(*, shop:dd_shops(name), delivery_address, tip)')
     .eq('driver_id', ddUser.id)
     .eq('status', 'delivered')
     .order('delivered_at', { ascending: false })
