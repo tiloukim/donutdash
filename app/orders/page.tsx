@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
@@ -173,10 +173,20 @@ function OrderCard({ order }: { order: Order }) {
   )
 }
 
+const STATUS_MESSAGES: Record<string, string> = {
+  confirmed: 'Your order has been confirmed by the shop!',
+  preparing: 'Your order is being prepared!',
+  ready_for_pickup: 'Your order is ready for pickup!',
+  picked_up: 'A driver has picked up your order!',
+  delivering: 'Your order is on the way!',
+  delivered: 'Your order has been delivered!',
+}
+
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const prevStatusesRef = useRef<Record<string, string>>({})
 
   useEffect(() => {
     if (authLoading) return
@@ -187,10 +197,57 @@ export default function OrdersPage() {
 
     fetch('/api/orders')
       .then(res => res.json())
-      .then(data => setOrders(data.orders || []))
+      .then(data => {
+        const list = data.orders || []
+        // Store initial statuses
+        const statuses: Record<string, string> = {}
+        list.forEach((o: Order) => { statuses[o.id] = o.status })
+        prevStatusesRef.current = statuses
+        setOrders(list)
+      })
       .catch(() => setOrders([]))
       .finally(() => setLoading(false))
   }, [user, authLoading])
+
+  // Poll for status updates on active orders
+  useEffect(() => {
+    if (!user || orders.length === 0) return
+    const hasActive = orders.some(o => !['delivered', 'cancelled'].includes(o.status))
+    if (!hasActive) return
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+
+    const poll = () => {
+      fetch('/api/orders')
+        .then(res => res.json())
+        .then(data => {
+          const list = data.orders || []
+          // Check for status changes
+          list.forEach((o: Order) => {
+            const prev = prevStatusesRef.current[o.id]
+            if (prev && prev !== o.status && STATUS_MESSAGES[o.status]) {
+              // Browser notification
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('DonutDash Order Update', {
+                  body: STATUS_MESSAGES[o.status],
+                  icon: '/logo.png',
+                  tag: `order-${o.id}-${o.status}`,
+                })
+              }
+            }
+            prevStatusesRef.current[o.id] = o.status
+          })
+          setOrders(list)
+        })
+        .catch(() => {})
+    }
+
+    const interval = setInterval(poll, 8000)
+    return () => clearInterval(interval)
+  }, [user, orders.length])
 
   if (!authLoading && !user) {
     return (

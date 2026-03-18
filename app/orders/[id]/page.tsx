@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, useRef, use } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
@@ -17,17 +17,58 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: string
   cancelled: { label: 'Cancelled', color: '#EF4444', icon: '✗' },
 }
 
+const STATUS_MESSAGES: Record<string, string> = {
+  confirmed: 'The shop has confirmed your order!',
+  preparing: 'Your order is being prepared!',
+  ready_for_pickup: 'Your order is ready for pickup!',
+  picked_up: 'A driver has picked up your order!',
+  delivering: 'Your order is on the way!',
+  delivered: 'Your order has been delivered!',
+  cancelled: 'Your order has been cancelled.',
+}
+
 export default function OrderTrackingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [order, setOrder] = useState<any>(null)
   const [tracking, setTracking] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [statusUpdate, setStatusUpdate] = useState<string | null>(null)
+  const prevStatusRef = useRef<string | null>(null)
+  const alertAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+    // Pre-load audio on first interaction
+    const unlock = () => {
+      if (!alertAudioRef.current) {
+        alertAudioRef.current = new Audio('/order-alert.wav')
+      }
+      alertAudioRef.current.volume = 0.01
+      alertAudioRef.current.play().then(() => {
+        alertAudioRef.current!.pause()
+        alertAudioRef.current!.currentTime = 0
+        alertAudioRef.current!.volume = 1.0
+      }).catch(() => {})
+    }
+    document.addEventListener('click', unlock, { once: true })
+    document.addEventListener('touchstart', unlock, { once: true })
+    return () => {
+      document.removeEventListener('click', unlock)
+      document.removeEventListener('touchstart', unlock)
+    }
+  }, [])
 
   useEffect(() => {
     // Fetch order details
     fetch(`/api/orders/${id}`)
       .then(r => r.ok ? r.json() : null)
-      .then(setOrder)
+      .then(data => {
+        setOrder(data)
+        if (data) prevStatusRef.current = data.status
+      })
       .finally(() => setLoading(false))
   }, [id])
 
@@ -41,7 +82,43 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
       // Refresh order status
       fetch(`/api/orders/${id}`)
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setOrder(data) })
+        .then(data => {
+          if (!data) return
+          // Detect status change
+          if (prevStatusRef.current && data.status !== prevStatusRef.current) {
+            const msg = STATUS_MESSAGES[data.status]
+            if (msg) {
+              // Show in-page notification
+              setStatusUpdate(msg)
+              setTimeout(() => setStatusUpdate(null), 5000)
+
+              // Play sound
+              if (alertAudioRef.current) {
+                alertAudioRef.current.currentTime = 0
+                alertAudioRef.current.play().catch(() => {})
+                // Stop after 2 seconds (don't loop for customer)
+                setTimeout(() => {
+                  if (alertAudioRef.current) {
+                    alertAudioRef.current.pause()
+                    alertAudioRef.current.currentTime = 0
+                  }
+                }, 2000)
+              }
+
+              // Browser notification (works even if tab is in background)
+              if ('Notification' in window && Notification.permission === 'granted') {
+                const statusInfo = STATUS_LABELS[data.status]
+                new Notification(`DonutDash: ${statusInfo?.label || 'Order Update'}`, {
+                  body: msg,
+                  icon: '/logo.png',
+                  tag: `order-${id}-${data.status}`,
+                })
+              }
+            }
+          }
+          prevStatusRef.current = data.status
+          setOrder(data)
+        })
         .catch(() => {})
 
       // Fetch driver tracking
@@ -87,6 +164,20 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
       <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>
         #{id.slice(0, 8)}
       </p>
+
+      {/* Status Update Toast */}
+      {statusUpdate && (
+        <div style={{
+          background: '#FF8C00', color: '#fff', borderRadius: 12,
+          padding: '14px 20px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', gap: 10,
+          animation: 'slideIn 0.3s ease',
+          boxShadow: '0 4px 16px rgba(255, 140, 0, 0.3)',
+        }}>
+          <span style={{ fontSize: 20 }}>🔔</span>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>{statusUpdate}</span>
+        </div>
+      )}
 
       {/* Status Badge */}
       <div style={{
