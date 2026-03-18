@@ -14,9 +14,13 @@ export async function isShopOpen(shopId: string): Promise<{ open: boolean; messa
     return { open: true, message: 'Open' }
   }
 
+  // Get shop timezone (default to Central Time for US shops)
+  // Server runs in UTC, so we need to convert to local time
   const now = new Date()
-  const dayOfWeek = now.getDay() // 0=Sunday, 6=Saturday
-  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  const shopTimezone = 'America/Chicago' // TODO: make this configurable per shop
+  const localTime = new Date(now.toLocaleString('en-US', { timeZone: shopTimezone }))
+  const dayOfWeek = localTime.getDay() // 0=Sunday, 6=Saturday
+  const currentTime = `${localTime.getHours().toString().padStart(2, '0')}:${localTime.getMinutes().toString().padStart(2, '0')}`
 
   const todayHours = hours.find(h => h.day_of_week === dayOfWeek)
 
