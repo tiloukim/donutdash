@@ -19,7 +19,25 @@ export default function CheckoutPage() {
   const [instructions, setInstructions] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [deliveryLat, setDeliveryLat] = useState<number | null>(null)
+  const [deliveryLng, setDeliveryLng] = useState<number | null>(null)
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'detecting' | 'done' | 'failed'>('idle')
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
+
+  // Auto-detect customer's delivery location
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    setGeoStatus('detecting')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setDeliveryLat(pos.coords.latitude)
+        setDeliveryLng(pos.coords.longitude)
+        setGeoStatus('done')
+      },
+      () => setGeoStatus('failed'),
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }, [])
 
   useEffect(() => {
     if (!shopId) return
@@ -112,6 +130,8 @@ export default function CheckoutPage() {
           delivery_address: address,
           delivery_city: city,
           delivery_instructions: instructions || null,
+          delivery_lat: deliveryLat,
+          delivery_lng: deliveryLng,
           tip,
         }),
       })
@@ -148,9 +168,14 @@ export default function CheckoutPage() {
             background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
             padding: '1.5rem', marginBottom: '1.5rem',
           }}>
-            <h3 style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '1rem', color: '#1A1A2E' }}>
-              Delivery Address
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontWeight: 600, fontSize: '1.05rem', color: '#1A1A2E', margin: 0 }}>
+                Delivery Address
+              </h3>
+              <span style={{ fontSize: '0.75rem', color: geoStatus === 'done' ? '#10B981' : geoStatus === 'detecting' ? '#FF8C00' : '#888' }}>
+                {geoStatus === 'done' ? '📍 Location detected' : geoStatus === 'detecting' ? '📍 Detecting...' : geoStatus === 'failed' ? '📍 Location unavailable' : ''}
+              </span>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <input
                 type="text"

@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
       delivery_address,
       delivery_city,
       delivery_instructions,
+      delivery_lat,
+      delivery_lng,
       tip,
     } = body
 
@@ -80,6 +82,8 @@ export async function POST(request: NextRequest) {
         payment_method: 'square',
         delivery_address,
         delivery_city: delivery_city || '',
+        delivery_lat: delivery_lat || null,
+        delivery_lng: delivery_lng || null,
         delivery_instructions: delivery_instructions || null,
       })
       .select()
