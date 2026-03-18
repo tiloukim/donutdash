@@ -42,12 +42,12 @@ export async function GET() {
     // Get online status from driver locations
     const { data: locations } = await svc
       .from('dd_driver_locations')
-      .select('driver_id, is_online, updated_at')
+      .select('driver_id, is_online, lat, lng, updated_at')
       .in('driver_id', driverIds.length > 0 ? driverIds : ['__none__'])
 
-    const locationMap: Record<string, { is_online: boolean; updated_at: string }> = {}
+    const locationMap: Record<string, { is_online: boolean; lat: number; lng: number; updated_at: string }> = {}
     for (const loc of locations || []) {
-      locationMap[loc.driver_id] = { is_online: loc.is_online, updated_at: loc.updated_at }
+      locationMap[loc.driver_id] = { is_online: loc.is_online, lat: loc.lat, lng: loc.lng, updated_at: loc.updated_at }
     }
 
     const driversWithStats = (drivers || []).map(driver => ({
@@ -55,6 +55,8 @@ export async function GET() {
       deliveryCount: statsMap[driver.id]?.deliveryCount || 0,
       totalEarnings: statsMap[driver.id]?.totalEarnings || 0,
       is_online: locationMap[driver.id]?.is_online || false,
+      lat: locationMap[driver.id]?.lat || null,
+      lng: locationMap[driver.id]?.lng || null,
       last_seen: locationMap[driver.id]?.updated_at || null,
     }))
 
