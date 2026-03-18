@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { SquareClient, SquareEnvironment } from 'square'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
+import { isShopOpen } from '@/lib/shop-hours'
 import crypto from 'crypto'
 
 function getSquareClient() {
@@ -45,6 +46,12 @@ export async function POST(request: NextRequest) {
 
     if (!shopId || !items || items.length === 0 || !delivery_address) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Check if shop is currently open
+    const shopStatus = await isShopOpen(shopId)
+    if (!shopStatus.open) {
+      return NextResponse.json({ error: `Sorry, this shop is currently closed. ${shopStatus.message}` }, { status: 400 })
     }
 
     // Fetch shop info including coordinates

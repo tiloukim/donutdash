@@ -28,6 +28,7 @@ export default function ShopDetailPage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [loading, setLoading] = useState(true)
   const [menuLoading, setMenuLoading] = useState(true)
+  const [shopOpen, setShopOpen] = useState<{ open: boolean; message: string } | null>(null)
 
   useEffect(() => {
     if (!slug) return
@@ -43,6 +44,11 @@ export default function ShopDetailPage() {
             .then(menuData => setMenuItems(menuData.items || []))
             .catch(() => setMenuItems([]))
             .finally(() => setMenuLoading(false))
+          // Check shop hours
+          fetch(`/api/shops/${s.id}/hours`)
+            .then(res => res.json())
+            .then(status => setShopOpen(status))
+            .catch(() => setShopOpen({ open: true, message: 'Open' }))
         }
       })
       .catch(() => setShop(null))
@@ -117,6 +123,28 @@ export default function ShopDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Open/Closed Banner */}
+      {shopOpen && !shopOpen.open && (
+        <div style={{
+          background: '#FEF2F2', borderBottom: '1px solid #FECACA',
+          padding: '12px 1.5rem', textAlign: 'center',
+        }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#DC2626' }}>
+            🔴 {shopOpen.message}
+          </span>
+        </div>
+      )}
+      {shopOpen && shopOpen.open && (
+        <div style={{
+          background: '#F0FDF4', borderBottom: '1px solid #BBF7D0',
+          padding: '8px 1.5rem', textAlign: 'center',
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#16A34A' }}>
+            🟢 {shopOpen.message}
+          </span>
+        </div>
+      )}
 
       {/* Shop Info Bar */}
       <div style={{
