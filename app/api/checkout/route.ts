@@ -39,8 +39,6 @@ export async function POST(request: NextRequest) {
       delivery_address,
       delivery_city,
       delivery_instructions,
-      delivery_lat,
-      delivery_lng,
       tip,
     } = body
 
@@ -66,6 +64,24 @@ export async function POST(request: NextRequest) {
     const tipAmount = tip || 0
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount) * 100) / 100
 
+    // Geocode delivery address to get coordinates
+    let deliveryLat: number | null = null
+    let deliveryLng: number | null = null
+    try {
+      const fullAddress = `${delivery_address}, ${delivery_city || ''}`
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
+        { headers: { 'User-Agent': 'DonutDash/1.0' } }
+      )
+      const geoData = await geoRes.json()
+      if (geoData?.[0]) {
+        deliveryLat = parseFloat(geoData[0].lat)
+        deliveryLng = parseFloat(geoData[0].lon)
+      }
+    } catch {
+      // Geocoding failed — continue without coordinates
+    }
+
     // Create the order in Supabase
     const { data: order, error: orderError } = await supabase
       .from('dd_orders')
@@ -82,8 +98,8 @@ export async function POST(request: NextRequest) {
         payment_method: 'square',
         delivery_address,
         delivery_city: delivery_city || '',
-        delivery_lat: delivery_lat || null,
-        delivery_lng: delivery_lng || null,
+        delivery_lat: deliveryLat,
+        delivery_lng: deliveryLng,
         delivery_instructions: delivery_instructions || null,
       })
       .select()
