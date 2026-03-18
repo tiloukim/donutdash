@@ -58,9 +58,6 @@ export const DELIVERY_STATUS_LABELS: Record<string, string> = {
 // Delivery logistics
 export const OFFER_TIMEOUT_SECONDS = 45
 export const MAX_DRIVER_DISTANCE_MILES = 10
-export const BASE_PICKUP_PAY = 1.50    // Uber Eats: $1.50 per pickup
-export const BASE_DROPOFF_PAY = 1.00   // Uber Eats: $1.00 per dropoff
-export const BASE_DELIVERY_PAY = 2.50   // Combined base (pickup + dropoff)
-export const PER_MILE_PAY = 0.55        // Uber Eats: ~$0.50-$0.60 per mile
-export const PER_MINUTE_PAY = 0.12      // Uber Eats: ~$0.10-$0.15 per minute
+export const BASE_DELIVERY_PAY = 2.50   // Flat base per delivery
+export const PER_MILE_PAY = 0.55        // Per mile rate
 export const DRIVER_LOCATION_UPDATE_INTERVAL = 10000

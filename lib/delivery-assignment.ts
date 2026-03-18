@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
-import { MAX_DRIVER_DISTANCE_MILES, BASE_DELIVERY_PAY, PER_MILE_PAY, PER_MINUTE_PAY, OFFER_TIMEOUT_SECONDS, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from './constants'
+import { MAX_DRIVER_DISTANCE_MILES, BASE_DELIVERY_PAY, PER_MILE_PAY, OFFER_TIMEOUT_SECONDS, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from './constants'
 
 export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = []) {
   const svc = createServiceClient()
@@ -114,9 +114,8 @@ export async function assignNextDriver(deliveryId: string) {
 }
 
 export function calculateDriverEarnings(distanceMiles: number, tip: number = 0): number {
-  // Uber Eats style: base pay + per mile + estimated per minute + tip
-  const estimatedMinutes = distanceMiles * 3 // ~3 min per mile average
-  const earnings = BASE_DELIVERY_PAY + (distanceMiles * PER_MILE_PAY) + (estimatedMinutes * PER_MINUTE_PAY) + tip
+  // Base pay + per mile + tip (no per-minute to keep it simple and predictable)
+  const earnings = BASE_DELIVERY_PAY + (distanceMiles * PER_MILE_PAY) + tip
   return Math.round(earnings * 100) / 100
 }
 
