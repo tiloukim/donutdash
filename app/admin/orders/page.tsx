@@ -51,7 +51,7 @@ const ACTIVE_DELIVERY_STATUSES = ['confirmed', 'preparing', 'ready_for_pickup', 
 interface TrackingData {
   delivery_status: string
   driver: { name: string; avatar_url?: string } | null
-  location: { lat: number; lng: number; updated_at?: string } | null
+  location: { lat: number; lng: number; heading?: number | null; updated_at?: string } | null
 }
 
 function DriverTracker({ orderId, shop }: { orderId: string; shop: { lat: number | null; lng: number | null } | null }) {
@@ -109,6 +109,7 @@ function DriverTracker({ orderId, shop }: { orderId: string; shop: { lat: number
             shopLng={shop.lng}
             driverLat={tracking.location?.lat}
             driverLng={tracking.location?.lng}
+            driverHeading={tracking.location?.heading}
           />
         </div>
         <div style={{

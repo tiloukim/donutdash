@@ -348,6 +348,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
             customerLng={order.delivery_lng}
             driverLat={tracking.location.lat}
             driverLng={tracking.location.lng}
+            driverHeading={tracking.location.heading}
           />
         </div>
       )}

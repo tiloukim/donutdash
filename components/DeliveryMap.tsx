@@ -11,10 +11,11 @@ interface Props {
   customerLng?: number | null
   driverLat?: number | null
   driverLng?: number | null
+  driverHeading?: number | null // Compass heading in degrees (0=North, 90=East, etc.)
   followDriver?: boolean // When true, keep map centered on driver
 }
 
-export default function DeliveryMap({ shopLat, shopLng, customerLat, customerLng, driverLat, driverLng, followDriver = false }: Props) {
+export default function DeliveryMap({ shopLat, shopLng, customerLat, customerLng, driverLat, driverLng, driverHeading, followDriver = false }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<L.Map | null>(null)
   const markersRef = useRef<{ shop?: L.Marker; customer?: L.Marker; driver?: L.Marker }>({})
@@ -73,18 +74,31 @@ export default function DeliveryMap({ shopLat, shopLng, customerLat, customerLng
       bounds.push([customerLat, customerLng])
     }
 
-    // Driver marker
+    // Driver marker with heading rotation
     if (driverLat && driverLng) {
+      const rotation = driverHeading != null ? driverHeading : 0
+      const driverIcon = L.divIcon({
+        html: `<div style="
+          width:40px;height:40px;
+          display:flex;align-items:center;justify-content:center;
+          transform:rotate(${rotation}deg);
+          transition:transform 0.5s ease;
+          filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+        ">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none">
+            <path d="M12 2L4 10h3v8h2v-4h6v4h2v-8h3L12 2z" fill="#2563EB" stroke="#1e40af" stroke-width="0.5"/>
+            <circle cx="12" cy="6" r="1.5" fill="#93c5fd"/>
+          </svg>
+        </div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+        className: '',
+      })
+
       if (markersRef.current.driver) {
-        // Smoothly update position instead of removing/recreating
         markersRef.current.driver.setLatLng([driverLat, driverLng])
+        markersRef.current.driver.setIcon(driverIcon)
       } else {
-        const driverIcon = L.divIcon({
-          html: '<div style="font-size:28px;text-align:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">🚗</div>',
-          iconSize: [34, 34],
-          iconAnchor: [17, 17],
-          className: '',
-        })
         markersRef.current.driver = L.marker([driverLat, driverLng], { icon: driverIcon })
           .addTo(map)
           .bindPopup('Driver')
@@ -100,7 +114,7 @@ export default function DeliveryMap({ shopLat, shopLng, customerLat, customerLng
       map.fitBounds(L.latLngBounds(bounds as L.LatLngExpression[]), { padding: [40, 40] })
       initialFitDone.current = true
     }
-  }, [shopLat, shopLng, customerLat, customerLng, driverLat, driverLng, followDriver])
+  }, [shopLat, shopLng, customerLat, customerLng, driverLat, driverLng, driverHeading, followDriver])
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 300 }} />
 }

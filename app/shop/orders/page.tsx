@@ -11,7 +11,7 @@ const TRACKABLE_STATUSES = ['confirmed', 'preparing', 'ready_for_pickup']
 interface TrackingData {
   delivery_status: string
   driver: { name: string }
-  location: { lat: number; lng: number }
+  location: { lat: number; lng: number; heading?: number | null }
 }
 
 export default function ShopOrders() {
@@ -340,6 +340,7 @@ export default function ShopOrders() {
                                 shopLng={shopLocation.lng}
                                 driverLat={tracking.location?.lat}
                                 driverLng={tracking.location?.lng}
+                                driverHeading={tracking.location?.heading}
                               />
                             </div>
                             <div style={{

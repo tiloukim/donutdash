@@ -18,7 +18,7 @@ export default function ActiveDelivery() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [completed, setCompleted] = useState(false)
-  const [driverPos, setDriverPos] = useState<{ lat: number; lng: number } | null>(null)
+  const [driverPos, setDriverPos] = useState<{ lat: number; lng: number; heading: number | null } | null>(null)
 
   const fetchActive = useCallback(async () => {
     const res = await fetch('/api/driver/active')
@@ -90,8 +90,22 @@ export default function ActiveDelivery() {
 
     let lastSentAt = 0
 
+    let prevLat = 0, prevLng = 0
+
     const handlePosition = (pos: GeolocationPosition) => {
-      setDriverPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      // Calculate heading from movement if device doesn't provide it
+      let heading = pos.coords.heading
+      if (heading == null && prevLat && prevLng) {
+        const dLat = pos.coords.latitude - prevLat
+        const dLng = pos.coords.longitude - prevLng
+        if (Math.abs(dLat) > 0.00001 || Math.abs(dLng) > 0.00001) {
+          heading = (Math.atan2(dLng, dLat) * 180 / Math.PI + 360) % 360
+        }
+      }
+      prevLat = pos.coords.latitude
+      prevLng = pos.coords.longitude
+
+      setDriverPos({ lat: pos.coords.latitude, lng: pos.coords.longitude, heading: heading ?? null })
 
       // Throttle server updates to every 5 seconds
       const now = Date.now()
@@ -201,6 +215,7 @@ export default function ActiveDelivery() {
             customerLng={custLng}
             driverLat={driverPos?.lat}
             driverLng={driverPos?.lng}
+            driverHeading={driverPos?.heading}
             followDriver
           />
         </div>
