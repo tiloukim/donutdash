@@ -26,7 +26,7 @@ export default function AdminDrivers() {
   const [showMap, setShowMap] = useState(true)
 
   const fetchDrivers = () => {
-    fetch('/api/admin/drivers')
+    fetch(`/api/admin/drivers?t=${Date.now()}`)
       .then(r => r.json())
       .then(data => setDrivers(data.drivers || []))
       .catch(() => {})
@@ -114,7 +114,7 @@ export default function AdminDrivers() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['Driver', 'Email', 'Phone', 'Deliveries', 'Earnings', 'Online', 'Location', 'Account', 'Joined'].map(h => (
+                {['Driver', 'Email', 'Phone', 'Deliveries', 'Earnings', 'Online', 'Location', 'Last GPS', 'Account', 'Joined'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                 ))}
               </tr>
@@ -141,9 +141,13 @@ export default function AdminDrivers() {
                   <td style={{ padding: '12px 16px', fontSize: 12, color: '#6B7280' }}>
                     {driver.is_online && driver.lat && driver.lng && driver.lat !== 0
                       ? `${driver.lat.toFixed(4)}, ${driver.lng.toFixed(4)}`
-                      : driver.last_seen
-                        ? `Last seen ${new Date(driver.last_seen).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}`
-                        : '-'
+                      : '-'
+                    }
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: 12, color: '#6B7280' }}>
+                    {driver.last_seen
+                      ? new Date(driver.last_seen).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+                      : '-'
                     }
                   </td>
                   <td style={{ padding: '12px 16px' }}>
@@ -161,7 +165,7 @@ export default function AdminDrivers() {
                 </tr>
               ))}
               {drivers.length === 0 && (
-                <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No drivers found</td></tr>
+                <tr><td colSpan={10} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No drivers found</td></tr>
               )}
             </tbody>
           </table>
