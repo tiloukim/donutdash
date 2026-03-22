@@ -177,7 +177,14 @@ export default function DriverDashboard() {
       return
     }
 
+    let lastSentAt = 0
+
     const sendLocation = (pos: GeolocationPosition) => {
+      // Throttle: send at most every 5 seconds
+      const now = Date.now()
+      if (now - lastSentAt < 5000) return
+      lastSentAt = now
+
       fetch('/api/driver/location', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -190,16 +197,28 @@ export default function DriverDashboard() {
       }).catch(console.error)
     }
 
+    // watchPosition for real-time movement detection
     watchIdRef.current = navigator.geolocation.watchPosition(
       sendLocation,
       (err) => setLocationError(err.message),
-      { enableHighAccuracy: true, maximumAge: 5000 }
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
     )
+
+    // Backup: poll getCurrentPosition every 8 seconds
+    // (watchPosition can stall on some mobile browsers)
+    const gpsInterval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        sendLocation,
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 8000 }
+      )
+    }, 8000)
 
     return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current)
       }
+      clearInterval(gpsInterval)
     }
   }, [isOnline])
 
