@@ -10,6 +10,7 @@ interface DriverPin {
   lat: number
   lng: number
   is_online: boolean
+  last_seen?: string | null
 }
 
 interface Props {
@@ -65,29 +66,38 @@ export default function DriversMap({ drivers }: Props) {
         // Update existing marker position
         markersRef.current[driver.id].setLatLng([driver.lat, driver.lng])
       } else {
-        // Create new marker
+        // Create new marker with pulsing ring to show live status
         const icon = L.divIcon({
-          html: `<div style="
-            background: #10B981;
-            color: white;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            border: 2px solid white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          ">🚗</div>`,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
+          html: `<div style="position:relative;width:40px;height:40px;">
+            <div style="
+              position:absolute;inset:0;
+              border-radius:50%;
+              background:rgba(16,185,129,0.2);
+              animation:driverPulse 2s infinite;
+            "></div>
+            <div style="
+              position:absolute;top:4px;left:4px;
+              background:#10B981;
+              color:white;
+              border-radius:50%;
+              width:32px;height:32px;
+              display:flex;align-items:center;justify-content:center;
+              font-size:16px;
+              border:2px solid white;
+              box-shadow:0 2px 8px rgba(0,0,0,0.3);
+            ">🚗</div>
+          </div>`,
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
           className: '',
         })
 
+        const lastSeen = driver.last_seen
+          ? new Date(driver.last_seen).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+          : ''
         markersRef.current[driver.id] = L.marker([driver.lat, driver.lng], { icon })
           .addTo(map)
-          .bindPopup(`<b>${driver.name}</b><br/>Online`)
+          .bindPopup(`<b>${driver.name}</b><br/>Online${lastSeen ? `<br/><small>GPS: ${lastSeen}</small>` : ''}`)
       }
       bounds.push([driver.lat, driver.lng])
     }
@@ -103,5 +113,15 @@ export default function DriversMap({ drivers }: Props) {
     }
   }, [drivers])
 
-  return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />
+  return (
+    <>
+      <style>{`
+        @keyframes driverPulse {
+          0%, 100% { transform: scale(1); opacity: 0.6; }
+          50% { transform: scale(1.5); opacity: 0; }
+        }
+      `}</style>
+      <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />
+    </>
+  )
 }

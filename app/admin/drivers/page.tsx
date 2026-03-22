@@ -95,6 +95,7 @@ export default function AdminDrivers() {
               lat: d.lat!,
               lng: d.lng!,
               is_online: d.is_online,
+              last_seen: d.last_seen,
             }))} />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9CA3AF' }}>
