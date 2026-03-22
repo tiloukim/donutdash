@@ -9,6 +9,10 @@ export default function ShopSettings() {
   const [saved, setSaved] = useState(false)
   const [geoLoading, setGeoLoading] = useState(false)
   const [error, setError] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const bannerInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     fetch('/api/shop/settings').then(r => r.json()).then(setShop).finally(() => setLoading(false))
   }, [])
@@ -47,6 +51,26 @@ export default function ShopSettings() {
       },
       { enableHighAccuracy: true, timeout: 10000 }
     )
+  }
+
+  const uploadImage = async (file: File, type: 'image' | 'banner') => {
+    const setUploading = type === 'image' ? setUploadingImage : setUploadingBanner
+    setUploading(true)
+    setError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', type)
+      const res = await fetch('/api/shop/upload', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      const field = type === 'image' ? 'image_url' : 'banner_url'
+      setShop((s: any) => ({ ...s, [field]: data.url }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
   }
 
   if (loading || !shop) return <div>Loading settings...</div>
@@ -163,8 +187,75 @@ export default function ShopSettings() {
             <div><label style={labelStyle}>Min Order ($)</label><input style={inputStyle} type="number" step="0.01" value={shop.min_order || ''} onChange={e => setShop({ ...shop, min_order: parseFloat(e.target.value) })} /></div>
             <div><label style={labelStyle}>Service Fee %</label><input style={inputStyle} type="number" step="0.01" value={shop.service_fee_pct || ''} onChange={e => setShop({ ...shop, service_fee_pct: parseFloat(e.target.value) })} /></div>
           </div>
-          <div><label style={labelStyle}>Image URL</label><input style={inputStyle} value={shop.image_url || ''} onChange={e => setShop({ ...shop, image_url: e.target.value })} /></div>
-          <div><label style={labelStyle}>Banner URL</label><input style={inputStyle} value={shop.banner_url || ''} onChange={e => setShop({ ...shop, banner_url: e.target.value })} /></div>
+          {/* Shop Logo / Image */}
+          <div>
+            <label style={labelStyle}>Shop Logo / Image</label>
+            {shop.image_url && (
+              <div style={{ position: 'relative', width: 120, height: 120, borderRadius: 12, overflow: 'hidden', marginBottom: 8, border: '1px solid #FFD6E8' }}>
+                <img src={shop.image_url} alt="Shop" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button
+                  onClick={() => setShop({ ...shop, image_url: '' })}
+                  style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', fontSize: 14, lineHeight: '24px', textAlign: 'center' }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <label style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '10px 16px', border: '2px dashed #FFD6E8', borderRadius: 8,
+              cursor: uploadingImage ? 'wait' : 'pointer', color: '#FF1493', fontSize: 13, fontWeight: 600,
+              opacity: uploadingImage ? 0.6 : 1,
+            }}>
+              {uploadingImage ? '⏳ Uploading...' : '📷 Upload Logo'}
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const f = e.target.files?.[0]
+                  if (f) uploadImage(f, 'image')
+                  if (imageInputRef.current) imageInputRef.current.value = ''
+                }}
+              />
+            </label>
+          </div>
+
+          {/* Banner Image */}
+          <div>
+            <label style={labelStyle}>Banner Image</label>
+            {shop.banner_url && (
+              <div style={{ position: 'relative', width: '100%', height: 140, borderRadius: 12, overflow: 'hidden', marginBottom: 8, border: '1px solid #FFD6E8' }}>
+                <img src={shop.banner_url} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button
+                  onClick={() => setShop({ ...shop, banner_url: '' })}
+                  style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', fontSize: 14, lineHeight: '24px', textAlign: 'center' }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <label style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '10px 16px', border: '2px dashed #FFD6E8', borderRadius: 8,
+              cursor: uploadingBanner ? 'wait' : 'pointer', color: '#FF1493', fontSize: 13, fontWeight: 600,
+              opacity: uploadingBanner ? 0.6 : 1,
+            }}>
+              {uploadingBanner ? '⏳ Uploading...' : '🖼️ Upload Banner'}
+              <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const f = e.target.files?.[0]
+                  if (f) uploadImage(f, 'banner')
+                  if (bannerInputRef.current) bannerInputRef.current.value = ''
+                }}
+              />
+            </label>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 20 }}>
           <button onClick={save} disabled={saving} style={{ padding: '10px 32px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: '#FF1493', color: '#fff', border: 'none', cursor: 'pointer' }}>
