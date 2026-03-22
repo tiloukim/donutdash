@@ -88,26 +88,47 @@ export default function ActiveDelivery() {
     if (!delivery) return
     if (!navigator.geolocation) return
 
+    let lastSentAt = 0
+
+    const handlePosition = (pos: GeolocationPosition) => {
+      setDriverPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+
+      // Throttle server updates to every 5 seconds
+      const now = Date.now()
+      if (now - lastSentAt < 5000) return
+      lastSentAt = now
+
+      fetch('/api/driver/location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          heading: pos.coords.heading,
+          speed: pos.coords.speed,
+        }),
+      }).catch(() => {})
+    }
+
     const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        setDriverPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        // Also send to server
-        fetch('/api/driver/location', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            heading: pos.coords.heading,
-            speed: pos.coords.speed,
-          }),
-        }).catch(() => {})
-      },
+      handlePosition,
       () => {},
-      { enableHighAccuracy: true, maximumAge: 5000 }
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
     )
 
-    return () => navigator.geolocation.clearWatch(watchId)
+    // Backup polling every 8 seconds (watchPosition can stall on mobile)
+    const gpsInterval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        handlePosition,
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 8000 }
+      )
+    }, 8000)
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId)
+      clearInterval(gpsInterval)
+    }
   }, [delivery])
 
   const updateStatus = async (newStatus: string) => {
@@ -180,6 +201,7 @@ export default function ActiveDelivery() {
             customerLng={custLng}
             driverLat={driverPos?.lat}
             driverLng={driverPos?.lng}
+            followDriver
           />
         </div>
       )}

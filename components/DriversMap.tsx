@@ -20,6 +20,7 @@ export default function DriversMap({ drivers }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<L.Map | null>(null)
   const markersRef = useRef<Record<string, L.Marker>>({})
+  const initialFitDone = useRef(false)
 
   // Initialize map
   useEffect(() => {
@@ -91,11 +92,14 @@ export default function DriversMap({ drivers }: Props) {
       bounds.push([driver.lat, driver.lng])
     }
 
-    // Fit bounds to show all drivers
-    if (bounds.length > 1) {
-      map.fitBounds(L.latLngBounds(bounds), { padding: [50, 50] })
-    } else if (bounds.length === 1) {
-      map.setView(bounds[0] as L.LatLngExpression, 14)
+    // Only fit bounds on first render, then let user control zoom
+    if (!initialFitDone.current && bounds.length > 0) {
+      if (bounds.length > 1) {
+        map.fitBounds(L.latLngBounds(bounds), { padding: [50, 50] })
+      } else {
+        map.setView(bounds[0] as L.LatLngExpression, 14)
+      }
+      initialFitDone.current = true
     }
   }, [drivers])
 

@@ -11,17 +11,21 @@ interface Props {
   customerLng?: number | null
   driverLat?: number | null
   driverLng?: number | null
+  followDriver?: boolean // When true, keep map centered on driver
 }
 
-export default function DeliveryMap({ shopLat, shopLng, customerLat, customerLng, driverLat, driverLng }: Props) {
+export default function DeliveryMap({ shopLat, shopLng, customerLat, customerLng, driverLat, driverLng, followDriver = false }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<L.Map | null>(null)
   const markersRef = useRef<{ shop?: L.Marker; customer?: L.Marker; driver?: L.Marker }>({})
+  const initialFitDone = useRef(false)
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return
 
-    mapInstance.current = L.map(mapRef.current).setView([shopLat, shopLng], 14)
+    const initLat = driverLat || shopLat
+    const initLng = driverLng || shopLng
+    mapInstance.current = L.map(mapRef.current).setView([initLat, initLng], 15)
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap',
@@ -30,8 +34,9 @@ export default function DeliveryMap({ shopLat, shopLng, customerLat, customerLng
     return () => {
       mapInstance.current?.remove()
       mapInstance.current = null
+      initialFitDone.current = false
     }
-  }, [shopLat, shopLng])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update markers
   useEffect(() => {
@@ -70,23 +75,32 @@ export default function DeliveryMap({ shopLat, shopLng, customerLat, customerLng
 
     // Driver marker
     if (driverLat && driverLng) {
-      if (markersRef.current.driver) markersRef.current.driver.remove()
-      const driverIcon = L.divIcon({
-        html: '<div style="font-size:24px;text-align:center">🚗</div>',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        className: '',
-      })
-      markersRef.current.driver = L.marker([driverLat, driverLng], { icon: driverIcon })
-        .addTo(map)
-        .bindPopup('Driver')
+      if (markersRef.current.driver) {
+        // Smoothly update position instead of removing/recreating
+        markersRef.current.driver.setLatLng([driverLat, driverLng])
+      } else {
+        const driverIcon = L.divIcon({
+          html: '<div style="font-size:28px;text-align:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">🚗</div>',
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
+          className: '',
+        })
+        markersRef.current.driver = L.marker([driverLat, driverLng], { icon: driverIcon })
+          .addTo(map)
+          .bindPopup('Driver')
+      }
       bounds.push([driverLat, driverLng])
     }
 
-    if (bounds.length > 1) {
+    // Center on driver if followDriver is enabled
+    if (followDriver && driverLat && driverLng) {
+      map.panTo([driverLat, driverLng], { animate: true, duration: 0.5 })
+    } else if (!initialFitDone.current && bounds.length > 1) {
+      // First render: fit all markers
       map.fitBounds(L.latLngBounds(bounds as L.LatLngExpression[]), { padding: [40, 40] })
+      initialFitDone.current = true
     }
-  }, [shopLat, shopLng, customerLat, customerLng, driverLat, driverLng])
+  }, [shopLat, shopLng, customerLat, customerLng, driverLat, driverLng, followDriver])
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 300 }} />
 }
