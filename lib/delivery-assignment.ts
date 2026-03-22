@@ -37,7 +37,8 @@ export async function findNearestAvailableDrivers(shopLat: number, shopLng: numb
   console.log('[DRIVER FIND] Excluded drivers:', excludeDriverIds)
 
   const available = onlineDrivers
-    .filter(d => !busyIds.has(d.driver_id) && !excludeSet.has(d.driver_id) && !pendingIds.has(d.driver_id))
+    .filter(d => !busyIds.has(d.driver_id) && !excludeSet.has(d.driver_id) && !pendingIds.has(d.driver_id)
+      && d.lat !== 0 && d.lng !== 0) // Exclude drivers with no GPS fix yet
     .map(d => ({
       driver_id: d.driver_id,
       lat: d.lat,

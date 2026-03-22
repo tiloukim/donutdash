@@ -285,6 +285,30 @@ export default function DriverDashboard() {
         // Audio not available
       }
     }
+    // When going online, get GPS first so driver isn't at (0,0)
+    if (newState && navigator.geolocation) {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+          })
+        )
+        // Send location before going online
+        await fetch('/api/driver/location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            heading: pos.coords.heading,
+            speed: pos.coords.speed,
+          }),
+        })
+      } catch {
+        // GPS failed — proceed anyway, watchPosition will update later
+      }
+    }
     await fetch('/api/driver/online', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

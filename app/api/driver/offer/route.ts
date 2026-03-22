@@ -46,14 +46,68 @@ export async function GET() {
     .limit(1)
     .maybeSingle()
 
-  if (!offer) return NextResponse.json(null)
-
-  // Enrich with items
-  if (offer.delivery?.order) {
-    offer.delivery.order.items = offer.delivery.order.dd_order_items
+  if (offer) {
+    // Enrich with items
+    if (offer.delivery?.order) {
+      offer.delivery.order.items = offer.delivery.order.dd_order_items
+    }
+    return NextResponse.json(offer)
   }
 
-  return NextResponse.json(offer)
+  // No pending offer — check for unassigned deliveries and self-assign
+  const { data: driverLoc } = await svc
+    .from('dd_driver_locations')
+    .select('lat, lng')
+    .eq('driver_id', ddUser.id)
+    .maybeSingle()
+
+  if (driverLoc?.lat && driverLoc?.lng && driverLoc.lat !== 0 && driverLoc.lng !== 0) {
+    const { data: unassigned } = await svc
+      .from('dd_deliveries')
+      .select('id, pickup_lat, pickup_lng')
+      .eq('status', 'pending')
+      .is('driver_id', null)
+
+    if (unassigned?.length) {
+      // Find nearest unassigned delivery within range
+      for (const d of unassigned) {
+        if (d.pickup_lat && d.pickup_lng) {
+          const dist = haversineDistance(d.pickup_lat, d.pickup_lng, driverLoc.lat, driverLoc.lng)
+          if (dist <= 10) {
+            // Check this driver hasn't already been offered/declined this delivery
+            const { data: prevOffer } = await svc
+              .from('dd_delivery_offers')
+              .select('id')
+              .eq('delivery_id', d.id)
+              .eq('driver_id', ddUser.id)
+              .maybeSingle()
+
+            if (!prevOffer) {
+              console.log('[DRIVER OFFER] Auto-creating offer for unassigned delivery:', d.id, 'driver:', ddUser.id)
+              const { createDeliveryOffer } = await import('@/lib/delivery-assignment')
+              const { data: newOffer } = await createDeliveryOffer(d.id, ddUser.id)
+
+              if (newOffer) {
+                // Fetch the full offer with details
+                const { data: fullOffer } = await svc
+                  .from('dd_delivery_offers')
+                  .select('*, delivery:dd_deliveries(*, order:dd_orders(*, shop:dd_shops(name, address, city, lat, lng), customer:dd_users!customer_id(name), dd_order_items(*)))')
+                  .eq('id', newOffer.id)
+                  .single()
+
+                if (fullOffer?.delivery?.order) {
+                  fullOffer.delivery.order.items = fullOffer.delivery.order.dd_order_items
+                }
+                return NextResponse.json(fullOffer)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return NextResponse.json(null)
 }
 
 // POST - accept or decline offer
