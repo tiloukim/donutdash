@@ -1,7 +1,52 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { MenuItem } from '@/lib/types'
+
+function SortableMenuItem({ item, onEdit, onDelete, onToggle }: {
+  item: MenuItem
+  onEdit: (item: MenuItem) => void
+  onDelete: (id: string) => void
+  onToggle: (item: MenuItem) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : item.is_available ? 1 : 0.5,
+    zIndex: isDragging ? 10 : undefined,
+  }
+  const allImages = (item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : [])
+
+  return (
+    <div ref={setNodeRef} style={{ ...style, background: '#fff', borderRadius: 10, padding: 10, border: isDragging ? '2px solid #FF1493' : '1px solid #FFE4EF', fontSize: 12, cursor: 'grab' }} {...attributes} {...listeners}>
+      {allImages.length > 0 && (
+        <div style={{ position: 'relative', marginBottom: 6 }}>
+          <img src={item.image_url || allImages[0]} alt={item.name} style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 6, pointerEvents: 'none' }} />
+        </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.2 }}>{item.name}</div>
+          <div style={{ fontSize: 10, color: '#888', textTransform: 'capitalize' }}>{item.category}</div>
+        </div>
+        <div style={{ fontWeight: 700, color: '#10B981', fontSize: 12 }}>${item.price.toFixed(2)}</div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+        <button onPointerDown={e => e.stopPropagation()} onClick={() => onToggle(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: item.is_available ? '#D1FAE5' : '#FEE2E2', color: item.is_available ? '#065F46' : '#DC2626', cursor: 'pointer', fontWeight: 600 }}>
+          {item.is_available ? 'On' : 'Off'}
+        </button>
+        <div style={{ display: 'flex', gap: 3 }}>
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: '#f9f9f9', cursor: 'pointer' }}>Edit</button>
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onDelete(item.id)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #FECACA', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer' }}>Del</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const CATEGORIES = ['all', 'donuts', 'coffee', 'breakfast', 'drinks', 'other']
 const emptyItem = { name: '', description: '', price: '', category: 'donuts', image_url: '', images: [] as string[], is_available: true, is_featured: false }
@@ -92,18 +137,33 @@ export default function ShopMenu() {
     fetchItems()
   }
 
-  const moveItem = async (index: number, direction: 'up' | 'down') => {
-    const list = [...filtered]
-    const swapIndex = direction === 'up' ? index - 1 : index + 1
-    if (swapIndex < 0 || swapIndex >= list.length) return
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-    // Swap sort_order values
-    const a = list[index]
-    const b = list[swapIndex]
-    await Promise.all([
-      fetch('/api/shop/menu', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: a.id, sort_order: b.sort_order }) }),
-      fetch('/api/shop/menu', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: b.id, sort_order: a.sort_order }) }),
-    ])
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = filtered.findIndex(i => i.id === active.id)
+    const newIndex = filtered.findIndex(i => i.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // Optimistic reorder
+    const reordered = arrayMove(filtered, oldIndex, newIndex)
+    setItems(prev => {
+      const otherItems = prev.filter(i => !reordered.find(r => r.id === i.id))
+      return [...otherItems, ...reordered]
+    })
+
+    // Save new sort_order for all reordered items
+    await Promise.all(
+      reordered.map((item, idx) =>
+        fetch('/api/shop/menu', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: item.id, sort_order: idx }),
+        })
+      )
+    )
     fetchItems()
   }
 
@@ -222,45 +282,15 @@ export default function ShopMenu() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
-        {filtered.map((item, idx) => {
-          const allImages = (item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : [])
-          return (
-            <div key={item.id} style={{ background: '#fff', borderRadius: 10, padding: 10, border: '1px solid #FFE4EF', opacity: item.is_available ? 1 : 0.5, fontSize: 12, position: 'relative' }}>
-              {allImages.length > 0 && (
-                <div style={{ position: 'relative', marginBottom: 6 }}>
-                  <img src={item.image_url || allImages[0]} alt={item.name} style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 6 }} />
-                  {allImages.length > 1 && (
-                    <span style={{
-                      position: 'absolute', bottom: 6, right: 6,
-                      background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 11, fontWeight: 600,
-                      padding: '2px 8px', borderRadius: 12,
-                    }}>+{allImages.length - 1} more</span>
-                  )}
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.2 }}>{item.name}</div>
-                  <div style={{ fontSize: 10, color: '#888', textTransform: 'capitalize' }}>{item.category}</div>
-                </div>
-                <div style={{ fontWeight: 700, color: '#10B981', fontSize: 12 }}>${item.price.toFixed(2)}</div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                <button onClick={() => toggleAvailable(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: item.is_available ? '#D1FAE5' : '#FEE2E2', color: item.is_available ? '#065F46' : '#DC2626', cursor: 'pointer', fontWeight: 600 }}>
-                  {item.is_available ? 'On' : 'Off'}
-                </button>
-                <div style={{ display: 'flex', gap: 3 }}>
-                  <button onClick={() => moveItem(idx, 'up')} disabled={idx === 0} style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, border: '1px solid #ddd', background: '#f0f0ff', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1 }}>&#9650;</button>
-                  <button onClick={() => moveItem(idx, 'down')} disabled={idx === filtered.length - 1} style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, border: '1px solid #ddd', background: '#f0f0ff', cursor: idx === filtered.length - 1 ? 'default' : 'pointer', opacity: idx === filtered.length - 1 ? 0.3 : 1 }}>&#9660;</button>
-                  <button onClick={() => openEdit(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: '#f9f9f9', cursor: 'pointer' }}>Edit</button>
-                  <button onClick={() => deleteItem(item.id)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #FECACA', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer' }}>Del</button>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
+            {filtered.map(item => (
+              <SortableMenuItem key={item.id} item={item} onEdit={openEdit} onDelete={deleteItem} onToggle={toggleAvailable} />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   )
 }
