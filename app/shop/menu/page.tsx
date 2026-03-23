@@ -92,6 +92,21 @@ export default function ShopMenu() {
     fetchItems()
   }
 
+  const moveItem = async (index: number, direction: 'up' | 'down') => {
+    const list = [...filtered]
+    const swapIndex = direction === 'up' ? index - 1 : index + 1
+    if (swapIndex < 0 || swapIndex >= list.length) return
+
+    // Swap sort_order values
+    const a = list[index]
+    const b = list[swapIndex]
+    await Promise.all([
+      fetch('/api/shop/menu', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: a.id, sort_order: b.sort_order }) }),
+      fetch('/api/shop/menu', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: b.id, sort_order: a.sort_order }) }),
+    ])
+    fetchItems()
+  }
+
   const openAdd = () => {
     setEditing({ ...emptyItem })
     setEditImages([])
@@ -208,10 +223,10 @@ export default function ShopMenu() {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
-        {filtered.map(item => {
+        {filtered.map((item, idx) => {
           const allImages = (item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : [])
           return (
-            <div key={item.id} style={{ background: '#fff', borderRadius: 10, padding: 10, border: '1px solid #FFE4EF', opacity: item.is_available ? 1 : 0.5, fontSize: 12 }}>
+            <div key={item.id} style={{ background: '#fff', borderRadius: 10, padding: 10, border: '1px solid #FFE4EF', opacity: item.is_available ? 1 : 0.5, fontSize: 12, position: 'relative' }}>
               {allImages.length > 0 && (
                 <div style={{ position: 'relative', marginBottom: 6 }}>
                   <img src={item.image_url || allImages[0]} alt={item.name} style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 6 }} />
@@ -235,7 +250,9 @@ export default function ShopMenu() {
                 <button onClick={() => toggleAvailable(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: item.is_available ? '#D1FAE5' : '#FEE2E2', color: item.is_available ? '#065F46' : '#DC2626', cursor: 'pointer', fontWeight: 600 }}>
                   {item.is_available ? 'On' : 'Off'}
                 </button>
-                <div style={{ display: 'flex', gap: 4 }}>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  <button onClick={() => moveItem(idx, 'up')} disabled={idx === 0} style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, border: '1px solid #ddd', background: '#f0f0ff', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1 }}>&#9650;</button>
+                  <button onClick={() => moveItem(idx, 'down')} disabled={idx === filtered.length - 1} style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, border: '1px solid #ddd', background: '#f0f0ff', cursor: idx === filtered.length - 1 ? 'default' : 'pointer', opacity: idx === filtered.length - 1 ? 0.3 : 1 }}>&#9660;</button>
                   <button onClick={() => openEdit(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: '#f9f9f9', cursor: 'pointer' }}>Edit</button>
                   <button onClick={() => deleteItem(item.id)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #FECACA', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer' }}>Del</button>
                 </div>
