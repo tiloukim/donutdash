@@ -47,7 +47,16 @@ export async function DELETE(req: Request) {
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await req.json()
+
+  // Try hard delete first
   const { error } = await ctx.svc.from('dd_menu_items').delete().eq('id', id).eq('shop_id', ctx.shop.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // FK constraint — item has orders. Soft-delete by hiding it
+    const { error: updateErr } = await ctx.svc.from('dd_menu_items')
+      .update({ is_available: false, name: '[DELETED] ' + (await ctx.svc.from('dd_menu_items').select('name').eq('id', id).single()).data?.name })
+      .eq('id', id).eq('shop_id', ctx.shop.id)
+    if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+    return NextResponse.json({ success: true, note: 'Item hidden (has past orders)' })
+  }
   return NextResponse.json({ success: true })
 }
