@@ -207,14 +207,14 @@ export default function ShopMenu() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
         {filtered.map(item => {
           const allImages = (item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : [])
           return (
-            <div key={item.id} style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #FFE4EF', opacity: item.is_available ? 1 : 0.5 }}>
+            <div key={item.id} style={{ background: '#fff', borderRadius: 10, padding: 10, border: '1px solid #FFE4EF', opacity: item.is_available ? 1 : 0.5, fontSize: 12 }}>
               {allImages.length > 0 && (
-                <div style={{ position: 'relative', marginBottom: 10 }}>
-                  <img src={item.image_url || allImages[0]} alt={item.name} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8 }} />
+                <div style={{ position: 'relative', marginBottom: 6 }}>
+                  <img src={item.image_url || allImages[0]} alt={item.name} style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 6 }} />
                   {allImages.length > 1 && (
                     <span style={{
                       position: 'absolute', bottom: 6, right: 6,
@@ -226,19 +226,18 @@ export default function ShopMenu() {
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{item.name}</div>
-                  <div style={{ fontSize: 12, color: '#888', textTransform: 'capitalize' }}>{item.category}</div>
+                  <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.2 }}>{item.name}</div>
+                  <div style={{ fontSize: 10, color: '#888', textTransform: 'capitalize' }}>{item.category}</div>
                 </div>
-                <div style={{ fontWeight: 700, color: '#10B981' }}>${item.price.toFixed(2)}</div>
+                <div style={{ fontWeight: 700, color: '#10B981', fontSize: 12 }}>${item.price.toFixed(2)}</div>
               </div>
-              {item.description && <p style={{ fontSize: 12, color: '#666', margin: '6px 0' }}>{item.description}</p>}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-                <button onClick={() => toggleAvailable(item)} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: item.is_available ? '#D1FAE5' : '#FEE2E2', color: item.is_available ? '#065F46' : '#DC2626', cursor: 'pointer', fontWeight: 600 }}>
-                  {item.is_available ? 'Available' : 'Unavailable'}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                <button onClick={() => toggleAvailable(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: item.is_available ? '#D1FAE5' : '#FEE2E2', color: item.is_available ? '#065F46' : '#DC2626', cursor: 'pointer', fontWeight: 600 }}>
+                  {item.is_available ? 'On' : 'Off'}
                 </button>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => openEdit(item)} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f9f9f9', cursor: 'pointer' }}>Edit</button>
-                  <button onClick={() => deleteItem(item.id)} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #FECACA', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer' }}>Delete</button>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={() => openEdit(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: '#f9f9f9', cursor: 'pointer' }}>Edit</button>
+                  <button onClick={() => deleteItem(item.id)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #FECACA', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer' }}>Del</button>
                 </div>
               </div>
             </div>
