@@ -69,6 +69,9 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
           border: '1px solid #f0f0f0',
           cursor: 'pointer',
           transition: 'all 0.2s',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
         }}
         onMouseEnter={e => {
           e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'
@@ -81,7 +84,7 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
       >
         <div style={{
           width: '100%',
-          height: '160px',
+          height: '130px',
           background: item.image_url
             ? `url(${item.image_url}) center/cover no-repeat`
             : 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
@@ -108,18 +111,18 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
           )}
         </div>
 
-        <div style={{ padding: '0.85rem 1rem' }}>
-          <h4 style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.25rem', color: '#1A1A2E' }}>
+        <div style={{ padding: '0.75rem 0.85rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <h4 style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.2rem', color: '#1A1A2E', lineHeight: 1.2 }}>
             {item.name}
           </h4>
           {item.description && (
-            <p style={{ fontSize: '0.8rem', color: '#888', marginBottom: '0.5rem', lineHeight: 1.4,
+            <p style={{ fontSize: '0.7rem', color: '#888', marginBottom: '0.4rem', lineHeight: 1.3,
               overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
               WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
               {item.description}
             </p>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
             <span style={{ fontWeight: 700, color: '#1A1A2E', fontSize: '1rem' }}>
               ${item.price.toFixed(2)}
             </span>

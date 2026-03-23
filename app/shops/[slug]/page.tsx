@@ -205,7 +205,7 @@ export default function ShopDetailPage() {
           {menuLoading ? (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+              gridTemplateColumns: 'repeat(5, 1fr)',
               gap: '1.25rem',
             }}>
               {[1, 2, 3, 4].map(i => (
@@ -217,7 +217,7 @@ export default function ShopDetailPage() {
           ) : filteredItems.length > 0 ? (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+              gridTemplateColumns: 'repeat(5, 1fr)',
               gap: '1.25rem',
             }}>
               {filteredItems.map(item => (
