@@ -100,7 +100,7 @@ export default function ShopMenu() {
 
   const openEdit = (item: MenuItem) => {
     setEditing({ ...item, price: item.price.toString() })
-    setEditImages(item.images || (item.image_url ? [item.image_url] : []))
+    setEditImages((item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : []))
     setShowForm(true)
   }
 
@@ -209,7 +209,7 @@ export default function ShopMenu() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
         {filtered.map(item => {
-          const allImages = item.images || (item.image_url ? [item.image_url] : [])
+          const allImages = (item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : [])
           return (
             <div key={item.id} style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #FFE4EF', opacity: item.is_available ? 1 : 0.5 }}>
               {allImages.length > 0 && (
