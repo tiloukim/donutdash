@@ -55,7 +55,7 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
       return
     }
 
-    if (hasVariants && !allVariantsSelected) {
+    if (!allVariantsSelected) {
       setShowModal(true)
       return
     }
@@ -280,19 +280,19 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
 
               <button
                 onClick={handleAddToCart}
-                disabled={hasVariants && !allVariantsSelected}
+                disabled={!allVariantsSelected}
                 style={{
                   width: '100%', padding: '0.85rem',
-                  background: (hasVariants && !allVariantsSelected) ? '#ccc' : '#FF8C00',
+                  background: (!allVariantsSelected) ? '#ccc' : '#FF8C00',
                   color: 'white', border: 'none', borderRadius: '10px',
                   fontSize: '1rem', fontWeight: 700,
-                  cursor: (hasVariants && !allVariantsSelected) ? 'not-allowed' : 'pointer',
+                  cursor: (!allVariantsSelected) ? 'not-allowed' : 'pointer',
                   transition: 'background 0.2s',
                 }}
                 onMouseEnter={e => { if (allVariantsSelected) e.currentTarget.style.background = '#e67e00' }}
                 onMouseLeave={e => { if (allVariantsSelected) e.currentTarget.style.background = '#FF8C00' }}
               >
-                {hasVariants && !allVariantsSelected ? 'Select Options' : `Add to Cart - $${(getActivePrice() * quantity).toFixed(2)}`}
+                {!allVariantsSelected ? 'Select Options' : `Add to Cart - $${(getActivePrice() * quantity).toFixed(2)}`}
               </button>
             </div>
           </div>
