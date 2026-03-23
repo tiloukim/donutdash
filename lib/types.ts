@@ -34,6 +34,16 @@ export interface Shop {
   created_at: string
 }
 
+export interface VariantOption {
+  name: string
+  price: number
+}
+
+export interface VariantGroup {
+  name: string
+  options: VariantOption[]
+}
+
 export interface MenuItem {
   id: string
   shop_id: string
@@ -46,6 +56,7 @@ export interface MenuItem {
   is_available: boolean
   is_featured: boolean
   sort_order: number
+  variants?: VariantGroup[] | null
 }
 
 export interface Order {

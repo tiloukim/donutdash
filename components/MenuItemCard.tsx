@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useCart } from '@/lib/cart-context'
-import type { MenuItem } from '@/lib/types'
+import type { MenuItem, VariantOption } from '@/lib/types'
 
 interface MenuItemCardProps {
   item: MenuItem
@@ -16,6 +16,38 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
   const [quantity, setQuantity] = useState(1)
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false)
   const [added, setAdded] = useState(false)
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
+
+  const hasVariants = item.variants && item.variants.length > 0
+  const allVariantsSelected = !hasVariants || (item.variants?.every(v => selectedVariants[v.name]) ?? false)
+
+  function getActivePrice(): number {
+    if (!hasVariants) return item.price
+    for (const v of item.variants!) {
+      const selectedName = selectedVariants[v.name]
+      if (selectedName) {
+        const opt = v.options.find((o): o is VariantOption => typeof o === 'object' && o.name === selectedName)
+        if (opt && opt.price > 0) return opt.price
+      }
+    }
+    return item.price
+  }
+
+  function getPriceDisplay(): string {
+    if (!hasVariants) return `$${item.price.toFixed(2)}`
+    if (allVariantsSelected) return `$${getActivePrice().toFixed(2)}`
+    const allPrices: number[] = []
+    for (const v of item.variants!) {
+      for (const o of v.options) {
+        const p = typeof o === 'object' ? o.price : 0
+        if (p > 0) allPrices.push(p)
+      }
+    }
+    if (allPrices.length === 0) return `$${item.price.toFixed(2)}`
+    const min = Math.min(...allPrices)
+    const max = Math.max(...allPrices)
+    return min === max ? `$${min.toFixed(2)}` : `$${min.toFixed(2)}+`
+  }
 
   const handleAddToCart = () => {
     if (needsShopSwitch(shopId)) {
@@ -23,10 +55,17 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
       return
     }
 
+    if (hasVariants && !allVariantsSelected) {
+      setShowModal(true)
+      return
+    }
+
+    const activePrice = getActivePrice()
+    const variantSuffix = hasVariants ? Object.values(selectedVariants).join(', ') : ''
     const cartItem = {
-      id: item.id,
-      name: item.name,
-      price: item.price,
+      id: variantSuffix ? `${item.id}::${variantSuffix}` : item.id,
+      name: variantSuffix ? `${item.name} (${variantSuffix})` : item.name,
+      price: activePrice,
       quantity,
       image_url: item.image_url,
       special_instructions: null,
@@ -38,14 +77,17 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
       setTimeout(() => setAdded(false), 1500)
       setShowModal(false)
       setQuantity(1)
+      setSelectedVariants({})
     }
   }
 
   const handleSwitchShop = () => {
+    const activePrice = getActivePrice()
+    const variantSuffix = hasVariants ? Object.values(selectedVariants).join(', ') : ''
     const cartItem = {
-      id: item.id,
-      name: item.name,
-      price: item.price,
+      id: variantSuffix ? `${item.id}::${variantSuffix}` : item.id,
+      name: variantSuffix ? `${item.name} (${variantSuffix})` : item.name,
+      price: activePrice,
       quantity,
       image_url: item.image_url,
       special_instructions: null,
@@ -56,6 +98,7 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
     setAdded(true)
     setTimeout(() => setAdded(false), 1500)
     setQuantity(1)
+    setSelectedVariants({})
   }
 
   return (
@@ -123,8 +166,8 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
             </p>
           )}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
-            <span style={{ fontWeight: 700, color: '#1A1A2E', fontSize: '1rem' }}>
-              ${item.price.toFixed(2)}
+            <span style={{ fontWeight: 700, color: '#1A1A2E', fontSize: '0.9rem' }}>
+              {getPriceDisplay()}
             </span>
             <button
               onClick={(e) => {
@@ -184,9 +227,27 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
                   {item.description}
                 </p>
               )}
-              <p style={{ fontWeight: 700, fontSize: '1.15rem', color: '#FF1493', marginBottom: '1.25rem' }}>
-                ${item.price.toFixed(2)}
+              <p style={{ fontWeight: 700, fontSize: '1.15rem', color: '#FF1493', marginBottom: '1rem' }}>
+                {getPriceDisplay()}
               </p>
+
+              {hasVariants && item.variants!.map(variant => (
+                <div key={variant.name} style={{ marginBottom: '0.75rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#666', display: 'block', marginBottom: '0.35rem' }}>{variant.name}</label>
+                  <select
+                    value={selectedVariants[variant.name] || ''}
+                    onChange={e => setSelectedVariants(prev => ({ ...prev, [variant.name]: e.target.value }))}
+                    style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #ddd', borderRadius: '8px', fontSize: '0.85rem', background: 'white' }}
+                  >
+                    <option value="">Select {variant.name.toLowerCase()}</option>
+                    {variant.options.map(opt => {
+                      const optName = typeof opt === 'string' ? opt : opt.name
+                      const optPrice = typeof opt === 'object' && opt.price > 0 ? ` — $${opt.price.toFixed(2)}` : ''
+                      return <option key={optName} value={optName}>{optName}{optPrice}</option>
+                    })}
+                  </select>
+                </div>
+              ))}
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
                 <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>Quantity:</span>
@@ -219,16 +280,19 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
 
               <button
                 onClick={handleAddToCart}
+                disabled={hasVariants && !allVariantsSelected}
                 style={{
-                  width: '100%', padding: '0.85rem', background: '#FF8C00',
+                  width: '100%', padding: '0.85rem',
+                  background: (hasVariants && !allVariantsSelected) ? '#ccc' : '#FF8C00',
                   color: 'white', border: 'none', borderRadius: '10px',
-                  fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
+                  fontSize: '1rem', fontWeight: 700,
+                  cursor: (hasVariants && !allVariantsSelected) ? 'not-allowed' : 'pointer',
                   transition: 'background 0.2s',
                 }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#e67e00')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#FF8C00')}
+                onMouseEnter={e => { if (allVariantsSelected) e.currentTarget.style.background = '#e67e00' }}
+                onMouseLeave={e => { if (allVariantsSelected) e.currentTarget.style.background = '#FF8C00' }}
               >
-                Add to Cart - ${(item.price * quantity).toFixed(2)}
+                {hasVariants && !allVariantsSelected ? 'Select Options' : `Add to Cart - $${(getActivePrice() * quantity).toFixed(2)}`}
               </button>
             </div>
           </div>
