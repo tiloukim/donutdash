@@ -19,7 +19,7 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
 
   const hasVariants = item.variants && item.variants.length > 0
-  const allVariantsSelected = !hasVariants || (item.variants?.every(v => selectedVariants[v.name]) ?? false)
+  const allVariantsSelected = !hasVariants || (item.variants?.every(v => !!selectedVariants[v.name]) === true)
 
   function getActivePrice(): number {
     if (!hasVariants) return item.price
