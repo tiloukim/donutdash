@@ -7,55 +7,53 @@ export default function Footer() {
       color: 'white',
       padding: '3rem 1.5rem 2rem',
     }}>
-      <div className="footer-grid" style={{
-        maxWidth: '1280px',
-        margin: '0 auto',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '2rem',
-      }}>
-        <div style={{ gridColumn: '1 / -1', textAlign: 'center', marginBottom: '1rem' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+        {/* Logo centered */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <Link href="/">
-            <img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: '162px', width: 'auto', filter: 'brightness(1.1)', margin: '0 auto' }} />
+            <img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: '120px', width: 'auto', filter: 'brightness(1.1)' }} />
           </Link>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: 1.6, marginTop: '0.5rem' }}>
             Delicious donuts delivered fast to your door. Fresh from your favorite local shops.
           </p>
         </div>
 
-        <div>
-          <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>Explore</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <Link href="/shops" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
-              Browse Shops
-            </Link>
-            <Link href="/orders" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
-              My Orders
-            </Link>
-            <Link href="/cart" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
-              Cart
-            </Link>
+        {/* Menu links centered */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '4rem', flexWrap: 'wrap', textAlign: 'center' }}>
+          <div>
+            <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>Explore</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <Link href="/shops" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                Browse Shops
+              </Link>
+              <Link href="/orders" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                My Orders
+              </Link>
+              <Link href="/cart" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                Cart
+              </Link>
+            </div>
           </div>
-        </div>
 
-        <div>
-          <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>Company</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>About Us</span>
-            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Contact</span>
-            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Careers</span>
+          <div>
+            <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>Company</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>About Us</span>
+              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Contact</span>
+              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Careers</span>
+            </div>
           </div>
-        </div>
 
-        <div>
-          <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>For Business</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <Link href="/shop" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
-              Become a Partner
-            </Link>
-            <Link href="/driver" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
-              Drive with Us
-            </Link>
+          <div>
+            <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>For Business</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <Link href="/shop" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                Become a Partner
+              </Link>
+              <Link href="/driver" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                Drive with Us
+              </Link>
+            </div>
           </div>
         </div>
       </div>
