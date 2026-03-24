@@ -4,7 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { MenuItem } from '@/lib/types'
+import type { MenuItem, VariantGroup } from '@/lib/types'
+
+interface VariantFormOption { name: string; price: string }
+interface VariantFormGroup { name: string; options: VariantFormOption[] }
 
 function SortableMenuItem({ item, onEdit, onDelete, onToggle }: {
   item: MenuItem
@@ -68,6 +71,7 @@ export default function ShopMenu() {
   const [showForm, setShowForm] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [editImages, setEditImages] = useState<string[]>([])
+  const [editVariants, setEditVariants] = useState<VariantFormGroup[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchItems = useCallback(async () => {
@@ -115,14 +119,22 @@ export default function ShopMenu() {
     if (!editing?.name || !editing?.price) return
     const method = editing.id ? 'PUT' : 'POST'
     const mainImage = editing.image_url || editImages[0] || ''
+    const variants: VariantGroup[] | null = editVariants
+      .filter(v => v.name.trim() && v.options.length > 0)
+      .map(v => ({
+        name: v.name.trim(),
+        options: v.options.filter(o => o.name.trim()).map(o => ({ name: o.name.trim(), price: parseFloat(o.price) || 0 })),
+      }))
+      .filter(v => v.options.length > 0)
     await fetch('/api/shop/menu', {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...editing, image_url: mainImage, images: editImages, price: parseFloat(editing.price) }),
+      body: JSON.stringify({ ...editing, image_url: mainImage, images: editImages, price: parseFloat(editing.price), variants: variants.length > 0 ? variants : null }),
     })
     setEditing(null)
     setShowForm(false)
     setEditImages([])
+    setEditVariants([])
     fetchItems()
   }
 
@@ -170,12 +182,17 @@ export default function ShopMenu() {
   const openAdd = () => {
     setEditing({ ...emptyItem })
     setEditImages([])
+    setEditVariants([])
     setShowForm(true)
   }
 
   const openEdit = (item: MenuItem) => {
     setEditing({ ...item, price: item.price.toString() })
     setEditImages((item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : []))
+    setEditVariants(item.variants?.map(v => ({
+      name: v.name,
+      options: v.options.map(o => ({ name: typeof o === 'string' ? o : o.name, price: typeof o === 'object' ? o.price.toString() : '' }))
+    })) || [])
     setShowForm(true)
   }
 
@@ -210,6 +227,31 @@ export default function ShopMenu() {
               <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_available ?? true} onChange={e => setEditing({ ...editing, is_available: e.target.checked })} /> Available</label>
               <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_featured ?? false} onChange={e => setEditing({ ...editing, is_featured: e.target.checked })} /> Featured</label>
             </div>
+          </div>
+
+          {/* Variants Section */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Variants</label>
+              <button type="button" onClick={() => setEditVariants(prev => [...prev, { name: '', options: [{ name: '', price: '' }] }])} style={{ fontSize: 11, color: '#FF1493', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>+ Add variant group</button>
+            </div>
+            {editVariants.map((group, gi) => (
+              <div key={gi} style={{ border: '1px solid #FFD6E8', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                  <input placeholder="Group name (e.g. Size)" value={group.name} onChange={e => { const v = [...editVariants]; v[gi].name = e.target.value; setEditVariants(v) }} style={{ flex: 1, padding: '6px 10px', border: '1px solid #FFD6E8', borderRadius: 6, fontSize: 13 }} />
+                  <button type="button" onClick={() => setEditVariants(prev => prev.filter((_, i) => i !== gi))} style={{ color: '#DC2626', fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Remove</button>
+                </div>
+                {group.options.map((opt, oi) => (
+                  <div key={oi} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, marginLeft: 16 }}>
+                    <input placeholder="Option name" value={opt.name} onChange={e => { const v = [...editVariants]; v[gi].options[oi].name = e.target.value; setEditVariants(v) }} style={{ flex: 1, padding: '4px 8px', border: '1px solid #eee', borderRadius: 4, fontSize: 12 }} />
+                    <span style={{ fontSize: 12, color: '#888' }}>$</span>
+                    <input placeholder="0.00" type="number" step="0.01" value={opt.price} onChange={e => { const v = [...editVariants]; v[gi].options[oi].price = e.target.value; setEditVariants(v) }} style={{ width: 70, padding: '4px 8px', border: '1px solid #eee', borderRadius: 4, fontSize: 12 }} />
+                    <button type="button" onClick={() => { const v = [...editVariants]; v[gi].options = v[gi].options.filter((_, i) => i !== oi); setEditVariants(v) }} style={{ color: '#DC2626', fontSize: 10, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => { const v = [...editVariants]; v[gi].options.push({ name: '', price: '' }); setEditVariants(v) }} style={{ fontSize: 11, color: '#FF1493', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', marginLeft: 16, marginTop: 4 }}>+ Add option</button>
+              </div>
+            ))}
           </div>
 
           {/* Images Section */}
