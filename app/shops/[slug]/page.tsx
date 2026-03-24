@@ -205,8 +205,8 @@ export default function ShopDetailPage() {
           {menuLoading ? (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
-              gap: '1.25rem',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+              gap: '0.75rem',
             }}>
               {[1, 2, 3, 4].map(i => (
                 <div key={i} style={{
@@ -217,8 +217,8 @@ export default function ShopDetailPage() {
           ) : filteredItems.length > 0 ? (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
-              gap: '1.25rem',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+              gap: '0.75rem',
             }}>
               {filteredItems.map(item => (
                 <MenuItemCard key={item.id} item={item} shopId={shop.id} shopName={shop.name} />

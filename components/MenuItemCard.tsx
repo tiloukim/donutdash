@@ -127,7 +127,8 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
       >
         <div style={{
           width: '100%',
-          height: '130px',
+          height: '120px',
+          minHeight: '80px',
           background: item.image_url
             ? `url(${item.image_url}) center/cover no-repeat`
             : 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
@@ -154,19 +155,12 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
           )}
         </div>
 
-        <div style={{ padding: '0.75rem 0.85rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <h4 style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.2rem', color: '#1A1A2E', lineHeight: 1.2 }}>
+        <div style={{ padding: '0.5rem 0.6rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <h4 style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.15rem', color: '#1A1A2E', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {item.name}
           </h4>
-          {item.description && (
-            <p style={{ fontSize: '0.7rem', color: '#888', marginBottom: '0.4rem', lineHeight: 1.3,
-              overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
-              WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-              {item.description}
-            </p>
-          )}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
-            <span style={{ fontWeight: 700, color: '#1A1A2E', fontSize: '0.9rem' }}>
+            <span style={{ fontWeight: 700, color: '#1A1A2E', fontSize: '0.8rem' }}>
               {getPriceDisplay()}
             </span>
             <button
@@ -178,9 +172,9 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
                 background: '#FF8C00',
                 color: 'white',
                 border: 'none',
-                borderRadius: '8px',
-                padding: '0.4rem 0.85rem',
-                fontSize: '0.8rem',
+                borderRadius: '6px',
+                padding: '0.3rem 0.6rem',
+                fontSize: '0.7rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'background 0.2s',
