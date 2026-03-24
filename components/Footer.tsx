@@ -11,7 +11,7 @@ export default function Footer() {
         {/* Logo centered */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <Link href="/">
-            <img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: '120px', width: 'auto', filter: 'brightness(1.1)' }} />
+            <img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: '120px', width: 'auto', filter: 'brightness(1.1)', display: 'block', margin: '0 auto' }} />
           </Link>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: 1.6, marginTop: '0.5rem' }}>
             Delicious donuts delivered fast to your door. Fresh from your favorite local shops.
