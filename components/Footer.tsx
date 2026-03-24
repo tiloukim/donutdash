@@ -14,11 +14,11 @@ export default function Footer() {
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '2rem',
       }}>
-        <div>
-          <div style={{ marginBottom: '0.75rem' }}>
-            <img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: '81px', width: 'auto', filter: 'brightness(1.1)' }} />
-          </div>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+        <div style={{ gridColumn: '1 / -1', textAlign: 'center', marginBottom: '1rem' }}>
+          <Link href="/">
+            <img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: '162px', width: 'auto', filter: 'brightness(1.1)', margin: '0 auto' }} />
+          </Link>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: 1.6, marginTop: '0.5rem' }}>
             Delicious donuts delivered fast to your door. Fresh from your favorite local shops.
           </p>
         </div>
