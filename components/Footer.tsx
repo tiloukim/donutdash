@@ -67,7 +67,7 @@ export default function Footer() {
         color: 'rgba(255,255,255,0.4)',
         fontSize: '0.85rem',
       }}>
-        &copy; {new Date().getFullYear()} DonutDash. All rights reserved.
+        &copy; {new Date().getFullYear()} DonutDash™. All rights reserved.
       </div>
     </footer>
   )
