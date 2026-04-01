@@ -19,8 +19,15 @@ export async function GET() {
 
   if (!data) return NextResponse.json(null)
 
-  return NextResponse.json({
-    ...data,
-    order: data.order ? { ...data.order, items: data.order.dd_order_items } : null,
-  })
+  // Mask customer phone for privacy — only expose last 4 digits
+  const order = data.order ? {
+    ...data.order,
+    items: data.order.dd_order_items,
+    customer: data.order.customer ? {
+      ...data.order.customer,
+      phone: data.order.customer.phone ? `***-***-${data.order.customer.phone.slice(-4)}` : null,
+    } : null,
+  } : null
+
+  return NextResponse.json({ ...data, order })
 }

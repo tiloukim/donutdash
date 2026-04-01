@@ -307,12 +307,33 @@ export default function ActiveDelivery() {
               <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>DELIVER TO</h3>
               <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.customer?.name || 'Customer'}</p>
               {delivery.order?.customer?.phone && (
-                <a
-                  href={`tel:${delivery.order.customer.phone}`}
-                  style={{ fontSize: 14, color: '#FF1493', fontWeight: 600, textDecoration: 'none', display: 'inline-block', marginTop: 4 }}
-                >
-                  📞 {delivery.order.customer.phone}
-                </a>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <span style={{ fontSize: 14, color: '#666' }}>
+                    📞 {delivery.order.customer.phone}
+                  </span>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/driver/contact', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            delivery_id: delivery.id,
+                            message: `Your DonutDash driver is on the way with your order! 🍩`,
+                          }),
+                        })
+                        if (res.ok) alert('Message sent to customer!')
+                        else alert('Failed to send message')
+                      } catch { alert('Failed to send message') }
+                    }}
+                    style={{
+                      background: '#FF1493', color: '#fff', border: 'none', borderRadius: 8,
+                      padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    Text Customer
+                  </button>
+                </div>
               )}
               <p style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
                 {delivery.order?.delivery_address}, {delivery.order?.delivery_city}
