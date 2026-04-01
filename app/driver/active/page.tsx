@@ -306,6 +306,14 @@ export default function ActiveDelivery() {
             <div>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>DELIVER TO</h3>
               <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.customer?.name || 'Customer'}</p>
+              {delivery.order?.customer?.phone && (
+                <a
+                  href={`tel:${delivery.order.customer.phone}`}
+                  style={{ fontSize: 14, color: '#FF1493', fontWeight: 600, textDecoration: 'none', display: 'inline-block', marginTop: 4 }}
+                >
+                  📞 {delivery.order.customer.phone}
+                </a>
+              )}
               <p style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
                 {delivery.order?.delivery_address}, {delivery.order?.delivery_city}
               </p>

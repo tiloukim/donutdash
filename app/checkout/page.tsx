@@ -15,6 +15,10 @@ export default function CheckoutPage() {
   const { user } = useAuth()
 
   const [address, setAddress] = useState('')
+  const [apt, setApt] = useState('')
+  const [building, setBuilding] = useState('')
+  const [floor, setFloor] = useState('')
+  const [gateCode, setGateCode] = useState('')
   const [city, setCity] = useState('')
   const [instructions, setInstructions] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -184,9 +188,9 @@ export default function CheckoutPage() {
             image_url: i.image_url,
             special_instructions: i.special_instructions,
           })),
-          delivery_address: address,
+          delivery_address: [address, apt && `Apt ${apt}`, building && `Bldg ${building}`, floor && `Floor ${floor}`].filter(Boolean).join(', '),
           delivery_city: city,
-          delivery_instructions: instructions || null,
+          delivery_instructions: [gateCode && `Gate code: ${gateCode}`, instructions].filter(Boolean).join('. ') || null,
           tip,
           promo_code: promoApplied?.code || null,
           promo_discount: promoDiscount || 0,
@@ -241,6 +245,56 @@ export default function CheckoutPage() {
                 onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
                 onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
               />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <input
+                  type="text"
+                  placeholder="Apt #"
+                  value={apt}
+                  onChange={e => setApt(e.target.value)}
+                  style={{
+                    padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
+                    fontSize: '0.95rem', outline: 'none', width: '100%',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                />
+                <input
+                  type="text"
+                  placeholder="Building #"
+                  value={building}
+                  onChange={e => setBuilding(e.target.value)}
+                  style={{
+                    padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
+                    fontSize: '0.95rem', outline: 'none', width: '100%',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                />
+                <input
+                  type="text"
+                  placeholder="Floor #"
+                  value={floor}
+                  onChange={e => setFloor(e.target.value)}
+                  style={{
+                    padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
+                    fontSize: '0.95rem', outline: 'none', width: '100%',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                />
+                <input
+                  type="text"
+                  placeholder="Gate code"
+                  value={gateCode}
+                  onChange={e => setGateCode(e.target.value)}
+                  style={{
+                    padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
+                    fontSize: '0.95rem', outline: 'none', width: '100%',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                />
+              </div>
               <input
                 type="text"
                 placeholder="City"
