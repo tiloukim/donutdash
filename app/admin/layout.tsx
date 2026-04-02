@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/admin/users', label: 'Users', icon: '👥' },
   { href: '/admin/orders', label: 'Orders', icon: '📦' },
   { href: '/admin/drivers', label: 'Drivers', icon: '🚗' },
+  { href: '/admin/driver-documents', label: 'Driver Docs', icon: '📋' },
   { href: '/admin/payouts', label: 'Payouts', icon: '💰' },
   { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
 ]

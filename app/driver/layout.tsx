@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/driver', label: 'Home', icon: '📍' },
   { href: '/driver/active', label: 'Active', icon: '🚗' },
   { href: '/driver/earnings', label: 'Earnings', icon: '💵' },
+  { href: '/driver/documents', label: 'Documents', icon: '📄' },
   { href: '/driver/settings', label: 'Settings', icon: '⚙️' },
 ]
 
