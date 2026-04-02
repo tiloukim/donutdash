@@ -44,12 +44,13 @@ interface PeriodData {
 const fmt = (n: number) => `$${n.toFixed(2)}`
 
 export default function PayoutsPage() {
-  const [tab, setTab] = useState<'overview' | 'batches'>('overview')
+  const [tab, setTab] = useState<'overview' | 'requests' | 'batches'>('overview')
   const [period, setPeriod] = useState('week')
   const [periodData, setPeriodData] = useState<PeriodData | null>(null)
   const [batches, setBatches] = useState<PayoutBatch[]>([])
   const [selectedBatch, setSelectedBatch] = useState<PayoutBatch | null>(null)
   const [batchItems, setBatchItems] = useState<PayoutItem[]>([])
+  const [payoutRequests, setPayoutRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [processing, setProcessing] = useState<string | null>(null)
@@ -67,6 +68,35 @@ export default function PayoutsPage() {
         .finally(() => setLoading(false))
     }
   }, [period, tab])
+
+  // Fetch payout requests
+  useEffect(() => {
+    if (tab === 'requests') {
+      setLoading(true)
+      fetch('/api/admin/payout-requests')
+        .then(r => r.json())
+        .then(d => setPayoutRequests(d.requests || []))
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    }
+  }, [tab])
+
+  const handleRequestAction = async (requestId: string, status: 'approved' | 'paid' | 'rejected', adminNotes?: string) => {
+    setProcessing(requestId)
+    try {
+      const res = await fetch('/api/admin/payout-requests', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, status, admin_notes: adminNotes }),
+      })
+      if (res.ok) {
+        setPayoutRequests(prev => prev.map(r => r.id === requestId ? { ...r, status, paid_at: status === 'paid' ? new Date().toISOString() : r.paid_at } : r))
+        setMessage(`Request ${status}`)
+        setTimeout(() => setMessage(''), 3000)
+      }
+    } catch {}
+    finally { setProcessing(null) }
+  }
 
   // Fetch batches
   useEffect(() => {
@@ -156,6 +186,17 @@ export default function PayoutsPage() {
           padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer',
           background: tab === 'overview' ? '#6366F1' : '#F3F4F6', color: tab === 'overview' ? '#fff' : '#6B7280',
         }}>Earnings Overview</button>
+        <button onClick={() => setTab('requests')} style={{
+          padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          background: tab === 'requests' ? '#6366F1' : '#F3F4F6', color: tab === 'requests' ? '#fff' : '#6B7280',
+        }}>
+          Payout Requests
+          {payoutRequests.filter(r => r.status === 'pending').length > 0 && (
+            <span style={{ marginLeft: 6, background: '#EF4444', color: '#fff', borderRadius: 10, padding: '2px 8px', fontSize: 11 }}>
+              {payoutRequests.filter(r => r.status === 'pending').length}
+            </span>
+          )}
+        </button>
         <button onClick={() => setTab('batches')} style={{
           padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer',
           background: tab === 'batches' ? '#6366F1' : '#F3F4F6', color: tab === 'batches' ? '#fff' : '#6B7280',
@@ -247,6 +288,85 @@ export default function PayoutsPage() {
                 )}
               </div>
             </>
+          )}
+        </>
+      )}
+
+      {/* Payout Requests Tab */}
+      {tab === 'requests' && (
+        <>
+          {loading ? <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Loading...</div> : (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+              {payoutRequests.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>No payout requests</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #F3F4F6' }}>
+                      {['Driver/Shop', 'Role', 'Amount', 'Payment Method', 'Payment Info', 'Notes', 'Status', 'Requested', 'Actions'].map(h => (
+                        <th key={h} style={thStyle}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payoutRequests.map(req => (
+                      <tr key={req.id} style={{ borderBottom: '1px solid #F3F4F6', background: req.status === 'pending' ? '#FFFBEB' : undefined }}>
+                        <td style={tdStyle}>
+                          <div style={{ fontWeight: 600 }}>{req.user?.name || '—'}</div>
+                          <div style={{ fontSize: 11, color: '#9CA3AF' }}>{req.user?.email}</div>
+                          {req.user?.phone && <div style={{ fontSize: 11, color: '#9CA3AF' }}>{req.user.phone}</div>}
+                        </td>
+                        <td style={tdStyle}>
+                          <span style={{
+                            fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+                            background: req.role === 'driver' ? '#DBEAFE' : '#FCE7F3',
+                            color: req.role === 'driver' ? '#1E40AF' : '#9D174D',
+                          }}>
+                            {req.role === 'driver' ? 'Driver' : 'Shop'}
+                          </span>
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: 700, fontSize: 16, color: '#10B981' }}>{fmt(Number(req.amount))}</td>
+                        <td style={{ ...tdStyle, fontSize: 13 }}>{req.payment_method}</td>
+                        <td style={{ ...tdStyle, fontSize: 12, maxWidth: 200, wordBreak: 'break-all' as const }}>{req.payment_info}</td>
+                        <td style={{ ...tdStyle, fontSize: 12, color: '#6B7280' }}>{req.notes || '—'}</td>
+                        <td style={tdStyle}>
+                          <span style={{
+                            fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
+                            background: req.status === 'paid' ? '#D1FAE5' : req.status === 'pending' ? '#FEF3C7' : req.status === 'rejected' ? '#FEE2E2' : '#DBEAFE',
+                            color: req.status === 'paid' ? '#065F46' : req.status === 'pending' ? '#92400E' : req.status === 'rejected' ? '#DC2626' : '#1E40AF',
+                          }}>
+                            {req.status}{req.paid_at ? ` ${new Date(req.paid_at).toLocaleDateString()}` : ''}
+                          </span>
+                        </td>
+                        <td style={{ ...tdStyle, fontSize: 12, color: '#6B7280', whiteSpace: 'nowrap' }}>
+                          {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                        </td>
+                        <td style={tdStyle}>
+                          {req.status === 'pending' && (
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button onClick={() => handleRequestAction(req.id, 'paid')} disabled={processing === req.id}
+                                style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: '#10B981', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                Mark Paid
+                              </button>
+                              <button onClick={() => handleRequestAction(req.id, 'rejected')} disabled={processing === req.id}
+                                style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                          {req.status === 'approved' && (
+                            <button onClick={() => handleRequestAction(req.id, 'paid')} disabled={processing === req.id}
+                              style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: '#10B981', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                              Mark Paid
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           )}
         </>
       )}
