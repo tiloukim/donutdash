@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
+import Turnstile from '@/components/Turnstile'
 
 const ROLES = [
   { value: 'customer', label: 'Customer', desc: 'Order delicious donuts' },
@@ -21,6 +22,7 @@ export default function SignupPage() {
   const [role, setRole] = useState<'customer' | 'driver' | 'shop_owner'>('customer')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,6 +31,11 @@ export default function SignupPage() {
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters.')
+      setLoading(false)
+      return
+    }
+    if (!captchaToken) {
+      setError('Please complete the CAPTCHA verification.')
       setLoading(false)
       return
     }
@@ -43,6 +50,7 @@ export default function SignupPage() {
             phone: phone || null,
             role,
           },
+          captchaToken,
         },
       })
 
@@ -208,12 +216,14 @@ export default function SignupPage() {
             </div>
           </div>
 
+          <Turnstile onToken={setCaptchaToken} />
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !captchaToken}
             style={{
               width: '100%', padding: '0.85rem',
-              background: loading ? '#ccc' : '#FF1493',
+              background: (loading || !captchaToken) ? '#ccc' : '#FF1493',
               color: 'white', border: 'none', borderRadius: '10px',
               fontSize: '1rem', fontWeight: 700,
               cursor: loading ? 'not-allowed' : 'pointer',

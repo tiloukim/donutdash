@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
+import Turnstile from '@/components/Turnstile'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,9 +21,15 @@ export default function LoginPage() {
     setError('')
 
     try {
+      if (!captchaToken) {
+        setError('Please complete the CAPTCHA verification.')
+        setLoading(false)
+        return
+      }
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: { captchaToken },
       })
 
       if (signInError) {
@@ -120,12 +128,14 @@ export default function LoginPage() {
             />
           </div>
 
+          <Turnstile onToken={setCaptchaToken} />
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !captchaToken}
             style={{
               width: '100%', padding: '0.85rem',
-              background: loading ? '#ccc' : '#FF1493',
+              background: (loading || !captchaToken) ? '#ccc' : '#FF1493',
               color: 'white', border: 'none', borderRadius: '10px',
               fontSize: '1rem', fontWeight: 700,
               cursor: loading ? 'not-allowed' : 'pointer',
