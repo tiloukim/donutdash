@@ -459,20 +459,112 @@ export default function DriverDashboard() {
         </div>
       )}
 
-      {/* Idle state when online but no offer */}
+      {/* Available Deliveries + Idle state when online but no offer */}
       {isOnline && !offer && (
-        <div style={{
-          background: '#fff', borderRadius: 16, padding: 40, textAlign: 'center',
-          border: '1px solid #FFE8D6',
-        }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📡</div>
-          <p style={{ color: '#888', fontSize: 15 }}>Scanning for nearby orders...</p>
-          <p style={{ color: '#bbb', fontSize: 12, marginTop: 8 }}>You&apos;ll be notified when a delivery is available</p>
-          <p style={{ color: '#FF8C00', fontSize: 11, marginTop: 12, background: '#FFF7ED', padding: '8px 12px', borderRadius: 8, display: 'inline-block' }}>
-            Keep this tab open to receive offers and share your GPS
-          </p>
+        <AvailableDeliveries />
+      )}
+    </div>
+  )
+}
+
+function AvailableDeliveries() {
+  const [deliveries, setDeliveries] = useState<any[]>([])
+  const [claiming, setClaiming] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const fetchAvailable = () => {
+      fetch('/api/driver/available-orders')
+        .then(r => r.json())
+        .then(d => setDeliveries(d.deliveries || []))
+        .catch(() => {})
+    }
+    fetchAvailable()
+    const interval = setInterval(fetchAvailable, 15000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const claimDelivery = async (deliveryId: string) => {
+    setClaiming(deliveryId)
+    setError('')
+    try {
+      const res = await fetch('/api/driver/available-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delivery_id: deliveryId }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        window.location.href = '/driver/active'
+      } else {
+        setError(data.error || 'Failed to claim')
+        setDeliveries(prev => prev.filter(d => d.id !== deliveryId))
+      }
+    } catch { setError('Failed to claim delivery') }
+    finally { setClaiming(null) }
+  }
+
+  return (
+    <div>
+      {deliveries.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', marginBottom: 12 }}>
+            Available Deliveries ({deliveries.length})
+          </h3>
+          {error && <div style={{ background: '#FEE2E2', borderRadius: 8, padding: '8px 12px', marginBottom: 10, color: '#DC2626', fontSize: 13 }}>{error}</div>}
+          {deliveries.map(d => {
+            const order = d.order
+            const shop = order?.shop
+            return (
+              <div key={d.id} style={{
+                background: '#fff', borderRadius: 14, border: '2px solid #FFE8D6', padding: 18, marginBottom: 12,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700 }}>{shop?.name || 'Shop'}</div>
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{shop?.address}, {shop?.city}</div>
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#10B981' }}>
+                    ${(d.driver_earnings || 4.00).toFixed(2)}
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>Deliver to:</span> {order?.delivery_address}, {order?.delivery_city}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                  <div style={{ fontSize: 13, color: '#888' }}>
+                    Order: ${order?.total?.toFixed(2) || '0.00'}
+                    {d.distance_miles ? ` • ${d.distance_miles.toFixed(1)} mi` : ''}
+                  </div>
+                  <button
+                    onClick={() => claimDelivery(d.id)}
+                    disabled={claiming === d.id}
+                    style={{
+                      padding: '10px 24px', borderRadius: 10, border: 'none',
+                      background: claiming === d.id ? '#9CA3AF' : '#10B981', color: '#fff',
+                      fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    {claiming === d.id ? 'Accepting...' : 'Accept'}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
+
+      <div style={{
+        background: '#fff', borderRadius: 16, padding: 40, textAlign: 'center',
+        border: '1px solid #FFE8D6',
+      }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📡</div>
+        <p style={{ color: '#888', fontSize: 15 }}>Scanning for nearby orders...</p>
+        <p style={{ color: '#bbb', fontSize: 12, marginTop: 8 }}>You&apos;ll be notified when a delivery is available</p>
+        <p style={{ color: '#FF8C00', fontSize: 11, marginTop: 12, background: '#FFF7ED', padding: '8px 12px', borderRadius: 8, display: 'inline-block' }}>
+          Keep this tab open to receive offers and share your GPS
+        </p>
+      </div>
     </div>
   )
 }

@@ -73,15 +73,10 @@ export async function POST(req: NextRequest) {
     .eq('delivery_id', delivery.id)
     .eq('status', 'pending')
 
-  // Reset delivery to pending with no driver
+  // Reset delivery to pending with no driver (do NOT reset order status)
   await svc.from('dd_deliveries')
     .update({ driver_id: null, status: 'pending' })
     .eq('id', delivery.id)
-
-  // Reset order status to pending
-  await svc.from('dd_orders')
-    .update({ status: 'pending' })
-    .eq('id', order_id)
 
   // Try assigning again
   const result = await assignNextDriver(delivery.id)
