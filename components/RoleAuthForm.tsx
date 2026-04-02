@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
+import Turnstile from '@/components/Turnstile'
 
 interface RoleAuthFormProps {
   role: 'driver' | 'shop_owner' | 'admin'
@@ -33,6 +34,7 @@ export default function RoleAuthForm({
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,10 +42,16 @@ export default function RoleAuthForm({
     setError('')
 
     try {
+      if (!captchaToken) {
+        setError('Please complete the CAPTCHA verification.')
+        setLoading(false)
+        return
+      }
       if (mode === 'login') {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
+          options: { captchaToken },
         })
         if (signInError) {
           setError(signInError.message)
@@ -65,6 +73,7 @@ export default function RoleAuthForm({
               phone: phone || null,
               role,
             },
+            captchaToken,
           },
         })
         if (signUpError) {
@@ -220,13 +229,15 @@ export default function RoleAuthForm({
             />
           </div>
 
+          <Turnstile onToken={setCaptchaToken} />
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !captchaToken}
             style={{
               width: '100%',
               padding: '0.85rem',
-              background: loading ? '#ccc' : accentColor,
+              background: (loading || !captchaToken) ? '#ccc' : accentColor,
               color: 'white',
               border: 'none',
               borderRadius: '10px',
