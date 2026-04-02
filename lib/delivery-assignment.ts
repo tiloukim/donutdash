@@ -72,6 +72,9 @@ export async function createDeliveryOffer(deliveryId: string, driverId: string) 
   return { data, error }
 }
 
+// Max number of individual driver offers before leaving it in Available Deliveries
+const MAX_OFFER_ATTEMPTS = 3
+
 export async function assignNextDriver(deliveryId: string) {
   const svc = createServiceClient()
 
@@ -106,6 +109,13 @@ export async function assignNextDriver(deliveryId: string) {
     .in('status', ['declined', 'expired'])
 
   const excludeIds = (prevOffers || []).map(o => o.driver_id)
+
+  // Stop auto-offering after MAX_OFFER_ATTEMPTS — let it sit in Available Deliveries
+  if (excludeIds.length >= MAX_OFFER_ATTEMPTS) {
+    console.log(`[ASSIGN] Reached ${MAX_OFFER_ATTEMPTS} offer attempts for delivery ${deliveryId}, moving to Available Deliveries`)
+    return null
+  }
+
   const nearbyDrivers = await findNearestAvailableDrivers(shopLat, shopLng, excludeIds)
 
   if (nearbyDrivers.length === 0) return null
