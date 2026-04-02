@@ -192,7 +192,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           shopId,
           items: items.map(i => ({
-            menu_item_id: i.id,
+            menu_item_id: i.id.split('::')[0],
             name: i.name,
             price: i.price,
             quantity: i.quantity,
