@@ -2,199 +2,455 @@
 
 import { useEffect, useState } from 'react'
 
-interface ShopPayout {
+interface PayoutBatch {
   id: string
-  name: string
-  orders: number
-  subtotal: number
-  commission: number
-  payout: number
+  week_start: string
+  week_end: string
+  status: string
+  total_driver_payouts: number
+  total_shop_payouts: number
+  total_amount: number
+  created_at: string
+  processed_at: string | null
 }
 
-interface DriverPayout {
+interface PayoutItem {
   id: string
-  name: string
-  phone: string
-  email: string
-  deliveries: number
-  earnings: number
-  tips: number
-  basePay: number
+  user_id: string
+  user_type: string
+  shop_id: string | null
+  amount: number
+  earnings_breakdown: any
+  bank_info: { holder: string; routing: string; account: string } | null
+  status: string
+  notes: string | null
+  paid_at: string | null
+  user: { name: string; email: string; phone: string | null }
+  shop: { name: string } | null
 }
 
-interface PayoutData {
-  period: string
+interface PeriodData {
   summary: {
     totalRevenue: number
     totalShopPayouts: number
     totalDriverPayouts: number
-    totalCommissions: number
-    totalServiceFees: number
-    totalDeliveryFees: number
     platformProfit: number
     totalOrders: number
   }
-  shopPayouts: ShopPayout[]
-  driverPayouts: DriverPayout[]
+  shopPayouts: any[]
+  driverPayouts: any[]
 }
 
+const fmt = (n: number) => `$${n.toFixed(2)}`
+
 export default function PayoutsPage() {
-  const [data, setData] = useState<PayoutData | null>(null)
+  const [tab, setTab] = useState<'overview' | 'batches'>('overview')
   const [period, setPeriod] = useState('week')
+  const [periodData, setPeriodData] = useState<PeriodData | null>(null)
+  const [batches, setBatches] = useState<PayoutBatch[]>([])
+  const [selectedBatch, setSelectedBatch] = useState<PayoutBatch | null>(null)
+  const [batchItems, setBatchItems] = useState<PayoutItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [processing, setProcessing] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
+  // Fetch period overview
   useEffect(() => {
-    setLoading(true)
-    fetch(`/api/admin/payouts?period=${period}`)
-      .then(r => r.json())
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [period])
+    if (tab === 'overview') {
+      setLoading(true)
+      fetch(`/api/admin/payouts?period=${period}`)
+        .then(r => r.json())
+        .then(setPeriodData)
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    }
+  }, [period, tab])
 
-  const fmt = (n: number) => `$${n.toFixed(2)}`
+  // Fetch batches
+  useEffect(() => {
+    if (tab === 'batches') {
+      setLoading(true)
+      fetch('/api/admin/payout-batch')
+        .then(r => r.json())
+        .then(d => setBatches(d.batches || []))
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    }
+  }, [tab])
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Loading payouts...</div>
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Failed to load data</div>
+  const fetchBatchDetails = async (batch: PayoutBatch) => {
+    setSelectedBatch(batch)
+    const res = await fetch(`/api/admin/payout-batch/${batch.id}`)
+    const data = await res.json()
+    setBatchItems(data.items || [])
+  }
+
+  const generateBatch = async () => {
+    setGenerating(true)
+    setError('')
+    setMessage('')
+    try {
+      const res = await fetch('/api/admin/payout-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate' }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMessage(`Batch generated with ${data.itemCount} payout items`)
+        setBatches(prev => [data.batch, ...prev])
+      } else {
+        setError(data.error || 'Failed to generate')
+      }
+    } catch { setError('Failed to generate batch') }
+    finally { setGenerating(false) }
+  }
+
+  const payItem = async (itemId: string) => {
+    setProcessing(itemId)
+    try {
+      const res = await fetch('/api/admin/payout-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pay_item', itemId }),
+      })
+      if (res.ok) {
+        setBatchItems(prev => prev.map(i => i.id === itemId ? { ...i, status: 'paid', paid_at: new Date().toISOString() } : i))
+      }
+    } catch {}
+    finally { setProcessing(null) }
+  }
+
+  const payAll = async (batchId: string) => {
+    if (!confirm('Mark all pending items as paid? Make sure you have sent all bank transfers first.')) return
+    setProcessing('all')
+    try {
+      const res = await fetch('/api/admin/payout-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pay_all', batchId }),
+      })
+      if (res.ok) {
+        setBatchItems(prev => prev.map(i => i.status === 'pending' ? { ...i, status: 'paid', paid_at: new Date().toISOString() } : i))
+        setSelectedBatch(prev => prev ? { ...prev, status: 'completed' } : null)
+        setBatches(prev => prev.map(b => b.id === batchId ? { ...b, status: 'completed' } : b))
+        setMessage('All payouts marked as paid!')
+        setTimeout(() => setMessage(''), 4000)
+      }
+    } catch {}
+    finally { setProcessing(null) }
+  }
+
+  const maskAccount = (num: string | null | undefined) => {
+    if (!num || num.length < 4) return num || '—'
+    return '****' + num.slice(-4)
+  }
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1200 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E' }}>Payouts</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['week', 'month', 'all'].map(p => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              style={{
-                padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                background: period === p ? '#FF1493' : '#f0f0f0',
-                color: period === p ? '#fff' : '#666',
-                fontWeight: 600, fontSize: 13,
-              }}
-            >
-              {p === 'week' ? 'This Week' : p === 'month' ? 'This Month' : 'All Time'}
+    <div>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <button onClick={() => { setTab('overview'); setSelectedBatch(null) }} style={{
+          padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          background: tab === 'overview' ? '#6366F1' : '#F3F4F6', color: tab === 'overview' ? '#fff' : '#6B7280',
+        }}>Earnings Overview</button>
+        <button onClick={() => setTab('batches')} style={{
+          padding: '10px 24px', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          background: tab === 'batches' ? '#6366F1' : '#F3F4F6', color: tab === 'batches' ? '#fff' : '#6B7280',
+        }}>Weekly Payouts</button>
+      </div>
+
+      {message && <div style={{ background: '#D1FAE5', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#065F46', fontSize: 14 }}>{message}</div>}
+      {error && <div style={{ background: '#FEE2E2', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#DC2626', fontSize: 14 }}>{error}</div>}
+
+      {/* Overview Tab */}
+      {tab === 'overview' && (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {['week', 'month', 'all'].map(p => (
+              <button key={p} onClick={() => setPeriod(p)} style={{
+                padding: '6px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                background: period === p ? '#6366F1' : '#F3F4F6', color: period === p ? '#fff' : '#6B7280',
+              }}>
+                {p === 'week' ? 'This Week' : p === 'month' ? 'This Month' : 'All Time'}
+              </button>
+            ))}
+          </div>
+
+          {loading ? <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Loading...</div> : periodData && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
+                <SummaryCard label="Total Revenue" value={fmt(periodData.summary.totalRevenue)} color="#10B981" />
+                <SummaryCard label="Shop Payouts" value={fmt(periodData.summary.totalShopPayouts)} color="#FF8C00" />
+                <SummaryCard label="Driver Payouts" value={fmt(periodData.summary.totalDriverPayouts)} color="#3B82F6" />
+                <SummaryCard label="Platform Profit" value={fmt(periodData.summary.platformProfit)} color="#6366F1" />
+                <SummaryCard label="Orders" value={String(periodData.summary.totalOrders)} color="#8B5CF6" />
+              </div>
+
+              {/* Shop payouts table */}
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20, marginBottom: 20 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px 0' }}>Shop Earnings</h3>
+                {periodData.shopPayouts.length === 0 ? (
+                  <p style={{ color: '#9CA3AF', textAlign: 'center', padding: 20 }}>No shop earnings this period</p>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #F3F4F6' }}>
+                        {['Shop', 'Orders', 'Sales', 'Commission (15%)', 'Owed'].map(h => (
+                          <th key={h} style={thStyle}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {periodData.shopPayouts.map((s: any) => (
+                        <tr key={s.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                          <td style={tdStyle}><strong>{s.name}</strong></td>
+                          <td style={tdStyle}>{s.orders}</td>
+                          <td style={tdStyle}>{fmt(s.subtotal)}</td>
+                          <td style={tdStyle}>{fmt(s.commission)}</td>
+                          <td style={{ ...tdStyle, fontWeight: 700, color: '#FF8C00' }}>{fmt(s.payout)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Driver payouts table */}
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px 0' }}>Driver Earnings</h3>
+                {periodData.driverPayouts.length === 0 ? (
+                  <p style={{ color: '#9CA3AF', textAlign: 'center', padding: 20 }}>No driver earnings this period</p>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #F3F4F6' }}>
+                        {['Driver', 'Deliveries', 'Base Pay', 'Tips', 'Total Owed'].map(h => (
+                          <th key={h} style={thStyle}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {periodData.driverPayouts.map((d: any) => (
+                        <tr key={d.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                          <td style={tdStyle}><strong>{d.name}</strong></td>
+                          <td style={tdStyle}>{d.deliveries}</td>
+                          <td style={tdStyle}>{fmt(d.basePay)}</td>
+                          <td style={tdStyle}>{fmt(d.tips)}</td>
+                          <td style={{ ...tdStyle, fontWeight: 700, color: '#3B82F6' }}>{fmt(d.earnings)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Batches Tab */}
+      {tab === 'batches' && !selectedBatch && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Weekly Payout Batches</h3>
+            <button onClick={generateBatch} disabled={generating} style={{
+              padding: '10px 24px', borderRadius: 8, border: 'none', background: '#10B981', color: '#fff',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            }}>
+              {generating ? 'Generating...' : 'Generate Last Week\'s Batch'}
             </button>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 32 }}>
-        <SummaryCard label="Total Revenue" value={fmt(data.summary.totalRevenue)} color="#10B981" />
-        <SummaryCard label="Shop Payouts" value={fmt(data.summary.totalShopPayouts)} color="#FF8C00" />
-        <SummaryCard label="Driver Payouts" value={fmt(data.summary.totalDriverPayouts)} color="#3B82F6" />
-        <SummaryCard label="Platform Profit" value={fmt(data.summary.platformProfit)} color="#FF1493" />
-        <SummaryCard label="Orders" value={String(data.summary.totalOrders)} color="#8B5CF6" />
-      </div>
+          {loading ? <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Loading...</div> : (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+              {batches.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>
+                  No batches yet. Click "Generate" to create this week&apos;s payout batch.
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #F3F4F6' }}>
+                      {['Week', 'Shop Payouts', 'Driver Payouts', 'Total', 'Status', 'Actions'].map(h => (
+                        <th key={h} style={thStyle}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {batches.map(batch => (
+                      <tr key={batch.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                        <td style={tdStyle}>
+                          <strong>{new Date(batch.week_start + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong>
+                          <span style={{ color: '#9CA3AF' }}> — </span>
+                          <span>{new Date(batch.week_end + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        </td>
+                        <td style={tdStyle}>{fmt(batch.total_shop_payouts)}</td>
+                        <td style={tdStyle}>{fmt(batch.total_driver_payouts)}</td>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>{fmt(batch.total_amount)}</td>
+                        <td style={tdStyle}>
+                          <span style={{
+                            fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
+                            background: batch.status === 'completed' ? '#D1FAE5' : batch.status === 'processing' ? '#DBEAFE' : '#FEF3C7',
+                            color: batch.status === 'completed' ? '#065F46' : batch.status === 'processing' ? '#1E40AF' : '#92400E',
+                          }}>
+                            {batch.status}
+                          </span>
+                        </td>
+                        <td style={tdStyle}>
+                          <button onClick={() => fetchBatchDetails(batch)} style={{
+                            padding: '6px 14px', borderRadius: 6, border: '1px solid #E5E7EB', background: '#fff',
+                            fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#6366F1',
+                          }}>
+                            View & Pay
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
-      {/* Shop Payouts */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0f0f0', padding: 24, marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E' }}>Shop Payouts</h2>
-          <span style={{ fontSize: 14, color: '#888' }}>Total: {fmt(data.summary.totalShopPayouts)}</span>
-        </div>
-        {data.shopPayouts.length === 0 ? (
-          <p style={{ color: '#888', textAlign: 'center', padding: 20 }}>No delivered orders this period</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
-                <th style={thStyle}>Shop</th>
-                <th style={thStyle}>Orders</th>
-                <th style={thStyle}>Sales</th>
-                <th style={thStyle}>Commission (15%)</th>
-                <th style={{ ...thStyle, color: '#FF8C00' }}>Owed to Shop</th>
-                <th style={thStyle}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.shopPayouts.map(shop => (
-                <tr key={shop.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                  <td style={tdStyle}><strong>{shop.name}</strong></td>
-                  <td style={tdStyle}>{shop.orders}</td>
-                  <td style={tdStyle}>{fmt(shop.subtotal)}</td>
-                  <td style={tdStyle}>{fmt(shop.commission)}</td>
-                  <td style={{ ...tdStyle, fontWeight: 700, color: '#FF8C00' }}>{fmt(shop.payout)}</td>
-                  <td style={tdStyle}>
-                    <span style={{ padding: '4px 10px', borderRadius: 6, background: '#FEF3C7', color: '#92400E', fontSize: 12, fontWeight: 600 }}>
-                      Pending
-                    </span>
-                  </td>
+      {/* Batch Detail View */}
+      {tab === 'batches' && selectedBatch && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div>
+              <button onClick={() => { setSelectedBatch(null); setBatchItems([]) }} style={{
+                background: 'none', border: 'none', color: '#6366F1', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: 8,
+              }}>
+                &larr; Back to Batches
+              </button>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+                Week of {new Date(selectedBatch.week_start + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </h3>
+            </div>
+            {selectedBatch.status !== 'completed' && batchItems.some(i => i.status === 'pending') && (
+              <button onClick={() => payAll(selectedBatch.id)} disabled={processing === 'all'} style={{
+                padding: '10px 24px', borderRadius: 8, border: 'none', background: '#10B981', color: '#fff',
+                fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              }}>
+                {processing === 'all' ? 'Processing...' : `Mark All as Paid (${fmt(selectedBatch.total_amount)})`}
+              </button>
+            )}
+          </div>
+
+          {/* Summary cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+            <SummaryCard label="Shop Payouts" value={fmt(selectedBatch.total_shop_payouts)} color="#FF8C00" />
+            <SummaryCard label="Driver Payouts" value={fmt(selectedBatch.total_driver_payouts)} color="#3B82F6" />
+            <SummaryCard label="Total" value={fmt(selectedBatch.total_amount)} color="#6366F1" />
+            <SummaryCard label="Paid" value={`${batchItems.filter(i => i.status === 'paid').length}/${batchItems.length}`} color="#10B981" />
+          </div>
+
+          {/* Payout items */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #F3F4F6' }}>
+                  {['Type', 'Name', 'Details', 'Amount', 'Bank Info', 'Status', 'Actions'].map(h => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody>
+                {batchItems.map(item => {
+                  const breakdown = item.earnings_breakdown || {}
+                  return (
+                    <tr key={item.id} style={{ borderBottom: '1px solid #F3F4F6', background: item.status === 'paid' ? '#F0FDF4' : undefined }}>
+                      <td style={tdStyle}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+                          background: item.user_type === 'driver' ? '#DBEAFE' : '#FCE7F3',
+                          color: item.user_type === 'driver' ? '#1E40AF' : '#9D174D',
+                        }}>
+                          {item.user_type === 'driver' ? 'Driver' : 'Shop'}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={{ fontWeight: 600 }}>{item.user?.name || '—'}</div>
+                        {item.shop && <div style={{ fontSize: 12, color: '#9CA3AF' }}>{item.shop.name}</div>}
+                      </td>
+                      <td style={{ ...tdStyle, fontSize: 12, color: '#6B7280' }}>
+                        {item.user_type === 'driver' ? (
+                          <>{breakdown.deliveries} deliveries, {fmt(breakdown.basePay || 0)} base + {fmt(breakdown.tips || 0)} tips</>
+                        ) : (
+                          <>{breakdown.orders} orders, {fmt(breakdown.subtotal || 0)} sales, -{fmt(breakdown.commission || 0)} comm.</>
+                        )}
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 700, fontSize: 16, color: item.user_type === 'driver' ? '#3B82F6' : '#FF8C00' }}>
+                        {fmt(item.amount)}
+                      </td>
+                      <td style={{ ...tdStyle, fontSize: 12 }}>
+                        {item.bank_info?.holder ? (
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{item.bank_info.holder}</div>
+                            <div style={{ color: '#9CA3AF' }}>Routing: {maskAccount(item.bank_info.routing)}</div>
+                            <div style={{ color: '#9CA3AF' }}>Account: {maskAccount(item.bank_info.account)}</div>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#EF4444', fontWeight: 600 }}>No bank info</span>
+                        )}
+                      </td>
+                      <td style={tdStyle}>
+                        <span style={{
+                          fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
+                          background: item.status === 'paid' ? '#D1FAE5' : item.status === 'skipped' ? '#F3F4F6' : '#FEF3C7',
+                          color: item.status === 'paid' ? '#065F46' : item.status === 'skipped' ? '#6B7280' : '#92400E',
+                        }}>
+                          {item.status}{item.paid_at ? ` ${new Date(item.paid_at).toLocaleDateString()}` : ''}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>
+                        {item.status === 'pending' && (
+                          <button onClick={() => payItem(item.id)} disabled={processing === item.id} style={{
+                            padding: '6px 14px', borderRadius: 6, border: 'none', background: '#10B981', color: '#fff',
+                            fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                          }}>
+                            {processing === item.id ? '...' : 'Mark Paid'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+                {batchItems.length === 0 && (
+                  <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No payout items in this batch</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Driver Payouts */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0f0f0', padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E' }}>Driver Payouts</h2>
-          <span style={{ fontSize: 14, color: '#888' }}>Total: {fmt(data.summary.totalDriverPayouts)}</span>
-        </div>
-        {data.driverPayouts.length === 0 ? (
-          <p style={{ color: '#888', textAlign: 'center', padding: 20 }}>No completed deliveries this period</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
-                <th style={thStyle}>Driver</th>
-                <th style={thStyle}>Contact</th>
-                <th style={thStyle}>Deliveries</th>
-                <th style={thStyle}>Base Pay</th>
-                <th style={thStyle}>Tips</th>
-                <th style={{ ...thStyle, color: '#3B82F6' }}>Total Owed</th>
-                <th style={thStyle}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.driverPayouts.map(driver => (
-                <tr key={driver.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                  <td style={tdStyle}><strong>{driver.name}</strong></td>
-                  <td style={tdStyle}>
-                    {driver.phone && <a href={`tel:${driver.phone}`} style={{ color: '#3B82F6', textDecoration: 'none', fontSize: 13 }}>{driver.phone}</a>}
-                    {!driver.phone && <span style={{ color: '#888', fontSize: 13 }}>{driver.email || '—'}</span>}
-                  </td>
-                  <td style={tdStyle}>{driver.deliveries}</td>
-                  <td style={tdStyle}>{fmt(driver.basePay)}</td>
-                  <td style={tdStyle}>{fmt(driver.tips)}</td>
-                  <td style={{ ...tdStyle, fontWeight: 700, color: '#3B82F6' }}>{fmt(driver.earnings)}</td>
-                  <td style={tdStyle}>
-                    <span style={{ padding: '4px 10px', borderRadius: 6, background: '#FEF3C7', color: '#92400E', fontSize: 12, fontWeight: 600 }}>
-                      Pending
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* How to Pay */}
-      <div style={{ background: '#F0F9FF', borderRadius: 12, border: '1px solid #BAE6FD', padding: 20, marginTop: 24 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0369A1', marginBottom: 8 }}>How to Process Payouts</h3>
-        <ul style={{ fontSize: 13, color: '#0C4A6E', lineHeight: 1.8, margin: 0, paddingLeft: 20 }}>
-          <li>Review the amounts above for the selected period</li>
-          <li>Pay shops via <strong>Zelle, Venmo, or bank transfer</strong></li>
-          <li>Pay drivers via <strong>Zelle, Venmo, or Cash App</strong></li>
-          <li>Automated payouts will be available when Stripe Connect is approved</li>
-        </ul>
-      </div>
+          {/* Instructions */}
+          <div style={{ marginTop: 20, background: '#F0F9FF', borderRadius: 12, border: '1px solid #BAE6FD', padding: 20 }}>
+            <h4 style={{ fontSize: 14, fontWeight: 700, color: '#0369A1', margin: '0 0 8px 0' }}>How to Process This Batch</h4>
+            <ol style={{ fontSize: 13, color: '#0C4A6E', lineHeight: 2, margin: 0, paddingLeft: 20 }}>
+              <li>Review each payout amount and bank details above</li>
+              <li>Log into your bank and send ACH/wire transfers to each recipient</li>
+              <li>Click <strong>"Mark Paid"</strong> on each item after you send the transfer</li>
+              <li>Or click <strong>"Mark All as Paid"</strong> once all transfers are sent</li>
+            </ol>
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
 function SummaryCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0f0f0', padding: 16 }}>
-      <p style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>{label}</p>
-      <p style={{ fontSize: 22, fontWeight: 800, color }}>{value}</p>
+    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E7EB', padding: 16 }}>
+      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color }}>{value}</div>
     </div>
   )
 }
 
-const thStyle: React.CSSProperties = { textAlign: 'left', padding: '10px 12px', fontSize: 12, color: '#888', fontWeight: 600, textTransform: 'uppercase' }
+const thStyle: React.CSSProperties = { textAlign: 'left', padding: '10px 12px', fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }
 const tdStyle: React.CSSProperties = { padding: '12px', fontSize: 14 }

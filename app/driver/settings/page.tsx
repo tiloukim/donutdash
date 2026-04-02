@@ -7,6 +7,9 @@ export default function DriverSettings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [bankInfo, setBankInfo] = useState({ bank_account_holder: '', bank_routing_number: '', bank_account_number: '' })
+  const [savingBank, setSavingBank] = useState(false)
+  const [bankSaved, setBankSaved] = useState(false)
 
   // Vehicle fields stored in local state only (no DB columns yet)
   const [vehicle, setVehicle] = useState({
@@ -29,6 +32,10 @@ export default function DriverSettings() {
         }
       })
       .finally(() => setLoading(false))
+    // Fetch bank info
+    fetch('/api/user/bank-info').then(r => r.json()).then(d => {
+      if (d.bankInfo) setBankInfo(d.bankInfo)
+    }).catch(() => {})
   }, [])
 
   const save = async () => {
@@ -266,6 +273,68 @@ export default function DriverSettings() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Bank Info Section */}
+      <div style={cardStyle}>
+        <div style={sectionTitleStyle}>
+          <span style={{ width: 4, height: 20, background: '#10B981', borderRadius: 2, display: 'inline-block' }}></span>
+          Bank Account (for Weekly Payouts)
+        </div>
+        <div style={{
+          background: '#F0FDF4',
+          border: '1px solid #BBF7D0',
+          borderRadius: 8,
+          padding: '8px 12px',
+          marginBottom: 14,
+          fontSize: 12,
+          color: '#166534',
+        }}>
+          Your earnings will be deposited to this account every week.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={labelStyle}>Account Holder Name</label>
+            <input style={inputStyle} placeholder="John Doe"
+              value={bankInfo.bank_account_holder || ''}
+              onChange={e => setBankInfo({ ...bankInfo, bank_account_holder: e.target.value })} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Routing Number</label>
+              <input style={inputStyle} placeholder="9 digits"
+                value={bankInfo.bank_routing_number || ''}
+                onChange={e => setBankInfo({ ...bankInfo, bank_routing_number: e.target.value })} />
+            </div>
+            <div>
+              <label style={labelStyle}>Account Number</label>
+              <input style={inputStyle} placeholder="Account number"
+                value={bankInfo.bank_account_number || ''}
+                onChange={e => setBankInfo({ ...bankInfo, bank_account_number: e.target.value })} />
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={async () => {
+            setSavingBank(true); setBankSaved(false)
+            const res = await fetch('/api/user/bank-info', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(bankInfo),
+            })
+            if (res.ok) { setBankSaved(true); setTimeout(() => setBankSaved(false), 3000) }
+            setSavingBank(false)
+          }}
+          disabled={savingBank}
+          style={{
+            marginTop: 14, padding: '10px 24px', borderRadius: 8, border: 'none',
+            background: savingBank ? '#CCC' : '#10B981', color: '#fff',
+            fontSize: 14, fontWeight: 700, cursor: savingBank ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {savingBank ? 'Saving...' : 'Save Bank Info'}
+        </button>
+        {bankSaved && <div style={{ color: '#10B981', fontSize: 13, fontWeight: 600, marginTop: 8 }}>Bank info saved!</div>}
       </div>
 
       {/* Save Button */}

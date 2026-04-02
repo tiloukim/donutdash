@@ -11,10 +11,16 @@ export default function ShopSettings() {
   const [error, setError] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [bankInfo, setBankInfo] = useState({ bank_account_holder: '', bank_routing_number: '', bank_account_number: '' })
+  const [savingBank, setSavingBank] = useState(false)
+  const [bankSaved, setBankSaved] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     fetch('/api/shop/settings').then(r => r.json()).then(setShop).finally(() => setLoading(false))
+    fetch('/api/user/bank-info').then(r => r.json()).then(d => {
+      if (d.bankInfo) setBankInfo(d.bankInfo)
+    }).catch(() => {})
   }, [])
 
   const save = async () => {
@@ -263,6 +269,53 @@ export default function ShopSettings() {
           </button>
           {saved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Saved!</span>}
           {error && <span style={{ color: '#DC2626', fontSize: 13, fontWeight: 600 }}>{error}</span>}
+        </div>
+      </div>
+
+      {/* Bank Account for Payouts */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Bank Account (for Weekly Payouts)</h3>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>Your shop earnings (85% of sales) will be deposited weekly to this account.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={labelStyle}>Account Holder Name</label>
+            <input style={inputStyle} placeholder="Business or personal name"
+              value={bankInfo.bank_account_holder || ''}
+              onChange={e => setBankInfo({ ...bankInfo, bank_account_holder: e.target.value })} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Routing Number</label>
+              <input style={inputStyle} placeholder="9 digits"
+                value={bankInfo.bank_routing_number || ''}
+                onChange={e => setBankInfo({ ...bankInfo, bank_routing_number: e.target.value })} />
+            </div>
+            <div>
+              <label style={labelStyle}>Account Number</label>
+              <input style={inputStyle} placeholder="Account number"
+                value={bankInfo.bank_account_number || ''}
+                onChange={e => setBankInfo({ ...bankInfo, bank_account_number: e.target.value })} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
+          <button
+            onClick={async () => {
+              setSavingBank(true); setBankSaved(false)
+              const res = await fetch('/api/user/bank-info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bankInfo),
+              })
+              if (res.ok) { setBankSaved(true); setTimeout(() => setBankSaved(false), 3000) }
+              setSavingBank(false)
+            }}
+            disabled={savingBank}
+            style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: savingBank ? '#CCC' : '#10B981', color: '#fff', fontSize: 14, fontWeight: 700, cursor: savingBank ? 'not-allowed' : 'pointer' }}
+          >
+            {savingBank ? 'Saving...' : 'Save Bank Info'}
+          </button>
+          {bankSaved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Bank info saved!</span>}
         </div>
       </div>
     </div>
