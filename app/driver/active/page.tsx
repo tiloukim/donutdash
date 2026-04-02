@@ -272,11 +272,34 @@ export default function ActiveDelivery() {
         <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #FFE8D6' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>PICKUP</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 8 }}>PICKUP</h3>
               <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.shop?.name}</p>
               <p style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
                 {delivery.order?.shop?.address}, {delivery.order?.shop?.city}
               </p>
+              {delivery.order?.status && (
+                <div style={{
+                  display: 'inline-block', marginTop: 8, padding: '4px 12px', borderRadius: 6,
+                  fontSize: 12, fontWeight: 700,
+                  background: delivery.order.status === 'ready_for_pickup' ? '#D1FAE5' :
+                    delivery.order.status === 'preparing' ? '#FEF3C7' :
+                    delivery.order.status === 'confirmed' ? '#DBEAFE' : '#F3F4F6',
+                  color: delivery.order.status === 'ready_for_pickup' ? '#065F46' :
+                    delivery.order.status === 'preparing' ? '#92400E' :
+                    delivery.order.status === 'confirmed' ? '#1E40AF' : '#374151',
+                }}>
+                  {delivery.order.status === 'ready_for_pickup' ? '✅ Ready for Pickup' :
+                   delivery.order.status === 'preparing' ? '🍩 Preparing...' :
+                   delivery.order.status === 'confirmed' ? '📋 Order Confirmed' :
+                   delivery.order.status === 'pending' ? '⏳ Pending' :
+                   delivery.order.status}
+                </div>
+              )}
+              {delivery.order?.shop?.phone && (
+                <a href={`tel:${delivery.order.shop.phone}`} style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#3B82F6', textDecoration: 'none', fontWeight: 600 }}>
+                  📞 Call Shop: {delivery.order.shop.phone}
+                </a>
+              )}
             </div>
             {(delivery.status === 'assigned') && (
               <button
@@ -307,32 +330,64 @@ export default function ActiveDelivery() {
               <h3 style={{ fontSize: 14, fontWeight: 700, color: '#888', marginBottom: 12 }}>DELIVER TO</h3>
               <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.customer?.name || 'Customer'}</p>
               {delivery.order?.customer?.phone && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <span style={{ fontSize: 14, color: '#666' }}>
-                    📞 {delivery.order.customer.phone}
-                  </span>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await fetch('/api/driver/contact', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            delivery_id: delivery.id,
-                            message: `Your DonutDash driver is on the way with your order! 🍩`,
-                          }),
-                        })
-                        if (res.ok) alert('Message sent to customer!')
-                        else alert('Failed to send message')
-                      } catch { alert('Failed to send message') }
-                    }}
-                    style={{
-                      background: '#FF1493', color: '#fff', border: 'none', borderRadius: 8,
-                      padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                    }}
-                  >
-                    Text Customer
-                  </button>
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 14, color: '#666' }}>
+                      📞 {delivery.order.customer.phone}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('/api/driver/contact', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ delivery_id: delivery.id, message: `Your DonutDash driver is on the way with your order! 🍩` }),
+                          })
+                          if (res.ok) alert('Message sent to customer!')
+                          else { const d = await res.json(); alert(d.error || 'Failed to send message') }
+                        } catch { alert('Failed to send message') }
+                      }}
+                      style={{ background: '#FF1493', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      On My Way
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('/api/driver/contact', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ delivery_id: delivery.id, message: `Your DonutDash driver has arrived! Please come to the door. 🚗` }),
+                          })
+                          if (res.ok) alert('Message sent to customer!')
+                          else { const d = await res.json(); alert(d.error || 'Failed to send message') }
+                        } catch { alert('Failed to send message') }
+                      }}
+                      style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      I'm Here
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const msg = prompt('Type your message to the customer:')
+                        if (!msg) return
+                        try {
+                          const res = await fetch('/api/driver/contact', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ delivery_id: delivery.id, message: `DonutDash: ${msg}` }),
+                          })
+                          if (res.ok) alert('Message sent to customer!')
+                          else { const d = await res.json(); alert(d.error || 'Failed to send message') }
+                        } catch { alert('Failed to send message') }
+                      }}
+                      style={{ background: '#6366F1', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Custom Message
+                    </button>
+                  </div>
                 </div>
               )}
               <p style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
