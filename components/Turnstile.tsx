@@ -1,46 +1,55 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (el: HTMLElement, opts: Record<string, unknown>) => string
-      reset: (id: string) => void
-    }
-  }
-}
+import { useEffect, useRef, useCallback } from 'react'
 
 export default function Turnstile({ onToken }: { onToken: (token: string) => void }) {
   const ref = useRef<HTMLDivElement>(null)
-  const widgetId = useRef<string | null>(null)
+  const rendered = useRef(false)
+  const callbackRef = useRef(onToken)
+  callbackRef.current = onToken
+
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 
   useEffect(() => {
-    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
-    if (!siteKey) return
+    if (!siteKey || rendered.current) return
 
-    // Load Turnstile script
-    if (!document.getElementById('cf-turnstile-script')) {
+    // Define global callback
+    ;(window as any).__onTurnstileCallback = (token: string) => {
+      callbackRef.current(token)
+    }
+
+    // Load script
+    const existing = document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]')
+    if (!existing) {
       const script = document.createElement('script')
-      script.id = 'cf-turnstile-script'
-      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
       script.async = true
       document.head.appendChild(script)
     }
 
-    const interval = setInterval(() => {
-      if (window.turnstile && ref.current && !widgetId.current) {
-        widgetId.current = window.turnstile.render(ref.current, {
+    // Render widget via data attributes
+    if (ref.current && !rendered.current) {
+      ref.current.innerHTML = ''
+      const widget = document.createElement('div')
+      widget.className = 'cf-turnstile'
+      widget.dataset.sitekey = siteKey
+      widget.dataset.callback = '__onTurnstileCallback'
+      widget.dataset.theme = 'light'
+      ref.current.appendChild(widget)
+      rendered.current = true
+
+      // If script already loaded, re-render
+      if ((window as any).turnstile) {
+        ;(window as any).turnstile.render(widget, {
           sitekey: siteKey,
-          callback: (token: string) => onToken(token),
+          callback: (token: string) => callbackRef.current(token),
           theme: 'light',
         })
-        clearInterval(interval)
       }
-    }, 100)
+    }
+  }, [siteKey])
 
-    return () => clearInterval(interval)
-  }, [onToken])
+  if (!siteKey) return null
 
   return <div ref={ref} style={{ marginTop: 8 }} />
 }
