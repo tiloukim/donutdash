@@ -260,6 +260,47 @@ export default function AdminTax() {
         </div>
       </div>
 
+      {/* Export / Download Section */}
+      <div style={{ marginTop: 24, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20 }}>
+        <h4 style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', margin: '0 0 4px 0' }}>Export Tax Documents</h4>
+        <p style={{ fontSize: 12, color: '#9CA3AF', margin: '0 0 16px 0' }}>Download CSV files for your accountant or tax filing</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+          {[
+            { type: '1099', label: '1099-NEC Summary', desc: 'Driver earnings for IRS 1099 filing', icon: '📋', color: '#EF4444' },
+            { type: 'quarterly', label: 'Quarterly Tax Summary', desc: 'For estimated tax payments (1040-ES)', icon: '📊', color: '#F59E0B' },
+            { type: 'monthly', label: 'Monthly Breakdown', desc: 'Revenue & expenses by month', icon: '📅', color: '#6366F1' },
+            { type: 'annual', label: 'Annual P&L Statement', desc: 'Full year profit & loss', icon: '📈', color: '#10B981' },
+            { type: 'driver_payments', label: 'Driver Payment History', desc: 'All payout requests & statuses', icon: '💸', color: '#3B82F6' },
+            { type: 'shop_payments', label: 'Shop Payment Summary', desc: 'Shop earnings & bank details', icon: '🏪', color: '#EC4899' },
+          ].map(exp => (
+            <a
+              key={exp.type}
+              href={`/api/admin/tax/export?year=${year}&type=${exp.type}`}
+              download
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14,
+                borderRadius: 10, border: '1px solid #E5E7EB', textDecoration: 'none',
+                transition: 'background 0.15s', cursor: 'pointer',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 8, background: exp.color + '15',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0,
+              }}>
+                {exp.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>{exp.label}</div>
+                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{exp.desc}</div>
+                <div style={{ fontSize: 11, color: exp.color, fontWeight: 600, marginTop: 4 }}>Download CSV</div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+
       {/* Tax reminders */}
       <div style={{ marginTop: 24, background: '#F0F9FF', borderRadius: 12, border: '1px solid #BAE6FD', padding: 20 }}>
         <h4 style={{ fontSize: 14, fontWeight: 700, color: '#0369A1', margin: '0 0 10px 0' }}>Tax Filing Reminders</h4>
