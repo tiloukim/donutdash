@@ -158,9 +158,26 @@ export async function POST(request: NextRequest) {
     // Notify admins of new order (fire and forget)
     const shopName = shop?.name || 'a shop'
     const itemCount = items.length
-    notifyAdmins(
-      `🍩 New DonutDash Order!\n$${total.toFixed(2)} — ${itemCount} item${itemCount > 1 ? 's' : ''} from ${shopName}\nDelivery: ${delivery_address}\nOrder #${order.id.slice(0, 8)}`
-    ).catch(() => {})
+    const smsMsg = `New DonutDash Order!\n$${total.toFixed(2)} - ${itemCount} item${itemCount > 1 ? 's' : ''} from ${shopName}\nDelivery: ${delivery_address}\nOrder #${order.id.slice(0, 8)}`
+    const emailHtml = `
+      <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+        <h2 style="color:#FF8C00;margin-bottom:4px;">New DonutDash Order!</h2>
+        <p style="color:#666;font-size:13px;margin-top:0;">Order #${order.id.slice(0, 8)}</p>
+        <div style="background:#FFF8F0;border:1px solid #FFE8D6;border-radius:12px;padding:16px;margin:16px 0;">
+          <div style="font-size:28px;font-weight:800;color:#10B981;">$${total.toFixed(2)}</div>
+          <div style="font-size:14px;color:#666;margin-top:4px;">${itemCount} item${itemCount > 1 ? 's' : ''} from <strong>${shopName}</strong></div>
+        </div>
+        <div style="font-size:14px;line-height:1.8;color:#333;">
+          <div><strong>Delivery:</strong> ${delivery_address}</div>
+          <div><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</div>
+          <div><strong>Delivery Fee:</strong> $${deliveryFee.toFixed(2)}</div>
+          <div><strong>Service Fee:</strong> $${serviceFee.toFixed(2)}</div>
+          ${tipAmount > 0 ? `<div><strong>Tip:</strong> $${tipAmount.toFixed(2)}</div>` : ''}
+        </div>
+        <a href="https://donutdash.app/admin/orders" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF8C00;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">View in Admin</a>
+      </div>
+    `
+    notifyAdmins(smsMsg, `New Order: $${total.toFixed(2)} from ${shopName}`, emailHtml).catch(() => {})
 
     // Create Square Checkout
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
