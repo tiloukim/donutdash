@@ -37,5 +37,14 @@ export async function GET() {
   const thisWeek = all.filter(d => d.delivered_at && d.delivered_at >= weekStart).reduce((sum, d) => sum + d.driver_earnings, 0)
   const allTime = all.reduce((sum, d) => sum + d.driver_earnings, 0)
 
-  return NextResponse.json({ today, thisWeek, allTime, deliveries: all })
+  // Calculate total paid out + pending payouts
+  const { data: payouts } = await svc.from('dd_payout_requests')
+    .select('amount, status')
+    .eq('user_id', ddUser.id)
+    .in('status', ['pending', 'approved', 'paid'])
+
+  const totalPaidOut = (payouts || []).reduce((sum, p) => sum + Number(p.amount), 0)
+  const availableBalance = Math.max(0, Math.round((allTime - totalPaidOut) * 100) / 100)
+
+  return NextResponse.json({ today, thisWeek, allTime, availableBalance, deliveries: all })
 }

@@ -15,7 +15,7 @@ interface PayoutRequest {
 }
 
 export default function DriverEarnings() {
-  const [data, setData] = useState<{ today: number; thisWeek: number; allTime: number; deliveries: any[] }>({ today: 0, thisWeek: 0, allTime: 0, deliveries: [] })
+  const [data, setData] = useState<{ today: number; thisWeek: number; allTime: number; availableBalance: number; deliveries: any[] }>({ today: 0, thisWeek: 0, allTime: 0, availableBalance: 0, deliveries: [] })
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -41,6 +41,7 @@ export default function DriverEarnings() {
   const handleRequestPayout = async () => {
     const amt = parseFloat(payoutAmount)
     if (!amt || amt <= 0) { setPayoutError('Enter a valid amount'); return }
+    if (amt > data.availableBalance) { setPayoutError(`Amount exceeds available balance ($${data.availableBalance.toFixed(2)})`); return }
     if (payoutMethod === 'bank_transfer') {
       if (!bankAccountHolder.trim()) { setPayoutError('Enter the account holder name'); return }
       if (!bankRoutingNumber.trim()) { setPayoutError('Enter the routing number'); return }
@@ -86,6 +87,7 @@ export default function DriverEarnings() {
     { label: 'Today', value: data.today, color: '#10B981' },
     { label: 'This Week', value: data.thisWeek, color: '#FF8C00' },
     { label: 'All Time', value: data.allTime, color: '#6366F1' },
+    { label: 'Available Balance', value: data.availableBalance, color: '#10B981' },
     { label: 'Total Deliveries', value: data.deliveries.length, color: '#FF8C00', isCount: true },
   ]
 
@@ -143,8 +145,9 @@ export default function DriverEarnings() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Amount ($)</label>
-              <input type="number" step="0.01" placeholder="0.00" value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)}
+              <input type="number" step="0.01" max={data.availableBalance} placeholder="0.00" value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)}
                 style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 15, outline: 'none' }} />
+              <div style={{ fontSize: 12, color: '#10B981', marginTop: 4 }}>Available: ${data.availableBalance.toFixed(2)}</div>
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Payment Method</label>

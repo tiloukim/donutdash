@@ -36,6 +36,33 @@ export async function POST(req: NextRequest) {
   if (!payment_method) return NextResponse.json({ error: 'Payment method required' }, { status: 400 })
   if (!payment_info) return NextResponse.json({ error: 'Payment info required' }, { status: 400 })
 
+  // Check available balance
+  const { data: deliveries } = await svc.from('dd_deliveries')
+    .select('driver_earnings, base_pay, distance_miles, order:dd_orders(tip)')
+    .eq('driver_id', ddUser.id)
+    .eq('status', 'delivered')
+
+  const allTimeEarnings = (deliveries || []).reduce((sum, d) => {
+    const basePay = d.base_pay || 3.00
+    const tip = (d.order as any)?.tip || 0
+    const distanceMiles = d.distance_miles || 2
+    const storedEarnings = d.driver_earnings || 4.00
+    const calculatedEarnings = basePay + (distanceMiles * 0.55) + tip
+    return sum + Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
+  }, 0)
+
+  const { data: existingPayouts } = await svc.from('dd_payout_requests')
+    .select('amount, status')
+    .eq('user_id', ddUser.id)
+    .in('status', ['pending', 'approved', 'paid'])
+
+  const totalPaidOut = (existingPayouts || []).reduce((sum, p) => sum + Number(p.amount), 0)
+  const availableBalance = Math.round((allTimeEarnings - totalPaidOut) * 100) / 100
+
+  if (amount > availableBalance) {
+    return NextResponse.json({ error: `Amount exceeds available balance ($${availableBalance.toFixed(2)})` }, { status: 400 })
+  }
+
   // Check for pending requests
   const { data: pending } = await svc.from('dd_payout_requests')
     .select('id')
