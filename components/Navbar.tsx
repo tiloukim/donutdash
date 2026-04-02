@@ -106,6 +106,17 @@ export default function Navbar() {
                       >
                         My Orders
                       </Link>
+                      <Link href="/profile" style={{
+                        textDecoration: 'none', color: '#1A1A2E', fontWeight: 500,
+                        display: 'block', padding: '0.6rem 1rem', fontSize: '0.9rem',
+                        transition: 'background 0.15s',
+                      }}
+                        onClick={() => setUserMenuOpen(false)}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#fff0f5')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        My Profile
+                      </Link>
                       <button
                         onClick={() => { setUserMenuOpen(false); signOut() }}
                         style={{
