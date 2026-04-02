@@ -22,8 +22,11 @@ export default function DriverEarnings() {
   // Payout request state
   const [showPayoutForm, setShowPayoutForm] = useState(false)
   const [payoutAmount, setPayoutAmount] = useState('')
-  const [payoutMethod, setPayoutMethod] = useState('zelle')
+  const [payoutMethod, setPayoutMethod] = useState('bank_transfer')
   const [payoutInfo, setPayoutInfo] = useState('')
+  const [bankRoutingNumber, setBankRoutingNumber] = useState('')
+  const [bankAccountNumber, setBankAccountNumber] = useState('')
+  const [bankAccountHolder, setBankAccountHolder] = useState('')
   const [payoutNotes, setPayoutNotes] = useState('')
   const [payoutSubmitting, setPayoutSubmitting] = useState(false)
   const [payoutError, setPayoutError] = useState('')
@@ -38,20 +41,32 @@ export default function DriverEarnings() {
   const handleRequestPayout = async () => {
     const amt = parseFloat(payoutAmount)
     if (!amt || amt <= 0) { setPayoutError('Enter a valid amount'); return }
-    if (!payoutInfo.trim()) { setPayoutError('Enter your payment info'); return }
+    if (payoutMethod === 'bank_transfer') {
+      if (!bankAccountHolder.trim()) { setPayoutError('Enter the account holder name'); return }
+      if (!bankRoutingNumber.trim()) { setPayoutError('Enter the routing number'); return }
+      if (!bankAccountNumber.trim()) { setPayoutError('Enter the account number'); return }
+    } else if (!payoutInfo.trim()) { setPayoutError('Enter your payment info'); return }
     setPayoutSubmitting(true)
     setPayoutError('')
     try {
       const res = await fetch('/api/driver/payout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: amt, payment_method: payoutMethod, payment_info: payoutInfo, notes: payoutNotes }),
+        body: JSON.stringify({
+          amount: amt,
+          payment_method: payoutMethod,
+          payment_info: payoutMethod === 'bank_transfer'
+            ? `Name: ${bankAccountHolder.trim()}, Routing: ${bankRoutingNumber.trim()}, Account: ${bankAccountNumber.trim()}`
+            : payoutInfo,
+          notes: payoutNotes,
+        }),
       })
       const d = await res.json()
       if (res.ok) {
         setPayoutSuccess('Payout request submitted!')
         setShowPayoutForm(false)
         setPayoutAmount(''); setPayoutInfo(''); setPayoutNotes('')
+        setBankRoutingNumber(''); setBankAccountNumber(''); setBankAccountHolder('')
         setPayoutRequests(prev => [d.request, ...prev])
         setTimeout(() => setPayoutSuccess(''), 5000)
       } else {
@@ -135,18 +150,22 @@ export default function DriverEarnings() {
               <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Payment Method</label>
               <select value={payoutMethod} onChange={e => setPayoutMethod(e.target.value)}
                 style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 }}>
-                <option value="zelle">Zelle</option>
-                <option value="venmo">Venmo</option>
-                <option value="cashapp">Cash App</option>
                 <option value="bank_transfer">Bank Transfer</option>
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>
-                {payoutMethod === 'zelle' ? 'Zelle Email or Phone' : payoutMethod === 'venmo' ? 'Venmo Username' : payoutMethod === 'cashapp' ? 'Cash App $Cashtag' : 'Bank Account Details'}
-              </label>
-              <input type="text" placeholder={payoutMethod === 'zelle' ? 'email@example.com' : payoutMethod === 'venmo' ? '@username' : payoutMethod === 'cashapp' ? '$cashtag' : 'Routing + Account #'}
-                value={payoutInfo} onChange={e => setPayoutInfo(e.target.value)}
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Account Holder Name</label>
+              <input type="text" placeholder="John Doe" value={bankAccountHolder} onChange={e => setBankAccountHolder(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Routing Number</label>
+              <input type="text" placeholder="9 digits" value={bankRoutingNumber} onChange={e => setBankRoutingNumber(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Account Number</label>
+              <input type="text" placeholder="Account number" value={bankAccountNumber} onChange={e => setBankAccountNumber(e.target.value)}
                 style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' }} />
             </div>
             <div>
