@@ -22,7 +22,6 @@ export default function CheckoutPage() {
   const [city, setCity] = useState('')
   const [state, setState] = useState('TX')
   const [zip, setZip] = useState('')
-  const [phone, setPhone] = useState('')
   const [instructions, setInstructions] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -175,10 +174,6 @@ export default function CheckoutPage() {
     }
     if (!zip.trim()) {
       setError('Please enter a ZIP code.')
-      return
-    }
-    if (!phone.trim()) {
-      setError('Please enter a phone number for delivery updates.')
       return
     }
 
@@ -344,18 +339,6 @@ export default function CheckoutPage() {
                   onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
                 />
               </div>
-              <input
-                type="tel"
-                placeholder="Phone number (for delivery updates)"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                style={{
-                  padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
-                  fontSize: '0.95rem', outline: 'none', width: '100%',
-                }}
-                onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
-              />
               <textarea
                 placeholder="Delivery instructions (optional)"
                 value={instructions}
