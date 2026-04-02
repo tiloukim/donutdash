@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
   const calcDriverEarnings = (driverId: string) => {
     return deliveries.filter(d => d.driver_id === driverId).reduce((sum, d) => {
-      const basePay = d.base_pay || 3.00
+      const basePay = d.base_pay || 2.50
       const tip = (d.order as any)?.tip || 0
       const distanceMiles = d.distance_miles || 2
       const stored = d.driver_earnings || 4.00
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
       const df = qOrders.reduce((s, o) => s + Number(o.delivery_fee || 0), 0)
       const tips = qOrders.reduce((s, o) => s + Number(o.tip || 0), 0)
       const dp = qDeliveries.reduce((s, d) => {
-        const bp = d.base_pay || 3; const t = (d.order as any)?.tip || 0; const dm = d.distance_miles || 2
+        const bp = d.base_pay || 2.50; const t = (d.order as any)?.tip || 0; const dm = d.distance_miles || 2
         return s + Math.max(d.driver_earnings || 4, Math.round((bp + dm * 0.55 + t) * 100) / 100)
       }, 0)
       const net = comm + sf + df - dp
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     const shopCommissions = totalSubtotal * SHOP_COMMISSION_RATE
     const shopPayouts = totalSubtotal - shopCommissions
     const driverPayouts = deliveries.reduce((s, d) => {
-      const bp = d.base_pay || 3; const t = (d.order as any)?.tip || 0; const dm = d.distance_miles || 2
+      const bp = d.base_pay || 2.50; const t = (d.order as any)?.tip || 0; const dm = d.distance_miles || 2
       return s + Math.max(d.driver_earnings || 4, Math.round((bp + dm * 0.55 + t) * 100) / 100)
     }, 0)
 
@@ -232,7 +232,7 @@ export async function GET(req: NextRequest) {
       const df = mOrders.reduce((s, o) => s + Number(o.delivery_fee || 0), 0)
       const tips = mOrders.reduce((s, o) => s + Number(o.tip || 0), 0)
       const dp = mDeliveries.reduce((s, d) => {
-        const bp = d.base_pay || 3; const t = (d.order as any)?.tip || 0; const dm = d.distance_miles || 2
+        const bp = d.base_pay || 2.50; const t = (d.order as any)?.tip || 0; const dm = d.distance_miles || 2
         return s + Math.max(d.driver_earnings || 4, Math.round((bp + dm * 0.55 + t) * 100) / 100)
       }, 0)
 
