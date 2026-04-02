@@ -20,6 +20,9 @@ export default function CheckoutPage() {
   const [floor, setFloor] = useState('')
   const [gateCode, setGateCode] = useState('')
   const [city, setCity] = useState('')
+  const [state, setState] = useState('TX')
+  const [zip, setZip] = useState('')
+  const [phone, setPhone] = useState('')
   const [instructions, setInstructions] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -170,6 +173,14 @@ export default function CheckoutPage() {
       setError('Please enter a city.')
       return
     }
+    if (!zip.trim()) {
+      setError('Please enter a ZIP code.')
+      return
+    }
+    if (!phone.trim()) {
+      setError('Please enter a phone number for delivery updates.')
+      return
+    }
 
     setSubmitting(true)
     setError('')
@@ -295,11 +306,49 @@ export default function CheckoutPage() {
                   onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
                 />
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px', gap: '0.75rem' }}>
+                <input
+                  type="text"
+                  placeholder="City"
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                  style={{
+                    padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
+                    fontSize: '0.95rem', outline: 'none', width: '100%',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                />
+                <input
+                  type="text"
+                  placeholder="State"
+                  value={state}
+                  onChange={e => setState(e.target.value)}
+                  style={{
+                    padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
+                    fontSize: '0.95rem', outline: 'none', width: '100%',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                />
+                <input
+                  type="text"
+                  placeholder="ZIP"
+                  value={zip}
+                  onChange={e => setZip(e.target.value)}
+                  style={{
+                    padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
+                    fontSize: '0.95rem', outline: 'none', width: '100%',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                />
+              </div>
               <input
-                type="text"
-                placeholder="City"
-                value={city}
-                onChange={e => setCity(e.target.value)}
+                type="tel"
+                placeholder="Phone number (for delivery updates)"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
                 style={{
                   padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
                   fontSize: '0.95rem', outline: 'none', width: '100%',
