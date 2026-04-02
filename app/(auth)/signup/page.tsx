@@ -146,12 +146,13 @@ export default function SignupPage() {
 
           <div>
             <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
-              Phone (optional)
+              Phone Number
             </label>
             <input
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
+              required
               placeholder="(555) 123-4567"
               style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
