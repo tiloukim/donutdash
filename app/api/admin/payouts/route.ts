@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     shopMap.set(shopId, existing)
   }
 
-  // Aggregate driver payouts
+  // Aggregate driver payouts (same calculation as driver earnings API)
   const driverMap = new Map<string, { name: string; phone: string; email: string; deliveries: number; earnings: number; tips: number; basePay: number }>()
   for (const del of deliveries || []) {
     const driverId = del.driver_id
@@ -63,11 +63,17 @@ export async function GET(req: NextRequest) {
     const driver = del.driver as any
     const existing = driverMap.get(driverId) || { name: driver?.name || 'Unknown', phone: driver?.phone || '', email: driver?.email || '', deliveries: 0, earnings: 0, tips: 0, basePay: 0 }
     existing.deliveries += 1
-    existing.earnings += Number(del.driver_earnings || 0)
-    existing.basePay += Number(del.base_pay || 0)
-    // Get tip from corresponding order
+    // Match driver earnings calculation: max of stored vs calculated
+    const basePay = Number(del.base_pay || 3.00)
     const order = (orders || []).find(o => o.id === del.order_id)
-    existing.tips += Number(order?.tip || 0)
+    const tip = Number(order?.tip || 0)
+    const distanceMiles = del.distance_miles || 2
+    const storedEarnings = Number(del.driver_earnings || 4.00)
+    const calculatedEarnings = basePay + (distanceMiles * 0.55) + tip
+    const actualEarnings = Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
+    existing.earnings += actualEarnings
+    existing.basePay += basePay
+    existing.tips += tip
     driverMap.set(driverId, existing)
   }
 
