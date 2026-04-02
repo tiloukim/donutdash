@@ -167,6 +167,24 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [reassigning, setReassigning] = useState<string | null>(null)
+  const [reassignMsg, setReassignMsg] = useState('')
+
+  const handleReassign = async (orderId: string) => {
+    setReassigning(orderId)
+    setReassignMsg('')
+    try {
+      const res = await fetch('/api/admin/reassign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId }),
+      })
+      const data = await res.json()
+      setReassignMsg(data.message || data.error || 'Done')
+      setTimeout(() => setReassignMsg(''), 5000)
+    } catch { setReassignMsg('Failed to reassign') }
+    finally { setReassigning(null) }
+  }
 
   useEffect(() => {
     fetch('/api/admin/orders')
@@ -339,6 +357,23 @@ export default function AdminOrders() {
                                   <span style={{ fontWeight: 600, color: '#059669' }}>${(delivery?.driver_earnings || 0).toFixed(2)}</span>
                                 </div>
                               </div>
+                              {/* Reassign button for stuck orders */}
+                              {(['pending', 'confirmed'].includes(order.status) || !delivery?.driver_id) && order.status !== 'delivered' && order.status !== 'cancelled' && (
+                                <div style={{ marginTop: 12 }}>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleReassign(order.id) }}
+                                    disabled={reassigning === order.id}
+                                    style={{
+                                      padding: '8px 16px', borderRadius: 8, border: 'none',
+                                      background: reassigning === order.id ? '#9CA3AF' : '#F59E0B', color: '#fff',
+                                      fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                                    }}
+                                  >
+                                    {reassigning === order.id ? 'Reassigning...' : 'Reassign to Drivers'}
+                                  </button>
+                                  {reassignMsg && <div style={{ fontSize: 12, color: '#059669', marginTop: 6 }}>{reassignMsg}</div>}
+                                </div>
+                              )}
                             </div>
 
                             {/* Live Driver Tracking */}
