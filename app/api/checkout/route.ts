@@ -4,6 +4,7 @@ import { SquareClient, SquareEnvironment } from 'square'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
+import { notifyAdmins } from '@/lib/sms'
 import crypto from 'crypto'
 
 function getSquareClient() {
@@ -153,6 +154,13 @@ export async function POST(request: NextRequest) {
       await supabase.from('dd_orders').delete().eq('id', order.id)
       return NextResponse.json({ error: itemsError.message }, { status: 500 })
     }
+
+    // Notify admins of new order (fire and forget)
+    const shopName = shop?.name || 'a shop'
+    const itemCount = items.length
+    notifyAdmins(
+      `🍩 New DonutDash Order!\n$${total.toFixed(2)} — ${itemCount} item${itemCount > 1 ? 's' : ''} from ${shopName}\nDelivery: ${delivery_address}\nOrder #${order.id.slice(0, 8)}`
+    ).catch(() => {})
 
     // Create Square Checkout
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
