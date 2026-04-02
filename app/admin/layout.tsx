@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: '/admin/drivers', label: 'Drivers', icon: '🚗' },
   { href: '/admin/driver-documents', label: 'Driver Docs', icon: '📋' },
   { href: '/admin/payouts', label: 'Payouts', icon: '💰' },
+  { href: '/admin/tax', label: 'Tax Center', icon: '🧾' },
   { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
 ]
 

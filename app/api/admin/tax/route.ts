@@ -1,0 +1,154 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const svc = createServiceClient()
+  const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
+  if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const year = parseInt(req.nextUrl.searchParams.get('year') || String(new Date().getFullYear()))
+  const yearStart = `${year}-01-01T00:00:00.000Z`
+  const yearEnd = `${year + 1}-01-01T00:00:00.000Z`
+
+  // Fetch all data in parallel
+  const [driversRes, deliveriesRes, ordersRes, payoutsRes, docsRes] = await Promise.all([
+    svc.from('dd_users').select('id, name, email, phone, created_at').eq('role', 'driver'),
+    svc.from('dd_deliveries')
+      .select('id, driver_id, driver_earnings, base_pay, distance_miles, status, delivered_at, order:dd_orders(tip)')
+      .eq('status', 'delivered')
+      .gte('delivered_at', yearStart)
+      .lt('delivered_at', yearEnd),
+    svc.from('dd_orders')
+      .select('id, total, subtotal, delivery_fee, service_fee, tip, status, created_at')
+      .neq('status', 'cancelled')
+      .gte('created_at', yearStart)
+      .lt('created_at', yearEnd),
+    svc.from('dd_payout_requests')
+      .select('id, user_id, amount, status, paid_at')
+      .eq('status', 'paid')
+      .gte('paid_at', yearStart)
+      .lt('paid_at', yearEnd),
+    svc.from('dd_driver_documents')
+      .select('driver_id, doc_type, status')
+      .eq('doc_type', 'w9'),
+  ])
+
+  const drivers = driversRes.data || []
+  const deliveries = deliveriesRes.data || []
+  const orders = ordersRes.data || []
+  const payouts = payoutsRes.data || []
+  const w9Docs = docsRes.data || []
+
+  // Per-driver earnings breakdown
+  const driverSummaries = drivers.map(driver => {
+    const driverDeliveries = deliveries.filter(d => d.driver_id === driver.id)
+    const totalEarnings = driverDeliveries.reduce((sum, d) => {
+      const basePay = d.base_pay || 3.00
+      const tip = (d.order as any)?.tip || 0
+      const distanceMiles = d.distance_miles || 2
+      const storedEarnings = d.driver_earnings || 4.00
+      const calculatedEarnings = basePay + (distanceMiles * 0.55) + tip
+      return sum + Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
+    }, 0)
+
+    const totalPaid = payouts
+      .filter(p => p.user_id === driver.id)
+      .reduce((sum, p) => sum + Number(p.amount), 0)
+
+    const w9 = w9Docs.find(d => d.driver_id === driver.id)
+
+    return {
+      id: driver.id,
+      name: driver.name,
+      email: driver.email,
+      phone: driver.phone,
+      deliveryCount: driverDeliveries.length,
+      totalEarnings: Math.round(totalEarnings * 100) / 100,
+      totalPaid: Math.round(totalPaid * 100) / 100,
+      unpaid: Math.round((totalEarnings - totalPaid) * 100) / 100,
+      needs1099: totalEarnings >= 600,
+      w9Status: w9 ? w9.status : 'missing',
+    }
+  }).filter(d => d.deliveryCount > 0 || d.totalPaid > 0)
+    .sort((a, b) => b.totalEarnings - a.totalEarnings)
+
+  // Platform income summary
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0)
+  const totalSubtotal = orders.reduce((sum, o) => sum + (o.subtotal || 0), 0)
+  const totalDeliveryFees = orders.reduce((sum, o) => sum + (o.delivery_fee || 0), 0)
+  const totalServiceFees = orders.reduce((sum, o) => sum + (o.service_fee || 0), 0)
+  const totalTips = orders.reduce((sum, o) => sum + (o.tip || 0), 0)
+  const shopCommissions = Math.round(totalSubtotal * SHOP_COMMISSION_RATE * 100) / 100
+  const totalDriverEarnings = driverSummaries.reduce((sum, d) => sum + d.totalEarnings, 0)
+
+  // Platform taxable income = commissions + service fees + delivery fees - driver payouts
+  const platformIncome = Math.round((shopCommissions + totalServiceFees + totalDeliveryFees - totalDriverEarnings) * 100) / 100
+
+  // Quarterly breakdown
+  const quarters = [0, 1, 2, 3].map(q => {
+    const qStart = new Date(year, q * 3, 1)
+    const qEnd = new Date(year, (q + 1) * 3, 1)
+    const qOrders = orders.filter(o => {
+      const d = new Date(o.created_at)
+      return d >= qStart && d < qEnd
+    })
+    const qRevenue = qOrders.reduce((sum, o) => sum + (o.total || 0), 0)
+    const qSubtotal = qOrders.reduce((sum, o) => sum + (o.subtotal || 0), 0)
+    const qServiceFees = qOrders.reduce((sum, o) => sum + (o.service_fee || 0), 0)
+    const qDeliveryFees = qOrders.reduce((sum, o) => sum + (o.delivery_fee || 0), 0)
+    const qCommissions = Math.round(qSubtotal * SHOP_COMMISSION_RATE * 100) / 100
+
+    const qDeliveries = deliveries.filter(d => {
+      const dt = new Date(d.delivered_at)
+      return dt >= qStart && dt < qEnd
+    })
+    const qDriverPay = qDeliveries.reduce((sum, d) => {
+      const basePay = d.base_pay || 3.00
+      const tip = (d.order as any)?.tip || 0
+      const distanceMiles = d.distance_miles || 2
+      const storedEarnings = d.driver_earnings || 4.00
+      const calculatedEarnings = basePay + (distanceMiles * 0.55) + tip
+      return sum + Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
+    }, 0)
+
+    return {
+      quarter: `Q${q + 1}`,
+      revenue: Math.round(qRevenue * 100) / 100,
+      commissions: qCommissions,
+      serviceFees: Math.round(qServiceFees * 100) / 100,
+      deliveryFees: Math.round(qDeliveryFees * 100) / 100,
+      driverPay: Math.round(qDriverPay * 100) / 100,
+      netIncome: Math.round((qCommissions + qServiceFees + qDeliveryFees - qDriverPay) * 100) / 100,
+      orderCount: qOrders.length,
+    }
+  })
+
+  return NextResponse.json({
+    year,
+    platformIncome: {
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      shopCommissions,
+      serviceFees: Math.round(totalServiceFees * 100) / 100,
+      deliveryFees: Math.round(totalDeliveryFees * 100) / 100,
+      driverPayouts: Math.round(totalDriverEarnings * 100) / 100,
+      tips: Math.round(totalTips * 100) / 100,
+      netTaxableIncome: platformIncome,
+      estimatedTax: Math.round(platformIncome * 0.153 * 100) / 100, // SE tax 15.3%
+      estimatedIncomeTax: Math.round(platformIncome * 0.22 * 100) / 100, // ~22% federal bracket estimate
+    },
+    quarters,
+    drivers: driverSummaries,
+    summary: {
+      totalDrivers: driverSummaries.length,
+      driversNeeding1099: driverSummaries.filter(d => d.needs1099).length,
+      driversMissingW9: driverSummaries.filter(d => d.w9Status === 'missing' && d.needs1099).length,
+    },
+  })
+}
