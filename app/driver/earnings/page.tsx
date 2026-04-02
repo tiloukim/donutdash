@@ -2,14 +2,64 @@
 
 import { useState, useEffect } from 'react'
 
+interface PayoutRequest {
+  id: string
+  amount: number
+  payment_method: string
+  payment_info: string
+  status: string
+  notes: string | null
+  admin_notes: string | null
+  created_at: string
+  paid_at: string | null
+}
+
 export default function DriverEarnings() {
   const [data, setData] = useState<{ today: number; thisWeek: number; allTime: number; deliveries: any[] }>({ today: 0, thisWeek: 0, allTime: 0, deliveries: [] })
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
+  // Payout request state
+  const [showPayoutForm, setShowPayoutForm] = useState(false)
+  const [payoutAmount, setPayoutAmount] = useState('')
+  const [payoutMethod, setPayoutMethod] = useState('zelle')
+  const [payoutInfo, setPayoutInfo] = useState('')
+  const [payoutNotes, setPayoutNotes] = useState('')
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false)
+  const [payoutError, setPayoutError] = useState('')
+  const [payoutSuccess, setPayoutSuccess] = useState('')
+  const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([])
+
   useEffect(() => {
     fetch('/api/driver/earnings').then(r => r.json()).then(setData).finally(() => setLoading(false))
+    fetch('/api/driver/payout').then(r => r.json()).then(d => setPayoutRequests(d.requests || [])).catch(() => {})
   }, [])
+
+  const handleRequestPayout = async () => {
+    const amt = parseFloat(payoutAmount)
+    if (!amt || amt <= 0) { setPayoutError('Enter a valid amount'); return }
+    if (!payoutInfo.trim()) { setPayoutError('Enter your payment info'); return }
+    setPayoutSubmitting(true)
+    setPayoutError('')
+    try {
+      const res = await fetch('/api/driver/payout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amt, payment_method: payoutMethod, payment_info: payoutInfo, notes: payoutNotes }),
+      })
+      const d = await res.json()
+      if (res.ok) {
+        setPayoutSuccess('Payout request submitted!')
+        setShowPayoutForm(false)
+        setPayoutAmount(''); setPayoutInfo(''); setPayoutNotes('')
+        setPayoutRequests(prev => [d.request, ...prev])
+        setTimeout(() => setPayoutSuccess(''), 5000)
+      } else {
+        setPayoutError(d.error || 'Failed to submit')
+      }
+    } catch { setPayoutError('Failed to submit') }
+    finally { setPayoutSubmitting(false) }
+  }
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 60 }}>
@@ -55,6 +105,92 @@ export default function DriverEarnings() {
             <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>{c.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Request Payout Section */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE8D6', padding: 20, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showPayoutForm ? 16 : 0 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Request Payout</h3>
+          {!showPayoutForm && (
+            <button onClick={() => setShowPayoutForm(true)} style={{
+              padding: '8px 20px', borderRadius: 8, border: 'none', background: '#10B981', color: '#fff',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            }}>
+              Request Payout
+            </button>
+          )}
+        </div>
+
+        {payoutSuccess && <div style={{ background: '#D1FAE5', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#065F46', fontSize: 14 }}>{payoutSuccess}</div>}
+        {payoutError && <div style={{ background: '#FEE2E2', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#DC2626', fontSize: 14 }}>{payoutError}</div>}
+
+        {showPayoutForm && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Amount ($)</label>
+              <input type="number" step="0.01" placeholder="0.00" value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 15, outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Payment Method</label>
+              <select value={payoutMethod} onChange={e => setPayoutMethod(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 }}>
+                <option value="zelle">Zelle</option>
+                <option value="venmo">Venmo</option>
+                <option value="cashapp">Cash App</option>
+                <option value="bank_transfer">Bank Transfer</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>
+                {payoutMethod === 'zelle' ? 'Zelle Email or Phone' : payoutMethod === 'venmo' ? 'Venmo Username' : payoutMethod === 'cashapp' ? 'Cash App $Cashtag' : 'Bank Account Details'}
+              </label>
+              <input type="text" placeholder={payoutMethod === 'zelle' ? 'email@example.com' : payoutMethod === 'venmo' ? '@username' : payoutMethod === 'cashapp' ? '$cashtag' : 'Routing + Account #'}
+                value={payoutInfo} onChange={e => setPayoutInfo(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Notes (optional)</label>
+              <input type="text" placeholder="Any notes for admin" value={payoutNotes} onChange={e => setPayoutNotes(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={handleRequestPayout} disabled={payoutSubmitting} style={{
+                flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#10B981', color: '#fff',
+                fontSize: 15, fontWeight: 700, cursor: 'pointer',
+              }}>
+                {payoutSubmitting ? 'Submitting...' : 'Submit Request'}
+              </button>
+              <button onClick={() => { setShowPayoutForm(false); setPayoutError('') }} style={{
+                padding: '12px 20px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 14, cursor: 'pointer',
+              }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Previous Requests */}
+        {payoutRequests.length > 0 && !showPayoutForm && (
+          <div style={{ marginTop: 16 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#888', marginBottom: 8 }}>Recent Requests</p>
+            {payoutRequests.slice(0, 5).map(r => (
+              <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                <div>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>${r.amount.toFixed(2)}</span>
+                  <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>{r.payment_method} → {r.payment_info}</span>
+                </div>
+                <span style={{
+                  fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
+                  background: r.status === 'paid' ? '#D1FAE5' : r.status === 'pending' ? '#FEF3C7' : r.status === 'rejected' ? '#FEE2E2' : '#DBEAFE',
+                  color: r.status === 'paid' ? '#065F46' : r.status === 'pending' ? '#92400E' : r.status === 'rejected' ? '#DC2626' : '#1E40AF',
+                }}>
+                  {r.status === 'paid' ? `Paid ${r.paid_at ? new Date(r.paid_at).toLocaleDateString() : ''}` : r.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE8D6', overflow: 'hidden' }}>
