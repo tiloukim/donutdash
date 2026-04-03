@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,6 +64,11 @@ export async function POST(request: NextRequest) {
 
     const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
     if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+    const { allowed } = checkRateLimit(`chat:${ddUser.id}`, 30, 60000)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
 
     // Verify user is customer or assigned driver
     const { data: order } = await svc.from('dd_orders').select('id, customer_id, status').eq('id', order_id).single()

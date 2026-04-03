@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 interface PromoCode {
   code: string
@@ -44,6 +45,12 @@ const REWARD_PROMO_MAP: Record<string, { discount_type: 'fixed' | 'free_delivery
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const { allowed } = checkRateLimit(`promo:${ip}`, 20, 60000)
+    if (!allowed) {
+      return NextResponse.json({ valid: false, error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+
     const { code } = await request.json()
 
     if (!code || typeof code !== 'string') {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -64,6 +65,11 @@ export async function POST(request: NextRequest) {
 
     if (!ddUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const { allowed } = checkRateLimit(`giftcard:${ddUser.id}`, 10, 60000)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
     }
 
     const { amount, recipient_email, recipient_name, message } = await request.json()

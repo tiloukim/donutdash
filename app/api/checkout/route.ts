@@ -6,6 +6,7 @@ import { getSurgeMultiplier } from '@/lib/surge'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
+import { checkRateLimit } from '@/lib/rate-limit'
 import crypto from 'crypto'
 
 function getSquareClient() {
@@ -34,6 +35,11 @@ export async function POST(request: NextRequest) {
 
     if (!ddUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const { allowed } = checkRateLimit(`checkout:${ddUser.id}`, 10, 60000)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
     }
 
     const body = await request.json()

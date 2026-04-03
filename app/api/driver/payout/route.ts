@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 // GET — fetch driver's payout requests
 export async function GET() {
@@ -31,6 +32,11 @@ export async function POST(req: NextRequest) {
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
   if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { allowed } = checkRateLimit(`payout:${ddUser.id}`, 5, 60000)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
 
   const { amount, payment_method, payment_info, notes } = await req.json()
 
