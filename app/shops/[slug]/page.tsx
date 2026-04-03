@@ -33,6 +33,7 @@ export default function ShopDetailPage() {
   const [groupOrderLink, setGroupOrderLink] = useState<string | null>(null)
   const [groupOrderCode, setGroupOrderCode] = useState<string | null>(null)
   const [groupCopied, setGroupCopied] = useState(false)
+  const [reviews, setReviews] = useState<any[]>([])
 
   useEffect(() => {
     if (!slug) return
@@ -47,6 +48,10 @@ export default function ShopDetailPage() {
             .then(res => res.json())
             .then(menuData => setMenuItems(menuData.items || []))
             .catch(() => setMenuItems([]))
+          fetch(`/api/shops/${s.id}/reviews`)
+            .then(res => res.json())
+            .then(d => setReviews(d.reviews || []))
+            .catch(() => {})
             .finally(() => setMenuLoading(false))
           // Check shop hours
           fetch(`/api/shops/${s.id}/hours`)
@@ -360,6 +365,29 @@ export default function ShopDetailPage() {
             }}>
               View Cart
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Reviews */}
+      {reviews.length > 0 && (
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1A1A2E', marginBottom: '1rem' }}>
+            Customer Reviews ({reviews.length})
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {reviews.slice(0, 10).map((r: any) => (
+              <div key={r.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0f0f0', padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{r.customer?.name || 'Customer'}</span>
+                    <span style={{ color: '#F59E0B', fontSize: 14 }}>{'★'.repeat(r.shop_rating)}{'☆'.repeat(5 - r.shop_rating)}</span>
+                  </div>
+                  <span style={{ fontSize: 12, color: '#9CA3AF' }}>{new Date(r.created_at).toLocaleDateString()}</span>
+                </div>
+                {r.comment && <p style={{ fontSize: 14, color: '#444', margin: 0, lineHeight: 1.5 }}>{r.comment}</p>}
+              </div>
+            ))}
           </div>
         </div>
       )}

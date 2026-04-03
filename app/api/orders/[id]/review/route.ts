@@ -14,13 +14,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Verify the order exists and belongs to this customer
   const { data: order } = await svc
     .from('dd_orders')
-    .select('id, customer_id, status, shop_id, driver_id')
+    .select('id, customer_id, status, shop_id')
     .eq('id', id)
     .single()
 
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
   if (order.customer_id !== ddUser.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   if (order.status !== 'delivered') return NextResponse.json({ error: 'Order must be delivered before reviewing' }, { status: 400 })
+
+  // Get driver_id from dd_deliveries (not dd_orders)
+  const { data: delivery } = await svc
+    .from('dd_deliveries')
+    .select('driver_id')
+    .eq('order_id', id)
+    .maybeSingle()
 
   const body = await req.json()
   const { shop_rating, driver_rating, comment } = body
@@ -41,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         order_id: id,
         customer_id: ddUser.id,
         shop_id: order.shop_id,
-        driver_id: order.driver_id,
+        driver_id: delivery?.driver_id || null,
         shop_rating: Math.round(shop_rating),
         driver_rating: Math.round(driver_rating),
         comment: comment?.trim() || null,
@@ -51,18 +58,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .single()
 
     if (error) {
-      // Table might not exist yet - return success silently
       console.error('[REVIEW] Failed to save review:', error.message)
-      return NextResponse.json({
-        success: true,
-        review: {
-          order_id: id,
-          shop_rating: Math.round(shop_rating),
-          driver_rating: Math.round(driver_rating),
-          comment: comment?.trim() || null,
-        },
-        persisted: false,
-      })
+      return NextResponse.json({ error: 'Failed to save review: ' + error.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, review, persisted: true })
