@@ -29,6 +29,10 @@ export default function ShopDetailPage() {
   const [loading, setLoading] = useState(true)
   const [menuLoading, setMenuLoading] = useState(true)
   const [shopOpen, setShopOpen] = useState<{ open: boolean; message: string } | null>(null)
+  const [groupOrderLoading, setGroupOrderLoading] = useState(false)
+  const [groupOrderLink, setGroupOrderLink] = useState<string | null>(null)
+  const [groupOrderCode, setGroupOrderCode] = useState<string | null>(null)
+  const [groupCopied, setGroupCopied] = useState(false)
 
   useEffect(() => {
     if (!slug) return
@@ -54,6 +58,33 @@ export default function ShopDetailPage() {
       .catch(() => setShop(null))
       .finally(() => setLoading(false))
   }, [slug])
+
+  const handleStartGroupOrder = async () => {
+    if (!shop) return
+    setGroupOrderLoading(true)
+    try {
+      const res = await fetch('/api/group-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop_id: shop.id }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setGroupOrderLink(data.shareLink)
+        setGroupOrderCode(data.shareCode)
+      }
+    } catch { /* ignore */ }
+    setGroupOrderLoading(false)
+  }
+
+  const handleCopyGroupLink = () => {
+    if (groupOrderLink) {
+      navigator.clipboard.writeText(groupOrderLink).then(() => {
+        setGroupCopied(true)
+        setTimeout(() => setGroupCopied(false), 2000)
+      })
+    }
+  }
 
   const filteredItems = selectedCategory === 'all'
     ? menuItems.filter(i => i.is_available)
@@ -166,6 +197,69 @@ export default function ShopDetailPage() {
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             🕐 20-35 min
           </span>
+        </div>
+      </div>
+
+      {/* Group Order Section */}
+      <div style={{
+        background: 'white',
+        borderBottom: '1px solid #f0f0f0',
+        padding: '0.75rem 1.5rem',
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {!groupOrderCode ? (
+            <button
+              onClick={handleStartGroupOrder}
+              disabled={groupOrderLoading}
+              style={{
+                background: 'white',
+                color: '#FF1493',
+                border: '1.5px solid #FF1493',
+                padding: '0.45rem 1rem',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: groupOrderLoading ? 'not-allowed' : 'pointer',
+                opacity: groupOrderLoading ? 0.6 : 1,
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {groupOrderLoading ? 'Creating...' : 'Start Group Order'}
+            </button>
+          ) : (
+            <>
+              <span style={{ fontSize: '0.85rem', color: '#333', fontWeight: 500 }}>
+                Group order started! Code: <strong style={{ color: '#FF1493' }}>{groupOrderCode}</strong>
+              </span>
+              <button
+                onClick={handleCopyGroupLink}
+                style={{
+                  background: groupCopied ? '#10B981' : '#FF1493',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.4rem 0.9rem',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+              >
+                {groupCopied ? 'Copied!' : 'Copy Link'}
+              </button>
+              <Link
+                href={`/group-order/${groupOrderCode}`}
+                style={{
+                  color: '#FF1493',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                }}
+              >
+                Open Group Order →
+              </Link>
+            </>
+          )}
         </div>
       </div>
 

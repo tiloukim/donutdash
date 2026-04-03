@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, use, useCallback } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import ChatBox from '@/components/ChatBox'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -556,6 +557,13 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
             <div style={{ fontWeight: 700, fontSize: 15 }}>{tracking.driver.name}</div>
             <div style={{ fontSize: 12, color: '#888' }}>Your delivery driver</div>
           </div>
+        </div>
+      )}
+
+      {/* Chat with Driver */}
+      {['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'delivering'].includes(order.status) && (
+        <div style={{ marginBottom: 20 }}>
+          <ChatBox orderId={id} currentRole="customer" />
         </div>
       )}
 

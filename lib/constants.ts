@@ -62,6 +62,13 @@ export const BASE_DELIVERY_PAY = 2.50   // Flat base per delivery
 export const PER_MILE_PAY = 0.55        // Per mile rate
 export const DRIVER_LOCATION_UPDATE_INTERVAL = 10000
 
+// Surge pricing
+export const SURGE_THRESHOLD_ORDERS = 5   // Active orders in last hour to trigger surge
+export const SURGE_MULTIPLIER = 1.5       // Delivery fee multiplier during surge
+
+// Shop busy status
+export const SHOP_BUSY_THRESHOLD = 3      // Active orders per shop to mark as busy
+
 // ETA estimation
 export const AVERAGE_PREP_TIME_MINUTES = 15  // Average time for shop to prepare order
 export const AVERAGE_SPEED_MPH = 25          // Average driving speed in city

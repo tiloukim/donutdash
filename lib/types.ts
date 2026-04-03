@@ -34,6 +34,9 @@ export interface Shop {
   created_at: string
   estimated_delivery_min?: number
   estimated_delivery_max?: number
+  distance_miles?: number | null
+  avg_rating?: number
+  is_busy?: boolean
 }
 
 export interface VariantOption {

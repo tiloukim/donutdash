@@ -37,6 +37,7 @@ function StarRating({ rating }: { rating: number }) {
 export default function HomePage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
+  const [surgeActive, setSurgeActive] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
@@ -51,7 +52,10 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/shops')
       .then(res => res.json())
-      .then(data => setShops(data.shops || []))
+      .then(data => {
+        setShops(data.shops || [])
+        setSurgeActive(data.surge_active || false)
+      })
       .catch(() => setShops([]))
       .finally(() => setLoading(false))
   }, [])
@@ -331,6 +335,24 @@ export default function HomePage() {
           )}
         </div>
 
+        {/* Surge pricing banner */}
+        {surgeActive && (
+          <div style={{
+            margin: '0 20px 16px',
+            padding: '10px 14px',
+            background: 'linear-gradient(135deg, #FFA500, #FF8C00)',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <span style={{ fontSize: '1.1rem' }}>⚡</span>
+            <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 600 }}>
+              Busy right now — delivery fees are higher than usual
+            </span>
+          </div>
+        )}
+
         {/* Promo Banners - horizontal scroll */}
         <div style={{
           padding: '0 0 0 20px',
@@ -496,17 +518,35 @@ export default function HomePage() {
                         )}
                       </div>
                       <div style={{ padding: '10px 12px' }}>
-                        <h3 style={{
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          margin: '0 0 4px',
-                          color: '#1A1A2E',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {shop.name}
-                        </h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                          <h3 style={{
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            margin: 0,
+                            color: '#1A1A2E',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flex: 1,
+                            minWidth: 0,
+                          }}>
+                            {shop.name}
+                          </h3>
+                          {shop.is_busy && (
+                            <span style={{
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              color: '#fff',
+                              background: '#F97316',
+                              borderRadius: '4px',
+                              padding: '1px 5px',
+                              flexShrink: 0,
+                              lineHeight: '14px',
+                            }}>
+                              Busy
+                            </span>
+                          )}
+                        </div>
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -695,6 +735,29 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Surge pricing banner - desktop */}
+        {surgeActive && (
+          <div style={{
+            maxWidth: '1200px',
+            margin: '0 auto',
+            padding: '1rem 1.5rem 0',
+          }}>
+            <div style={{
+              padding: '12px 20px',
+              background: 'linear-gradient(135deg, #FFA500, #FF8C00)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}>
+              <span style={{ fontSize: '1.2rem' }}>⚡</span>
+              <span style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 600 }}>
+                Busy right now — delivery fees are higher than usual
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Featured Shops */}
         <section style={{ padding: '4rem 1.5rem' }}>

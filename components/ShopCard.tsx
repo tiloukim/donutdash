@@ -51,18 +51,42 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
           </div>
 
           <div style={{ padding: '8px 10px 10px' }}>
-            <h3 style={{
-              fontWeight: 700,
-              fontSize: '14px',
-              color: '#1A1A2E',
-              margin: 0,
-              lineHeight: 1.3,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}>
-              {shop.name}
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <h3 style={{
+                fontWeight: 700,
+                fontSize: '14px',
+                color: '#1A1A2E',
+                margin: 0,
+                lineHeight: 1.3,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1,
+                minWidth: 0,
+              }}>
+                {shop.name}
+              </h3>
+              {shop.is_busy && (
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: '#fff',
+                  background: '#F97316',
+                  borderRadius: '4px',
+                  padding: '1px 6px',
+                  flexShrink: 0,
+                  lineHeight: '16px',
+                }}>
+                  Busy
+                </span>
+              )}
+            </div>
+
+            {shop.is_busy && (
+              <div style={{ fontSize: '11px', color: '#F97316', marginTop: '2px' }}>
+                Longer wait times
+              </div>
+            )}
 
             <div style={{
               display: 'flex',
@@ -70,9 +94,9 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
               gap: '4px',
               marginTop: '4px',
             }}>
-              <StarRating rating={shop.rating} />
+              <StarRating rating={shop.avg_rating ?? shop.rating} />
               <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A2E' }}>
-                {shop.rating.toFixed(1)}
+                {(shop.avg_rating ?? shop.rating).toFixed(1)}
               </span>
               <span style={{ fontSize: '11px', color: '#999' }}>
                 ({shop.review_count})

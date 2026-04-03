@@ -16,15 +16,39 @@ interface SearchResult {
   items: { name: string; price: number; image_url: string | null }[]
 }
 
+type SortOption = 'recommended' | 'fastest' | 'highest_rated' | 'nearest' | 'lowest_fee'
+
+const sortLabels: Record<SortOption, string> = {
+  recommended: 'Recommended',
+  fastest: 'Fastest Delivery',
+  highest_rated: 'Highest Rated',
+  nearest: 'Nearest',
+  lowest_fee: 'Lowest Delivery Fee',
+}
+
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3958.8
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export default function ShopsPage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
+  const [surgeActive, setSurgeActive] = useState(false)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   const [itemResults, setItemResults] = useState<SearchResult[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [searchingItems, setSearchingItems] = useState(false)
+  const [sortBy, setSortBy] = useState<SortOption>('recommended')
+  const [customerLocation, setCustomerLocation] = useState<{ lat: number; lng: number } | null>(null)
   const { user } = useAuth()
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -33,7 +57,10 @@ export default function ShopsPage() {
   useEffect(() => {
     fetch('/api/shops')
       .then(res => res.json())
-      .then(data => setShops(data.shops || []))
+      .then(data => {
+        setShops(data.shops || [])
+        setSurgeActive(data.surge_active || false)
+      })
       .catch(() => setShops([]))
       .finally(() => setLoading(false))
   }, [])
@@ -128,6 +155,16 @@ export default function ShopsPage() {
     }
   }, [user])
 
+  // Request geolocation when "Nearest" sort is selected
+  useEffect(() => {
+    if (sortBy === 'nearest' && !customerLocation && typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setCustomerLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {} // silently fail
+      )
+    }
+  }, [sortBy, customerLocation])
+
   const filteredShops = useMemo(() => {
     let result = shops
     if (activeCategory === 'Favorites') {
@@ -137,8 +174,33 @@ export default function ShopsPage() {
       const q = search.toLowerCase()
       result = result.filter(s => s.name.toLowerCase().includes(q))
     }
+
+    // Apply sorting
+    result = [...result]
+    switch (sortBy) {
+      case 'fastest':
+        result.sort((a, b) => (a.estimated_delivery_min ?? 99) - (b.estimated_delivery_min ?? 99))
+        break
+      case 'highest_rated':
+        result.sort((a, b) => (b.avg_rating ?? b.rating) - (a.avg_rating ?? a.rating))
+        break
+      case 'lowest_fee':
+        result.sort((a, b) => a.delivery_fee - b.delivery_fee)
+        break
+      case 'nearest':
+        if (customerLocation) {
+          result.sort((a, b) => {
+            const distA = (a.lat && a.lng) ? haversineDistance(customerLocation.lat, customerLocation.lng, a.lat, a.lng) : 9999
+            const distB = (b.lat && b.lng) ? haversineDistance(customerLocation.lat, customerLocation.lng, b.lat, b.lng) : 9999
+            return distA - distB
+          })
+        }
+        break
+      // 'recommended' keeps default order (by rating from API)
+    }
+
     return result
-  }, [shops, search, activeCategory, favoriteIds])
+  }, [shops, search, activeCategory, favoriteIds, sortBy, customerLocation])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#fff' }}>
@@ -338,6 +400,72 @@ export default function ShopsPage() {
               </button>
             ))}
           </div>
+
+          {/* Sort Bar */}
+          <div style={{
+            display: 'flex',
+            gap: '6px',
+            overflowX: 'auto',
+            paddingBottom: '12px',
+            marginBottom: '4px',
+            WebkitOverflowScrolling: 'touch',
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
+          }}>
+            {(Object.keys(sortLabels) as SortOption[]).map(option => (
+              <button
+                key={option}
+                onClick={() => setSortBy(option)}
+                style={{
+                  flexShrink: 0,
+                  padding: '6px 14px',
+                  borderRadius: '16px',
+                  border: sortBy === option ? '1.5px solid #FF1493' : '1.5px solid #e0e0e0',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: sortBy === option ? '#FFF0F7' : '#fff',
+                  color: sortBy === option ? '#FF1493' : '#666',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {sortLabels[option]}
+              </button>
+            ))}
+          </div>
+
+          {/* Location hint for Nearest sort */}
+          {sortBy === 'nearest' && !customerLocation && (
+            <div style={{
+              fontSize: '12px',
+              color: '#999',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}>
+              <span>📍</span> Enable location access to sort by distance
+            </div>
+          )}
+
+          {/* Surge pricing banner */}
+          {surgeActive && (
+            <div style={{
+              padding: '10px 14px',
+              background: 'linear-gradient(135deg, #FFA500, #FF8C00)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '12px',
+            }}>
+              <span style={{ fontSize: '1.1rem' }}>⚡</span>
+              <span style={{ color: '#fff', fontSize: '13px', fontWeight: 600 }}>
+                Busy right now — delivery fees are higher than usual
+              </span>
+            </div>
+          )}
 
           {/* Page Title */}
           <div style={{ marginBottom: '14px' }}>

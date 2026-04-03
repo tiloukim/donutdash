@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import ChatBox from '@/components/ChatBox'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -522,6 +523,13 @@ export default function ActiveDelivery() {
           <span style={{ color: '#10B981' }}>${(delivery.driver_earnings || 4.00).toFixed(2)}</span>
         </div>
       </div>
+
+      {/* Chat with Customer */}
+      {delivery.order?.id && (
+        <div style={{ marginTop: 16 }}>
+          <ChatBox orderId={delivery.order.id} currentRole="driver" />
+        </div>
+      )}
     </div>
   )
 }
