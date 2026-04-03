@@ -32,6 +32,8 @@ export default function ShopDashboard() {
   const [stats, setStats] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [activePeriod, setActivePeriod] = useState<PeriodKey>('today')
+  const [referral, setReferral] = useState<any>(null)
+  const [refCopied, setRefCopied] = useState(false)
 
   useEffect(() => {
     fetch('/api/shop/stats')
@@ -40,6 +42,7 @@ export default function ShopDashboard() {
         if (data.today) setStats(data)
       })
       .finally(() => setLoading(false))
+    fetch('/api/shop/referral').then(r => r.json()).then(setReferral).catch(() => {})
   }, [])
 
   if (loading) return (
@@ -65,6 +68,62 @@ export default function ShopDashboard() {
 
   return (
     <div>
+      {/* Referral Banner */}
+      {referral?.referral_code && (
+        <div style={{
+          background: 'linear-gradient(135deg, #FF1493 0%, #FF69B4 50%, #FF8C00 100%)',
+          borderRadius: 16, padding: '20px 24px', marginBottom: 20,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
+        }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 4 }}>
+              Refer a Shop, Earn $100!
+            </div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
+              Share your code — both shops earn $100 after 20 completed orders
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '10px 18px',
+              fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: 3, backdropFilter: 'blur(4px)',
+            }}>
+              {referral.referral_code}
+            </div>
+            <button onClick={() => {
+              navigator.clipboard.writeText(referral.referral_code)
+              setRefCopied(true)
+              setTimeout(() => setRefCopied(false), 2000)
+            }} style={{
+              padding: '10px 20px', borderRadius: 10, border: '2px solid rgba(255,255,255,0.4)',
+              background: refCopied ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)',
+              color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)',
+            }}>
+              {refCopied ? 'Copied!' : 'Copy Code'}
+            </button>
+          </div>
+          {(referral.completed_count > 0 || referral.my_referral) && (
+            <div style={{ width: '100%', display: 'flex', gap: 20, marginTop: 4 }}>
+              {referral.completed_count > 0 && (
+                <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13 }}>
+                  <span style={{ fontWeight: 800, fontSize: 18 }}>{referral.completed_count}</span> shops referred — <span style={{ fontWeight: 800 }}>${referral.total_earned}</span> earned
+                </div>
+              )}
+              {referral.my_referral && referral.my_referral.status === 'pending' && (
+                <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13 }}>
+                  Your bonus: <span style={{ fontWeight: 800 }}>{referral.my_referral.orders_completed}/{referral.my_referral.orders_required}</span> orders completed
+                </div>
+              )}
+              {referral.my_referral && referral.my_referral.status === 'completed' && (
+                <div style={{ color: '#FBBF24', fontSize: 13, fontWeight: 700 }}>
+                  $100 referral bonus earned!
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Period Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 24, background: '#FFF0F5', borderRadius: 12, padding: 4, border: '1px solid #FFE4EF' }}>
         {PERIODS.map(p => (
