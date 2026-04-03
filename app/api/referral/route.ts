@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot use your own referral code' }, { status: 400 })
     }
 
-    const CREDIT = 1.00
+    const CREDIT = 5.00
 
     // Create referral record as pending — credit given after first order
     await svc.from('dd_referrals').insert({
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       referred_by: referrer.id,
     }).eq('id', ddUser.id)
 
-    return NextResponse.json({ success: true, message: 'Referral code applied! You and your friend will each get $1.00 credit after your first order.' })
+    return NextResponse.json({ success: true, message: 'Referral code applied! You and your friend will each get $5.00 credit after your first order.' })
   } catch (err) {
     console.error('Referral POST error:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

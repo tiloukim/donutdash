@@ -259,7 +259,7 @@ export default function ProfilePage() {
         {/* Referral Program */}
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #f0f0f0', padding: 24, marginTop: 20 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>Referral Program</h2>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>Share & earn $1 when your friend completes their first order!</p>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>Share & earn $5 when your friend completes their first order!</p>
 
           {referralCode && (
             <div style={{
