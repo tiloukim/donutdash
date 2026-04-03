@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export default function DriverSettings() {
   const [profile, setProfile] = useState<any>(null)
@@ -10,6 +10,8 @@ export default function DriverSettings() {
   const [bankInfo, setBankInfo] = useState({ bank_account_holder: '', bank_routing_number: '', bank_account_number: '' })
   const [savingBank, setSavingBank] = useState(false)
   const [bankSaved, setBankSaved] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   // Vehicle fields stored in local state only (no DB columns yet)
   const [vehicle, setVehicle] = useState({
@@ -150,13 +152,45 @@ export default function DriverSettings() {
             {!profile.avatar_url && (profile.name?.[0]?.toUpperCase() || 'D')}
           </div>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Photo URL</label>
             <input
-              style={inputStyle}
-              placeholder="https://example.com/photo.jpg"
-              value={profile.avatar_url || ''}
-              onChange={e => setProfile({ ...profile, avatar_url: e.target.value })}
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              style={{ display: 'none' }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                setUploadingPhoto(true)
+                const formData = new FormData()
+                formData.append('file', file)
+                formData.append('type', 'image')
+                try {
+                  const res = await fetch('/api/upload', { method: 'POST', body: formData })
+                  const data = await res.json()
+                  if (res.ok && data.url) {
+                    setProfile((p: any) => ({ ...p, avatar_url: data.url }))
+                  }
+                } catch {}
+                setUploadingPhoto(false)
+                if (photoInputRef.current) photoInputRef.current.value = ''
+              }}
             />
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={uploadingPhoto}
+              style={{
+                padding: '10px 20px', borderRadius: 8, border: '2px dashed #FFE0B2',
+                background: '#FFF8F0', color: '#FF8C00', fontSize: 13, fontWeight: 700,
+                cursor: uploadingPhoto ? 'wait' : 'pointer', width: '100%',
+              }}
+            >
+              {uploadingPhoto ? 'Uploading...' : profile.avatar_url ? '📷 Change Photo' : '📷 Upload Photo'}
+            </button>
+            {profile.avatar_url && (
+              <button onClick={() => setProfile({ ...profile, avatar_url: '' })} style={{
+                marginTop: 6, background: 'none', border: 'none', color: '#EF4444', fontSize: 12, cursor: 'pointer', padding: 0,
+              }}>Remove Photo</button>
+            )}
           </div>
         </div>
       </div>
