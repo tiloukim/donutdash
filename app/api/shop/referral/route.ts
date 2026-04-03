@@ -63,21 +63,7 @@ export async function POST(req: NextRequest) {
   const { referral_code } = await req.json()
   if (!referral_code) return NextResponse.json({ error: 'Missing referral code' }, { status: 400 })
 
-  // Find the referring shop
-  const { data: referrerShop } = await svc.from('dd_shops')
-    .select('id, owner_id')
-    .eq('referral_code', referral_code.toUpperCase())
-    .single()
-
-  if (!referrerShop) return NextResponse.json({ error: 'Invalid shop referral code' }, { status: 404 })
-
-  // Get the new shop
-  const { data: newShop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
-
-  // Can't refer yourself
-  if (referrerShop.owner_id === ddUser.id) {
-    return NextResponse.json({ error: 'Cannot use your own referral code' }, { status: 400 })
-  }
+  const code = referral_code.toUpperCase()
 
   // Check if already referred
   const { data: existing } = await svc.from('dd_shop_referrals')
@@ -86,13 +72,50 @@ export async function POST(req: NextRequest) {
     .limit(1)
 
   if (existing && existing.length > 0) {
-    return NextResponse.json({ error: 'You have already used a shop referral code' }, { status: 400 })
+    return NextResponse.json({ error: 'You have already used a referral code' }, { status: 400 })
+  }
+
+  // Get the new shop
+  const { data: newShop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+
+  // Check if it's a driver referral code (DRV prefix) or shop referral code (SHOP prefix)
+  const { data: referrerByUserCode } = await svc.from('dd_users')
+    .select('id, role')
+    .eq('referral_code', code)
+    .maybeSingle()
+
+  const { data: referrerShop } = await svc.from('dd_shops')
+    .select('id, owner_id')
+    .eq('referral_code', code)
+    .maybeSingle()
+
+  if (!referrerByUserCode && !referrerShop) {
+    return NextResponse.json({ error: 'Invalid referral code' }, { status: 404 })
+  }
+
+  // Determine referrer info
+  let referrerUserId: string
+  let referrerShopId: string | null = null
+
+  if (referrerShop) {
+    // Shop-to-shop referral
+    if (referrerShop.owner_id === ddUser.id) {
+      return NextResponse.json({ error: 'Cannot use your own referral code' }, { status: 400 })
+    }
+    referrerUserId = referrerShop.owner_id
+    referrerShopId = referrerShop.id
+  } else {
+    // Driver-to-shop referral
+    referrerUserId = referrerByUserCode!.id
+    if (referrerUserId === ddUser.id) {
+      return NextResponse.json({ error: 'Cannot use your own referral code' }, { status: 400 })
+    }
   }
 
   // Create pending referral
   await svc.from('dd_shop_referrals').insert({
-    referrer_shop_id: referrerShop.id,
-    referrer_user_id: referrerShop.owner_id,
+    referrer_shop_id: referrerShopId,
+    referrer_user_id: referrerUserId,
     referee_shop_id: newShop?.id || null,
     referee_user_id: ddUser.id,
     status: 'pending',

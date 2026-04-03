@@ -1,7 +1,7 @@
 -- Shop referral program
 CREATE TABLE IF NOT EXISTS dd_shop_referrals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  referrer_shop_id UUID NOT NULL REFERENCES dd_shops(id),
+  referrer_shop_id UUID REFERENCES dd_shops(id),
   referrer_user_id UUID NOT NULL REFERENCES dd_users(id),
   referee_shop_id UUID REFERENCES dd_shops(id),
   referee_user_id UUID NOT NULL REFERENCES dd_users(id),
