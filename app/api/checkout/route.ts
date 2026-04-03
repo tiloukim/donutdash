@@ -243,7 +243,8 @@ export async function POST(request: NextRequest) {
 
     // Notify shop owner via email (fire and forget)
     if (shop?.owner_id) {
-      svc.from('dd_users').select('email').eq('id', shop.owner_id).single().then(({ data: owner }) => {
+      (async () => {
+        const { data: owner } = await svc.from('dd_users').select('email').eq('id', shop.owner_id).single()
         if (owner?.email) {
           const ownerEmailHtml = `
             <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
@@ -260,9 +261,9 @@ export async function POST(request: NextRequest) {
               <a href="https://donutdash.app/shop/orders" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF8C00;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">View &amp; Accept</a>
             </div>
           `
-          sendEmail(owner.email, `New Order! ${itemCount} items - $${total.toFixed(2)}`, ownerEmailHtml).catch(() => {})
+          await sendEmail(owner.email, `New Order! ${itemCount} items - $${total.toFixed(2)}`, ownerEmailHtml)
         }
-      }).catch(() => {})
+      })().catch(() => {})
     }
 
     // Create Square Checkout
