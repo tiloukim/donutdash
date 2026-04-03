@@ -4,7 +4,7 @@ import { SquareClient, SquareEnvironment } from 'square'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
-import { notifyAdmins } from '@/lib/sms'
+import { notifyAdmins, sendEmail, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import crypto from 'crypto'
 
 function getSquareClient() {
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch shop info including coordinates
     const svc = createServiceClient()
-    const { data: shop } = await svc.from('dd_shops').select('name, service_fee_pct, delivery_fee, min_order, tax_rate, lat, lng').eq('id', shopId).single()
+    const { data: shop } = await svc.from('dd_shops').select('name, service_fee_pct, delivery_fee, min_order, tax_rate, lat, lng, owner_id').eq('id', shopId).single()
     const shopFeeRate = shop ? shop.service_fee_pct / 100 : SERVICE_FEE_RATE
     const shopTaxRate = shop?.tax_rate ? shop.tax_rate / 100 : 0
 
@@ -183,6 +183,30 @@ export async function POST(request: NextRequest) {
     `
     notifyAdmins(smsMsg, `New Order: $${total.toFixed(2)} from ${shopName}`, emailHtml).catch(() => {})
 
+    // Notify shop owner via email (fire and forget)
+    if (shop?.owner_id) {
+      svc.from('dd_users').select('email').eq('id', shop.owner_id).single().then(({ data: owner }) => {
+        if (owner?.email) {
+          const ownerEmailHtml = `
+            <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+              <h2 style="color:#FF8C00;margin-bottom:4px;">New Order for ${shopName}!</h2>
+              <p style="color:#666;font-size:13px;margin-top:0;">Order #${order.id.slice(0, 8)}</p>
+              <div style="background:#FFF8F0;border:1px solid #FFE8D6;border-radius:12px;padding:16px;margin:16px 0;">
+                <div style="font-size:28px;font-weight:800;color:#10B981;">$${total.toFixed(2)}</div>
+                <div style="font-size:14px;color:#666;margin-top:4px;">${itemCount} item${itemCount > 1 ? 's' : ''}</div>
+              </div>
+              <div style="font-size:14px;line-height:1.8;color:#333;">
+                <div><strong>Delivery:</strong> ${delivery_address}</div>
+                ${ddUser.name ? `<div><strong>Customer:</strong> ${ddUser.name}</div>` : ''}
+              </div>
+              <a href="https://donutdash.app/shop/orders" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF8C00;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">View &amp; Accept</a>
+            </div>
+          `
+          sendEmail(owner.email, `New Order! ${itemCount} items - $${total.toFixed(2)}`, ownerEmailHtml).catch(() => {})
+        }
+      }).catch(() => {})
+    }
+
     // Create Square Checkout
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     const square = getSquareClient()
@@ -280,6 +304,36 @@ export async function POST(request: NextRequest) {
       .from('dd_orders')
       .update({ payment_id: paymentLink.id })
       .eq('id', order.id)
+
+    // Send order confirmation email to customer (fire and forget)
+    if (ddUser.email) {
+      const itemsList = items.map((item: { name: string; quantity: number; price: number }) =>
+        `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:14px;color:#444;"><span>${item.quantity}x ${item.name}</span><span>$${(item.price * item.quantity).toFixed(2)}</span></div>`
+      ).join('')
+      const extraHtml = `
+        <div style="background:#FFF8F0;border:1px solid #FFE8D6;border-radius:10px;padding:14px;margin:12px 0;">
+          <div style="font-size:13px;color:#888;margin-bottom:8px;">From <strong style="color:#222;">${shopName}</strong></div>
+          ${itemsList}
+          <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#333;">
+            <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>$${tax.toFixed(2)}</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Delivery Fee</span><span>$${deliveryFee.toFixed(2)}</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Service Fee</span><span>$${serviceFee.toFixed(2)}</span></div>
+            ${tipAmount > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Tip</span><span>$${tipAmount.toFixed(2)}</span></div>` : ''}
+            ${promoDiscount > 0 ? `<div style="display:flex;justify-content:space-between;color:#10B981;"><span>Promo Discount</span><span>-$${promoDiscount.toFixed(2)}</span></div>` : ''}
+            <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1px solid #FFE8D6;padding-top:8px;margin-top:8px;"><span>Total</span><span>$${total.toFixed(2)}</span></div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:#666;margin:8px 0 0 0;"><strong>Delivery to:</strong> ${delivery_address}</p>
+      `
+      const confirmHtml = buildOrderEmailHtml(
+        order.id,
+        'Order Confirmed!',
+        'Thank you for your order! We\'ve received it and the shop will start preparing it soon.',
+        extraHtml
+      )
+      sendOrderEmail(ddUser.email, `Order Confirmed - DonutDash #${order.id.slice(0, 8).toUpperCase()}`, confirmHtml).catch(() => {})
+    }
 
     return NextResponse.json({ url: paymentLink.url, orderId: order.id })
   } catch (err) {

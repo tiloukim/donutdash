@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
+import { sendEmail } from './sms'
 import { MAX_DRIVER_DISTANCE_MILES, BASE_DELIVERY_PAY, PER_MILE_PAY, OFFER_TIMEOUT_SECONDS, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from './constants'
 
 export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = []) {
@@ -68,6 +69,42 @@ export async function createDeliveryOffer(deliveryId: string, driverId: string) 
     })
     .select()
     .single()
+
+  // Send email notification to driver (fire and forget)
+  if (data && !error) {
+    (async () => {
+      const { data: driver } = await svc.from('dd_users').select('email').eq('id', driverId).single()
+      const { data: delivery } = await svc
+        .from('dd_deliveries')
+        .select('driver_earnings, order:dd_orders(total, delivery_address, delivery_city, shop:dd_shops(name))')
+        .eq('id', deliveryId)
+        .single()
+
+      if (driver?.email && delivery) {
+        const order = delivery.order as any
+        const shopName = order?.shop?.name || 'Shop'
+        const address = [order?.delivery_address, order?.delivery_city].filter(Boolean).join(', ') || 'Customer address'
+        const earnings = delivery.driver_earnings ? `$${Number(delivery.driver_earnings).toFixed(2)}` : 'See app'
+
+        await sendEmail(
+          driver.email,
+          'New Delivery Offer - DonutDash',
+          `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
+            <div style="background:#FF8C00;padding:24px 20px;text-align:center;border-radius:12px 12px 0 0;">
+              <h1 style="margin:0;color:#fff;font-size:24px;font-weight:800;">DonutDash</h1>
+            </div>
+            <div style="padding:24px 20px;border:1px solid #eee;border-top:none;border-radius:0 0 12px 12px;">
+              <h2 style="margin:0 0 16px;color:#222;font-size:20px;">You have a new delivery offer!</h2>
+              <p style="color:#444;font-size:15px;line-height:1.6;margin:0 0 8px;">${shopName} → ${address}</p>
+              <p style="color:#444;font-size:15px;line-height:1.6;margin:0 0 16px;">Earnings: <strong>${earnings}</strong></p>
+              <a href="https://donutdash.app/driver" style="display:inline-block;padding:12px 28px;background:#FF8C00;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Open Driver App</a>
+              <p style="margin-top:24px;font-size:12px;color:#aaa;">Open your driver app to accept this offer before it expires.</p>
+            </div>
+          </div>`
+        )
+      }
+    })().catch(() => {})
+  }
 
   return { data, error }
 }

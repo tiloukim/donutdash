@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
+import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 
 // Valid shop-side status transitions
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -91,6 +92,48 @@ export async function PATCH(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Send status update email to customer (fire and forget)
+  {
+    const { data: customer } = await svc
+      .from('dd_users')
+      .select('email')
+      .eq('id', order.customer_id)
+      .single()
+
+    if (customer?.email) {
+      const { data: shopInfo } = await svc.from('dd_shops').select('name').eq('id', order.shop_id).single()
+      const sName = shopInfo?.name || 'the shop'
+      const statusMessages: Record<string, { subject: string; headline: string; message: string }> = {
+        confirmed: {
+          subject: `Order Accepted - DonutDash #${order_id.slice(0, 8).toUpperCase()}`,
+          headline: 'Order Accepted!',
+          message: `Great news! Your order has been accepted by ${sName}. They will start preparing it shortly.`,
+        },
+        preparing: {
+          subject: `Order Being Prepared - DonutDash #${order_id.slice(0, 8).toUpperCase()}`,
+          headline: 'Your Order is Being Prepared!',
+          message: `${sName} is now preparing your order. Hang tight!`,
+        },
+        ready_for_pickup: {
+          subject: `Order Ready - DonutDash #${order_id.slice(0, 8).toUpperCase()}`,
+          headline: 'Your Order is Ready!',
+          message: 'Your order is ready for pickup! A driver is on the way to pick it up and deliver it to you.',
+        },
+        cancelled: {
+          subject: `Order Cancelled - DonutDash #${order_id.slice(0, 8).toUpperCase()}`,
+          headline: 'Order Cancelled',
+          message: `We're sorry, your order has been cancelled.${cancellation_reason ? ` Reason: ${cancellation_reason}` : ''} If you were charged, a refund will be processed.`,
+        },
+      }
+
+      const info = statusMessages[status]
+      if (info) {
+        const html = buildOrderEmailHtml(order_id, info.headline, info.message)
+        sendOrderEmail(customer.email, info.subject, html).catch(() => {})
+      }
+    }
+  }
 
   // When shop accepts order (pending -> confirmed), create delivery and assign driver
   if (order.status === 'pending' && status === 'confirmed' && updated) {

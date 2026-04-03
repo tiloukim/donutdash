@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 
 export async function POST(req: Request) {
   const supabase = await createClient()
@@ -55,6 +56,50 @@ export async function POST(req: Request) {
     await svc.from('dd_orders')
       .update({ status: orderStatusMap[status], updated_at: new Date().toISOString() })
       .eq('id', delivery.order_id)
+  }
+
+  // Send delivery status email to customer (fire and forget)
+  {
+    const { data: orderData } = await svc
+      .from('dd_orders')
+      .select('id, customer_id')
+      .eq('id', delivery.order_id)
+      .single()
+
+    if (orderData) {
+      const { data: customer } = await svc
+        .from('dd_users')
+        .select('email')
+        .eq('id', orderData.customer_id)
+        .single()
+
+      if (customer?.email) {
+        const orderId = orderData.id
+        const driverMessages: Record<string, { subject: string; headline: string; message: string }> = {
+          picked_up: {
+            subject: `Order Picked Up - DonutDash #${orderId.slice(0, 8).toUpperCase()}`,
+            headline: 'Order Picked Up!',
+            message: 'Your order has been picked up by your driver and is heading your way!',
+          },
+          delivering: {
+            subject: `Order On Its Way - DonutDash #${orderId.slice(0, 8).toUpperCase()}`,
+            headline: 'Your Order is On Its Way!',
+            message: 'Your driver is on the way to deliver your order. Get ready!',
+          },
+          delivered: {
+            subject: `Order Delivered - DonutDash #${orderId.slice(0, 8).toUpperCase()}`,
+            headline: 'Order Delivered!',
+            message: 'Your order has been delivered. Enjoy your donuts!',
+          },
+        }
+
+        const info = driverMessages[status]
+        if (info) {
+          const html = buildOrderEmailHtml(orderId, info.headline, info.message)
+          sendOrderEmail(customer.email, info.subject, html).catch(() => {})
+        }
+      }
+    }
   }
 
   return NextResponse.json(updated)

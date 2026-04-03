@@ -60,6 +60,36 @@ export async function sendEmail(to: string, subject: string, html: string) {
 }
 
 /**
+ * Send order status email to customer (wrapper around sendEmail for clarity)
+ */
+export async function sendOrderEmail(customerEmail: string, subject: string, html: string) {
+  return sendEmail(customerEmail, subject, html)
+}
+
+/**
+ * Build a branded DonutDash email template
+ */
+export function buildOrderEmailHtml(orderId: string, headline: string, message: string, extra?: string) {
+  const shortId = orderId.slice(0, 8).toUpperCase()
+  const trackUrl = `https://donutdash.app/orders/${orderId}`
+  return `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;background:#ffffff;">
+      <div style="background:#FF8C00;padding:24px 20px;text-align:center;border-radius:12px 12px 0 0;">
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:800;letter-spacing:-0.5px;">DonutDash</h1>
+      </div>
+      <div style="padding:24px 20px;border:1px solid #eee;border-top:none;border-radius:0 0 12px 12px;">
+        <p style="color:#888;font-size:13px;margin:0 0 4px 0;">Order #${shortId}</p>
+        <h2 style="margin:0 0 16px 0;color:#222;font-size:20px;">${headline}</h2>
+        <p style="color:#444;font-size:15px;line-height:1.6;margin:0 0 16px 0;">${message}</p>
+        ${extra || ''}
+        <a href="${trackUrl}" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#FF8C00;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Track Your Order</a>
+        <p style="margin-top:24px;font-size:12px;color:#aaa;">You received this email because you placed an order on DonutDash.</p>
+      </div>
+    </div>
+  `
+}
+
+/**
  * Send SMS + email to all admin contacts
  * SMS: ADMIN_PHONE_NUMBERS env var (comma-separated)
  * Email: ADMIN_EMAILS env var (comma-separated)
