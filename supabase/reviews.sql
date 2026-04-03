@@ -17,8 +17,5 @@ CREATE INDEX IF NOT EXISTS idx_reviews_order ON dd_reviews(order_id);
 
 ALTER TABLE dd_reviews ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users read own reviews" ON dd_reviews
-  FOR SELECT USING (customer_id = auth.uid() OR auth.role() = 'service_role');
-
-CREATE POLICY "Users insert own reviews" ON dd_reviews
-  FOR INSERT WITH CHECK (customer_id = auth.uid() OR auth.role() = 'service_role');
+CREATE POLICY "Service role full access reviews" ON dd_reviews
+  FOR ALL USING (auth.role() = 'service_role');

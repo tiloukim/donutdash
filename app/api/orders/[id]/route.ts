@@ -26,7 +26,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const deliveryPhotoUrl = (order.delivery as any)?.[0]?.delivery_photo_url || null
+  // delivery can be an array or single object depending on Supabase join
+  const delivery = order.delivery as any
+  const deliveryPhotoUrl = Array.isArray(delivery)
+    ? delivery[0]?.delivery_photo_url || null
+    : delivery?.delivery_photo_url || null
 
   return NextResponse.json({
     ...order,
