@@ -19,6 +19,10 @@ export default function ActiveDelivery() {
   const [updating, setUpdating] = useState(false)
   const [completed, setCompleted] = useState(false)
   const [driverPos, setDriverPos] = useState<{ lat: number; lng: number; heading: number | null } | null>(null)
+  const [deliveryPhoto, setDeliveryPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const fetchActive = useCallback(async () => {
     const res = await fetch('/api/driver/active')
@@ -161,6 +165,34 @@ export default function ActiveDelivery() {
     setUpdating(false)
   }
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setDeliveryPhoto(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
+
+  const handleDeliveryComplete = async () => {
+    if (!delivery || !deliveryPhoto) return
+    setUploadingPhoto(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', deliveryPhoto)
+      formData.append('delivery_id', delivery.id)
+      const uploadRes = await fetch('/api/driver/delivery-photo', { method: 'POST', body: formData })
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json()
+        alert(err.error || 'Photo upload failed')
+        setUploadingPhoto(false)
+        return
+      }
+      await updateStatus('delivered')
+    } catch {
+      alert('Failed to upload photo. Please try again.')
+    }
+    setUploadingPhoto(false)
+  }
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>
 
   if (completed) {
@@ -257,12 +289,62 @@ export default function ActiveDelivery() {
             </button>
           )}
           {delivery.status === 'delivering' && (
-            <button onClick={() => updateStatus('delivered')} disabled={updating} style={{
-              padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 700,
-              background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer',
-            }}>
-              {updating ? 'Updating...' : 'Mark Delivered'}
-            </button>
+            <div>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoSelect}
+                style={{ display: 'none' }}
+              />
+              {!photoPreview ? (
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  style={{
+                    padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 700,
+                    background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  📷 Take Photo &amp; Complete
+                </button>
+              ) : (
+                <div>
+                  <div style={{ marginBottom: 12 }}>
+                    <img
+                      src={photoPreview}
+                      alt="Delivery proof"
+                      style={{ maxWidth: 280, maxHeight: 200, borderRadius: 10, border: '2px solid #10B981' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                    <button
+                      onClick={() => { setDeliveryPhoto(null); setPhotoPreview(''); photoInputRef.current?.click() }}
+                      style={{
+                        padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 700,
+                        background: '#f5f5f5', color: '#666', border: 'none', cursor: 'pointer',
+                      }}
+                    >
+                      Retake
+                    </button>
+                    <button
+                      onClick={handleDeliveryComplete}
+                      disabled={uploadingPhoto || updating}
+                      style={{
+                        padding: '10px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700,
+                        background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer',
+                        opacity: (uploadingPhoto || updating) ? 0.7 : 1,
+                      }}
+                    >
+                      {uploadingPhoto ? 'Uploading...' : updating ? 'Completing...' : '✅ Confirm Delivery'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
+                Photo proof is required to complete delivery
+              </p>
+            </div>
           )}
         </div>
       </div>

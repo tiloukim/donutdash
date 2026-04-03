@@ -1,0 +1,1 @@
+ALTER TABLE dd_orders ADD COLUMN IF NOT EXISTS scheduled_for TIMESTAMPTZ;

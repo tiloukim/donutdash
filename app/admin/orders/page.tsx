@@ -16,6 +16,7 @@ interface DeliveryInfo {
   driver_earnings: number
   driver_id: string | null
   status: string
+  delivery_photo_url: string | null
   driver: { name: string } | null
 }
 
@@ -29,6 +30,7 @@ interface OrderRow {
   total: number
   delivery_address: string
   created_at: string
+  scheduled_for: string | null
   customer: { name: string; email: string } | null
   shop: { name: string; lat: number | null; lng: number | null } | null
   items: OrderItem[]
@@ -293,6 +295,11 @@ export default function AdminOrders() {
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: '#6B7280', whiteSpace: 'nowrap' }}>
                         {new Date(order.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                        {order.scheduled_for && (
+                          <div style={{ marginTop: 2, fontSize: 11, color: '#FF8C00', fontWeight: 600 }}>
+                            Scheduled: {new Date(order.scheduled_for).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                          </div>
+                        )}
                       </td>
                     </tr>
 
@@ -357,6 +364,16 @@ export default function AdminOrders() {
                                   <span style={{ fontWeight: 600, color: '#059669' }}>${(delivery?.driver_earnings || 0).toFixed(2)}</span>
                                 </div>
                               </div>
+                              {delivery?.delivery_photo_url && (
+                                <div style={{ marginTop: 12 }}>
+                                  <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 6 }}>DELIVERY PROOF</div>
+                                  <img
+                                    src={delivery.delivery_photo_url}
+                                    alt="Delivery proof"
+                                    style={{ maxWidth: 280, borderRadius: 8, border: '1px solid #E5E7EB' }}
+                                  />
+                                </div>
+                              )}
                               {/* Reassign button for stuck orders */}
                               {(['pending', 'confirmed'].includes(order.status) || !delivery?.driver_id) && order.status !== 'delivered' && order.status !== 'cancelled' && (
                                 <div style={{ marginTop: 12 }}>

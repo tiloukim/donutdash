@@ -23,6 +23,9 @@ export default function CheckoutPage() {
   const [state, setState] = useState('TX')
   const [zip, setZip] = useState('')
   const [instructions, setInstructions] = useState('')
+  const [deliveryTiming, setDeliveryTiming] = useState<'asap' | 'scheduled'>('asap')
+  const [scheduledDate, setScheduledDate] = useState('')
+  const [scheduledTime, setScheduledTime] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
@@ -125,6 +128,32 @@ export default function CheckoutPage() {
     setPromoError('')
   }
 
+  // Generate date options: today + next 6 days
+  const dateOptions = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() + i)
+    const value = d.toISOString().split('T')[0]
+    const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    return { value, label }
+  })
+
+  // Generate 30-min time slots from 6:00 AM to 9:00 PM
+  const timeOptions = Array.from({ length: 31 }, (_, i) => {
+    const totalMinutes = 6 * 60 + i * 30
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
+    const label = `${displayHour}:${minutes.toString().padStart(2, '0')} ${ampm}`
+    const value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+    return { value, label }
+  })
+
+  // Build ISO datetime for scheduled delivery
+  const scheduledFor = deliveryTiming === 'scheduled' && scheduledDate && scheduledTime
+    ? new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString()
+    : null
+
   if (count === 0) {
     return (
       <div style={{ minHeight: '100vh' }}>
@@ -200,6 +229,7 @@ export default function CheckoutPage() {
           tip,
           promo_code: promoApplied?.code || null,
           promo_discount: promoDiscount || 0,
+          scheduled_for: scheduledFor,
         }),
       })
 
@@ -425,6 +455,92 @@ export default function CheckoutPage() {
                     {promoError}
                   </p>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Delivery Time */}
+          <div style={{
+            background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
+            padding: '1.5rem', marginBottom: '1.5rem',
+          }}>
+            <h3 style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '1rem', color: '#1A1A2E' }}>
+              Delivery Time
+            </h3>
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: deliveryTiming === 'scheduled' ? '1rem' : 0 }}>
+              <button
+                type="button"
+                onClick={() => setDeliveryTiming('asap')}
+                style={{
+                  flex: 1, padding: '0.75rem 1rem', borderRadius: '10px',
+                  border: deliveryTiming === 'asap' ? '2px solid #FF8C00' : '1px solid #ddd',
+                  background: deliveryTiming === 'asap' ? '#FFF8F0' : 'white',
+                  color: deliveryTiming === 'asap' ? '#FF8C00' : '#333',
+                  fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                ASAP
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeliveryTiming('scheduled')}
+                style={{
+                  flex: 1, padding: '0.75rem 1rem', borderRadius: '10px',
+                  border: deliveryTiming === 'scheduled' ? '2px solid #FF8C00' : '1px solid #ddd',
+                  background: deliveryTiming === 'scheduled' ? '#FFF8F0' : 'white',
+                  color: deliveryTiming === 'scheduled' ? '#FF8C00' : '#333',
+                  fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                Schedule for Later
+              </button>
+            </div>
+            {deliveryTiming === 'scheduled' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: '#666', marginBottom: '0.35rem', fontWeight: 500 }}>
+                    Date
+                  </label>
+                  <select
+                    value={scheduledDate}
+                    onChange={e => setScheduledDate(e.target.value)}
+                    style={{
+                      width: '100%', padding: '0.75rem 1rem', borderRadius: '10px',
+                      border: '1px solid #ddd', fontSize: '0.95rem', outline: 'none',
+                      background: 'white', cursor: 'pointer', appearance: 'auto',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                    onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                  >
+                    <option value="">Select date</option>
+                    {dateOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: '#666', marginBottom: '0.35rem', fontWeight: 500 }}>
+                    Time
+                  </label>
+                  <select
+                    value={scheduledTime}
+                    onChange={e => setScheduledTime(e.target.value)}
+                    style={{
+                      width: '100%', padding: '0.75rem 1rem', borderRadius: '10px',
+                      border: '1px solid #ddd', fontSize: '0.95rem', outline: 'none',
+                      background: 'white', cursor: 'pointer', appearance: 'auto',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                    onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                  >
+                    <option value="">Select time</option>
+                    {timeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
           </div>

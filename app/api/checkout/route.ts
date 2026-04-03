@@ -45,16 +45,19 @@ export async function POST(request: NextRequest) {
       tip,
       promo_code,
       promo_discount,
+      scheduled_for,
     } = body
 
     if (!shopId || !items || items.length === 0 || !delivery_address) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Check if shop is currently open
-    const shopStatus = await isShopOpen(shopId)
-    if (!shopStatus.open) {
-      return NextResponse.json({ error: `Sorry, this shop is currently closed. ${shopStatus.message}` }, { status: 400 })
+    // Check if shop is currently open (skip for scheduled orders)
+    if (!scheduled_for) {
+      const shopStatus = await isShopOpen(shopId)
+      if (!shopStatus.open) {
+        return NextResponse.json({ error: `Sorry, this shop is currently closed. ${shopStatus.message}` }, { status: 400 })
+      }
     }
 
     // Fetch shop info including coordinates
@@ -120,6 +123,7 @@ export async function POST(request: NextRequest) {
         delivery_instructions: delivery_instructions || null,
         promo_code: promo_code || null,
         promo_discount: promoDiscount || 0,
+        scheduled_for: scheduled_for || null,
       })
       .select()
       .single()

@@ -75,6 +75,59 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [existingReview, setExistingReview] = useState<any>(null)
 
+  // Dispute state
+  const [disputeReason, setDisputeReason] = useState('')
+  const [disputeDescription, setDisputeDescription] = useState('')
+  const [disputeAmount, setDisputeAmount] = useState('')
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false)
+  const [disputeError, setDisputeError] = useState<string | null>(null)
+  const [existingDispute, setExistingDispute] = useState<any>(null)
+  const [showDisputeForm, setShowDisputeForm] = useState(false)
+
+  // Fetch existing dispute
+  const fetchDispute = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/orders/${id}/dispute`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.dispute) {
+          setExistingDispute(data.dispute)
+        }
+      }
+    } catch {}
+  }, [id])
+
+  const submitDispute = async () => {
+    if (!disputeReason) {
+      setDisputeError('Please select a reason.')
+      return
+    }
+    setDisputeSubmitting(true)
+    setDisputeError(null)
+    try {
+      const res = await fetch(`/api/orders/${id}/dispute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: disputeReason,
+          description: disputeDescription,
+          refund_amount: disputeAmount ? parseFloat(disputeAmount) : undefined,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setExistingDispute(data.dispute)
+        setShowDisputeForm(false)
+      } else {
+        setDisputeError(data.error || 'Failed to submit dispute.')
+      }
+    } catch {
+      setDisputeError('Network error. Please try again.')
+    } finally {
+      setDisputeSubmitting(false)
+    }
+  }
+
   // Fetch existing review when order is delivered
   const fetchReview = useCallback(async () => {
     try {
@@ -159,12 +212,16 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
       .finally(() => setLoading(false))
   }, [id])
 
-  // Fetch existing review when order is delivered
+  // Fetch existing review and dispute when order is delivered
   useEffect(() => {
     if (order?.status === 'delivered') {
       fetchReview()
+      fetchDispute()
+      if (!disputeAmount && order?.total) {
+        setDisputeAmount(Number(order.total).toFixed(2))
+      }
     }
-  }, [order?.status, fetchReview])
+  }, [order?.status, order?.total, fetchReview, fetchDispute])
 
   // Poll for order status updates and driver tracking
   useEffect(() => {
@@ -283,11 +340,27 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
       }}>
         <div style={{ fontSize: 32, marginBottom: 8 }}>{statusInfo.icon}</div>
         <div style={{ fontSize: 18, fontWeight: 700, color: statusInfo.color }}>{statusInfo.label}</div>
-        {tracking?.estimated_duration_min && (
+        {order.status === 'delivered' ? (
+          <div style={{
+            display: 'inline-block', marginTop: 8, padding: '6px 16px',
+            borderRadius: 20, background: '#10B981', color: '#fff',
+            fontSize: 14, fontWeight: 700,
+          }}>
+            Delivered
+          </div>
+        ) : order.status !== 'cancelled' && tracking?.eta_minutes != null && tracking.eta_minutes > 0 ? (
+          <div style={{
+            display: 'inline-block', marginTop: 8, padding: '6px 16px',
+            borderRadius: 20, background: '#10B981', color: '#fff',
+            fontSize: 14, fontWeight: 700,
+          }}>
+            Arriving in ~{tracking.eta_minutes} min
+          </div>
+        ) : tracking?.estimated_duration_min ? (
           <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
             Est. {tracking.estimated_duration_min} min
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Status Timeline */}
@@ -394,6 +467,21 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
+      {/* Delivery Proof Photo */}
+      {order.status === 'delivered' && order.delivery_photo_url && (
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: 16,
+          border: '1px solid #D1FAE5', marginTop: 20,
+        }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#065F46', marginBottom: 12 }}>DELIVERY PROOF</h3>
+          <img
+            src={order.delivery_photo_url}
+            alt="Delivery proof photo"
+            style={{ maxWidth: 400, width: '100%', borderRadius: 10, border: '1px solid #E5E7EB' }}
+          />
+        </div>
+      )}
+
       {/* Review Section - only shown when delivered */}
       {order.status === 'delivered' && (
         <div style={{
@@ -485,6 +573,174 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                 {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
               </button>
             </>
+          )}
+        </div>
+      )}
+
+      {/* Dispute / Report Issue Section - only shown when delivered */}
+      {order.status === 'delivered' && (
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: 20,
+          border: '1px solid #FFB6C1', marginTop: 20,
+          boxShadow: '0 2px 12px rgba(255, 20, 147, 0.08)',
+        }}>
+          {existingDispute ? (
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#FF1493', marginBottom: 12 }}>
+                Issue Reported
+              </h3>
+              <div style={{
+                display: 'inline-block', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+                background: existingDispute.status === 'pending' ? '#FFF3CD' :
+                  existingDispute.status === 'approved' ? '#D1FAE5' :
+                  existingDispute.status === 'rejected' ? '#FEE2E2' : '#DBEAFE',
+                color: existingDispute.status === 'pending' ? '#856404' :
+                  existingDispute.status === 'approved' ? '#065F46' :
+                  existingDispute.status === 'rejected' ? '#991B1B' : '#1E40AF',
+                marginBottom: 12,
+              }}>
+                {existingDispute.status.charAt(0).toUpperCase() + existingDispute.status.slice(1)}
+              </div>
+              <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+                <strong>Reason:</strong> {existingDispute.reason.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+              </div>
+              {existingDispute.description && (
+                <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+                  <strong>Description:</strong> {existingDispute.description}
+                </div>
+              )}
+              <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+                <strong>Refund requested:</strong> ${Number(existingDispute.refund_amount).toFixed(2)}
+              </div>
+              {existingDispute.admin_notes && (
+                <div style={{
+                  fontSize: 13, color: '#555', marginTop: 12, padding: '10px 12px',
+                  background: '#F8F9FA', borderRadius: 8, border: '1px solid #E5E7EB',
+                }}>
+                  <strong>Admin response:</strong> {existingDispute.admin_notes}
+                </div>
+              )}
+            </div>
+          ) : showDisputeForm ? (
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#FF1493', marginBottom: 4 }}>
+                Report an Issue
+              </h3>
+              <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>
+                Something wrong with your order? Let us know and we will review it.
+              </p>
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6 }}>Reason</div>
+                <select
+                  value={disputeReason}
+                  onChange={e => setDisputeReason(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    border: '1px solid #FFB6C1', fontSize: 14, outline: 'none',
+                    fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box',
+                  }}
+                >
+                  <option value="">Select a reason...</option>
+                  <option value="wrong_items">Wrong Items</option>
+                  <option value="missing_items">Missing Items</option>
+                  <option value="cold_food">Cold Food</option>
+                  <option value="late_delivery">Late Delivery</option>
+                  <option value="never_delivered">Never Delivered</option>
+                  <option value="damaged">Damaged</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6 }}>Description (optional)</div>
+                <textarea
+                  value={disputeDescription}
+                  onChange={e => setDisputeDescription(e.target.value)}
+                  placeholder="Describe the issue..."
+                  maxLength={1000}
+                  style={{
+                    width: '100%', minHeight: 80, borderRadius: 8,
+                    border: '1px solid #FFB6C1', padding: '10px 12px',
+                    fontSize: 14, resize: 'vertical', outline: 'none',
+                    fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#FF1493' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#FFB6C1' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6 }}>Refund Amount ($)</div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={order.total}
+                  value={disputeAmount}
+                  onChange={e => setDisputeAmount(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    border: '1px solid #FFB6C1', fontSize: 14, outline: 'none',
+                    fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#FF1493' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#FFB6C1' }}
+                />
+              </div>
+
+              {disputeError && (
+                <div style={{
+                  background: '#FFF0F5', color: '#FF1493', borderRadius: 8,
+                  padding: '8px 12px', fontSize: 13, marginBottom: 12,
+                  border: '1px solid #FFB6C1',
+                }}>
+                  {disputeError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setShowDisputeForm(false)}
+                  style={{
+                    flex: 1, padding: '12px 0', borderRadius: 10,
+                    background: '#f5f5f5', color: '#666', fontWeight: 700, fontSize: 15,
+                    border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitDispute}
+                  disabled={disputeSubmitting || !disputeReason}
+                  style={{
+                    flex: 1, padding: '12px 0', borderRadius: 10,
+                    background: disputeReason ? '#FF1493' : '#FFB6C1',
+                    color: '#fff', fontWeight: 700, fontSize: 15,
+                    border: 'none', cursor: disputeReason ? 'pointer' : 'not-allowed',
+                    opacity: disputeSubmitting ? 0.7 : 1,
+                  }}
+                >
+                  {disputeSubmitting ? 'Submitting...' : 'Submit Report'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={() => setShowDisputeForm(true)}
+                style={{
+                  padding: '10px 24px', borderRadius: 10,
+                  background: 'none', color: '#FF1493', fontWeight: 700, fontSize: 14,
+                  border: '1px solid #FFB6C1', cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#FFF0F5' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+              >
+                Report an Issue
+              </button>
+            </div>
           )}
         </div>
       )}

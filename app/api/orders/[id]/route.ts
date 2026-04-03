@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data: order } = await svc
     .from('dd_orders')
-    .select('*, dd_order_items(*), shop:dd_shops(name, address, city, lat, lng)')
+    .select('*, dd_order_items(*), shop:dd_shops(name, address, city, lat, lng), delivery:dd_deliveries(delivery_photo_url)')
     .eq('id', id)
     .single()
 
@@ -26,9 +26,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const deliveryPhotoUrl = (order.delivery as any)?.[0]?.delivery_photo_url || null
+
   return NextResponse.json({
     ...order,
     items: order.dd_order_items,
+    delivery_photo_url: deliveryPhotoUrl,
   })
 }
 

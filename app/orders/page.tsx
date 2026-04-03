@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import OrderStatusBadge from '@/components/OrderStatusBadge'
 import { useAuth } from '@/lib/auth-context'
-import type { Order } from '@/lib/types'
+import { useCart } from '@/lib/cart-context'
+import type { Order, CartItem } from '@/lib/types'
 
-function OrderCard({ order }: { order: Order }) {
+function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Order) => void }) {
   const [expanded, setExpanded] = useState(false)
 
   const formattedDate = new Date(order.created_at).toLocaleDateString('en-US', {
@@ -156,17 +158,35 @@ function OrderCard({ order }: { order: Order }) {
             </div>
           )}
 
-          {/* Track order link */}
-          <Link href={`/orders/${order.id}`} style={{
-            display: 'block', textAlign: 'center', background: '#FF1493', color: 'white',
-            padding: '0.6rem 1.5rem', borderRadius: '10px', fontWeight: 600,
-            fontSize: '0.9rem', textDecoration: 'none', transition: 'background 0.2s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#E0117F' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#FF1493' }}
-          >
-            Track Order
-          </Link>
+          {/* Action buttons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <Link href={`/orders/${order.id}`} style={{
+              display: 'block', textAlign: 'center', background: '#FF1493', color: 'white',
+              padding: '0.6rem 1.5rem', borderRadius: '10px', fontWeight: 600,
+              fontSize: '0.9rem', textDecoration: 'none', transition: 'background 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#E0117F' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#FF1493' }}
+            >
+              Track Order
+            </Link>
+            {order.status === 'delivered' && order.items && order.items.length > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onReorder(order) }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'center',
+                  background: '#FF8C00', color: 'white',
+                  padding: '0.6rem 1.5rem', borderRadius: '10px', fontWeight: 600,
+                  fontSize: '0.9rem', border: 'none', cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#E07800' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#FF8C00' }}
+              >
+                Order Again
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -184,9 +204,28 @@ const STATUS_MESSAGES: Record<string, string> = {
 
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth()
+  const { clearCart, addItem } = useCart()
+  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const prevStatusesRef = useRef<Record<string, string>>({})
+
+  const handleReorder = (order: Order) => {
+    if (!order.items || !order.shop_id) return
+    clearCart()
+    for (const item of order.items) {
+      const cartItem: CartItem = {
+        id: item.menu_item_id,
+        name: item.name,
+        price: Number(item.price),
+        quantity: item.quantity,
+        image_url: item.image_url || null,
+        special_instructions: item.special_instructions || null,
+      }
+      addItem(cartItem, order.shop_id, order.shop?.name || 'Shop')
+    }
+    router.push('/cart')
+  }
 
   useEffect(() => {
     if (authLoading) return
@@ -292,7 +331,7 @@ export default function OrdersPage() {
           ) : orders.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {orders.map(order => (
-                <OrderCard key={order.id} order={order} />
+                <OrderCard key={order.id} order={order} onReorder={handleReorder} />
               ))}
             </div>
           ) : (

@@ -18,7 +18,7 @@ export async function GET() {
         customer:dd_users!customer_id(name, email),
         shop:dd_shops!shop_id(name, lat, lng),
         items:dd_order_items(name, price, quantity),
-        delivery:dd_deliveries(driver_earnings, driver_id, status, base_pay, distance_miles, driver:dd_users!driver_id(name))
+        delivery:dd_deliveries(driver_earnings, driver_id, status, base_pay, distance_miles, delivery_photo_url, driver:dd_users!driver_id(name))
       `)
       .order('created_at', { ascending: false })
       .limit(200)
