@@ -19,6 +19,8 @@ export default function ShopSetupPage() {
   const [zip, setZip] = useState('')
   const [country, setCountry] = useState('US')
   const [phone, setPhone] = useState('')
+  const [shopReferralCode, setShopReferralCode] = useState('')
+  const [referralMsg, setReferralMsg] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,6 +47,15 @@ export default function ShopSetupPage() {
         const data = await res.json()
         setError(data.error || 'Failed to create shop')
         return
+      }
+
+      // Apply shop referral code if provided
+      if (shopReferralCode.trim()) {
+        await fetch('/api/shop/referral', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ referral_code: shopReferralCode.trim() }),
+        }).catch(() => {})
       }
 
       await refreshUser()
@@ -204,6 +215,20 @@ export default function ShopSetupPage() {
               placeholder="(555) 123-4567" style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
               onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
+          </div>
+
+          {/* Shop Referral Code */}
+          <div style={{ background: '#FFF0F5', borderRadius: 10, padding: 16, border: '1px dashed #FFD6EC' }}>
+            <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#FF1493' }}>
+              Referral Code (optional)
+            </label>
+            <input type="text" value={shopReferralCode} onChange={e => setShopReferralCode(e.target.value)}
+              placeholder="Enter referral code from another shop" style={inputStyle}
+              onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+              onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
+            <p style={{ fontSize: 11, color: '#888', marginTop: 4, marginBottom: 0 }}>
+              Both you and the referring shop earn $100 after your first 20 completed orders!
+            </p>
           </div>
 
           <button type="submit" disabled={loading} style={{

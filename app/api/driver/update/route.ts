@@ -133,5 +133,40 @@ export async function POST(req: Request) {
     })().catch(() => {})
   }
 
+  // Track shop referral progress on delivered orders
+  if (status === 'delivered') {
+    (async () => {
+      const { data: orderData } = await svc.from('dd_orders').select('shop_id').eq('id', delivery.order_id).single()
+      if (!orderData) return
+
+      // Find pending shop referral where this shop is the referee
+      const { data: shopReferral } = await svc.from('dd_shop_referrals')
+        .select('id, referrer_user_id, referee_user_id, referrer_credit, referee_credit, orders_completed, orders_required')
+        .eq('referee_shop_id', orderData.shop_id)
+        .eq('status', 'pending')
+        .maybeSingle()
+
+      if (!shopReferral) return
+
+      const newCount = (shopReferral.orders_completed || 0) + 1
+      if (newCount >= shopReferral.orders_required) {
+        // Complete the shop referral — credit both shop owners
+        await svc.from('dd_shop_referrals').update({ status: 'completed', orders_completed: newCount, completed_at: new Date().toISOString() }).eq('id', shopReferral.id)
+
+        const { data: referrerUser } = await svc.from('dd_users').select('referral_credit').eq('id', shopReferral.referrer_user_id).single()
+        if (referrerUser) {
+          await svc.from('dd_users').update({ referral_credit: (Number(referrerUser.referral_credit) || 0) + Number(shopReferral.referrer_credit) }).eq('id', shopReferral.referrer_user_id)
+        }
+        const { data: refereeUser } = await svc.from('dd_users').select('referral_credit').eq('id', shopReferral.referee_user_id).single()
+        if (refereeUser) {
+          await svc.from('dd_users').update({ referral_credit: (Number(refereeUser.referral_credit) || 0) + Number(shopReferral.referee_credit) }).eq('id', shopReferral.referee_user_id)
+        }
+      } else {
+        // Just increment the counter
+        await svc.from('dd_shop_referrals').update({ orders_completed: newCount }).eq('id', shopReferral.id)
+      }
+    })().catch(() => {})
+  }
+
   return NextResponse.json(updated)
 }

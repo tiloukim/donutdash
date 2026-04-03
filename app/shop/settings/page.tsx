@@ -14,6 +14,8 @@ export default function ShopSettings() {
   const [bankInfo, setBankInfo] = useState({ bank_account_holder: '', bank_routing_number: '', bank_account_number: '' })
   const [savingBank, setSavingBank] = useState(false)
   const [bankSaved, setBankSaved] = useState(false)
+  const [shopReferral, setShopReferral] = useState<any>(null)
+  const [referralCopied, setReferralCopied] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -21,6 +23,7 @@ export default function ShopSettings() {
     fetch('/api/user/bank-info').then(r => r.json()).then(d => {
       if (d.bankInfo) setBankInfo(d.bankInfo)
     }).catch(() => {})
+    fetch('/api/shop/referral').then(r => r.json()).then(setShopReferral).catch(() => {})
   }, [])
 
   const save = async () => {
@@ -318,6 +321,59 @@ export default function ShopSettings() {
           {bankSaved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Bank info saved!</span>}
         </div>
       </div>
+      {/* Shop Referral Program */}
+      {shopReferral && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Shop Referral Program</h3>
+          <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>Refer a new shop — both of you earn $100 after they complete 20 orders!</p>
+
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: '#FFF0F5', borderRadius: 10, padding: '12px 16px', marginBottom: 16,
+          }}>
+            <span style={{ fontWeight: 800, fontSize: 18, color: '#FF1493', letterSpacing: 2 }}>{shopReferral.referral_code}</span>
+            <button onClick={() => {
+              navigator.clipboard.writeText(shopReferral.referral_code)
+              setReferralCopied(true)
+              setTimeout(() => setReferralCopied(false), 2000)
+            }} style={{
+              padding: '4px 12px', borderRadius: 6, border: '1px solid #FFD6EC', background: '#fff',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#FF1493',
+            }}>
+              {referralCopied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 20 }}>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#FF1493' }}>{shopReferral.completed_count || 0}</div>
+              <div style={{ fontSize: 11, color: '#888' }}>Shops Referred</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#10B981' }}>${shopReferral.total_earned || 0}</div>
+              <div style={{ fontSize: 11, color: '#888' }}>Total Earned</div>
+            </div>
+          </div>
+
+          {shopReferral.referrals?.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 8 }}>Referral Progress</div>
+              {shopReferral.referrals.map((r: any) => (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                  <div style={{ fontSize: 13 }}>{r.orders_completed}/{r.orders_required || 20} orders</div>
+                  <span style={{
+                    fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
+                    background: r.status === 'completed' ? '#D1FAE5' : '#FEF3C7',
+                    color: r.status === 'completed' ? '#065F46' : '#92400E',
+                  }}>
+                    {r.status === 'completed' ? 'Completed — $100 earned!' : `${r.orders_completed}/${r.orders_required} orders`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
