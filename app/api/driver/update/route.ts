@@ -168,5 +168,38 @@ export async function POST(req: Request) {
     })().catch(() => {})
   }
 
+  // Track driver-to-driver referral progress (10 deliveries required)
+  if (status === 'delivered') {
+    (async () => {
+      // Check if this driver (ddUser.id) has a pending driver referral
+      const { data: driverReferral } = await svc.from('dd_referrals')
+        .select('id, referrer_id, referee_id, referrer_credit, referee_credit, deliveries_completed, deliveries_required')
+        .eq('referee_id', ddUser.id)
+        .eq('status', 'pending')
+        .maybeSingle()
+
+      if (!driverReferral) return
+
+      const newCount = (driverReferral.deliveries_completed || 0) + 1
+      const required = driverReferral.deliveries_required || 10
+
+      if (newCount >= required) {
+        // Complete — credit both drivers $20
+        await svc.from('dd_referrals').update({ status: 'completed', deliveries_completed: newCount, completed_at: new Date().toISOString() }).eq('id', driverReferral.id)
+
+        const { data: referrer } = await svc.from('dd_users').select('referral_credit').eq('id', driverReferral.referrer_id).single()
+        if (referrer) {
+          await svc.from('dd_users').update({ referral_credit: (Number(referrer.referral_credit) || 0) + Number(driverReferral.referrer_credit) }).eq('id', driverReferral.referrer_id)
+        }
+        const { data: referee } = await svc.from('dd_users').select('referral_credit').eq('id', driverReferral.referee_id).single()
+        if (referee) {
+          await svc.from('dd_users').update({ referral_credit: (Number(referee.referral_credit) || 0) + Number(driverReferral.referee_credit) }).eq('id', driverReferral.referee_id)
+        }
+      } else {
+        await svc.from('dd_referrals').update({ deliveries_completed: newCount }).eq('id', driverReferral.id)
+      }
+    })().catch(() => {})
+  }
+
   return NextResponse.json(updated)
 }
