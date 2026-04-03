@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/shop/menu', label: 'Menu', icon: '🍩' },
   { href: '/shop/analytics', label: 'Analytics', icon: '📈' },
   { href: '/shop/hours', label: 'Hours', icon: '🕐' },
+  { href: '/shop/referral', label: 'Referral', icon: '🎁' },
   { href: '/shop/documents', label: 'Documents', icon: '📄' },
   { href: '/shop/settings', label: 'Settings', icon: '⚙️' },
 ]
