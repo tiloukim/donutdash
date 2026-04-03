@@ -41,6 +41,12 @@ export default function Footer() {
               <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>About Us</span>
               <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Contact</span>
               <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Careers</span>
+              <Link href="/terms" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                Terms of Service
+              </Link>
+              <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                Privacy Policy
+              </Link>
             </div>
           </div>
 
