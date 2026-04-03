@@ -102,5 +102,36 @@ export async function POST(req: Request) {
     }
   }
 
+  // Complete pending referral on first delivered order
+  if (status === 'delivered') {
+    (async () => {
+      const { data: orderData } = await svc.from('dd_orders').select('customer_id').eq('id', delivery.order_id).single()
+      if (!orderData) return
+
+      const { data: referral } = await svc.from('dd_referrals')
+        .select('id, referrer_id, referee_id, referrer_credit, referee_credit')
+        .eq('referee_id', orderData.customer_id)
+        .eq('status', 'pending')
+        .maybeSingle()
+
+      if (!referral) return
+
+      // Complete the referral and credit both users
+      await svc.from('dd_referrals').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', referral.id)
+
+      // Credit referrer
+      const { data: referrer } = await svc.from('dd_users').select('referral_credit').eq('id', referral.referrer_id).single()
+      if (referrer) {
+        await svc.from('dd_users').update({ referral_credit: (Number(referrer.referral_credit) || 0) + Number(referral.referrer_credit) }).eq('id', referral.referrer_id)
+      }
+
+      // Credit referee
+      const { data: referee } = await svc.from('dd_users').select('referral_credit').eq('id', referral.referee_id).single()
+      if (referee) {
+        await svc.from('dd_users').update({ referral_credit: (Number(referee.referral_credit) || 0) + Number(referral.referee_credit) }).eq('id', referral.referee_id)
+      }
+    })().catch(() => {})
+  }
+
   return NextResponse.json(updated)
 }
