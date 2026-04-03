@@ -75,6 +75,12 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [existingReview, setExistingReview] = useState<any>(null)
 
+  // Cancel state
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelSubmitting, setCancelSubmitting] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+
   // Dispute state
   const [disputeReason, setDisputeReason] = useState('')
   const [disputeDescription, setDisputeDescription] = useState('')
@@ -96,6 +102,29 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
       }
     } catch {}
   }, [id])
+
+  const submitCancel = async () => {
+    setCancelSubmitting(true)
+    setCancelError(null)
+    try {
+      const res = await fetch(`/api/orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', cancellation_reason: cancelReason || undefined }),
+      })
+      const data = await res.json()
+      if (res.ok && data.cancelled) {
+        setOrder((prev: any) => ({ ...prev, status: 'cancelled' }))
+        setShowCancelConfirm(false)
+      } else {
+        setCancelError(data.error || 'Failed to cancel order.')
+      }
+    } catch {
+      setCancelError('Network error. Please try again.')
+    } finally {
+      setCancelSubmitting(false)
+    }
+  }
 
   const submitDispute = async () => {
     if (!disputeReason) {
@@ -362,6 +391,89 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           </div>
         ) : null}
       </div>
+
+      {/* Cancel Order */}
+      {(order.status === 'pending' || order.status === 'confirmed') && (
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: 16,
+          border: '1px solid #FEE2E2', marginBottom: 20,
+        }}>
+          {showCancelConfirm ? (
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#DC2626', marginBottom: 12 }}>
+                Cancel this order?
+              </h3>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 6 }}>Reason (optional)</div>
+                <select
+                  value={cancelReason}
+                  onChange={e => setCancelReason(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    border: '1px solid #FCA5A5', fontSize: 14, outline: 'none',
+                    fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box',
+                  }}
+                >
+                  <option value="">Select a reason...</option>
+                  <option value="Changed my mind">Changed my mind</option>
+                  <option value="Ordered by mistake">Ordered by mistake</option>
+                  <option value="Taking too long">Taking too long</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              {cancelError && (
+                <div style={{
+                  background: '#FEF2F2', color: '#DC2626', borderRadius: 8,
+                  padding: '8px 12px', fontSize: 13, marginBottom: 12,
+                  border: '1px solid #FCA5A5',
+                }}>
+                  {cancelError}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => { setShowCancelConfirm(false); setCancelError(null) }}
+                  style={{
+                    flex: 1, padding: '11px 0', borderRadius: 10,
+                    background: '#f5f5f5', color: '#666', fontWeight: 700, fontSize: 14,
+                    border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={submitCancel}
+                  disabled={cancelSubmitting}
+                  style={{
+                    flex: 1, padding: '11px 0', borderRadius: 10,
+                    background: '#DC2626', color: '#fff', fontWeight: 700, fontSize: 14,
+                    border: 'none', cursor: 'pointer',
+                    opacity: cancelSubmitting ? 0.7 : 1,
+                  }}
+                >
+                  {cancelSubmitting ? 'Cancelling...' : 'Confirm Cancel'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={() => setShowCancelConfirm(true)}
+                style={{
+                  padding: '10px 24px', borderRadius: 10,
+                  background: 'none', color: '#DC2626', fontWeight: 700, fontSize: 14,
+                  border: '1px solid #FCA5A5', cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+              >
+                Cancel Order
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Status Timeline */}
       {order.status !== 'cancelled' && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
@@ -9,6 +9,11 @@ import MobileBottomNav from '@/components/MobileBottomNav'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import type { Shop } from '@/lib/types'
+
+interface SearchResult {
+  shop: { id: string; name: string; slug: string; image_url: string | null }
+  items: { name: string; price: number; image_url: string | null }[]
+}
 
 function getGreeting(): string {
   const hour = new Date().getHours()
@@ -34,6 +39,12 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
+  const [itemResults, setItemResults] = useState<SearchResult[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [searchingItems, setSearchingItems] = useState(false)
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const { user } = useAuth()
   const { count } = useCart()
 
@@ -44,6 +55,78 @@ export default function HomePage() {
       .catch(() => setShops([]))
       .finally(() => setLoading(false))
   }, [])
+
+  // Fetch favorites
+  useEffect(() => {
+    if (!user) return
+    fetch('/api/favorites')
+      .then(res => res.json())
+      .then(data => setFavoriteIds(new Set(data.favorite_shop_ids || [])))
+      .catch(() => {})
+  }, [user])
+
+  // Debounced item search
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+    if (searchQuery.trim().length < 2) {
+      setItemResults([])
+      setShowDropdown(false)
+      return
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchingItems(true)
+      fetch(`/api/search?q=${encodeURIComponent(searchQuery.trim())}`)
+        .then(res => res.json())
+        .then(data => {
+          setItemResults(data.results || [])
+          setShowDropdown((data.results || []).length > 0)
+        })
+        .catch(() => { setItemResults([]); setShowDropdown(false) })
+        .finally(() => setSearchingItems(false))
+    }, 300)
+    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current) }
+  }, [searchQuery])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const toggleFavorite = useCallback(async (shopId: string) => {
+    if (!user) return
+    setFavoriteIds(prev => {
+      const next = new Set(prev)
+      if (next.has(shopId)) next.delete(shopId); else next.add(shopId)
+      return next
+    })
+    try {
+      const res = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop_id: shopId }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setFavoriteIds(prev => {
+          const next = new Set(prev)
+          if (data.favorited) next.add(shopId); else next.delete(shopId)
+          return next
+        })
+      }
+    } catch {
+      setFavoriteIds(prev => {
+        const next = new Set(prev)
+        if (next.has(shopId)) next.delete(shopId); else next.add(shopId)
+        return next
+      })
+    }
+  }, [user])
 
   const PINK = '#FF1493'
   const ORANGE = '#FF8C00'
@@ -147,8 +230,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Search bar */}
-        <div style={{ padding: '0 20px', marginBottom: '20px' }}>
+        {/* Search bar with item search dropdown */}
+        <div style={{ padding: '0 20px', marginBottom: '20px', position: 'relative' }} ref={dropdownRef}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -163,9 +246,10 @@ export default function HomePage() {
             </svg>
             <input
               type="text"
-              placeholder="Search for donuts, coffee..."
+              placeholder="Search shops or menu items..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => { if (itemResults.length > 0) setShowDropdown(true) }}
               style={{
                 flex: 1,
                 padding: '12px 0',
@@ -176,7 +260,75 @@ export default function HomePage() {
                 color: '#1A1A2E',
               }}
             />
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); setShowDropdown(false) }}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px', color: '#999', padding: 0 }}
+              >
+                ✕
+              </button>
+            )}
           </div>
+
+          {/* Item search dropdown */}
+          {showDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: '48px',
+              left: '20px',
+              right: '20px',
+              background: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+              zIndex: 100,
+              maxHeight: '300px',
+              overflowY: 'auto',
+              border: '1px solid #eee',
+            }}>
+              {searchingItems ? (
+                <div style={{ padding: '16px', textAlign: 'center', color: '#999', fontSize: '14px' }}>
+                  Searching...
+                </div>
+              ) : itemResults.length > 0 ? (
+                <div style={{ padding: '8px 0' }}>
+                  <div style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Menu Items
+                  </div>
+                  {itemResults.map(group => (
+                    group.items.map((item, idx) => (
+                      <Link
+                        key={`${group.shop.id}-${idx}`}
+                        href={`/shops/${group.shop.slug}`}
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                        onClick={() => setShowDropdown(false)}
+                      >
+                        <div style={{
+                          display: 'flex', alignItems: 'center', padding: '10px 14px', gap: '10px', cursor: 'pointer',
+                        }}>
+                          <div style={{
+                            width: '36px', height: '36px', borderRadius: '8px', flexShrink: 0,
+                            background: item.image_url ? `url(${item.image_url}) center/cover no-repeat` : 'linear-gradient(135deg, #FFE4E1, #FFB6C1)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px',
+                          }}>
+                            {!item.image_url && '🍩'}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A2E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {item.name}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#999' }}>{group.shop.name}</div>
+                          </div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#FF1493', flexShrink: 0 }}>
+                            ${item.price.toFixed(2)}
+                          </div>
+                        </div>
+                      </Link>
+                    ))
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
 
         {/* Promo Banners - horizontal scroll */}
@@ -318,68 +470,89 @@ export default function HomePage() {
               gap: '12px',
             }}>
               {shops.slice(0, 8).map(shop => (
-                <Link
-                  key={shop.id}
-                  href={`/shops/${shop.slug}`}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                  <div style={{
-                    background: 'white',
-                    borderRadius: '14px',
-                    overflow: 'hidden',
-                    boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
-                  }}>
+                <div key={shop.id} style={{ position: 'relative' }}>
+                  <Link
+                    href={`/shops/${shop.slug}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
                     <div style={{
-                      width: '100%',
-                      height: '110px',
-                      background: shop.image_url
-                        ? `url(${shop.image_url}) center/cover no-repeat`
-                        : `linear-gradient(135deg, #FF69B4, ${PINK})`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      background: 'white',
+                      borderRadius: '14px',
+                      overflow: 'hidden',
+                      boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
                     }}>
-                      {!shop.image_url && (
-                        <span style={{ fontSize: '2.5rem' }}>🍩</span>
-                      )}
-                    </div>
-                    <div style={{ padding: '10px 12px' }}>
-                      <h3 style={{
-                        fontWeight: 700,
-                        fontSize: '0.85rem',
-                        margin: '0 0 4px',
-                        color: '#1A1A2E',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {shop.name}
-                      </h3>
                       <div style={{
+                        width: '100%',
+                        height: '110px',
+                        background: shop.image_url
+                          ? `url(${shop.image_url}) center/cover no-repeat`
+                          : `linear-gradient(135deg, #FF69B4, ${PINK})`,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        marginBottom: '4px',
+                        justifyContent: 'center',
                       }}>
-                        <StarRating rating={shop.rating} />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#1A1A2E' }}>
-                          {shop.rating.toFixed(1)}
-                        </span>
+                        {!shop.image_url && (
+                          <span style={{ fontSize: '2.5rem' }}>🍩</span>
+                        )}
                       </div>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '0.7rem',
-                        color: '#888',
-                      }}>
-                        <span>20-35 min</span>
-                        <span style={{ color: '#ddd' }}>|</span>
-                        <span>${shop.delivery_fee.toFixed(2)}</span>
+                      <div style={{ padding: '10px 12px' }}>
+                        <h3 style={{
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          margin: '0 0 4px',
+                          color: '#1A1A2E',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {shop.name}
+                        </h3>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          marginBottom: '4px',
+                        }}>
+                          <StarRating rating={shop.rating} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#1A1A2E' }}>
+                            {shop.rating.toFixed(1)}
+                          </span>
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontSize: '0.7rem',
+                          color: '#888',
+                        }}>
+                          <span>20-35 min</span>
+                          <span style={{ color: '#ddd' }}>|</span>
+                          <span>${shop.delivery_fee.toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                  {/* Heart favorite button */}
+                  {user && (
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(shop.id) }}
+                      style={{
+                        position: 'absolute', top: '8px', right: '8px',
+                        width: '30px', height: '30px', borderRadius: '50%', border: 'none',
+                        background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.15)', zIndex: 2, padding: 0,
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24"
+                        fill={favoriteIds.has(shop.id) ? '#FF1493' : 'none'}
+                        stroke={favoriteIds.has(shop.id) ? '#FF1493' : '#666'}
+                        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      >
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           ) : (
@@ -565,7 +738,12 @@ export default function HomePage() {
                 gap: '1.5rem',
               }}>
                 {shops.slice(0, 6).map(shop => (
-                  <ShopCard key={shop.id} shop={shop} />
+                  <ShopCard
+                    key={shop.id}
+                    shop={shop}
+                    isFavorited={favoriteIds.has(shop.id)}
+                    onToggleFavorite={user ? toggleFavorite : undefined}
+                  />
                 ))}
               </div>
             ) : (

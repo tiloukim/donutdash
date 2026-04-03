@@ -20,6 +20,8 @@ export default function ShopOrders() {
   const [filter, setFilter] = useState('all')
   const [updating, setUpdating] = useState<string | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(false)
+  const [rejectingOrder, setRejectingOrder] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('Out of stock')
   const knownOrderIdsRef = useRef<Set<string>>(new Set())
   const isFirstLoadRef = useRef(true)
   const alertAudioRef = useRef<HTMLAudioElement | null>(null)
@@ -194,13 +196,23 @@ export default function ShopOrders() {
   useEffect(() => { fetchOrders() }, [fetchOrders])
   useEffect(() => { const i = setInterval(fetchOrders, 8000); return () => clearInterval(i) }, [fetchOrders])
 
-  const updateStatus = async (orderId: string, status: string) => {
+  const REJECTION_REASONS = ['Out of stock', 'Shop closing soon', 'Too busy', 'Other']
+
+  const updateStatus = async (orderId: string, status: string, cancellation_reason?: string) => {
     setUpdating(orderId)
     stopAlert() // Stop sound when shop acts on the order
-    await fetch(`/api/orders/${orderId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+    await fetch('/api/shop/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId, status, ...(cancellation_reason ? { cancellation_reason } : {}) }),
+    })
+    setRejectingOrder(null)
     await fetchOrders()
     setUpdating(null)
   }
+
+  const pendingCount = orders.filter(o => o.status === 'pending').length
+  const hasPending = pendingCount > 0
 
   if (loading) return <div>Loading orders...</div>
 
@@ -217,6 +229,50 @@ export default function ShopOrders() {
       }}>
         {soundEnabled ? '🔔 Sound alerts ON — you will hear a ring when new orders arrive' : '🔕 Tap anywhere on this page to enable sound alerts'}
       </div>
+
+      {/* Pending orders count */}
+      {hasPending && (
+        <div style={{
+          background: '#FFF0F5',
+          border: '2px solid #FF1493',
+          borderRadius: 12,
+          padding: '12px 20px',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          animation: 'pulse-border 1.5s ease-in-out infinite',
+        }}>
+          <span style={{
+            background: '#FF1493',
+            color: '#fff',
+            borderRadius: '50%',
+            width: 32,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 800,
+            fontSize: 15,
+          }}>
+            {pendingCount}
+          </span>
+          <span style={{ fontWeight: 700, color: '#FF1493', fontSize: 15 }}>
+            {pendingCount === 1 ? 'New order waiting for your confirmation!' : `${pendingCount} new orders waiting for your confirmation!`}
+          </span>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pulse-border {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(255, 20, 147, 0.4); }
+          50% { box-shadow: 0 0 0 8px rgba(255, 20, 147, 0); }
+        }
+        @keyframes pulse-bg {
+          0%, 100% { background-color: #FFF0F5; }
+          50% { background-color: #FFE0ED; }
+        }
+      `}</style>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
         {FILTERS.map(f => (
@@ -239,7 +295,13 @@ export default function ShopOrders() {
             const tracking = trackingData[o.id]
 
             return (
-              <div key={o.id} style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #FFE4EF' }}>
+              <div key={o.id} style={{
+                background: o.status === 'pending' ? '#FFF8FB' : '#fff',
+                borderRadius: 12,
+                padding: 20,
+                border: o.status === 'pending' ? '2px solid #FF1493' : '1px solid #FFE4EF',
+                animation: o.status === 'pending' ? 'pulse-bg 2s ease-in-out infinite' : undefined,
+              }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div>
                     <span style={{ fontWeight: 700, color: '#FF1493' }}>#{o.id.slice(0, 8)}</span>
@@ -257,13 +319,49 @@ export default function ShopOrders() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, color: '#10B981', fontSize: 16 }}>${o.total.toFixed(2)}</span>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     {o.status === 'pending' && <>
-                      <button onClick={() => updateStatus(o.id, 'confirmed')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}>Accept</button>
-                      <button onClick={() => updateStatus(o.id, 'cancelled')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', border: 'none', cursor: 'pointer' }}>Reject</button>
+                      <button onClick={() => updateStatus(o.id, 'confirmed')} disabled={updating === o.id} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer', minWidth: 100 }}>
+                        {updating === o.id ? '...' : 'Accept'}
+                      </button>
+                      {rejectingOrder === o.id ? (
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <select
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            style={{ padding: '7px 10px', borderRadius: 8, fontSize: 12, border: '1px solid #FCA5A5', background: '#FFF', color: '#333', fontWeight: 600 }}
+                          >
+                            {REJECTION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                          <button
+                            onClick={() => updateStatus(o.id, 'cancelled', rejectReason)}
+                            disabled={updating === o.id}
+                            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#DC2626', color: '#fff', border: 'none', cursor: 'pointer' }}
+                          >
+                            {updating === o.id ? '...' : 'Confirm Reject'}
+                          </button>
+                          <button
+                            onClick={() => setRejectingOrder(null)}
+                            style={{ padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: '#F3F4F6', color: '#666', border: 'none', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setRejectingOrder(o.id); setRejectReason('Out of stock') }}
+                          disabled={updating === o.id}
+                          style={{ padding: '8px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FCA5A5', cursor: 'pointer', minWidth: 100 }}
+                        >
+                          Reject
+                        </button>
+                      )}
                     </>}
-                    {o.status === 'confirmed' && <button onClick={() => updateStatus(o.id, 'preparing')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>Start Preparing</button>}
-                    {o.status === 'preparing' && <button onClick={() => updateStatus(o.id, 'ready_for_pickup')} disabled={updating === o.id} style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer' }}>Ready for Pickup</button>}
+                    {o.status === 'confirmed' && <button onClick={() => updateStatus(o.id, 'preparing')} disabled={updating === o.id} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>{updating === o.id ? '...' : 'Start Preparing'}</button>}
+                    {o.status === 'preparing' && <button onClick={() => updateStatus(o.id, 'ready_for_pickup')} disabled={updating === o.id} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer' }}>{updating === o.id ? '...' : 'Ready for Pickup'}</button>}
+                    {o.status === 'cancelled' && o.cancellation_reason && (
+                      <span style={{ fontSize: 12, color: '#DC2626', fontStyle: 'italic' }}>Reason: {o.cancellation_reason}</span>
+                    )}
                   </div>
                 </div>
 

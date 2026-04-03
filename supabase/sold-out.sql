@@ -1,0 +1,1 @@
+ALTER TABLE dd_menu_items ADD COLUMN IF NOT EXISTS is_sold_out BOOLEAN DEFAULT false;

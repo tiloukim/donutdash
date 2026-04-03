@@ -32,6 +32,8 @@ export interface Shop {
   service_fee_pct: number
   is_active: boolean
   created_at: string
+  estimated_delivery_min?: number
+  estimated_delivery_max?: number
 }
 
 export interface VariantOption {
@@ -57,6 +59,7 @@ export interface MenuItem {
   is_featured: boolean
   sort_order: number
   variants?: VariantGroup[] | null
+  is_sold_out?: boolean
 }
 
 export interface Order {

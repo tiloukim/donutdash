@@ -1,20 +1,35 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import ShopCard from '@/components/ShopCard'
+import { useAuth } from '@/lib/auth-context'
 import type { Shop } from '@/lib/types'
 
-const categories = ['All', 'Donuts', 'Coffee', 'Breakfast']
+const categories = ['All', 'Favorites', 'Donuts', 'Coffee', 'Breakfast']
+
+interface SearchResult {
+  shop: { id: string; name: string; slug: string; image_url: string | null }
+  items: { name: string; price: number; image_url: string | null }[]
+}
 
 export default function ShopsPage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
+  const [itemResults, setItemResults] = useState<SearchResult[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [searchingItems, setSearchingItems] = useState(false)
+  const { user } = useAuth()
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Fetch shops
   useEffect(() => {
     fetch('/api/shops')
       .then(res => res.json())
@@ -23,15 +38,107 @@ export default function ShopsPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Fetch favorites
+  useEffect(() => {
+    if (!user) return
+    fetch('/api/favorites')
+      .then(res => res.json())
+      .then(data => {
+        setFavoriteIds(new Set(data.favorite_shop_ids || []))
+      })
+      .catch(() => {})
+  }, [user])
+
+  // Debounced item search
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    if (search.trim().length < 2) {
+      setItemResults([])
+      setShowDropdown(false)
+      return
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchingItems(true)
+      fetch(`/api/search?q=${encodeURIComponent(search.trim())}`)
+        .then(res => res.json())
+        .then(data => {
+          setItemResults(data.results || [])
+          setShowDropdown((data.results || []).length > 0)
+        })
+        .catch(() => {
+          setItemResults([])
+          setShowDropdown(false)
+        })
+        .finally(() => setSearchingItems(false))
+    }, 300)
+
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+    }
+  }, [search])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const toggleFavorite = useCallback(async (shopId: string) => {
+    if (!user) return
+    // Optimistic update
+    setFavoriteIds(prev => {
+      const next = new Set(prev)
+      if (next.has(shopId)) next.delete(shopId)
+      else next.add(shopId)
+      return next
+    })
+
+    try {
+      const res = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop_id: shopId }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setFavoriteIds(prev => {
+          const next = new Set(prev)
+          if (data.favorited) next.add(shopId)
+          else next.delete(shopId)
+          return next
+        })
+      }
+    } catch {
+      // Revert on error
+      setFavoriteIds(prev => {
+        const next = new Set(prev)
+        if (next.has(shopId)) next.delete(shopId)
+        else next.add(shopId)
+        return next
+      })
+    }
+  }, [user])
+
   const filteredShops = useMemo(() => {
     let result = shops
+    if (activeCategory === 'Favorites') {
+      result = result.filter(s => favoriteIds.has(s.id))
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(s => s.name.toLowerCase().includes(q))
     }
-    // Category filtering could be extended with shop categories in the future
     return result
-  }, [shops, search, activeCategory])
+  }, [shops, search, activeCategory, favoriteIds])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#fff' }}>
@@ -43,8 +150,8 @@ export default function ShopsPage() {
       <main style={{ flex: 1, paddingBottom: '80px' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px' }}>
 
-          {/* Search Bar */}
-          <div style={{ marginBottom: '12px' }}>
+          {/* Search Bar with dropdown */}
+          <div style={{ marginBottom: '12px', position: 'relative' }} ref={dropdownRef}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -56,9 +163,12 @@ export default function ShopsPage() {
               <span style={{ fontSize: '16px', marginRight: '8px', color: '#999' }}>🔍</span>
               <input
                 type="text"
-                placeholder="Search donut shops..."
+                placeholder="Search shops or menu items..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
+                onFocus={() => {
+                  if (itemResults.length > 0) setShowDropdown(true)
+                }}
                 style={{
                   border: 'none',
                   outline: 'none',
@@ -70,7 +180,7 @@ export default function ShopsPage() {
               />
               {search && (
                 <button
-                  onClick={() => setSearch('')}
+                  onClick={() => { setSearch(''); setShowDropdown(false) }}
                   style={{
                     border: 'none',
                     background: 'none',
@@ -84,6 +194,105 @@ export default function ShopsPage() {
                 </button>
               )}
             </div>
+
+            {/* Item search dropdown */}
+            {showDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '48px',
+                left: 0,
+                right: 0,
+                background: 'white',
+                borderRadius: '12px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                zIndex: 100,
+                maxHeight: '360px',
+                overflowY: 'auto',
+                border: '1px solid #eee',
+              }}>
+                {searchingItems ? (
+                  <div style={{ padding: '16px', textAlign: 'center', color: '#999', fontSize: '14px' }}>
+                    Searching...
+                  </div>
+                ) : itemResults.length > 0 ? (
+                  <div style={{ padding: '8px 0' }}>
+                    <div style={{
+                      padding: '6px 14px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#999',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}>
+                      Menu Items
+                    </div>
+                    {itemResults.map(group => (
+                      <div key={group.shop.id}>
+                        {group.items.map((item, idx) => (
+                          <Link
+                            key={`${group.shop.id}-${idx}`}
+                            href={`/shops/${group.shop.slug}`}
+                            style={{ textDecoration: 'none', color: 'inherit' }}
+                            onClick={() => setShowDropdown(false)}
+                          >
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '10px 14px',
+                              gap: '10px',
+                              cursor: 'pointer',
+                              transition: 'background 0.15s',
+                            }}
+                              onMouseEnter={e => (e.currentTarget.style.background = '#f9f9f9')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                            >
+                              <div style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '8px',
+                                background: item.image_url
+                                  ? `url(${item.image_url}) center/cover no-repeat`
+                                  : 'linear-gradient(135deg, #FFE4E1, #FFB6C1)',
+                                flexShrink: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '16px',
+                              }}>
+                                {!item.image_url && '🍩'}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{
+                                  fontSize: '14px',
+                                  fontWeight: 600,
+                                  color: '#1A1A2E',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}>
+                                  {item.name}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#999' }}>
+                                  {group.shop.name}
+                                </div>
+                              </div>
+                              <div style={{
+                                fontSize: '14px',
+                                fontWeight: 700,
+                                color: '#FF1493',
+                                flexShrink: 0,
+                              }}>
+                                ${item.price.toFixed(2)}
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           {/* Category Tabs */}
@@ -112,8 +321,19 @@ export default function ShopsPage() {
                   background: activeCategory === cat ? '#FF1493' : '#f0f0f0',
                   color: activeCategory === cat ? '#fff' : '#555',
                   transition: 'background 0.2s, color 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
+                {cat === 'Favorites' && (
+                  <svg width="13" height="13" viewBox="0 0 24 24"
+                    fill={activeCategory === 'Favorites' ? 'white' : '#FF1493'}
+                    stroke="none"
+                  >
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                )}
                 {cat}
               </button>
             ))}
@@ -127,10 +347,13 @@ export default function ShopsPage() {
               color: '#1A1A2E',
               margin: 0,
             }}>
-              Browse Donut Shops
+              {activeCategory === 'Favorites' ? 'Your Favorite Shops' : 'Browse Donut Shops'}
             </h1>
             <p style={{ color: '#999', fontSize: '13px', margin: '4px 0 0' }}>
-              Find the best donuts near you
+              {activeCategory === 'Favorites'
+                ? (favoriteIds.size > 0 ? `${favoriteIds.size} saved shop${favoriteIds.size !== 1 ? 's' : ''}` : 'Tap the heart on any shop to save it')
+                : 'Find the best donuts near you'
+              }
             </p>
           </div>
 
@@ -169,7 +392,12 @@ export default function ShopsPage() {
           ) : filteredShops.length > 0 ? (
             <div className="shops-grid">
               {filteredShops.map(shop => (
-                <ShopCard key={shop.id} shop={shop} />
+                <ShopCard
+                  key={shop.id}
+                  shop={shop}
+                  isFavorited={favoriteIds.has(shop.id)}
+                  onToggleFavorite={user ? toggleFavorite : undefined}
+                />
               ))}
             </div>
           ) : (
@@ -178,12 +406,20 @@ export default function ShopsPage() {
               padding: '3rem 1rem',
               color: '#888',
             }}>
-              <span style={{ fontSize: '3rem', display: 'block', marginBottom: '0.75rem' }}>🍩</span>
+              <span style={{ fontSize: '3rem', display: 'block', marginBottom: '0.75rem' }}>
+                {activeCategory === 'Favorites' ? '❤️' : '🍩'}
+              </span>
               <h2 style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
-                {search ? 'No shops found' : 'No shops available yet'}
+                {activeCategory === 'Favorites'
+                  ? 'No favorites yet'
+                  : search ? 'No shops found' : 'No shops available yet'
+                }
               </h2>
               <p style={{ fontSize: '14px' }}>
-                {search ? 'Try a different search term' : 'Check back soon for delicious donut shops!'}
+                {activeCategory === 'Favorites'
+                  ? 'Tap the heart icon on any shop to add it to your favorites'
+                  : search ? 'Try a different search term' : 'Check back soon for delicious donut shops!'
+                }
               </p>
             </div>
           )}

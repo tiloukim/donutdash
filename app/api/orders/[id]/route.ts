@@ -47,12 +47,47 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const body = await req.json()
 
-  // Get current order to check if status is changing from pending to confirmed
+  // Get current order to check status
   const { data: currentOrder } = await svc
     .from('dd_orders')
-    .select('status, shop_id')
+    .select('status, shop_id, customer_id')
     .eq('id', id)
     .single()
+
+  // Handle customer cancellation
+  if (body.action === 'cancel') {
+    if (!currentOrder) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    // Only the customer who placed the order can cancel
+    if (currentOrder.customer_id !== ddUser.id && ddUser.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const cancellableStatuses = ['pending', 'confirmed']
+    if (!cancellableStatuses.includes(currentOrder.status)) {
+      return NextResponse.json(
+        { error: 'Order cannot be cancelled. It is already being prepared or further along.' },
+        { status: 400 }
+      )
+    }
+    const { data: cancelled, error: cancelErr } = await svc
+      .from('dd_orders')
+      .update({
+        status: 'cancelled',
+        cancellation_reason: body.cancellation_reason || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    if (cancelErr) return NextResponse.json({ error: cancelErr.message }, { status: 500 })
+
+    // Also cancel any associated delivery record
+    await svc
+      .from('dd_deliveries')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('order_id', id)
+
+    return NextResponse.json({ order: cancelled, cancelled: true })
+  }
 
   const { data: order, error } = await svc
     .from('dd_orders')

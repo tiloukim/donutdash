@@ -9,17 +9,19 @@ import type { MenuItem, VariantGroup } from '@/lib/types'
 interface VariantFormOption { name: string; price: string }
 interface VariantFormGroup { name: string; options: VariantFormOption[] }
 
-function SortableMenuItem({ item, onEdit, onDelete, onToggle }: {
+function SortableMenuItem({ item, onEdit, onDelete, onToggle, onToggleSoldOut }: {
   item: MenuItem
   onEdit: (item: MenuItem) => void
   onDelete: (id: string) => void
   onToggle: (item: MenuItem) => void
+  onToggleSoldOut: (item: MenuItem) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  const isSoldOut = item.is_sold_out ?? false
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : item.is_available ? 1 : 0.5,
+    opacity: isDragging ? 0.5 : (!item.is_available || isSoldOut) ? 0.5 : 1,
     zIndex: isDragging ? 10 : undefined,
   }
   const allImages = (item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : [])
@@ -39,9 +41,14 @@ function SortableMenuItem({ item, onEdit, onDelete, onToggle }: {
         <div style={{ fontWeight: 700, color: '#10B981', fontSize: 12 }}>${item.price.toFixed(2)}</div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-        <button onPointerDown={e => e.stopPropagation()} onClick={() => onToggle(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: item.is_available ? '#D1FAE5' : '#FEE2E2', color: item.is_available ? '#065F46' : '#DC2626', cursor: 'pointer', fontWeight: 600 }}>
-          {item.is_available ? 'On' : 'Off'}
-        </button>
+        <div style={{ display: 'flex', gap: 3 }}>
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onToggle(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: item.is_available ? '#D1FAE5' : '#FEE2E2', color: item.is_available ? '#065F46' : '#DC2626', cursor: 'pointer', fontWeight: 600 }}>
+            {item.is_available ? 'On' : 'Off'}
+          </button>
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onToggleSoldOut(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: isSoldOut ? '#FEF3C7' : '#f9f9f9', color: isSoldOut ? '#92400E' : '#888', cursor: 'pointer', fontWeight: 600 }}>
+            {isSoldOut ? 'Sold Out' : 'In Stock'}
+          </button>
+        </div>
         <div style={{ display: 'flex', gap: 3 }}>
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(item)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #ddd', background: '#f9f9f9', cursor: 'pointer' }}>Edit</button>
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onDelete(item.id)} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, border: '1px solid #FECACA', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer' }}>Del</button>
@@ -146,6 +153,11 @@ export default function ShopMenu() {
 
   const toggleAvailable = async (item: MenuItem) => {
     await fetch('/api/shop/menu', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, is_available: !item.is_available }) })
+    fetchItems()
+  }
+
+  const toggleSoldOut = async (item: MenuItem) => {
+    await fetch('/api/shop/menu', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, is_sold_out: !(item.is_sold_out ?? false) }) })
     fetchItems()
   }
 
@@ -328,7 +340,7 @@ export default function ShopMenu() {
         <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
             {filtered.map(item => (
-              <SortableMenuItem key={item.id} item={item} onEdit={openEdit} onDelete={deleteItem} onToggle={toggleAvailable} />
+              <SortableMenuItem key={item.id} item={item} onEdit={openEdit} onDelete={deleteItem} onToggle={toggleAvailable} onToggleSoldOut={toggleSoldOut} />
             ))}
           </div>
         </SortableContext>

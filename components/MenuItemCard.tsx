@@ -12,6 +12,7 @@ interface MenuItemCardProps {
 
 export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardProps) {
   const { addItem, needsShopSwitch, switchShopAndAdd } = useCart()
+  const isSoldOut = item.is_sold_out ?? false
   const [showModal, setShowModal] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false)
@@ -104,21 +105,26 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
   return (
     <>
       <div
-        onClick={() => setShowModal(true)}
+        onClick={() => !isSoldOut && setShowModal(true)}
         style={{
           background: 'white',
           borderRadius: '12px',
           overflow: 'hidden',
           border: '1px solid #f0f0f0',
-          cursor: 'pointer',
+          cursor: isSoldOut ? 'default' : 'pointer',
           transition: 'all 0.2s',
           display: 'flex',
           flexDirection: 'column',
           height: '100%',
+          opacity: isSoldOut ? 0.55 : 1,
+          filter: isSoldOut ? 'grayscale(60%)' : 'none',
+          position: 'relative',
         }}
         onMouseEnter={e => {
-          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'
-          e.currentTarget.style.transform = 'translateY(-2px)'
+          if (!isSoldOut) {
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+          }
         }}
         onMouseLeave={e => {
           e.currentTarget.style.boxShadow = 'none'
@@ -138,6 +144,26 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
           position: 'relative',
         }}>
           {!item.image_url && <span style={{ fontSize: '2.5rem' }}>🍩</span>}
+          {isSoldOut && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <span style={{
+                background: '#DC2626',
+                color: 'white',
+                fontWeight: 800,
+                fontSize: '0.7rem',
+                padding: '0.2rem 0.6rem',
+                borderRadius: '4px',
+                letterSpacing: '0.05em',
+              }}>SOLD OUT</span>
+            </div>
+          )}
           {added && (
             <div style={{
               position: 'absolute',
@@ -166,23 +192,24 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                handleAddToCart()
+                if (!isSoldOut) handleAddToCart()
               }}
+              disabled={isSoldOut}
               style={{
-                background: '#FF8C00',
+                background: isSoldOut ? '#ccc' : '#FF8C00',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
                 padding: '0.3rem 0.6rem',
                 fontSize: '0.7rem',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: isSoldOut ? 'not-allowed' : 'pointer',
                 transition: 'background 0.2s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#e67e00')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#FF8C00')}
+              onMouseEnter={e => { if (!isSoldOut) e.currentTarget.style.background = '#e67e00' }}
+              onMouseLeave={e => { if (!isSoldOut) e.currentTarget.style.background = '#FF8C00' }}
             >
-              Add
+              {isSoldOut ? 'Sold Out' : 'Add'}
             </button>
           </div>
         </div>
