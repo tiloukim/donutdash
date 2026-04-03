@@ -15,7 +15,7 @@ interface PayoutRequest {
 }
 
 export default function DriverEarnings() {
-  const [data, setData] = useState<{ today: number; thisWeek: number; allTime: number; availableBalance: number; deliveries: any[] }>({ today: 0, thisWeek: 0, allTime: 0, availableBalance: 0, deliveries: [] })
+  const [data, setData] = useState<{ today: number; thisWeek: number; allTime: number; availableBalance: number; referralCredit: number; deliveries: any[] }>({ today: 0, thisWeek: 0, allTime: 0, availableBalance: 0, referralCredit: 0, deliveries: [] })
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -88,6 +88,7 @@ export default function DriverEarnings() {
     { label: 'This Week', value: data.thisWeek, color: '#FF8C00' },
     { label: 'All Time', value: data.allTime, color: '#6366F1' },
     { label: 'Available Balance', value: data.availableBalance, color: '#10B981' },
+    ...(data.referralCredit > 0 ? [{ label: 'Referral Credit', value: data.referralCredit, color: '#EC4899' }] : []),
     { label: 'Total Deliveries', value: data.deliveries.length, color: '#FF8C00', isCount: true },
   ]
 

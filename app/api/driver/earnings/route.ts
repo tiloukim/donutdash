@@ -46,5 +46,8 @@ export async function GET() {
   const totalPaidOut = (payouts || []).reduce((sum, p) => sum + Number(p.amount), 0)
   const availableBalance = Math.max(0, Math.round((allTime - totalPaidOut) * 100) / 100)
 
-  return NextResponse.json({ today, thisWeek, allTime, availableBalance, deliveries: all })
+  // Get referral credit
+  const referralCredit = Number(ddUser.referral_credit) || 0
+
+  return NextResponse.json({ today, thisWeek, allTime, availableBalance, referralCredit, deliveries: all })
 }
