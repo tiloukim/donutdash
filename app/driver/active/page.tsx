@@ -15,7 +15,8 @@ const STEPS = [
 ]
 
 export default function ActiveDelivery() {
-  const [delivery, setDelivery] = useState<any>(null)
+  const [deliveries, setDeliveries] = useState<any[]>([])
+  const [activeIdx, setActiveIdx] = useState(0)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [completed, setCompleted] = useState(false)
@@ -25,13 +26,24 @@ export default function ActiveDelivery() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
+  const delivery = deliveries[activeIdx] || null
+
   const fetchActive = useCallback(async () => {
     const res = await fetch('/api/driver/active')
     if (res.ok) {
       const data = await res.json()
-      setDelivery(data)
+      if (data?.deliveries) {
+        setDeliveries(data.deliveries)
+        // Keep activeIdx in bounds
+        setActiveIdx(prev => Math.min(prev, data.deliveries.length - 1))
+      } else if (data && !data.deliveries) {
+        // Backwards compat: single delivery response
+        setDeliveries(data ? [data] : [])
+      } else {
+        setDeliveries([])
+      }
     } else {
-      setDelivery(null)
+      setDeliveries([])
     }
     setLoading(false)
   }, [])
@@ -40,7 +52,7 @@ export default function ActiveDelivery() {
 
   // Keep screen awake during active delivery (prevents GPS from stopping)
   useEffect(() => {
-    if (!delivery) return
+    if (deliveries.length === 0) return
     let wakeLock: any = null
 
     const requestWakeLock = async () => {
@@ -67,11 +79,11 @@ export default function ActiveDelivery() {
       document.removeEventListener('visibilitychange', handleVisibility)
       if (wakeLock) wakeLock.release().catch(() => {})
     }
-  }, [delivery])
+  }, [deliveries.length])
 
   // Heartbeat: keep driver online while on active delivery page
   useEffect(() => {
-    if (!delivery) return
+    if (deliveries.length === 0) return
     const heartbeat = setInterval(() => {
       fetch('/api/driver/online', {
         method: 'POST',
@@ -86,11 +98,11 @@ export default function ActiveDelivery() {
       body: JSON.stringify({ online: true }),
     }).catch(() => {})
     return () => clearInterval(heartbeat)
-  }, [delivery])
+  }, [deliveries.length])
 
   // Track driver location while active
   useEffect(() => {
-    if (!delivery) return
+    if (deliveries.length === 0) return
     if (!navigator.geolocation) return
 
     let lastSentAt = 0
@@ -148,7 +160,7 @@ export default function ActiveDelivery() {
       navigator.geolocation.clearWatch(watchId)
       clearInterval(gpsInterval)
     }
-  }, [delivery])
+  }, [deliveries.length])
 
   const updateStatus = async (newStatus: string) => {
     if (!delivery) return
@@ -159,7 +171,15 @@ export default function ActiveDelivery() {
       body: JSON.stringify({ delivery_id: delivery.id, status: newStatus }),
     })
     if (newStatus === 'delivered') {
-      setCompleted(true)
+      // If there are other deliveries, refresh; otherwise show completed
+      if (deliveries.length > 1) {
+        setActiveIdx(0)
+        setDeliveryPhoto(null)
+        setPhotoPreview('')
+        await fetchActive()
+      } else {
+        setCompleted(true)
+      }
     } else {
       await fetchActive()
     }
@@ -214,7 +234,7 @@ export default function ActiveDelivery() {
     )
   }
 
-  if (!delivery) {
+  if (deliveries.length === 0) {
     return (
       <div style={{ background: '#fff', borderRadius: 16, padding: 60, textAlign: 'center', border: '1px solid #FFE8D6' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🚗</div>
@@ -238,6 +258,32 @@ export default function ActiveDelivery() {
 
   return (
     <div>
+      {/* Delivery Tabs (shown when batching) */}
+      {deliveries.length > 1 && (
+        <div style={{
+          display: 'flex', gap: 8, marginBottom: 16,
+        }}>
+          {deliveries.map((d, i) => (
+            <button
+              key={d.id}
+              onClick={() => { setActiveIdx(i); setDeliveryPhoto(null); setPhotoPreview('') }}
+              style={{
+                flex: 1, padding: '12px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                fontWeight: 700, fontSize: 14,
+                background: i === activeIdx ? '#FF8C00' : '#fff',
+                color: i === activeIdx ? '#fff' : '#333',
+                boxShadow: i === activeIdx ? '0 2px 8px rgba(255,140,0,0.3)' : '0 1px 3px rgba(0,0,0,0.1)',
+              }}
+            >
+              <div>Delivery {i + 1} of {deliveries.length}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, marginTop: 4, opacity: 0.85 }}>
+                {d.order?.shop?.name || 'Shop'} — {d.status.replace(/_/g, ' ')}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Map */}
       {(shopLat && shopLng) && (
         <div style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 16, height: 300, border: '1px solid #FFE8D6' }}>

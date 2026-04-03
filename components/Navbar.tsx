@@ -32,6 +32,8 @@ export default function Navbar() {
         <div className="nav-links">
           <Link href="/shops" className="nav-link">Browse</Link>
           {user && <Link href="/orders" className="nav-link">Orders</Link>}
+          {user && <Link href="/rewards" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Rewards</Link>}
+          <Link href="/pass" className="nav-link" style={{ color: '#FF1493', fontWeight: 700 }}>Pass</Link>
           <Link href="/cart" className="nav-link" style={{ position: 'relative' }}>
             Cart
             {count > 0 && (
@@ -117,6 +119,28 @@ export default function Navbar() {
                       >
                         My Profile
                       </Link>
+                      <Link href="/gift-cards" style={{
+                        textDecoration: 'none', color: '#1A1A2E', fontWeight: 500,
+                        display: 'block', padding: '0.6rem 1rem', fontSize: '0.9rem',
+                        transition: 'background 0.15s',
+                      }}
+                        onClick={() => setUserMenuOpen(false)}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#fff0f5')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        Gift Cards
+                      </Link>
+                      <Link href="/catering" style={{
+                        textDecoration: 'none', color: '#1A1A2E', fontWeight: 500,
+                        display: 'block', padding: '0.6rem 1rem', fontSize: '0.9rem',
+                        transition: 'background 0.15s',
+                      }}
+                        onClick={() => setUserMenuOpen(false)}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#fff0f5')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        Catering
+                      </Link>
                       <button
                         onClick={() => { setUserMenuOpen(false); signOut() }}
                         style={{
@@ -175,11 +199,31 @@ export default function Navbar() {
           Browse
         </Link>
         {user && (
-          <Link href="/orders" onClick={() => setMobileOpen(false)}
+          <>
+            <Link href="/orders" onClick={() => setMobileOpen(false)}
+              style={{ padding: '0.5rem 0', fontWeight: 500 }}>
+              Orders
+            </Link>
+            <Link href="/gift-cards" onClick={() => setMobileOpen(false)}
+              style={{ padding: '0.5rem 0', fontWeight: 500 }}>
+              Gift Cards
+            </Link>
+            <Link href="/catering" onClick={() => setMobileOpen(false)}
+              style={{ padding: '0.5rem 0', fontWeight: 500 }}>
+              Catering
+            </Link>
+          </>
+        )}
+        {user && (
+          <Link href="/rewards" onClick={() => setMobileOpen(false)}
             style={{ padding: '0.5rem 0', fontWeight: 500 }}>
-            Orders
+            Rewards
           </Link>
         )}
+        <Link href="/pass" onClick={() => setMobileOpen(false)}
+          style={{ padding: '0.5rem 0', fontWeight: 700, color: '#FF1493' }}>
+          DonutDash Pass
+        </Link>
         <Link href="/cart" onClick={() => setMobileOpen(false)}
           style={{ padding: '0.5rem 0', fontWeight: 500 }}>
           Cart {count > 0 && `(${count})`}

@@ -3,7 +3,7 @@ import { haversineDistance } from './osrm'
 import { sendEmail } from './sms'
 import { MAX_DRIVER_DISTANCE_MILES, BASE_DELIVERY_PAY, PER_MILE_PAY, OFFER_TIMEOUT_SECONDS, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from './constants'
 
-export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = []) {
+export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = [], shopId?: string) {
   const svc = createServiceClient()
 
   const { data: onlineDrivers } = await svc
@@ -15,13 +15,23 @@ export async function findNearestAvailableDrivers(shopLat: number, shopLng: numb
 
   if (!onlineDrivers?.length) return []
 
-  // Filter out excluded drivers and busy ones
+  // Get active deliveries per driver (with shop info for batching)
   const { data: busyDrivers } = await svc
     .from('dd_deliveries')
-    .select('driver_id')
+    .select('driver_id, order:dd_orders(shop_id)')
     .in('status', ['assigned', 'picked_up', 'delivering'])
 
-  const busyIds = new Set((busyDrivers || []).map(d => d.driver_id))
+  // Count active deliveries per driver and track their shop_ids
+  const driverDeliveryCounts = new Map<string, number>()
+  const driverShopIds = new Map<string, Set<string>>()
+  for (const d of busyDrivers || []) {
+    driverDeliveryCounts.set(d.driver_id, (driverDeliveryCounts.get(d.driver_id) || 0) + 1)
+    const sid = (d.order as any)?.shop_id
+    if (sid) {
+      if (!driverShopIds.has(d.driver_id)) driverShopIds.set(d.driver_id, new Set())
+      driverShopIds.get(d.driver_id)!.add(sid)
+    }
+  }
 
   // Check for pending offers (only non-expired ones)
   const { data: pendingOffers } = await svc
@@ -33,13 +43,26 @@ export async function findNearestAvailableDrivers(shopLat: number, shopLng: numb
   const pendingIds = new Set((pendingOffers || []).map(o => o.driver_id))
   const excludeSet = new Set(excludeDriverIds)
 
-  console.log('[DRIVER FIND] Busy drivers:', [...busyIds])
+  console.log('[DRIVER FIND] Driver delivery counts:', Object.fromEntries(driverDeliveryCounts))
   console.log('[DRIVER FIND] Pending offer drivers:', [...pendingIds])
   console.log('[DRIVER FIND] Excluded drivers:', excludeDriverIds)
 
   const available = onlineDrivers
-    .filter(d => !busyIds.has(d.driver_id) && !excludeSet.has(d.driver_id) && !pendingIds.has(d.driver_id)
-      && d.lat !== 0 && d.lng !== 0) // Exclude drivers with no GPS fix yet
+    .filter(d => {
+      if (excludeSet.has(d.driver_id) || pendingIds.has(d.driver_id)) return false
+      if (d.lat === 0 && d.lng === 0) return false // No GPS fix
+
+      const activeCount = driverDeliveryCounts.get(d.driver_id) || 0
+      if (activeCount === 0) return true // Free driver
+      if (activeCount >= 2) return false // Max 2 stacked deliveries
+
+      // Allow batching: 1 active delivery from the same shop
+      if (activeCount === 1 && shopId) {
+        const shops = driverShopIds.get(d.driver_id)
+        return shops ? shops.has(shopId) : false
+      }
+      return false
+    })
     .map(d => ({
       driver_id: d.driver_id,
       lat: d.lat,
@@ -153,7 +176,8 @@ export async function assignNextDriver(deliveryId: string) {
     return null
   }
 
-  const nearbyDrivers = await findNearestAvailableDrivers(shopLat, shopLng, excludeIds)
+  const shopId = (delivery.order as any)?.shop_id
+  const nearbyDrivers = await findNearestAvailableDrivers(shopLat, shopLng, excludeIds, shopId)
 
   if (nearbyDrivers.length === 0) return null
 

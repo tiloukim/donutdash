@@ -92,7 +92,17 @@ export async function POST(request: NextRequest) {
     }
     const surge = await getSurgeMultiplier()
     const baseDeliveryFee = DELIVERY_FEE_BASE + distanceMiles * DELIVERY_FEE_PER_MILE
-    const deliveryFee = Math.round(baseDeliveryFee * surge.multiplier * 100) / 100
+    let deliveryFee = Math.round(baseDeliveryFee * surge.multiplier * 100) / 100
+
+    // Check DonutDash Pass for free delivery
+    let hasPass = false
+    const { data: subscription } = await svc.from('dd_subscriptions').select('status, expires_at').eq('user_id', ddUser.id).single()
+    if (subscription && subscription.status === 'active') {
+      if (!subscription.expires_at || new Date(subscription.expires_at) > new Date()) {
+        hasPass = true
+        deliveryFee = 0
+      }
+    }
 
     // Calculate totals
     const subtotal = items.reduce(
@@ -160,6 +170,51 @@ export async function POST(request: NextRequest) {
     if (itemsError) {
       await supabase.from('dd_orders').delete().eq('id', order.id)
       return NextResponse.json({ error: itemsError.message }, { status: 500 })
+    }
+
+    // Award loyalty points: 1 point per $1 spent (fire and forget)
+    const loyaltyPoints = Math.floor(subtotal)
+    if (loyaltyPoints > 0) {
+      (async () => {
+        try {
+          // Upsert loyalty record
+          const { data: existing } = await svc
+            .from('dd_loyalty')
+            .select('points, lifetime_points')
+            .eq('user_id', ddUser.id)
+            .single()
+
+          if (existing) {
+            const newLifetime = existing.lifetime_points + loyaltyPoints
+            const newTier = newLifetime >= 5000 ? 'platinum' : newLifetime >= 1500 ? 'gold' : newLifetime >= 500 ? 'silver' : 'bronze'
+            await svc.from('dd_loyalty').update({
+              points: existing.points + loyaltyPoints,
+              lifetime_points: newLifetime,
+              tier: newTier,
+              updated_at: new Date().toISOString(),
+            }).eq('user_id', ddUser.id)
+          } else {
+            const newTier = loyaltyPoints >= 5000 ? 'platinum' : loyaltyPoints >= 1500 ? 'gold' : loyaltyPoints >= 500 ? 'silver' : 'bronze'
+            await svc.from('dd_loyalty').insert({
+              user_id: ddUser.id,
+              points: loyaltyPoints,
+              lifetime_points: loyaltyPoints,
+              tier: newTier,
+            })
+          }
+
+          // Log the transaction
+          await svc.from('dd_loyalty_transactions').insert({
+            user_id: ddUser.id,
+            order_id: order.id,
+            points: loyaltyPoints,
+            type: 'earned',
+            description: `Earned ${loyaltyPoints} pts from order #${order.id.slice(0, 8)}`,
+          })
+        } catch (e) {
+          console.error('Loyalty points error:', e)
+        }
+      })()
     }
 
     // Notify admins of new order (fire and forget)
@@ -237,14 +292,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Add delivery fee
-    squareLineItems.push({
-      name: 'Delivery Fee',
-      quantity: '1',
-      basePriceMoney: {
-        amount: BigInt(Math.round(deliveryFee * 100)),
-        currency: 'USD',
-      },
-    })
+    if (!hasPass) {
+      squareLineItems.push({
+        name: 'Delivery Fee',
+        quantity: '1',
+        basePriceMoney: {
+          amount: BigInt(Math.round(deliveryFee * 100)),
+          currency: 'USD',
+        },
+      })
+    }
 
     // Add service fee
     squareLineItems.push({

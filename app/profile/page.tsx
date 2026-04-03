@@ -36,6 +36,12 @@ export default function ProfilePage() {
   const [newZip, setNewZip] = useState('')
   const [editingAddr, setEditingAddr] = useState<string | null>(null)
 
+  // Referral state
+  const [referralCode, setReferralCode] = useState('')
+  const [referralCount, setReferralCount] = useState(0)
+  const [totalEarned, setTotalEarned] = useState(0)
+  const [copied, setCopied] = useState(false)
+
   useEffect(() => {
     if (authLoading) return
     if (!user) { router.push('/login'); return }
@@ -51,6 +57,15 @@ export default function ProfilePage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
+    // Fetch referral info
+    fetch('/api/referral')
+      .then(r => r.json())
+      .then(data => {
+        if (data.referral_code) setReferralCode(data.referral_code)
+        setReferralCount(data.referral_count || 0)
+        setTotalEarned(data.total_earned || 0)
+      })
+      .catch(() => {})
   }, [user, authLoading, router])
 
   const handleSaveProfile = async () => {
@@ -203,7 +218,7 @@ export default function ProfilePage() {
             </div>
           ))}
 
-          {/* Add/Edit Address Form */}
+          {/* Add/Edit address Form */}
           {showAddAddress && (
             <div style={{ marginTop: 16, padding: 16, background: '#FAFAFA', borderRadius: 10, border: '1px solid #f0f0f0' }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: '#1A1A2E' }}>
@@ -239,6 +254,54 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Referral Program */}
+        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #f0f0f0', padding: 24, marginTop: 20 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>Referral Program</h2>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>Share & earn $5 for each friend who orders!</p>
+
+          {referralCode && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              background: '#FFF0F5', borderRadius: 10, padding: '12px 16px', marginBottom: 16,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 2 }}>Your Referral Code</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#FF1493', letterSpacing: 2 }}>{referralCode}</div>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(referralCode)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }}
+                style={{
+                  padding: '8px 16px', borderRadius: 8, border: 'none',
+                  background: copied ? '#10B981' : '#FF1493', color: '#fff',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{
+              flex: 1, background: '#F8F9FA', borderRadius: 10, padding: '14px 16px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#1A1A2E' }}>{referralCount}</div>
+              <div style={{ fontSize: 12, color: '#888' }}>Friends Referred</div>
+            </div>
+            <div style={{
+              flex: 1, background: '#F8F9FA', borderRadius: 10, padding: '14px 16px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#10B981' }}>${totalEarned.toFixed(2)}</div>
+              <div style={{ fontSize: 12, color: '#888' }}>Earned</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
