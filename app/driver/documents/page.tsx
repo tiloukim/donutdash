@@ -213,6 +213,23 @@ export default function DriverDocuments() {
         <div style={{ fontSize: 13, fontWeight: 600, color: '#92400E', marginBottom: 6 }}>Accepted formats</div>
         <div style={{ fontSize: 12, color: '#888' }}>JPEG, PNG, WebP, or PDF — Max 10MB per file</div>
       </div>
+
+      <div style={{ marginTop: 16, padding: 16, background: '#fff', borderRadius: 10, border: '1px solid #FFE8D6' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 18 }}>📋</span>
+          <a
+            href="/contractor-agreement"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: 14, fontWeight: 600, color: '#FF8C00', textDecoration: 'underline' }}
+          >
+            Review the Independent Contractor Agreement
+          </a>
+        </div>
+        <div style={{ fontSize: 12, color: '#888', marginTop: 4, marginLeft: 26 }}>
+          Please review the full agreement between you and KIMCO LLC DBA DonutDash.
+        </div>
+      </div>
     </div>
   )
 }

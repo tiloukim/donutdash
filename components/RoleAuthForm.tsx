@@ -35,6 +35,7 @@ export default function RoleAuthForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [captchaToken, setCaptchaToken] = useState('')
+  const [smsConsent, setSmsConsent] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,6 +63,10 @@ export default function RoleAuthForm({
       } else {
         if (password.length < 6) {
           setError('Password must be at least 6 characters.')
+          return
+        }
+        if (!smsConsent) {
+          setError('You must agree to receive SMS notifications to create an account.')
           return
         }
         const { data, error: signUpError } = await supabase.auth.signUp({
@@ -229,15 +234,34 @@ export default function RoleAuthForm({
             />
           </div>
 
+          {mode === 'signup' && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+              <input
+                type="checkbox"
+                id="sms-consent-role"
+                checked={smsConsent}
+                onChange={e => setSmsConsent(e.target.checked)}
+                style={{ marginTop: '3px', accentColor: accentColor, width: '16px', height: '16px', flexShrink: 0 }}
+              />
+              <label htmlFor="sms-consent-role" style={{ fontSize: '0.8rem', color: '#555', lineHeight: 1.5 }}>
+                I agree to receive SMS notifications about my orders, delivery updates, and account alerts.
+                Message &amp; data rates may apply. Reply STOP to unsubscribe.{' '}
+                <Link href="/privacy" style={{ color: accentColor, textDecoration: 'underline' }}>
+                  Privacy Policy
+                </Link>
+              </label>
+            </div>
+          )}
+
           <Turnstile onToken={setCaptchaToken} />
 
           <button
             type="submit"
-            disabled={loading || !captchaToken}
+            disabled={loading || !captchaToken || (mode === 'signup' && !smsConsent)}
             style={{
               width: '100%',
               padding: '0.85rem',
-              background: (loading || !captchaToken) ? '#ccc' : accentColor,
+              background: (loading || !captchaToken || (mode === 'signup' && !smsConsent)) ? '#ccc' : accentColor,
               color: 'white',
               border: 'none',
               borderRadius: '10px',

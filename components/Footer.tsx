@@ -47,6 +47,9 @@ export default function Footer() {
               <Link href="/privacy" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
                 Privacy Policy
               </Link>
+              <Link href="/contractor-agreement" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                Contractor Agreement
+              </Link>
             </div>
           </div>
 

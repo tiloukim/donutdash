@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { DM_Sans, Playfair_Display } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { CartProvider } from '@/lib/cart-context'
+import CookieConsent from '@/components/CookieConsent'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -39,6 +40,7 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>{children}</CartProvider>
         </AuthProvider>
+        <CookieConsent />
       </body>
     </html>
   )
