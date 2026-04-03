@@ -374,6 +374,38 @@ export default function ShopSettings() {
           )}
         </div>
       )}
+
+      {/* My Referral Progress (if this shop was referred) */}
+      {shopReferral?.my_referral && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Your Referral Bonus Progress</h3>
+          <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>Complete 20 orders to earn your $100 referral bonus!</p>
+
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>
+                {shopReferral.my_referral.orders_completed} / {shopReferral.my_referral.orders_required} orders
+              </span>
+              <span style={{
+                fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 6,
+                background: shopReferral.my_referral.status === 'completed' ? '#D1FAE5' : '#FEF3C7',
+                color: shopReferral.my_referral.status === 'completed' ? '#065F46' : '#92400E',
+              }}>
+                {shopReferral.my_referral.status === 'completed' ? '$100 Earned!' : `${shopReferral.my_referral.orders_required - shopReferral.my_referral.orders_completed} orders to go`}
+              </span>
+            </div>
+            <div style={{ background: '#F3F4F6', borderRadius: 8, height: 10, overflow: 'hidden' }}>
+              <div style={{
+                background: shopReferral.my_referral.status === 'completed' ? '#10B981' : '#FF1493',
+                height: '100%',
+                width: `${Math.min(100, (shopReferral.my_referral.orders_completed / shopReferral.my_referral.orders_required) * 100)}%`,
+                borderRadius: 8,
+                transition: 'width 0.3s',
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

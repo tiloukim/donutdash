@@ -35,11 +35,18 @@ export async function GET() {
   const completed = (referrals || []).filter(r => r.status === 'completed').length
   const totalEarned = completed * 100
 
+  // Also check if this shop was referred by someone (as referee)
+  const { data: myReferral } = await svc.from('dd_shop_referrals')
+    .select('id, status, orders_completed, orders_required, referrer_credit, referee_credit, created_at, completed_at')
+    .eq('referee_shop_id', shop.id)
+    .maybeSingle()
+
   return NextResponse.json({
     referral_code: referralCode,
     referrals: referrals || [],
     completed_count: completed,
     total_earned: totalEarned,
+    my_referral: myReferral || null,
   })
 }
 
