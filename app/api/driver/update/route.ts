@@ -48,7 +48,7 @@ export async function POST(req: Request) {
   // Sync order status
   const orderStatusMap: Record<string, string> = {
     picked_up: 'picked_up',
-    delivering: 'out_for_delivery',
+    delivering: 'delivering',
     delivered: 'delivered',
   }
 

@@ -13,6 +13,7 @@ export async function GET() {
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   // Find deliveries with no driver assigned (pending status)
   const { data: unassigned } = await svc.from('dd_deliveries')
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { delivery_id } = await req.json()
   if (!delivery_id) return NextResponse.json({ error: 'delivery_id required' }, { status: 400 })

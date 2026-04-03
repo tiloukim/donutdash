@@ -10,6 +10,7 @@ export async function GET() {
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { data: requests } = await svc.from('dd_payout_requests')
     .select('*')
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { amount, payment_method, payment_info, notes } = await req.json()
 

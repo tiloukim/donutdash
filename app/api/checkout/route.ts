@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // Check DonutDash Pass for free delivery
     let hasPass = false
-    const { data: subscription } = await svc.from('dd_subscriptions').select('status, expires_at').eq('user_id', ddUser.id).single()
+    const { data: subscription } = await svc.from('dd_subscriptions').select('status, expires_at').eq('user_id', ddUser.id).maybeSingle()
     if (subscription && subscription.status === 'active') {
       if (!subscription.expires_at || new Date(subscription.expires_at) > new Date()) {
         hasPass = true

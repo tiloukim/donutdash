@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
 
 // Called when a new order is confirmed to start the auto-assignment process
 export async function POST(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { order_id } = await req.json()
   if (!order_id) return NextResponse.json({ error: 'Missing order_id' }, { status: 400 })
 

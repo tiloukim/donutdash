@@ -89,9 +89,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ order: cancelled, cancelled: true })
   }
 
+  // Only admin or shop owner can update order status
+  if (!currentOrder) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+
+  if (ddUser.role !== 'admin') {
+    // Check if user is the shop owner
+    const { data: shop } = await svc.from('dd_shops').select('owner_id').eq('id', currentOrder.shop_id).single()
+    if (!shop || shop.owner_id !== ddUser.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
+
+  // Only allow status updates, not arbitrary field changes
+  if (!body.status) {
+    return NextResponse.json({ error: 'Only status updates are allowed' }, { status: 400 })
+  }
+
   const { data: order, error } = await svc
     .from('dd_orders')
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update({ status: body.status, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select('*, shop:dd_shops(lat, lng)')
     .single()
