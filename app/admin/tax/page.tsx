@@ -26,6 +26,20 @@ interface Quarter {
   orderCount: number
 }
 
+interface ShopTax {
+  id: string
+  name: string
+  ownerName: string
+  ownerEmail: string
+  ownerPhone: string
+  orderCount: number
+  totalRevenue: number
+  commissionPaid: number
+  shopEarnings: number
+  needs1099: boolean
+  w9Status: string
+}
+
 interface TaxData {
   year: number
   platformIncome: {
@@ -41,10 +55,14 @@ interface TaxData {
   }
   quarters: Quarter[]
   drivers: DriverTax[]
+  shops: ShopTax[]
   summary: {
     totalDrivers: number
     driversNeeding1099: number
     driversMissingW9: number
+    totalShops: number
+    shopsNeeding1099: number
+    shopsMissingW9: number
   }
 }
 
@@ -69,7 +87,7 @@ export default function AdminTax() {
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading tax data...</div>
   if (!data) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Failed to load</div>
 
-  const { platformIncome: pi, quarters, drivers, summary } = data
+  const { platformIncome: pi, quarters, drivers, shops, summary } = data
 
   return (
     <div>
@@ -96,6 +114,16 @@ export default function AdminTax() {
           <div>
             <span style={{ fontWeight: 700, color: '#92400E', fontSize: 14 }}>{summary.driversMissingW9} driver{summary.driversMissingW9 > 1 ? 's' : ''} earning $600+ without W-9 on file</span>
             <div style={{ fontSize: 12, color: '#92400E', marginTop: 2 }}>IRS requires W-9 before issuing 1099-NEC. Collect ASAP or apply 24% backup withholding.</div>
+          </div>
+        </div>
+      )}
+
+      {summary.shopsMissingW9 > 0 && (
+        <div style={{ background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 20 }}>&#127978;</span>
+          <div>
+            <span style={{ fontWeight: 700, color: '#92400E', fontSize: 14 }}>{summary.shopsMissingW9} shop{summary.shopsMissingW9 > 1 ? 's' : ''} earning $600+ without W-9 on file</span>
+            <div style={{ fontSize: 12, color: '#92400E', marginTop: 2 }}>IRS requires W-9 before issuing 1099-NEC to shop owners.</div>
           </div>
         </div>
       )}
@@ -260,6 +288,77 @@ export default function AdminTax() {
         </div>
       </div>
 
+      {/* 1099 Shop Owner Tracker */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden', marginBottom: 24 }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Shop Owner 1099-NEC Tracker</h3>
+            <p style={{ fontSize: 12, color: '#9CA3AF', margin: '4px 0 0 0' }}>Shop owners earning $600+ require 1099-NEC filing by Jan 31</p>
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#EC4899' }}>{summary.totalShops}</div>
+              <div style={{ fontSize: 10, color: '#9CA3AF' }}>Total</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#F59E0B' }}>{summary.shopsNeeding1099}</div>
+              <div style={{ fontSize: 10, color: '#9CA3AF' }}>Need 1099</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#EF4444' }}>{summary.shopsMissingW9}</div>
+              <div style={{ fontSize: 10, color: '#9CA3AF' }}>Missing W-9</div>
+            </div>
+          </div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
+                {['Shop', 'Owner', 'Email', 'Orders', 'Revenue', 'Commission', 'Shop Earnings', '1099 Required', 'W-9 Status'].map(h => (
+                  <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {shops.map(shop => (
+                <tr key={shop.id} style={{ borderBottom: '1px solid #F3F4F6', background: shop.needs1099 && shop.w9Status === 'missing' ? '#FEF2F2' : undefined }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>{shop.name}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13 }}>{shop.ownerName}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{shop.ownerEmail}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13 }}>{shop.orderCount}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13 }}>{fmt(shop.totalRevenue)}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{fmt(shop.commissionPaid)}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 600 }}>{fmt(shop.shopEarnings)}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {shop.needs1099 ? (
+                      <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626' }}>Yes</span>
+                    ) : (
+                      <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: '#F3F4F6', color: '#6B7280' }}>
+                        No ({fmt(600 - shop.shopEarnings)} to go)
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{
+                      fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
+                      background: shop.w9Status === 'approved' ? '#D1FAE5' : shop.w9Status === 'pending' ? '#FEF3C7' : '#FEE2E2',
+                      color: shop.w9Status === 'approved' ? '#065F46' : shop.w9Status === 'pending' ? '#92400E' : '#DC2626',
+                    }}>
+                      {shop.w9Status === 'approved' ? 'On File' : shop.w9Status === 'pending' ? 'Pending' : 'Missing'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {shops.length === 0 && (
+                <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shop activity for {year}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Export / Download Section */}
       <div style={{ marginTop: 24, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20 }}>
         <h4 style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', margin: '0 0 4px 0' }}>Export Tax Documents</h4>
@@ -307,7 +406,8 @@ export default function AdminTax() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
           {[
             { date: 'Jan 31', task: 'Send 1099-NEC to drivers earning $600+' },
-            { date: 'Jan 31', task: 'File 1099-NEC copies with IRS' },
+            { date: 'Jan 31', task: 'Send 1099-NEC to shop owners earning $600+' },
+            { date: 'Jan 31', task: 'File all 1099-NEC copies with IRS' },
             { date: 'Apr 15', task: 'Q1 estimated tax payment (Form 1040-ES)' },
             { date: 'Jun 15', task: 'Q2 estimated tax payment' },
             { date: 'Sep 15', task: 'Q3 estimated tax payment' },

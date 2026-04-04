@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const yearEnd = `${year + 1}-01-01T00:00:00.000Z`
 
   // Fetch all data in parallel
-  const [driversRes, deliveriesRes, ordersRes, payoutsRes, docsRes] = await Promise.all([
+  const [driversRes, deliveriesRes, ordersRes, payoutsRes, docsRes, shopsRes, shopDocsRes] = await Promise.all([
     svc.from('dd_users').select('id, name, email, phone, created_at').eq('role', 'driver'),
     svc.from('dd_deliveries')
       .select('id, driver_id, driver_earnings, base_pay, distance_miles, status, delivered_at, order:dd_orders(tip)')
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       .gte('delivered_at', yearStart)
       .lt('delivered_at', yearEnd),
     svc.from('dd_orders')
-      .select('id, total, subtotal, delivery_fee, service_fee, tip, status, created_at')
+      .select('id, total, subtotal, delivery_fee, service_fee, tip, status, created_at, shop_id')
       .neq('status', 'cancelled')
       .gte('created_at', yearStart)
       .lt('created_at', yearEnd),
@@ -38,6 +38,11 @@ export async function GET(req: NextRequest) {
     svc.from('dd_driver_documents')
       .select('driver_id, doc_type, status')
       .eq('doc_type', 'w9'),
+    svc.from('dd_shops')
+      .select('id, name, owner_id, owner:dd_users!owner_id(name, email, phone)'),
+    svc.from('dd_shop_documents')
+      .select('shop_id, doc_type, status')
+      .eq('doc_type', 'w9'),
   ])
 
   const drivers = driversRes.data || []
@@ -45,6 +50,8 @@ export async function GET(req: NextRequest) {
   const orders = ordersRes.data || []
   const payouts = payoutsRes.data || []
   const w9Docs = docsRes.data || []
+  const shops = shopsRes.data || []
+  const shopW9Docs = shopDocsRes.data || []
 
   // Per-driver earnings breakdown
   const driverSummaries = drivers.map(driver => {
@@ -130,6 +137,31 @@ export async function GET(req: NextRequest) {
     }
   })
 
+  // Per-shop earnings breakdown (shop gets subtotal minus commission)
+  const shopSummaries = shops.map((shop: any) => {
+    const shopOrders = orders.filter((o: any) => o.shop_id === shop.id)
+    const totalSubtotalShop = shopOrders.reduce((sum: number, o: any) => sum + Number(o.subtotal || 0), 0)
+    const commission = Math.round(totalSubtotalShop * SHOP_COMMISSION_RATE * 100) / 100
+    const shopEarnings = Math.round((totalSubtotalShop - commission) * 100) / 100
+    const owner = shop.owner as any
+    const w9 = shopW9Docs.find((d: any) => d.shop_id === shop.id)
+
+    return {
+      id: shop.id,
+      name: shop.name,
+      ownerName: owner?.name || 'Unknown',
+      ownerEmail: owner?.email || '',
+      ownerPhone: owner?.phone || '',
+      orderCount: shopOrders.length,
+      totalRevenue: Math.round(totalSubtotalShop * 100) / 100,
+      commissionPaid: commission,
+      shopEarnings,
+      needs1099: shopEarnings >= 600,
+      w9Status: w9 ? w9.status : 'missing',
+    }
+  }).filter((s: any) => s.orderCount > 0)
+    .sort((a: any, b: any) => b.shopEarnings - a.shopEarnings)
+
   return NextResponse.json({
     year,
     platformIncome: {
@@ -145,10 +177,14 @@ export async function GET(req: NextRequest) {
     },
     quarters,
     drivers: driverSummaries,
+    shops: shopSummaries,
     summary: {
       totalDrivers: driverSummaries.length,
       driversNeeding1099: driverSummaries.filter(d => d.needs1099).length,
       driversMissingW9: driverSummaries.filter(d => d.w9Status === 'missing' && d.needs1099).length,
+      totalShops: shopSummaries.length,
+      shopsNeeding1099: shopSummaries.filter((s: any) => s.needs1099).length,
+      shopsMissingW9: shopSummaries.filter((s: any) => s.w9Status === 'missing' && s.needs1099).length,
     },
   })
 }
