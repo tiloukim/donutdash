@@ -10,11 +10,12 @@ export async function POST(request: NextRequest) {
   const file = formData.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-  const maxSize = 5 * 1024 * 1024
-  if (file.size > maxSize) return NextResponse.json({ error: 'File too large (max 5MB)' }, { status: 400 })
+  const isVideo = file.type.startsWith('video/')
+  const maxSize = isVideo ? 30 * 1024 * 1024 : 5 * 1024 * 1024
+  if (file.size > maxSize) return NextResponse.json({ error: `File too large (max ${isVideo ? '30MB' : '5MB'})` }, { status: 400 })
 
-  const allowed = ['image/jpeg', 'image/png', 'image/webp']
-  if (!allowed.includes(file.type)) return NextResponse.json({ error: 'Invalid file type' }, { status: 400 })
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm']
+  if (!allowed.includes(file.type)) return NextResponse.json({ error: 'Invalid file type. Supported: JPEG, PNG, WebP, MP4, MOV, WebM' }, { status: 400 })
 
   const ext = file.name.split('.').pop() || 'jpg'
   const fileName = `disputes/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`

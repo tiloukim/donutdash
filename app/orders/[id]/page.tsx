@@ -741,10 +741,12 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                   : existingDispute.photo_url ? [existingDispute.photo_url] : []
                 return photos.length > 0 ? (
                   <div style={{ marginTop: 8, marginBottom: 8 }}>
-                    <strong style={{ fontSize: 13, color: '#666' }}>Your photos:</strong>
+                    <strong style={{ fontSize: 13, color: '#666' }}>Your photos/videos:</strong>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
                       {photos.map((url: string, i: number) => (
-                        <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} />
+                        url.match(/\.(mp4|mov|webm)(\?|$)/i)
+                          ? <video key={i} src={url} controls style={{ width: 160, maxHeight: 120, borderRadius: 8, border: '1px solid #ddd' }} />
+                          : <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} />
                       ))}
                     </div>
                   </div>
@@ -830,29 +832,37 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
               {/* Photo Upload */}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6 }}>Photos (optional)</div>
-                <p style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>Upload photos of the issue to help us review your report.</p>
+                <p style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>Upload photos or a short video clip (max 30s) to help us review your report.</p>
 
                 {disputePhotos.length > 0 && (
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                    {disputePhotos.map((url, i) => (
-                      <div key={i} style={{ position: 'relative', width: 80, height: 80 }}>
-                        <img src={url} alt={`Issue photo ${i + 1}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} />
-                        <button
-                          onClick={() => setDisputePhotos(prev => prev.filter((_, idx) => idx !== i))}
-                          style={{
-                            position: 'absolute', top: -6, right: -6, background: '#DC2626', color: '#fff',
-                            border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 12,
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}
-                        >x</button>
-                      </div>
-                    ))}
+                    {disputePhotos.map((url, i) => {
+                      const isVideo = url.match(/\.(mp4|mov|webm)(\?|$)/i)
+                      return (
+                        <div key={i} style={{ position: 'relative', width: 80, height: 80 }}>
+                          {isVideo ? (
+                            <video src={url} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} muted />
+                          ) : (
+                            <img src={url} alt={`Issue ${i + 1}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} />
+                          )}
+                          <button
+                            onClick={() => setDisputePhotos(prev => prev.filter((_, idx) => idx !== i))}
+                            style={{
+                              position: 'absolute', top: -6, right: -6, background: '#DC2626', color: '#fff',
+                              border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 12,
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}
+                          >x</button>
+                          {isVideo && <div style={{ position: 'absolute', bottom: 4, left: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 9, padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>VIDEO</div>}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,video/mp4,video/quicktime,video/webm"
                   multiple
                   disabled={disputeUploading}
                   onChange={async (e) => {
@@ -863,11 +873,13 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                       try {
                         const formData = new FormData()
                         formData.append('file', files[i])
-                        formData.append('bucket', 'dispute-photos')
                         const res = await fetch('/api/dispute-upload', { method: 'POST', body: formData })
                         if (res.ok) {
                           const data = await res.json()
                           setDisputePhotos(prev => [...prev, data.url])
+                        } else {
+                          const err = await res.json()
+                          alert(err.error || 'Upload failed')
                         }
                       } catch {}
                     }
@@ -888,7 +900,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                       border: '1px solid #FFB6C1', cursor: disputeUploading ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    {disputeUploading ? 'Uploading...' : `Upload Photo${disputePhotos.length > 0 ? ` (${disputePhotos.length}/3)` : ''}`}
+                    {disputeUploading ? 'Uploading...' : `Upload Photo/Video${disputePhotos.length > 0 ? ` (${disputePhotos.length}/3)` : ''}`}
                   </button>
                 )}
               </div>

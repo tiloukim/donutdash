@@ -153,7 +153,9 @@ export default function ShopDisputesPage() {
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             {photos.map((url: string, i: number) => (
-                              <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }} />
+                              url.match(/\.(mp4|mov|webm)(\?|$)/i)
+                                ? <video key={i} src={url} controls style={{ width: 200, maxHeight: 150, borderRadius: 8, border: '1px solid #e5e7eb' }} />
+                                : <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }} />
                             ))}
                           </div>
                         </div>

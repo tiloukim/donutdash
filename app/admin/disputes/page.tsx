@@ -252,7 +252,9 @@ export default function AdminDisputesPage() {
                           </div>
                           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                             {photos.map((url: string, i: number) => (
-                              <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 140, height: 140, objectFit: 'cover', borderRadius: 8, border: '1px solid #E5E7EB' }} />
+                              url.match(/\.(mp4|mov|webm)(\?|$)/i)
+                                ? <video key={i} src={url} controls style={{ width: 240, maxHeight: 180, borderRadius: 8, border: '1px solid #E5E7EB' }} />
+                                : <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 140, height: 140, objectFit: 'cover', borderRadius: 8, border: '1px solid #E5E7EB' }} />
                             ))}
                           </div>
                         </div>
