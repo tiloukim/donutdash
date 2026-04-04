@@ -31,16 +31,15 @@ export async function GET() {
       const tip = order.tip || 0
 
       if (delivery) {
-        // Delivery exists but earnings is 0/null — recalculate
-        if (!delivery.driver_earnings || delivery.driver_earnings === 0) {
-          const basePay = delivery.base_pay || 3.00
-          const dist = delivery.distance_miles || 2
-          delivery.driver_earnings = Math.round((basePay + dist * 0.55 + tip) * 100) / 100
-        }
+        const basePay = delivery.base_pay || 3.00
+        const dist = delivery.distance_miles || 2
+        const calculated = Math.round((basePay + dist * 0.55 + tip) * 100) / 100
+        const stored = delivery.driver_earnings || 0
+        delivery.driver_earnings = Math.max(stored, calculated)
       } else if (order.status !== 'cancelled' && order.status !== 'pending') {
         // No delivery record — estimate driver pay for display
         const dist = 2 // default estimate
-        const estimated = Math.round((2.50 + dist * 0.55 + tip) * 100) / 100
+        const estimated = Math.round((3.00 + dist * 0.55 + tip) * 100) / 100
         ;(order as any).delivery = [{ driver_earnings: estimated, driver_id: null, status: 'estimated', driver: null }]
       }
       return order
