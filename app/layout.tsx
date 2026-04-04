@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     images: ['/logo.png'],
   },
   verification: {
-    google: 'GOOGLE_SITE_VERIFICATION_CODE',
+    google: 'sSHbUVG0jA9lCCh2GKLSzI4OC9-cmeq8VaGgzVDAvR4',
   },
   manifest: '/manifest.json',
 }
