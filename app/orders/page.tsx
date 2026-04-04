@@ -63,6 +63,18 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
             <span style={{ fontWeight: 700, color: '#FF1493' }}>
               ${Number(order.total).toFixed(2)}
             </span>
+            {order.status === 'delivered' && order.items && order.items.length > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onReorder(order) }}
+                style={{
+                  background: '#FF8C00', color: 'white', border: 'none', borderRadius: 8,
+                  padding: '6px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Order Again
+              </button>
+            )}
             <span style={{
               display: 'inline-block', transition: 'transform 0.2s',
               transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
