@@ -59,12 +59,17 @@ export async function POST(request: NextRequest) {
     const svc = createServiceClient()
     const { data: ddUser } = await svc
       .from('dd_users')
-      .select('id')
+      .select('id, role')
       .eq('auth_id', authUser.id)
       .single()
 
     if (!ddUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Only admin can create gift cards (no payment integration yet)
+    if (ddUser.role !== 'admin') {
+      return NextResponse.json({ error: 'Gift card purchasing coming soon!' }, { status: 403 })
     }
 
     const { allowed } = checkRateLimit(`giftcard:${ddUser.id}`, 10, 60000)

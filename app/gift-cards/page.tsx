@@ -26,7 +26,7 @@ const AMOUNTS = [10, 25, 50, 100]
 
 export default function GiftCardsPage() {
   const { user, loading: authLoading } = useAuth()
-  const [tab, setTab] = useState<'buy' | 'redeem' | 'history'>('buy')
+  const [tab, setTab] = useState<'buy' | 'redeem' | 'history'>('redeem')
   const [amount, setAmount] = useState(25)
   const [recipientName, setRecipientName] = useState('')
   const [recipientEmail, setRecipientEmail] = useState('')
@@ -143,14 +143,14 @@ export default function GiftCardsPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, marginBottom: 32, borderRadius: 12, overflow: 'hidden', border: '2px solid #FF1493' }}>
-          {(['buy', 'redeem', 'history'] as const).map(t => (
+          {(['redeem', 'history'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               flex: 1, padding: '12px 0', fontWeight: 700, fontSize: '0.95rem', border: 'none', cursor: 'pointer',
               background: tab === t ? '#FF1493' : '#fff',
               color: tab === t ? '#fff' : '#FF1493',
               transition: 'all 0.2s',
             }}>
-              {t === 'buy' ? 'Buy a Card' : t === 'redeem' ? 'Redeem' : 'My Cards'}
+              {t === 'redeem' ? 'Redeem' : 'My Cards'}
             </button>
           ))}
         </div>
