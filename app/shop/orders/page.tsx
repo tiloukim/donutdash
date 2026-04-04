@@ -69,21 +69,32 @@ export default function ShopOrders() {
   }, [])
 
   const enableSound = useCallback(async () => {
-    if (soundEnabled) return
+    if (alertAudioRef.current?.dataset?.unlocked === 'true') return
     try {
       if (!alertAudioRef.current) { alertAudioRef.current = new Audio('/order-alert.wav'); alertAudioRef.current.loop = true }
       alertAudioRef.current.volume = 0.01
-      await alertAudioRef.current.play().catch(() => {})
-      setTimeout(() => { if (alertAudioRef.current) { alertAudioRef.current.pause(); alertAudioRef.current.currentTime = 0; alertAudioRef.current.volume = 1.0 } }, 100)
+      await alertAudioRef.current.play()
+      alertAudioRef.current.pause()
+      alertAudioRef.current.currentTime = 0
+      alertAudioRef.current.volume = 1.0
+      alertAudioRef.current.dataset.unlocked = 'true'
       setSoundEnabled(true)
-    } catch {}
-  }, [soundEnabled])
+    } catch {
+      // Browser blocked autoplay — will retry on next user interaction
+    }
+  }, [])
 
+  // Try to unlock audio immediately on mount (page was reached via click)
+  useEffect(() => {
+    enableSound()
+  }, [enableSound])
+
+  // Also unlock on any user interaction as fallback
   useEffect(() => {
     if (soundEnabled) return
     const handler = () => enableSound()
-    document.addEventListener('click', handler)
-    document.addEventListener('touchstart', handler)
+    document.addEventListener('click', handler, { once: true })
+    document.addEventListener('touchstart', handler, { once: true })
     return () => { document.removeEventListener('click', handler); document.removeEventListener('touchstart', handler) }
   }, [soundEnabled, enableSound])
 
