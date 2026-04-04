@@ -10,6 +10,7 @@ const translations = {
   'nav.analytics': { en: 'Analytics', km: 'ការវិភាគ' },
   'nav.hours': { en: 'Hours', km: 'ម៉ោងបើក' },
   'nav.referral': { en: 'Referral', km: 'ការណែនាំ' },
+  'nav.support': { en: 'Support', km: 'ជំនួយ' },
   'nav.issues': { en: 'Issues', km: 'បញ្ហា' },
   'nav.documents': { en: 'Documents', km: 'ឯកសារ' },
   'nav.settings': { en: 'Settings', km: 'ការកំណត់' },

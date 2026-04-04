@@ -15,6 +15,7 @@ const NAV_ITEMS: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: '/shop/analytics', labelKey: 'nav.analytics', icon: '📈' },
   { href: '/shop/hours', labelKey: 'nav.hours', icon: '🕐' },
   { href: '/shop/referral', labelKey: 'nav.referral', icon: '🎁' },
+  { href: '/shop/support', labelKey: 'nav.support', icon: '💬' },
   { href: '/shop/disputes', labelKey: 'nav.issues', icon: '⚠️' },
   { href: '/shop/documents', labelKey: 'nav.documents', icon: '📄' },
   { href: '/shop/settings', labelKey: 'nav.settings', icon: '⚙️' },
