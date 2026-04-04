@@ -24,6 +24,7 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [captchaToken, setCaptchaToken] = useState('')
   const [smsConsent, setSmsConsent] = useState(false)
+  const [showConfirmEmail, setShowConfirmEmail] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,6 +66,11 @@ export default function SignupPage() {
         return
       }
 
+      // If email confirmation is required, session will be null
+      if (data.user && !data.session) {
+        setShowConfirmEmail(true)
+        return
+      }
       if (data.user) {
         await refreshUser()
         if (role === 'shop_owner') {
@@ -90,6 +96,49 @@ export default function SignupPage() {
     fontSize: '0.95rem',
     outline: 'none',
     transition: 'border-color 0.2s',
+  }
+
+  if (showConfirmEmail) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #FFF0F5 0%, #FFFFFF 50%, #FFFAF0 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '2rem',
+      }}>
+        <div style={{
+          background: 'white', borderRadius: '20px', padding: '2.5rem',
+          maxWidth: '420px', width: '100%', textAlign: 'center',
+          boxShadow: '0 8px 40px rgba(255, 20, 147, 0.08)',
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>&#x2709;&#xFE0F;</div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1A1A2E', marginBottom: 12 }}>
+            Check Your Email
+          </h1>
+          <p style={{ color: '#666', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: 24 }}>
+            We sent a confirmation link to <strong>{email}</strong>. Please click the link in your email to verify your account before signing in.
+          </p>
+          <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: 24 }}>
+            Didn&apos;t receive it? Check your spam folder or try signing up again.
+          </p>
+          <Link
+            href="/login"
+            style={{
+              display: 'block', width: '100%', padding: '0.85rem',
+              background: '#FF1493', color: 'white', border: 'none', borderRadius: '10px',
+              fontSize: '1rem', fontWeight: 700, textDecoration: 'none', textAlign: 'center',
+            }}
+          >
+            Go to Sign In
+          </Link>
+          <div style={{ marginTop: '1rem' }}>
+            <Link href="/" style={{ color: '#aaa', fontSize: '0.8rem', textDecoration: 'none' }}>
+              &larr; Back to DonutDash
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
