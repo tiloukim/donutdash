@@ -22,7 +22,7 @@ export async function GET() {
 
   // Compute correct earnings: base_pay + distance bonus + tip
   const all = (deliveries || []).map(d => {
-    const basePay = d.base_pay || 2.50
+    const basePay = d.base_pay || 3.00
     const tip = (d.order as any)?.tip || 0
     const distanceMiles = d.distance_miles || 2
     // If driver_earnings was set to default $4, recalculate

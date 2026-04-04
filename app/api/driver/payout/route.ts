@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     .eq('status', 'delivered')
 
   const allTimeEarnings = (deliveries || []).reduce((sum, d) => {
-    const basePay = d.base_pay || 2.50
+    const basePay = d.base_pay || 3.00
     const tip = (d.order as any)?.tip || 0
     const distanceMiles = d.distance_miles || 2
     const storedEarnings = d.driver_earnings || 4.00

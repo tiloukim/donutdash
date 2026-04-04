@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     const driverEarnings = new Map<string, { amount: number; deliveries: number; basePay: number; tips: number }>()
     for (const del of deliveries || []) {
       if (!del.driver_id) continue
-      const basePay = del.base_pay || 2.50
+      const basePay = del.base_pay || 3.00
       const tip = (del.order as any)?.tip || 0
       const distanceMiles = del.distance_miles || 2
       const storedEarnings = del.driver_earnings || 4.00

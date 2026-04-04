@@ -33,7 +33,7 @@ export async function GET() {
       if (delivery) {
         // Delivery exists but earnings is 0/null — recalculate
         if (!delivery.driver_earnings || delivery.driver_earnings === 0) {
-          const basePay = delivery.base_pay || 2.50
+          const basePay = delivery.base_pay || 3.00
           const dist = delivery.distance_miles || 2
           delivery.driver_earnings = Math.round((basePay + dist * 0.55 + tip) * 100) / 100
         }

@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   const driverSummaries = drivers.map(driver => {
     const driverDeliveries = deliveries.filter(d => d.driver_id === driver.id)
     const totalEarnings = driverDeliveries.reduce((sum, d) => {
-      const basePay = d.base_pay || 2.50
+      const basePay = d.base_pay || 3.00
       const tip = (d.order as any)?.tip || 0
       const distanceMiles = d.distance_miles || 2
       const storedEarnings = d.driver_earnings || 4.00
@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
       return dt >= qStart && dt < qEnd
     })
     const qDriverPay = qDeliveries.reduce((sum, d) => {
-      const basePay = d.base_pay || 2.50
+      const basePay = d.base_pay || 3.00
       const tip = (d.order as any)?.tip || 0
       const distanceMiles = d.distance_miles || 2
       const storedEarnings = d.driver_earnings || 4.00

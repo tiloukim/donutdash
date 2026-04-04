@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     const existing = driverMap.get(driverId) || { name: driver?.name || 'Unknown', phone: driver?.phone || '', email: driver?.email || '', deliveries: 0, earnings: 0, tips: 0, basePay: 0 }
     existing.deliveries += 1
     // Match driver earnings calculation: max of stored vs calculated
-    const basePay = Number(del.base_pay || 2.50)
+    const basePay = Number(del.base_pay || 3.00)
     const order = (orders || []).find(o => o.id === del.order_id)
     const tip = Number(order?.tip || 0)
     const distanceMiles = del.distance_miles || 2

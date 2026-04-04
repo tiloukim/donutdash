@@ -97,7 +97,7 @@ export default function DriverEarnings() {
   }
 
   const getBreakdown = (d: any) => {
-    const basePay = d.base_pay ?? 2.50
+    const basePay = d.base_pay ?? 3.00
     const tip = d.order?.tip ?? 0
     const total = d.driver_earnings ?? 4.00
     const distanceBonus = Math.max(0, total - basePay - tip)

@@ -12,7 +12,7 @@ interface SettingField {
 const FIELDS: SettingField[] = [
   { key: 'service_fee_rate', label: 'Service Fee Rate', suffix: '%', defaultValue: '15' },
   { key: 'default_delivery_fee', label: 'Default Delivery Fee', suffix: '$', defaultValue: '3.99' },
-  { key: 'driver_base_pay', label: 'Driver Base Pay (per delivery)', suffix: '$', defaultValue: '5.00' },
+  { key: 'driver_base_pay', label: 'Driver Base Pay (per delivery)', suffix: '$', defaultValue: '3.00' },
   { key: 'min_order_amount', label: 'Minimum Order Amount', suffix: '$', defaultValue: '10' },
 ]
 
