@@ -71,13 +71,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const body = await req.json()
-  const { reason, description, refund_amount } = body
+  const { reason, description, refund_amount, photo_urls } = body
 
   if (!reason || !VALID_REASONS.includes(reason)) {
     return NextResponse.json({ error: 'Invalid reason' }, { status: 400 })
   }
 
   const amount = refund_amount ? Math.min(Number(refund_amount), Number(order.total)) : Number(order.total)
+
+  // Store first photo in photo_url column, all photos in photo_urls jsonb
+  const firstPhoto = Array.isArray(photo_urls) && photo_urls.length > 0 ? photo_urls[0] : null
 
   try {
     const { data: dispute, error } = await svc
@@ -89,6 +92,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         description: description?.trim() || null,
         refund_amount: amount,
         status: 'pending',
+        photo_url: firstPhoto,
+        photo_urls: Array.isArray(photo_urls) && photo_urls.length > 0 ? photo_urls : null,
       })
       .select()
       .single()

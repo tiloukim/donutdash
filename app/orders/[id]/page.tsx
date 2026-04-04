@@ -90,6 +90,8 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
   const [disputeError, setDisputeError] = useState<string | null>(null)
   const [existingDispute, setExistingDispute] = useState<any>(null)
   const [showDisputeForm, setShowDisputeForm] = useState(false)
+  const [disputePhotos, setDisputePhotos] = useState<string[]>([])
+  const [disputeUploading, setDisputeUploading] = useState(false)
 
   // Fetch existing dispute
   const fetchDispute = useCallback(async () => {
@@ -142,6 +144,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           reason: disputeReason,
           description: disputeDescription,
           refund_amount: disputeAmount ? parseFloat(disputeAmount) : undefined,
+          photo_urls: disputePhotos.length > 0 ? disputePhotos : undefined,
         }),
       })
       const data = await res.json()
@@ -732,6 +735,16 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
               <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
                 <strong>Refund requested:</strong> ${Number(existingDispute.refund_amount).toFixed(2)}
               </div>
+              {((existingDispute.photo_urls as string[])?.length > 0 || existingDispute.photo_url) && (
+                <div style={{ marginTop: 8, marginBottom: 8 }}>
+                  <strong style={{ fontSize: 13, color: '#666' }}>Your photos:</strong>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                    {((existingDispute.photo_urls as string[]) || (existingDispute.photo_url ? [existingDispute.photo_url] : [])).map((url: string, i: number) => (
+                      <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} />
+                    ))}
+                  </div>
+                </div>
+              )}
               {existingDispute.admin_notes && (
                 <div style={{
                   fontSize: 13, color: '#555', marginTop: 12, padding: '10px 12px',
@@ -807,6 +820,72 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                   onFocus={e => { e.currentTarget.style.borderColor = '#FF1493' }}
                   onBlur={e => { e.currentTarget.style.borderColor = '#FFB6C1' }}
                 />
+              </div>
+
+              {/* Photo Upload */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6 }}>Photos (optional)</div>
+                <p style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>Upload photos of the issue to help us review your report.</p>
+
+                {disputePhotos.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                    {disputePhotos.map((url, i) => (
+                      <div key={i} style={{ position: 'relative', width: 80, height: 80 }}>
+                        <img src={url} alt={`Issue photo ${i + 1}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} />
+                        <button
+                          onClick={() => setDisputePhotos(prev => prev.filter((_, idx) => idx !== i))}
+                          style={{
+                            position: 'absolute', top: -6, right: -6, background: '#DC2626', color: '#fff',
+                            border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 12,
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >x</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  disabled={disputeUploading}
+                  onChange={async (e) => {
+                    const files = e.target.files
+                    if (!files || files.length === 0) return
+                    setDisputeUploading(true)
+                    for (let i = 0; i < Math.min(files.length, 3 - disputePhotos.length); i++) {
+                      try {
+                        const formData = new FormData()
+                        formData.append('file', files[i])
+                        formData.append('bucket', 'dispute-photos')
+                        const res = await fetch('/api/dispute-upload', { method: 'POST', body: formData })
+                        if (res.ok) {
+                          const data = await res.json()
+                          setDisputePhotos(prev => [...prev, data.url])
+                        }
+                      } catch {}
+                    }
+                    setDisputeUploading(false)
+                    e.target.value = ''
+                  }}
+                  style={{ display: 'none' }}
+                  id="dispute-photo-input"
+                />
+                {disputePhotos.length < 3 && (
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('dispute-photo-input')?.click()}
+                    disabled={disputeUploading}
+                    style={{
+                      padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                      background: disputeUploading ? '#ccc' : '#FFF0F5', color: '#FF1493',
+                      border: '1px solid #FFB6C1', cursor: disputeUploading ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {disputeUploading ? 'Uploading...' : `Upload Photo${disputePhotos.length > 0 ? ` (${disputePhotos.length}/3)` : ''}`}
+                  </button>
+                )}
               </div>
 
               {disputeError && (
