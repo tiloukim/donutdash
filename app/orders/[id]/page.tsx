@@ -732,9 +732,11 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                   <strong>Description:</strong> {existingDispute.description}
                 </div>
               )}
-              <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
-                <strong>Refund requested:</strong> ${Number(existingDispute.refund_amount).toFixed(2)}
-              </div>
+              {existingDispute.status === 'refunded' && (
+                <div style={{ fontSize: 13, color: '#10B981', marginBottom: 6, fontWeight: 600 }}>
+                  Refund approved: ${Number(existingDispute.refund_amount).toFixed(2)}
+                </div>
+              )}
               {(() => {
                 const photos: string[] = Array.isArray(existingDispute.photo_urls) ? existingDispute.photo_urls
                   : typeof existingDispute.photo_urls === 'string' ? JSON.parse(existingDispute.photo_urls)
@@ -810,23 +812,8 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                 />
               </div>
 
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 6 }}>Refund Amount ($)</div>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={order.total}
-                  value={disputeAmount}
-                  onChange={e => setDisputeAmount(e.target.value)}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 8,
-                    border: '1px solid #FFB6C1', fontSize: 14, outline: 'none',
-                    fontFamily: 'inherit', boxSizing: 'border-box',
-                  }}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#FF1493' }}
-                  onBlur={e => { e.currentTarget.style.borderColor = '#FFB6C1' }}
-                />
+              <div style={{ marginBottom: 16, display: 'none' }}>
+                <input type="hidden" value={disputeAmount} />
               </div>
 
               {/* Photo Upload */}
