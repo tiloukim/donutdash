@@ -38,9 +38,9 @@ export default function Footer() {
           <div>
             <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>Company</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>About Us</span>
-              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Contact</span>
-              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Careers</span>
+              <Link href="/about" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                About Us
+              </Link>
               <Link href="/terms" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
                 Terms of Service
               </Link>
@@ -62,6 +62,15 @@ export default function Footer() {
               <Link href="/driver" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
                 Drive with Us
               </Link>
+            </div>
+          </div>
+
+          <div>
+            <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>Follow Us</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <a href="https://www.facebook.com/profile.php?id=61575586874091" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                Facebook
+              </a>
             </div>
           </div>
         </div>

@@ -83,7 +83,7 @@ export default function RootLayout({
                   legalName: 'KIMCO LLC DBA DonutDash',
                   url: 'https://donutdash.app',
                   logo: 'https://donutdash.app/logo.png',
-                  sameAs: [],
+                  sameAs: ['https://www.facebook.com/profile.php?id=61575586874091'],
                   contactPoint: {
                     '@type': 'ContactPoint',
                     contactType: 'customer service',
