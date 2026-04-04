@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useVoiceRecorder } from '@/lib/use-voice-recorder'
 
 export default function AdminSupportPage() {
   const [conversations, setConversations] = useState<any[]>([])
@@ -12,6 +13,10 @@ export default function AdminSupportPage() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const { isRecording, duration, startRecording, stopRecording, cancelRecording } = useVoiceRecorder()
+
+  const isVoice = (msg: string) => msg.startsWith('[voice:') && msg.endsWith(']')
+  const getVoiceUrl = (msg: string) => msg.slice(7, -1)
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -59,19 +64,36 @@ export default function AdminSupportPage() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  const sendMessage = async () => {
-    if (!input.trim() || sending || !selectedShop) return
+  const sendVoice = async () => {
+    const blob = await stopRecording()
+    if (!blob) return
+    setSending(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', blob, `voice-${Date.now()}.webm`)
+      const uploadRes = await fetch('/api/voice-upload', { method: 'POST', body: formData })
+      if (uploadRes.ok) {
+        const { url } = await uploadRes.json()
+        await sendMessage(`[voice:${url}]`)
+      }
+    } catch {}
+    setSending(false)
+  }
+
+  const sendMessage = async (text?: string) => {
+    const msg = text || input.trim()
+    if (!msg || sending || !selectedShop) return
     setSending(true)
     try {
       const res = await fetch('/api/admin/support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shop_id: selectedShop, message: input.trim() }),
+        body: JSON.stringify({ shop_id: selectedShop, message: msg }),
       })
       if (res.ok) {
         const data = await res.json()
         setMessages(prev => [...prev, data.message])
-        setInput('')
+        if (!text) setInput('')
       }
     } catch {}
     setSending(false)
@@ -151,12 +173,17 @@ export default function AdminSupportPage() {
                         {new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                       </div>
                       <div style={{
-                        maxWidth: '70%', padding: '10px 14px', borderRadius: 12,
+                        maxWidth: '70%', padding: isVoice(m.message) ? '6px 10px' : '10px 14px', borderRadius: 12,
                         background: isMe ? '#6366F1' : '#F3F4F6',
                         color: isMe ? '#fff' : '#333',
                         fontSize: 14, lineHeight: 1.5, wordBreak: 'break-word',
                       }}>
-                        {m.message}
+                        {isVoice(m.message) ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 16 }}>&#127908;</span>
+                            <audio src={getVoiceUrl(m.message)} controls preload="none" style={{ height: 32, maxWidth: 180 }} />
+                          </div>
+                        ) : m.message}
                       </div>
                     </div>
                   )
@@ -168,30 +195,51 @@ export default function AdminSupportPage() {
               borderTop: '1px solid #E5E7EB', padding: '12px 16px',
               display: 'flex', gap: 10, alignItems: 'center',
             }}>
-              <input
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-                placeholder="Type a reply..."
-                maxLength={1000}
-                style={{
-                  flex: 1, padding: '10px 14px', borderRadius: 10,
-                  border: '1px solid #D1D5DB', fontSize: 14, outline: 'none',
-                }}
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!input.trim() || sending}
-                style={{
-                  padding: '10px 20px', borderRadius: 10, border: 'none',
-                  background: input.trim() && !sending ? '#6366F1' : '#ccc',
-                  color: '#fff', fontWeight: 700, fontSize: 14,
-                  cursor: input.trim() && !sending ? 'pointer' : 'not-allowed',
-                }}
-              >
-                Send
-              </button>
+              {isRecording ? (
+                <>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite' }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#EF4444' }}>{duration}s</span>
+                    <span style={{ fontSize: 12, color: '#888' }}>Recording...</span>
+                  </div>
+                  <button onClick={cancelRecording} style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #ddd', background: '#fff', color: '#666', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+                  <button onClick={sendVoice} disabled={sending} style={{ padding: '8px 18px', borderRadius: 10, background: '#10B981', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>
+                    {sending ? '...' : 'Send'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={startRecording}
+                    title="Record voice message"
+                    style={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid #D1D5DB', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}
+                  >
+                    &#127908;
+                  </button>
+                  <input
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                    placeholder="Type a reply..."
+                    maxLength={1000}
+                    style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid #D1D5DB', fontSize: 14, outline: 'none' }}
+                  />
+                  <button
+                    onClick={() => sendMessage()}
+                    disabled={!input.trim() || sending}
+                    style={{
+                      padding: '10px 20px', borderRadius: 10, border: 'none',
+                      background: input.trim() && !sending ? '#6366F1' : '#ccc',
+                      color: '#fff', fontWeight: 700, fontSize: 14,
+                      cursor: input.trim() && !sending ? 'pointer' : 'not-allowed',
+                    }}
+                  >
+                    Send
+                  </button>
+                </>
+              )}
             </div>
+            <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
           </>
         ) : (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
