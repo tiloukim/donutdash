@@ -1,0 +1,21 @@
+{
+  "name": "DonutDash",
+  "short_name": "DonutDash",
+  "description": "Fresh donuts delivered fast",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#FF8C00",
+  "background_color": "#FFFAF5",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

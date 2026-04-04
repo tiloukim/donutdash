@@ -157,8 +157,55 @@ export default function HomePage() {
     },
   ]
 
+  const homeJsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'LocalBusiness',
+        '@id': 'https://donutdash.app/#localbusiness',
+        name: 'DonutDash',
+        description:
+          'Donut delivery platform in Tyler, Texas. Order fresh donuts from local shops delivered to your door.',
+        url: 'https://donutdash.app',
+        image: 'https://donutdash.app/logo.png',
+        telephone: '',
+        address: {
+          '@type': 'PostalAddress',
+          addressLocality: 'Tyler',
+          addressRegion: 'TX',
+          addressCountry: 'US',
+        },
+        geo: {
+          '@type': 'GeoCoordinates',
+          latitude: 32.3513,
+          longitude: -95.3011,
+        },
+        areaServed: {
+          '@type': 'City',
+          name: 'Tyler',
+        },
+        priceRange: '$',
+        servesCuisine: 'Donuts',
+      },
+      {
+        '@type': 'WebSite',
+        name: 'DonutDash',
+        url: 'https://donutdash.app',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: 'https://donutdash.app/shops?q={search_term_string}',
+          'query-input': 'required name=search_term_string',
+        },
+      },
+    ],
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#FAFAFA' }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeJsonLd) }}
+      />
       {/* Navbar: hidden on mobile, shown on desktop */}
       <div className="desktop-only">
         <Navbar />

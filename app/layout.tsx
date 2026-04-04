@@ -20,13 +20,47 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'DonutDash - Delicious Donuts Delivered Fast',
+  title: 'DonutDash - Donut Delivery in Tyler, TX | Fresh Donuts Delivered Fast',
   description:
-    'Order fresh donuts, coffee, and breakfast treats from the best local donut shops. Fast delivery to your door.',
+    'Order fresh donuts delivered to your door in Tyler, Texas. Browse local donut shops, track your delivery in real-time, and enjoy delicious donuts fast. Free delivery on your first order!',
+  keywords:
+    'donut delivery, tyler tx, donut shop, order donuts online, donut delivery near me, tyler texas donuts',
   icons: {
     icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
   },
+  metadataBase: new URL('https://donutdash.app'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'DonutDash - Donut Delivery in Tyler, TX | Fresh Donuts Delivered Fast',
+    description:
+      'Order fresh donuts delivered to your door in Tyler, Texas. Browse local donut shops, track your delivery in real-time, and enjoy delicious donuts fast.',
+    url: 'https://donutdash.app',
+    siteName: 'DonutDash',
+    images: [
+      {
+        url: '/logo.png',
+        width: 512,
+        height: 512,
+        alt: 'DonutDash - Donut Delivery in Tyler, TX',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DonutDash - Donut Delivery in Tyler, TX',
+    description:
+      'Order fresh donuts delivered to your door in Tyler, Texas. Browse local donut shops and enjoy delicious donuts fast.',
+    images: ['/logo.png'],
+  },
+  verification: {
+    google: 'GOOGLE_SITE_VERIFICATION_CODE',
+  },
+  manifest: '/manifest.json',
 }
 
 export default function RootLayout({
@@ -36,6 +70,58 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@graph': [
+                {
+                  '@type': 'Organization',
+                  name: 'DonutDash',
+                  legalName: 'KIMCO LLC DBA DonutDash',
+                  url: 'https://donutdash.app',
+                  logo: 'https://donutdash.app/logo.png',
+                  sameAs: [],
+                  contactPoint: {
+                    '@type': 'ContactPoint',
+                    contactType: 'customer service',
+                    email: 'support@donutdash.app',
+                  },
+                },
+                {
+                  '@type': 'LocalBusiness',
+                  '@id': 'https://donutdash.app/#localbusiness',
+                  name: 'DonutDash',
+                  description:
+                    'Donut delivery platform serving Tyler, Texas. Order fresh donuts from local shops delivered to your door.',
+                  url: 'https://donutdash.app',
+                  image: 'https://donutdash.app/logo.png',
+                  address: {
+                    '@type': 'PostalAddress',
+                    addressLocality: 'Tyler',
+                    addressRegion: 'TX',
+                    addressCountry: 'US',
+                  },
+                  geo: {
+                    '@type': 'GeoCoordinates',
+                    latitude: 32.3513,
+                    longitude: -95.3011,
+                  },
+                  areaServed: {
+                    '@type': 'City',
+                    name: 'Tyler',
+                    '@id': 'https://www.wikidata.org/wiki/Q128261',
+                  },
+                  priceRange: '$',
+                  servesCuisine: 'Donuts',
+                },
+              ],
+            }),
+          }}
+        />
+      </head>
       <body className={`${dmSans.variable} ${playfair.variable} antialiased`}>
         <AuthProvider>
           <CartProvider>{children}</CartProvider>
