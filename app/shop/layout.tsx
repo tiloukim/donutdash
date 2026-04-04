@@ -78,6 +78,8 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
   )
 
   return (
+    <>
+    <head><link rel="manifest" href="/manifest-shop.json" /></head>
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Desktop sidebar */}
       <aside style={{
@@ -137,5 +139,6 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
         }
       `}</style>
     </div>
+    </>
   )
 }

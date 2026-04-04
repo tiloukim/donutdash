@@ -1,0 +1,15 @@
+{
+  "name": "DonutDash Shop",
+  "short_name": "DD Shop",
+  "description": "Manage your donut shop on DonutDash",
+  "start_url": "/shop",
+  "scope": "/shop",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#FF1493",
+  "background_color": "#FFF5F8",
+  "icons": [
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -5,6 +5,7 @@ import { DM_Sans, Playfair_Display } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { CartProvider } from '@/lib/cart-context'
 import CookieConsent from '@/components/CookieConsent'
+import InstallPrompt from '@/components/InstallPrompt'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -121,11 +122,19 @@ export default function RootLayout({
             }),
           }}
         />
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+              navigator.serviceWorker.register('/sw.js').catch(() => {})
+            })
+          }
+        `}} />
       </head>
       <body className={`${dmSans.variable} ${playfair.variable} antialiased`}>
         <AuthProvider>
           <CartProvider>{children}</CartProvider>
         </AuthProvider>
+        <InstallPrompt />
         <CookieConsent />
       </body>
     </html>

@@ -38,6 +38,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
 
   return (
     <>
+      <head><link rel="manifest" href="/manifest-driver.json" /></head>
       <style>{`
         .driver-layout { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
         .driver-sidebar { display: none; }
