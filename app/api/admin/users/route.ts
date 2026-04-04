@@ -35,11 +35,14 @@ export async function PATCH(request: NextRequest) {
     if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await request.json()
-    const { id, role, is_active } = body
+    const { id, role, is_active, name, email, phone, new_password } = body
 
     const updateData: Record<string, unknown> = {}
     if (role !== undefined) updateData.role = role
     if (is_active !== undefined) updateData.is_active = is_active
+    if (name !== undefined) updateData.name = name
+    if (email !== undefined) updateData.email = email
+    if (phone !== undefined) updateData.phone = phone
 
     const { data: updatedUser, error } = await svc
       .from('dd_users')
@@ -49,6 +52,17 @@ export async function PATCH(request: NextRequest) {
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Update Supabase Auth email if changed
+    if (email && updatedUser.auth_id) {
+      await svc.auth.admin.updateUserById(updatedUser.auth_id, { email })
+    }
+
+    // Reset password if requested
+    if (new_password && updatedUser.auth_id) {
+      const { error: pwErr } = await svc.auth.admin.updateUserById(updatedUser.auth_id, { password: new_password })
+      if (pwErr) return NextResponse.json({ error: 'Profile updated but password reset failed: ' + pwErr.message }, { status: 500 })
+    }
 
     return NextResponse.json({ user: updatedUser })
   } catch {
