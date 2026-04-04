@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
 
-  let query = svc.from('dd_orders').select('*, dd_order_items(*), customer:dd_users!customer_id(name, email, phone)').eq('shop_id', shop.id).order('created_at', { ascending: false })
+  let query = svc.from('dd_orders').select('*, dd_order_items(*), customer:dd_users!customer_id(name, email, phone), delivery:dd_deliveries(delivery_photo_url)').eq('shop_id', shop.id).order('created_at', { ascending: false })
 
   if (status) query = query.eq('status', status)
 
@@ -51,6 +51,7 @@ export async function GET(req: Request) {
       scheduled_for: o.scheduled_for,
       cancellation_reason: o.cancellation_reason,
       customer: o.customer,
+      delivery_photo_url: (o.delivery as any)?.[0]?.delivery_photo_url || null,
       items: (o.dd_order_items || []).map((item: any) => ({
         name: item.name,
         price: item.price,

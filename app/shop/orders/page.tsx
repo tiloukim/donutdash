@@ -298,6 +298,14 @@ export default function ShopOrders() {
                       {o.customer?.phone && <div><strong>Customer Phone:</strong> {o.customer.phone}</div>}
                     </div>
 
+                    {/* Delivery Proof Photo */}
+                    {o.status === 'delivered' && o.delivery_photo_url && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Delivery Proof</div>
+                        <img src={o.delivery_photo_url} alt="Delivery proof" style={{ width: '100%', maxWidth: 300, borderRadius: 10, border: '1px solid #e5e7eb' }} />
+                      </div>
+                    )}
+
                     {/* Action Buttons */}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {o.status === 'pending' && <>
