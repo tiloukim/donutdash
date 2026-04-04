@@ -44,12 +44,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Verify order exists, belongs to customer, and is delivered
   const { data: order } = await svc
     .from('dd_orders')
-    .select('id, customer_id, status, total')
+    .select('id, customer_id, status, total, customer:dd_users!customer_id(auth_id)')
     .eq('id', id)
     .single()
 
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
-  if (order.customer_id !== ddUser.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // Allow: customer who owns the order, matching auth user, or admin
+  const orderAuthId = (order.customer as any)?.auth_id
+  const isOwner = order.customer_id === ddUser.id || orderAuthId === user.id
+  if (!isOwner && ddUser.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
   if (order.status !== 'delivered') {
     return NextResponse.json({ error: 'Order must be delivered before filing a dispute' }, { status: 400 })
   }
@@ -59,7 +64,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from('dd_disputes')
     .select('id')
     .eq('order_id', id)
-    .eq('customer_id', ddUser.id)
     .maybeSingle()
 
   if (existing) {
@@ -80,7 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .from('dd_disputes')
       .insert({
         order_id: id,
-        customer_id: ddUser.id,
+        customer_id: order.customer_id,
         reason,
         description: description?.trim() || null,
         refund_amount: amount,
