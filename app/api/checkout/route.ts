@@ -5,7 +5,7 @@ import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, DELIVERY_FEE_BASE, DELIVERY_FEE
 import { getSurgeMultiplier } from '@/lib/surge'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
-import { notifyAdmins, sendEmail, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
+import { notifyAdmins, sendEmail, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { checkRateLimit } from '@/lib/rate-limit'
 import crypto from 'crypto'
 
@@ -240,10 +240,15 @@ export async function POST(request: NextRequest) {
     `
     notifyAdmins(smsMsg, `New Order: $${total.toFixed(2)} from ${shopName}`, emailHtml).catch(() => {})
 
-    // Notify shop owner via email (fire and forget)
+    // Notify shop owner via email + SMS (fire and forget)
     if (shop?.owner_id) {
       (async () => {
-        const { data: owner } = await svc.from('dd_users').select('email').eq('id', shop.owner_id).single()
+        const { data: owner } = await svc.from('dd_users').select('email, phone').eq('id', shop.owner_id).single()
+        // SMS to shop owner
+        if (owner?.phone) {
+          const shopSms = `New DonutDash order! ${itemCount} item${itemCount > 1 ? 's' : ''} - $${total.toFixed(2)}. Open your shop app to accept: donutdash.app/shop/orders`
+          sendSMS(owner.phone.startsWith('+') ? owner.phone : `+1${owner.phone.replace(/\D/g, '')}`, shopSms).catch(() => {})
+        }
         if (owner?.email) {
           const ownerEmailHtml = `
             <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">

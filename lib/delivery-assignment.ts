@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
-import { sendEmail } from './sms'
+import { sendEmail, sendSMS } from './sms'
 import { MAX_DRIVER_DISTANCE_MILES, BASE_DELIVERY_PAY, PER_MILE_PAY, OFFER_TIMEOUT_SECONDS, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from './constants'
 
 export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = [], shopId?: string) {
@@ -96,20 +96,27 @@ export async function createDeliveryOffer(deliveryId: string, driverId: string) 
   // Send email notification to driver (fire and forget)
   if (data && !error) {
     (async () => {
-      const { data: driver } = await svc.from('dd_users').select('email').eq('id', driverId).single()
+      const { data: driver } = await svc.from('dd_users').select('email, phone').eq('id', driverId).single()
       const { data: delivery } = await svc
         .from('dd_deliveries')
         .select('driver_earnings, order:dd_orders(total, delivery_address, delivery_city, shop:dd_shops(name))')
         .eq('id', deliveryId)
         .single()
 
-      if (driver?.email && delivery) {
+      if (driver && delivery) {
         const order = delivery.order as any
         const shopName = order?.shop?.name || 'Shop'
         const address = [order?.delivery_address, order?.delivery_city].filter(Boolean).join(', ') || 'Customer address'
         const earnings = delivery.driver_earnings ? `$${Number(delivery.driver_earnings).toFixed(2)}` : 'See app'
 
-        await sendEmail(
+        // SMS to driver
+        if (driver.phone) {
+          const driverPhone = driver.phone.startsWith('+') ? driver.phone : `+1${driver.phone.replace(/\D/g, '')}`
+          sendSMS(driverPhone, `New delivery offer! ${shopName} - Earn ${earnings}. Open your driver app: donutdash.app/driver`).catch(() => {})
+        }
+
+        // Email to driver
+        if (driver.email) await sendEmail(
           driver.email,
           'New Delivery Offer - DonutDash',
           `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;">
