@@ -33,7 +33,6 @@ export default function Navbar() {
           <Link href="/shops" className="nav-link">Browse</Link>
           {user && <Link href="/orders" className="nav-link">Orders</Link>}
           {user && <Link href="/rewards" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Rewards</Link>}
-          <Link href="/pass" className="nav-link" style={{ color: '#FF1493', fontWeight: 700 }}>Pass</Link>
           <Link href="/cart" className="nav-link" style={{ position: 'relative' }}>
             Cart
             {count > 0 && (
@@ -220,10 +219,6 @@ export default function Navbar() {
             Rewards
           </Link>
         )}
-        <Link href="/pass" onClick={() => setMobileOpen(false)}
-          style={{ padding: '0.5rem 0', fontWeight: 700, color: '#FF1493' }}>
-          DonutDash Pass
-        </Link>
         <Link href="/cart" onClick={() => setMobileOpen(false)}
           style={{ padding: '0.5rem 0', fontWeight: 500 }}>
           Cart {count > 0 && `(${count})`}

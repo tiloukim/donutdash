@@ -100,15 +100,8 @@ export async function POST(request: NextRequest) {
     const baseDeliveryFee = DELIVERY_FEE_BASE + distanceMiles * DELIVERY_FEE_PER_MILE
     let deliveryFee = Math.round(baseDeliveryFee * surge.multiplier * 100) / 100
 
-    // Check DonutDash Pass for free delivery
-    let hasPass = false
-    const { data: subscription } = await svc.from('dd_subscriptions').select('status, expires_at').eq('user_id', ddUser.id).maybeSingle()
-    if (subscription && subscription.status === 'active') {
-      if (!subscription.expires_at || new Date(subscription.expires_at) > new Date()) {
-        hasPass = true
-        deliveryFee = 0
-      }
-    }
+    // DonutDash Pass disabled for now
+    const hasPass = false
 
     // Calculate totals
     const subtotal = items.reduce(
