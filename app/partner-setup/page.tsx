@@ -10,6 +10,14 @@ export default function ShopSetupPage() {
   const { user, refreshUser } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [step, setStep] = useState<'form' | 'hours' | 'menu'>('form')
+  const [loadingTemplate, setLoadingTemplate] = useState(false)
+  const [savingHours, setSavingHours] = useState(false)
+  const [hours, setHours] = useState(
+    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((_, i) => ({
+      day_of_week: i, open_time: '06:00', close_time: '18:00', is_closed: false
+    }))
+  )
 
   const [shopName, setShopName] = useState('')
   const [description, setDescription] = useState('')
@@ -59,7 +67,7 @@ export default function ShopSetupPage() {
       }
 
       await refreshUser()
-      router.push('/shop')
+      setStep('hours')
     } catch {
       setError('An unexpected error occurred.')
     } finally {
@@ -75,6 +83,181 @@ export default function ShopSetupPage() {
     fontSize: '0.95rem',
     outline: 'none',
     transition: 'border-color 0.2s',
+  }
+
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+  const saveHours = async () => {
+    setSavingHours(true)
+    try {
+      await fetch('/api/shop/hours', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(hours) })
+      setStep('menu')
+    } catch {
+      alert('Failed to save hours')
+    }
+    setSavingHours(false)
+  }
+
+  const updateHour = (idx: number, field: string, value: string | boolean) => {
+    setHours(prev => prev.map((h, i) => i === idx ? { ...h, [field]: value } : h))
+  }
+
+  const loadTemplate = async () => {
+    setLoadingTemplate(true)
+    try {
+      const res = await fetch('/api/shop/menu/template', { method: 'POST' })
+      if (res.ok) {
+        router.push('/shop/menu')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to load template')
+        setLoadingTemplate(false)
+      }
+    } catch {
+      alert('Failed to load template')
+      setLoadingTemplate(false)
+    }
+  }
+
+  const wrapperStyle = {
+    minHeight: '100vh' as const,
+    background: 'linear-gradient(135deg, #FFF0F5 0%, #FFFFFF 50%, #FFFAF0 100%)',
+    display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
+    padding: '2rem',
+  }
+  const cardStyle = {
+    background: 'white', borderRadius: '20px', padding: '2.5rem',
+    maxWidth: '500px', width: '100%',
+    boxShadow: '0 8px 40px rgba(255, 20, 147, 0.08)',
+  }
+
+  // Step indicator
+  const StepIndicator = ({ current }: { current: number }) => (
+    <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+      {['Shop Info', 'Hours', 'Menu'].map((label, i) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 13, fontWeight: 700,
+            background: i < current ? '#10B981' : i === current ? '#FF1493' : '#eee',
+            color: i <= current ? '#fff' : '#aaa',
+          }}>{i < current ? '\u2713' : i + 1}</div>
+          <span style={{ fontSize: 12, color: i === current ? '#FF1493' : '#aaa', fontWeight: i === current ? 600 : 400 }}>{label}</span>
+          {i < 2 && <div style={{ width: 20, height: 1, background: '#ddd' }} />}
+        </div>
+      ))}
+    </div>
+  )
+
+  // STEP 2: Business Hours
+  if (step === 'hours') {
+    return (
+      <div style={wrapperStyle}>
+        <div style={cardStyle}>
+          <StepIndicator current={1} />
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
+              Set Your Business Hours
+            </h1>
+            <p style={{ color: '#888', fontSize: '0.9rem' }}>
+              When is your shop open? You can change these anytime.
+            </p>
+          </div>
+
+          <div style={{ borderRadius: 12, border: '1px solid #FFE4EF', overflow: 'hidden', marginBottom: 20 }}>
+            {hours.map((h, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px',
+                borderBottom: i < 6 ? '1px solid #FFF0F5' : 'none',
+                opacity: h.is_closed ? 0.5 : 1, fontSize: 13,
+              }}>
+                <span style={{ width: 70, fontWeight: 600, fontSize: 13 }}>{DAYS[i].slice(0, 3)}</span>
+                <input type="time" value={h.open_time} onChange={e => updateHour(i, 'open_time', e.target.value)}
+                  disabled={h.is_closed} style={{ padding: '4px 6px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+                <span style={{ color: '#888' }}>-</span>
+                <input type="time" value={h.close_time} onChange={e => updateHour(i, 'close_time', e.target.value)}
+                  disabled={h.is_closed} style={{ padding: '4px 6px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+                <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+                  <input type="checkbox" checked={h.is_closed} onChange={e => updateHour(i, 'is_closed', e.target.checked)} /> Closed
+                </label>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button onClick={saveHours} disabled={savingHours} style={{
+              flex: 1, padding: '0.85rem', background: savingHours ? '#ccc' : '#FF1493',
+              color: 'white', border: 'none', borderRadius: '10px',
+              fontSize: '1rem', fontWeight: 700, cursor: savingHours ? 'not-allowed' : 'pointer',
+            }}>
+              {savingHours ? 'Saving...' : 'Save & Continue'}
+            </button>
+            <button onClick={() => setStep('menu')} style={{
+              padding: '0.85rem 1.5rem', background: 'white', color: '#888',
+              border: '1px solid #ddd', borderRadius: '10px',
+              fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer',
+            }}>
+              Skip
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // STEP 3: Menu Template
+  if (step === 'menu') {
+    return (
+      <div style={wrapperStyle}>
+        <div style={{ ...cardStyle, textAlign: 'center' as const }}>
+          <StepIndicator current={2} />
+          <div style={{ fontSize: 48, marginBottom: 16 }}>&#127849;</div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
+            Set Up Your Menu
+          </h1>
+          <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: 28, lineHeight: 1.5 }}>
+            Load our starter template with common donut shop items, or build your menu from scratch.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <button
+              onClick={loadTemplate}
+              disabled={loadingTemplate}
+              style={{
+                width: '100%', padding: '0.85rem',
+                background: loadingTemplate ? '#ccc' : '#FF1493',
+                color: 'white', border: 'none', borderRadius: '10px',
+                fontSize: '1rem', fontWeight: 700,
+                cursor: loadingTemplate ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {loadingTemplate ? 'Loading Template...' : 'Load Starter Menu Template'}
+            </button>
+            <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>
+              Adds ~27 common items (donuts, coffee, breakfast, drinks) with no prices. You set your own prices, upload photos, and turn items on when ready.
+            </p>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
+              <div style={{ flex: 1, height: 1, background: '#eee' }} />
+              <span style={{ fontSize: 12, color: '#aaa' }}>or</span>
+              <div style={{ flex: 1, height: 1, background: '#eee' }} />
+            </div>
+
+            <button
+              onClick={() => router.push('/shop/menu')}
+              style={{
+                width: '100%', padding: '0.85rem',
+                background: 'white', color: '#FF1493',
+                border: '2px solid #FF1493', borderRadius: '10px',
+                fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              Build Menu From Scratch
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

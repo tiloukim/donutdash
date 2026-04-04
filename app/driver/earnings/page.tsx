@@ -112,6 +112,23 @@ export default function DriverEarnings() {
     }
   }
 
+  // Build daily earnings chart data from deliveries (last 14 days)
+  const dailyEarnings: { label: string; amount: number }[] = (() => {
+    const days: { label: string; amount: number }[] = []
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const key = d.toISOString().slice(0, 10)
+      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      const amount = data.deliveries
+        .filter((del: any) => (del.delivered_at || del.created_at || '').slice(0, 10) === key)
+        .reduce((sum: number, del: any) => sum + (del.driver_earnings ?? 0), 0)
+      days.push({ label, amount })
+    }
+    return days
+  })()
+  const maxEarning = Math.max(...dailyEarnings.map(d => d.amount), 1)
+
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
@@ -124,6 +141,33 @@ export default function DriverEarnings() {
           </div>
         ))}
       </div>
+
+      {/* Daily Earnings Chart */}
+      {data.deliveries.length > 0 && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE8D6', padding: 20, marginBottom: 24 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px 0' }}>Last 14 Days</h3>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120 }}>
+            {dailyEarnings.map((d, i) => (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                {d.amount > 0 && (
+                  <span style={{ fontSize: 9, color: '#10B981', fontWeight: 600 }}>${d.amount.toFixed(0)}</span>
+                )}
+                <div style={{
+                  width: '100%',
+                  maxWidth: 28,
+                  height: Math.max(2, (d.amount / maxEarning) * 90),
+                  background: d.amount > 0 ? 'linear-gradient(180deg, #10B981 0%, #059669 100%)' : '#f0f0f0',
+                  borderRadius: '4px 4px 0 0',
+                  transition: 'height 0.3s',
+                }} />
+                <span style={{ fontSize: 8, color: '#aaa', whiteSpace: 'nowrap' }}>
+                  {i % 2 === 0 ? d.label : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Request Payout Section */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE8D6', padding: 20, marginBottom: 16 }}>

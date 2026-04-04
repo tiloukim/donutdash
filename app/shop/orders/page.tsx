@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
+import { useRealtime } from '@/lib/use-realtime'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -120,6 +121,14 @@ export default function ShopOrders() {
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
   useEffect(() => { const i = setInterval(fetchOrders, 8000); return () => clearInterval(i) }, [fetchOrders])
+
+  // Realtime: instant new order alerts (supplements polling)
+  useRealtime({
+    table: 'dd_orders',
+    event: '*',
+    onData: () => fetchOrders(),
+    enabled: true,
+  })
 
   const REJECTION_REASONS = ['Out of stock', 'Shop closing soon', 'Too busy', 'Other']
 

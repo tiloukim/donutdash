@@ -248,9 +248,16 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
                   {item.description}
                 </p>
               )}
-              <p style={{ fontWeight: 700, fontSize: '1.15rem', color: '#FF1493', marginBottom: '1rem' }}>
-                {getPriceDisplay()}
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
+                <span style={{ fontWeight: 700, fontSize: '1.15rem', color: '#FF1493' }}>
+                  {getPriceDisplay()}
+                </span>
+                {item.prep_time_min != null && item.prep_time_min > 0 && (
+                  <span style={{ fontSize: '0.75rem', color: '#888', background: '#f5f5f5', padding: '2px 8px', borderRadius: 6, fontWeight: 500 }}>
+                    ~{item.prep_time_min} min prep
+                  </span>
+                )}
+              </div>
 
               {hasVariants && item.variants!.map(variant => (
                 <div key={variant.name} style={{ marginBottom: '0.75rem' }}>

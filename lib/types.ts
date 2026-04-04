@@ -63,6 +63,7 @@ export interface MenuItem {
   sort_order: number
   variants?: VariantGroup[] | null
   is_sold_out?: boolean
+  prep_time_min?: number | null
 }
 
 export interface Order {

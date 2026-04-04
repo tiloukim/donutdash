@@ -9,6 +9,7 @@ import OrderStatusBadge from '@/components/OrderStatusBadge'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import type { Order, CartItem } from '@/lib/types'
+import { useRealtime } from '@/lib/use-realtime'
 
 function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Order) => void }) {
   const [expanded, setExpanded] = useState(false)
@@ -209,6 +210,37 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const prevStatusesRef = useRef<Record<string, string>>({})
+
+  const refetchOrders = () => {
+    fetch('/api/orders')
+      .then(res => res.json())
+      .then(data => {
+        const list = data.orders || []
+        list.forEach((o: Order) => {
+          const prev = prevStatusesRef.current[o.id]
+          if (prev && prev !== o.status && STATUS_MESSAGES[o.status]) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('DonutDash Order Update', {
+                body: STATUS_MESSAGES[o.status],
+                icon: '/logo.png',
+                tag: `order-${o.id}-${o.status}`,
+              })
+            }
+          }
+          prevStatusesRef.current[o.id] = o.status
+        })
+        setOrders(list)
+      })
+      .catch(() => {})
+  }
+
+  // Realtime: instant order status updates (supplements polling)
+  useRealtime({
+    table: 'dd_orders',
+    event: 'UPDATE',
+    onData: () => refetchOrders(),
+    enabled: !!user && orders.some(o => !['delivered', 'cancelled'].includes(o.status)),
+  })
 
   const handleReorder = (order: Order) => {
     if (!order.items || !order.shop_id) return

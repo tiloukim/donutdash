@@ -5,6 +5,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { MenuItem, VariantGroup } from '@/lib/types'
+import { compressImage } from '@/lib/compress-image'
 
 interface VariantFormOption { name: string; price: string }
 interface VariantFormGroup { name: string; options: VariantFormOption[] }
@@ -62,8 +63,9 @@ const CATEGORIES = ['all', 'donuts', 'coffee', 'breakfast', 'drinks', 'other']
 const emptyItem = { name: '', description: '', price: '', category: 'donuts', image_url: '', images: [] as string[], is_available: true, is_featured: false }
 
 async function uploadImage(file: File): Promise<string | null> {
+  const compressed = await compressImage(file)
   const formData = new FormData()
-  formData.append('file', file)
+  formData.append('file', compressed)
   const res = await fetch('/api/upload', { method: 'POST', body: formData })
   if (!res.ok) return null
   const data = await res.json()
@@ -208,6 +210,25 @@ export default function ShopMenu() {
     setShowForm(true)
   }
 
+  const [loadingTemplate, setLoadingTemplate] = useState(false)
+
+  const loadTemplate = async () => {
+    if (!confirm('Load the starter menu template? This will add ~25 common donut shop items (donuts, coffee, breakfast, drinks) that you can customize.')) return
+    setLoadingTemplate(true)
+    try {
+      const res = await fetch('/api/shop/menu/template', { method: 'POST' })
+      if (res.ok) {
+        fetchItems()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to load template')
+      }
+    } catch {
+      alert('Failed to load template')
+    }
+    setLoadingTemplate(false)
+  }
+
   const filtered = filter === 'all' ? items : items.filter(i => i.category === filter)
   const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid #FFD6E8', borderRadius: 8, fontSize: 14 } as const
 
@@ -215,6 +236,28 @@ export default function ShopMenu() {
 
   return (
     <div>
+      {items.length === 0 && !showForm && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', background: '#FFF0F5', borderRadius: 16, marginBottom: 24, border: '2px dashed #FFD6E8' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>&#127849;</div>
+          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#333' }}>Your menu is empty</h3>
+          <p style={{ fontSize: 14, color: '#888', marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>
+            Get started quickly by loading our starter template with common donut shop items. You&#39;ll need to set your own prices, upload photos, and turn items on when ready.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button
+              onClick={loadTemplate}
+              disabled={loadingTemplate}
+              style={{ padding: '10px 28px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: loadingTemplate ? '#ccc' : '#FF1493', color: '#fff', border: 'none', cursor: loadingTemplate ? 'not-allowed' : 'pointer' }}
+            >
+              {loadingTemplate ? 'Loading...' : 'Load Starter Menu'}
+            </button>
+            <button onClick={openAdd} style={{ padding: '10px 28px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: '#fff', color: '#FF1493', border: '2px solid #FF1493', cursor: 'pointer' }}>
+              Add From Scratch
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {CATEGORIES.map(c => (
@@ -235,7 +278,8 @@ export default function ShopMenu() {
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Price ($)</label><input style={inputStyle} type="number" step="0.01" value={editing?.price || ''} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
             <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Description</label><input style={inputStyle} value={editing?.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} /></div>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Category</label><select style={inputStyle} value={editing?.category || 'donuts'} onChange={e => setEditing({ ...editing, category: e.target.value })}>{CATEGORIES.filter(c => c !== 'all').map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Prep Time (min)</label><input style={inputStyle} type="number" min="0" placeholder="e.g. 5" value={editing?.prep_time_min ?? ''} onChange={e => setEditing({ ...editing, prep_time_min: e.target.value ? parseInt(e.target.value) : null })} /></div>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', gridColumn: '1 / -1' }}>
               <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_available ?? true} onChange={e => setEditing({ ...editing, is_available: e.target.checked })} /> Available</label>
               <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_featured ?? false} onChange={e => setEditing({ ...editing, is_featured: e.target.checked })} /> Featured</label>
             </div>
