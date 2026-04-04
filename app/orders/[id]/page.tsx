@@ -735,16 +735,21 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
               <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
                 <strong>Refund requested:</strong> ${Number(existingDispute.refund_amount).toFixed(2)}
               </div>
-              {((existingDispute.photo_urls as string[])?.length > 0 || existingDispute.photo_url) && (
-                <div style={{ marginTop: 8, marginBottom: 8 }}>
-                  <strong style={{ fontSize: 13, color: '#666' }}>Your photos:</strong>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-                    {((existingDispute.photo_urls as string[]) || (existingDispute.photo_url ? [existingDispute.photo_url] : [])).map((url: string, i: number) => (
-                      <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} />
-                    ))}
+              {(() => {
+                const photos: string[] = Array.isArray(existingDispute.photo_urls) ? existingDispute.photo_urls
+                  : typeof existingDispute.photo_urls === 'string' ? JSON.parse(existingDispute.photo_urls)
+                  : existingDispute.photo_url ? [existingDispute.photo_url] : []
+                return photos.length > 0 ? (
+                  <div style={{ marginTop: 8, marginBottom: 8 }}>
+                    <strong style={{ fontSize: 13, color: '#666' }}>Your photos:</strong>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                      {photos.map((url: string, i: number) => (
+                        <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : null
+              })()}
               {existingDispute.admin_notes && (
                 <div style={{
                   fontSize: 13, color: '#555', marginTop: 12, padding: '10px 12px',

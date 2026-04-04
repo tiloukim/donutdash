@@ -142,18 +142,23 @@ export default function ShopDisputesPage() {
                     </div>
 
                     {/* Customer Evidence Photos */}
-                    {((d.photo_urls as string[])?.length > 0 || d.photo_url) && (
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#EF4444', textTransform: 'uppercase', marginBottom: 6 }}>
-                          {lang === 'km' ? 'រូបភាពភស្តុតាង' : 'Customer Photos'}
+                    {(() => {
+                      const photos: string[] = Array.isArray(d.photo_urls) ? d.photo_urls
+                        : typeof d.photo_urls === 'string' ? JSON.parse(d.photo_urls)
+                        : d.photo_url ? [d.photo_url] : []
+                      return photos.length > 0 ? (
+                        <div style={{ marginBottom: 16 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#EF4444', textTransform: 'uppercase', marginBottom: 6 }}>
+                            {lang === 'km' ? 'រូបភាពភស្តុតាង' : 'Customer Photos'}
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {photos.map((url: string, i: number) => (
+                              <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }} />
+                            ))}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          {((d.photo_urls as string[]) || (d.photo_url ? [d.photo_url] : [])).map((url: string, i: number) => (
-                            <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      ) : null
+                    })()}
 
                     {/* Customer Info */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>

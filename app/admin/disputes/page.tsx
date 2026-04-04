@@ -241,18 +241,23 @@ export default function AdminDisputesPage() {
                     </div>
 
                     {/* Customer Evidence Photos */}
-                    {((dispute.photo_urls as string[])?.length > 0 || dispute.photo_url) && (
-                      <div style={{ marginBottom: 20 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 8, textTransform: 'uppercase' }}>
-                          Customer Evidence Photos
+                    {(() => {
+                      const photos: string[] = Array.isArray(dispute.photo_urls) ? dispute.photo_urls
+                        : typeof dispute.photo_urls === 'string' ? JSON.parse(dispute.photo_urls)
+                        : dispute.photo_url ? [dispute.photo_url] : []
+                      return photos.length > 0 ? (
+                        <div style={{ marginBottom: 20 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 8, textTransform: 'uppercase' }}>
+                            Customer Evidence Photos
+                          </div>
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            {photos.map((url: string, i: number) => (
+                              <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 140, height: 140, objectFit: 'cover', borderRadius: 8, border: '1px solid #E5E7EB' }} />
+                            ))}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                          {((dispute.photo_urls as string[]) || (dispute.photo_url ? [dispute.photo_url] : [])).map((url: string, i: number) => (
-                            <img key={i} src={url} alt={`Evidence ${i + 1}`} style={{ width: 140, height: 140, objectFit: 'cover', borderRadius: 8, border: '1px solid #E5E7EB' }} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      ) : null
+                    })()}
 
                     {/* Admin Actions */}
                     {dispute.status === 'pending' ? (
