@@ -6,6 +6,7 @@ import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from '@d
 import { CSS } from '@dnd-kit/utilities'
 import type { MenuItem, VariantGroup } from '@/lib/types'
 import { compressImage } from '@/lib/compress-image'
+import { useShopLang } from '@/lib/shop-lang-context'
 
 interface VariantFormOption { name: string; price: string }
 interface VariantFormGroup { name: string; options: VariantFormOption[] }
@@ -73,6 +74,7 @@ async function uploadImage(file: File): Promise<string | null> {
 }
 
 export default function ShopMenu() {
+  const { t } = useShopLang()
   const [items, setItems] = useState<MenuItem[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -232,16 +234,16 @@ export default function ShopMenu() {
   const filtered = filter === 'all' ? items : items.filter(i => i.category === filter)
   const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid #FFD6E8', borderRadius: 8, fontSize: 14 } as const
 
-  if (loading) return <div>Loading menu...</div>
+  if (loading) return <div>{t('common.loading')}</div>
 
   return (
     <div>
       {items.length === 0 && !showForm && (
         <div style={{ textAlign: 'center', padding: '40px 20px', background: '#FFF0F5', borderRadius: 16, marginBottom: 24, border: '2px dashed #FFD6E8' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>&#127849;</div>
-          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#333' }}>Your menu is empty</h3>
+          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#333' }}>{t('menu.emptyTitle')}</h3>
           <p style={{ fontSize: 14, color: '#888', marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>
-            Get started quickly by loading our starter template with common donut shop items. You&#39;ll need to set your own prices, upload photos, and turn items on when ready.
+            {t('menu.emptyDesc')}
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
             <button
@@ -249,10 +251,10 @@ export default function ShopMenu() {
               disabled={loadingTemplate}
               style={{ padding: '10px 28px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: loadingTemplate ? '#ccc' : '#FF1493', color: '#fff', border: 'none', cursor: loadingTemplate ? 'not-allowed' : 'pointer' }}
             >
-              {loadingTemplate ? 'Loading...' : 'Load Starter Menu'}
+              {loadingTemplate ? t('common.loading') : t('menu.loadStarter')}
             </button>
             <button onClick={openAdd} style={{ padding: '10px 28px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: '#fff', color: '#FF1493', border: '2px solid #FF1493', cursor: 'pointer' }}>
-              Add From Scratch
+              {t('menu.fromScratch')}
             </button>
           </div>
         </div>
@@ -267,29 +269,29 @@ export default function ShopMenu() {
             }}>{c}</button>
           ))}
         </div>
-        <button onClick={openAdd} style={{ padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>+ Add Item</button>
+        <button onClick={openAdd} style={{ padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>{t('menu.addItem')}</button>
       </div>
 
       {showForm && (
         <div style={{ background: '#fff', borderRadius: 12, padding: 24, border: '1px solid #FFE4EF', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>{editing?.id ? 'Edit Item' : 'New Item'}</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>{editing?.id ? t('menu.editItem') : t('menu.newItem')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Name</label><input style={inputStyle} value={editing?.name || ''} onChange={e => setEditing({ ...editing, name: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Price ($)</label><input style={inputStyle} type="number" step="0.01" value={editing?.price || ''} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
-            <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Description</label><input style={inputStyle} value={editing?.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Category</label><select style={inputStyle} value={editing?.category || 'donuts'} onChange={e => setEditing({ ...editing, category: e.target.value })}>{CATEGORIES.filter(c => c !== 'all').map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Prep Time (min)</label><input style={inputStyle} type="number" min="0" placeholder="e.g. 5" value={editing?.prep_time_min ?? ''} onChange={e => setEditing({ ...editing, prep_time_min: e.target.value ? parseInt(e.target.value) : null })} /></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.name')}</label><input style={inputStyle} value={editing?.name || ''} onChange={e => setEditing({ ...editing, name: e.target.value })} /></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.price')}</label><input style={inputStyle} type="number" step="0.01" value={editing?.price || ''} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
+            <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.description')}</label><input style={inputStyle} value={editing?.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} /></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.category')}</label><select style={inputStyle} value={editing?.category || 'donuts'} onChange={e => setEditing({ ...editing, category: e.target.value })}>{CATEGORIES.filter(c => c !== 'all').map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.prepTime')}</label><input style={inputStyle} type="number" min="0" placeholder="e.g. 5" value={editing?.prep_time_min ?? ''} onChange={e => setEditing({ ...editing, prep_time_min: e.target.value ? parseInt(e.target.value) : null })} /></div>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center', gridColumn: '1 / -1' }}>
-              <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_available ?? true} onChange={e => setEditing({ ...editing, is_available: e.target.checked })} /> Available</label>
-              <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_featured ?? false} onChange={e => setEditing({ ...editing, is_featured: e.target.checked })} /> Featured</label>
+              <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_available ?? true} onChange={e => setEditing({ ...editing, is_available: e.target.checked })} /> {t('menu.available')}</label>
+              <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={editing?.is_featured ?? false} onChange={e => setEditing({ ...editing, is_featured: e.target.checked })} /> {t('menu.featured')}</label>
             </div>
           </div>
 
           {/* Variants Section */}
           <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Variants</label>
-              <button type="button" onClick={() => setEditVariants(prev => [...prev, { name: '', options: [{ name: '', price: '' }] }])} style={{ fontSize: 11, color: '#FF1493', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>+ Add variant group</button>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.variants')}</label>
+              <button type="button" onClick={() => setEditVariants(prev => [...prev, { name: '', options: [{ name: '', price: '' }] }])} style={{ fontSize: 11, color: '#FF1493', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>{t('menu.addVariantGroup')}</button>
             </div>
             {editVariants.map((group, gi) => (
               <div key={gi} style={{ border: '1px solid #FFD6E8', borderRadius: 8, padding: 12, marginBottom: 8 }}>
@@ -305,14 +307,14 @@ export default function ShopMenu() {
                     <button type="button" onClick={() => { const v = [...editVariants]; v[gi].options = v[gi].options.filter((_, i) => i !== oi); setEditVariants(v) }} style={{ color: '#DC2626', fontSize: 10, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
                   </div>
                 ))}
-                <button type="button" onClick={() => { const v = [...editVariants]; v[gi].options.push({ name: '', price: '' }); setEditVariants(v) }} style={{ fontSize: 11, color: '#FF1493', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', marginLeft: 16, marginTop: 4 }}>+ Add option</button>
+                <button type="button" onClick={() => { const v = [...editVariants]; v[gi].options.push({ name: '', price: '' }); setEditVariants(v) }} style={{ fontSize: 11, color: '#FF1493', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', marginLeft: 16, marginTop: 4 }}>{t('menu.addOption')}</button>
               </div>
             ))}
           </div>
 
           {/* Images Section */}
           <div style={{ marginTop: 16 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#888', display: 'block', marginBottom: 8 }}>Images</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#888', display: 'block', marginBottom: 8 }}>{t('menu.images')}</label>
 
             {editImages.length > 0 && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -364,7 +366,7 @@ export default function ShopMenu() {
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
             >
-              {uploading ? 'Uploading...' : 'Upload Images'}
+              {uploading ? t('menu.uploading') : t('menu.uploadImages')}
             </button>
             {editImages.length > 0 && (
               <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
@@ -374,8 +376,8 @@ export default function ShopMenu() {
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button onClick={saveItem} disabled={uploading} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: uploading ? '#ccc' : '#FF1493', color: '#fff', border: 'none', cursor: uploading ? 'not-allowed' : 'pointer' }}>{uploading ? 'Uploading...' : 'Save'}</button>
-            <button onClick={() => { setShowForm(false); setEditing(null); setEditImages([]) }} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#f5f5f5', color: '#666', border: 'none', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={saveItem} disabled={uploading} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: uploading ? '#ccc' : '#FF1493', color: '#fff', border: 'none', cursor: uploading ? 'not-allowed' : 'pointer' }}>{uploading ? t('menu.uploading') : t('menu.save')}</button>
+            <button onClick={() => { setShowForm(false); setEditing(null); setEditImages([]) }} style={{ padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#f5f5f5', color: '#666', border: 'none', cursor: 'pointer' }}>{t('menu.cancel')}</button>
           </div>
         </div>
       )}

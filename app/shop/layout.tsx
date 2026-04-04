@@ -5,20 +5,31 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
+import { ShopLangProvider, useShopLang } from '@/lib/shop-lang-context'
+import type { TranslationKey } from '@/lib/shop-i18n'
 
-const NAV_ITEMS = [
-  { href: '/shop', label: 'Dashboard', icon: '📊' },
-  { href: '/shop/orders', label: 'Orders', icon: '📋' },
-  { href: '/shop/menu', label: 'Menu', icon: '🍩' },
-  { href: '/shop/analytics', label: 'Analytics', icon: '📈' },
-  { href: '/shop/hours', label: 'Hours', icon: '🕐' },
-  { href: '/shop/referral', label: 'Referral', icon: '🎁' },
-  { href: '/shop/documents', label: 'Documents', icon: '📄' },
-  { href: '/shop/settings', label: 'Settings', icon: '⚙️' },
+const NAV_ITEMS: { href: string; labelKey: TranslationKey; icon: string }[] = [
+  { href: '/shop', labelKey: 'nav.dashboard', icon: '📊' },
+  { href: '/shop/orders', labelKey: 'nav.orders', icon: '📋' },
+  { href: '/shop/menu', labelKey: 'nav.menu', icon: '🍩' },
+  { href: '/shop/analytics', labelKey: 'nav.analytics', icon: '📈' },
+  { href: '/shop/hours', labelKey: 'nav.hours', icon: '🕐' },
+  { href: '/shop/referral', labelKey: 'nav.referral', icon: '🎁' },
+  { href: '/shop/documents', labelKey: 'nav.documents', icon: '📄' },
+  { href: '/shop/settings', labelKey: 'nav.settings', icon: '⚙️' },
 ]
 
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ShopLangProvider>
+      <ShopLayoutInner>{children}</ShopLayoutInner>
+    </ShopLangProvider>
+  )
+}
+
+function ShopLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, loading, role, signOut } = useAuth()
+  const { lang, setLang, t } = useShopLang()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [shopName, setShopName] = useState<string>('')
@@ -66,13 +77,24 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
             color: pathname === item.href ? '#FF1493' : '#fff',
             background: pathname === item.href ? '#fff' : 'transparent',
           }}>
-            <span>{item.icon}</span> {item.label}
+            <span>{item.icon}</span> {t(item.labelKey)}
           </Link>
         ))}
       </nav>
       <div style={{ padding: '16px 8px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+        <button
+          onClick={() => setLang(lang === 'en' ? 'km' : 'en')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+            padding: '8px 12px', color: '#fff', background: 'rgba(255,255,255,0.15)',
+            border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+            marginBottom: 6,
+          }}
+        >
+          🌐 {lang === 'en' ? 'ភាសាខ្មែរ' : 'English'}
+        </button>
         <div style={{ padding: '8px 12px', color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>{user.name}</div>
-        <button onClick={() => signOut('/shop')} style={{ display: 'block', width: '100%', padding: '8px 12px', color: '#FFB6C1', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>Sign Out</button>
+        <button onClick={() => signOut('/shop')} style={{ display: 'block', width: '100%', padding: '8px 12px', color: '#FFB6C1', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>{t('nav.signOut')}</button>
       </div>
     </>
   )
@@ -122,7 +144,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
               ☰
             </button>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1A1A2E' }}>
-              {NAV_ITEMS.find(n => n.href === pathname)?.label || 'Shop Dashboard'}
+              {(() => { const nav = NAV_ITEMS.find(n => n.href === pathname); return nav ? t(nav.labelKey) : t('nav.dashboard') })()}
             </h1>
           </div>
           <span style={{ fontSize: 14, color: '#666' }}>{user.name}</span>
