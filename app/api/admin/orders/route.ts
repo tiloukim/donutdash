@@ -27,7 +27,7 @@ export async function GET() {
 
     // Recalculate driver earnings if stored as 0 or null
     const enrichedOrders = (orders || []).map(order => {
-      let delivery = (order.delivery as any)?.[0]
+      let delivery = Array.isArray(order.delivery) ? (order.delivery as any)?.[0] : (order.delivery as any)
       const tip = order.tip || 0
 
       if (delivery) {

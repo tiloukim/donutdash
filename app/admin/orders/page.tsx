@@ -202,7 +202,7 @@ export default function AdminOrders() {
   const serviceFees = orders.reduce((s, o) => s + (o.service_fee || 0), 0)
   const shopCommissions = orders.reduce((s, o) => s + ((o.subtotal || 0) * SHOP_COMMISSION_RATE), 0)
   const driverPayouts = orders.reduce((s, o) => {
-    const d = o.delivery?.[0]
+    const d = Array.isArray(o.delivery) ? o.delivery[0] : o.delivery
     return s + (d?.driver_earnings || 0)
   }, 0)
   const deliveryFees = orders.reduce((s, o) => s + (o.delivery_fee || 0), 0)
@@ -247,7 +247,7 @@ export default function AdminOrders() {
             <tbody>
               {orders.map(order => {
                 const colors = STATUS_COLORS[order.status] || { bg: '#F3F4F6', text: '#374151' }
-                const delivery = order.delivery?.[0] || null
+                const delivery = Array.isArray(order.delivery) ? order.delivery[0] : order.delivery || null
                 const isExpanded = expandedId === order.id
                 return (
                   <Fragment key={order.id}>

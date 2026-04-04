@@ -160,14 +160,17 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
           )}
 
           {/* Delivery Proof Photo */}
-          {order.status === 'delivered' && (order as any).delivery?.[0]?.delivery_photo_url && (
-            <div style={{ marginBottom: '1rem' }}>
-              <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10B981', marginBottom: '0.5rem' }}>
-                Delivery Proof
-              </h4>
-              <img src={(order as any).delivery[0].delivery_photo_url} alt="Delivery proof" style={{ width: '100%', maxWidth: 280, borderRadius: 10, border: '1px solid #e5e7eb' }} />
-            </div>
-          )}
+          {order.status === 'delivered' && (() => {
+            const del = Array.isArray((order as any).delivery) ? (order as any).delivery[0] : (order as any).delivery
+            return del?.delivery_photo_url ? (
+              <div style={{ marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10B981', marginBottom: '0.5rem' }}>
+                  Delivery Proof
+                </h4>
+                <img src={del.delivery_photo_url} alt="Delivery proof" style={{ width: '100%', maxWidth: 280, borderRadius: 10, border: '1px solid #e5e7eb' }} />
+              </div>
+            ) : null
+          })()}
 
           {/* Action buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

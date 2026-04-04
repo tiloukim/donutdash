@@ -51,7 +51,7 @@ export async function GET(req: Request) {
       scheduled_for: o.scheduled_for,
       cancellation_reason: o.cancellation_reason,
       customer: o.customer,
-      delivery_photo_url: (o.delivery as any)?.[0]?.delivery_photo_url || null,
+      delivery_photo_url: Array.isArray(o.delivery) ? (o.delivery as any)?.[0]?.delivery_photo_url : (o.delivery as any)?.delivery_photo_url || null,
       items: (o.dd_order_items || []).map((item: any) => ({
         name: item.name,
         price: item.price,
