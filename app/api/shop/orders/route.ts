@@ -33,7 +33,33 @@ export async function GET(req: Request) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json((data || []).map(o => ({ ...o, items: o.dd_order_items })))
+  // Only return shop-relevant fields — hide delivery fee, service fee, tips from shop owner
+  const COMMISSION_RATE = 0.15
+  return NextResponse.json((data || []).map(o => {
+    const subtotal = Number(o.subtotal || 0)
+    const commission = Math.round(subtotal * COMMISSION_RATE * 100) / 100
+    const shopEarnings = Math.round((subtotal - commission) * 100) / 100
+    return {
+      id: o.id,
+      status: o.status,
+      subtotal,
+      commission,
+      shop_earnings: shopEarnings,
+      delivery_address: o.delivery_address,
+      delivery_instructions: o.delivery_instructions,
+      created_at: o.created_at,
+      scheduled_for: o.scheduled_for,
+      cancellation_reason: o.cancellation_reason,
+      customer: o.customer,
+      items: (o.dd_order_items || []).map((item: any) => ({
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        special_instructions: item.special_instructions,
+        image_url: item.image_url,
+      })),
+    }
+  }))
 }
 
 export async function PATCH(req: NextRequest) {
