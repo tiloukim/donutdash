@@ -122,6 +122,12 @@ export default async function TeamCard({ params }: { params: Promise<{ slug: str
           </a>
         </div>
 
+        {/* QR Code */}
+        <div style={{ padding: '20px 28px', textAlign: 'center' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Scan to save</div>
+          <img src={`/api/qr?slug=${m.slug}`} alt="QR Code" style={{ width: 160, height: 160, borderRadius: 12 }} />
+        </div>
+
         <div style={{ padding: '16px 28px', background: '#FAFAFA', textAlign: 'center' }}>
           <p style={{ fontSize: 11, color: '#aaa', margin: 0 }}>DonutDash &mdash; Delicious Donuts Delivered Fast</p>
         </div>
