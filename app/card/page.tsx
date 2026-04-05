@@ -32,7 +32,7 @@ export default function BusinessCard() {
 
         {/* Profile */}
         <div style={{ padding: '24px 28px 0', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E', marginBottom: 4 }}>Tony Kim</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E', marginBottom: 4 }}>Tilou Kim</h1>
           <p style={{ fontSize: 14, color: '#FF1493', fontWeight: 600, marginBottom: 4 }}>Founder</p>
           <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>Tyler, Texas</p>
         </div>
