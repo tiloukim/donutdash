@@ -12,22 +12,21 @@ export interface TeamMember {
 
 export const team: TeamMember[] = [
   {
-    slug: 'tony',
-    name: 'Tony Kim',
+    slug: 'Tilou',
+    name: 'Tilou Kim',
     title: 'Founder',
     phone: '9033455599',
     email: 'Donutdash903@gmail.com',
     location: 'Tyler, Texas',
   },
-  // Add more team members:
-  // {
-  //   slug: 'jane',
-  //   name: 'Jane Doe',
-  //   title: 'Operations Manager',
-  //   phone: '9031234567',
-  //   email: 'jane@donutdash.app',
-  //   location: 'Tyler, Texas',
-  // },
+  {
+    slug: 'saray',
+    name: 'Saray Tem',
+    title: 'Operating Manager',
+    phone: '6264919094',
+    email: 'Saraytem@donutdash.app',
+    location: 'Tyler, Texas',
+  },
 ]
 
 export function getTeamMember(slug: string): TeamMember | undefined {
