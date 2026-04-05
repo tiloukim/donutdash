@@ -244,136 +244,159 @@ export default function ShopOrders() {
                   </div>
                 </div>
 
-                {/* Expanded Detail */}
+                {/* Expanded Detail — DoorDash-style ticket */}
                 {isExpanded && (
-                  <div style={{ borderTop: '1px solid #FFE4EF', padding: '16px 20px', background: '#FFFAF5' }}>
-                    {/* Items Table */}
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#FF1493', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Order Items</div>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid #FFE4EF' }}>
-                            <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 11, color: '#888', fontWeight: 600 }}>Item</th>
-                            <th style={{ textAlign: 'center', padding: '6px 8px', fontSize: 11, color: '#888', fontWeight: 600 }}>Qty</th>
-                            <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 11, color: '#888', fontWeight: 600 }}>Price</th>
-                            <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 11, color: '#888', fontWeight: 600 }}>Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
+                  <div style={{ borderTop: '1px solid #FFE4EF', background: '#fff' }}>
+                    {/* Ticket Header */}
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <button onClick={(e) => { e.stopPropagation(); setExpandedId(null) }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#666', padding: 0 }}>✕</button>
+                        <span style={{ fontWeight: 800, fontSize: 18, color: '#1A1A2E' }}>{o.customer?.name || 'Customer'}</span>
+                        <span style={{ color: '#888', fontSize: 14 }}>• #{o.id.slice(0, 5).toUpperCase()}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {o.customer?.phone && <a href={`tel:${o.customer.phone}`} style={{ fontSize: 20, textDecoration: 'none' }}>📞</a>}
+                      </div>
+                    </div>
+
+                    {/* Two-column layout */}
+                    <div style={{ display: 'flex', minHeight: 300 }}>
+                      {/* LEFT — Items & totals */}
+                      <div style={{ flex: 1, padding: '16px 20px', borderRight: '1px solid #f0f0f0' }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#666', marginBottom: 12 }}>
+                          {(o.items || []).reduce((s: number, i: any) => s + i.quantity, 0)} items
+                          <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: statusStyle.bg, color: statusStyle.color, marginLeft: 8 }}>
+                            {o.status === 'pending' ? 'NEW' : o.status.replace(/_/g, ' ').toUpperCase()}
+                          </span>
+                        </div>
+
+                        {/* Item list */}
+                        <div style={{ marginBottom: 20 }}>
                           {(o.items || []).map((item: any, i: number) => (
-                            <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                              <td style={{ padding: '8px', fontSize: 14 }}>
-                                {item.name}
-                                {item.special_instructions && <div style={{ fontSize: 11, color: '#FF8C00', marginTop: 2 }}>Note: {item.special_instructions}</div>}
-                              </td>
-                              <td style={{ padding: '8px', fontSize: 14, textAlign: 'center' }}>{item.quantity}</td>
-                              <td style={{ padding: '8px', fontSize: 14, textAlign: 'right' }}>${Number(item.price).toFixed(2)}</td>
-                              <td style={{ padding: '8px', fontSize: 14, textAlign: 'right', fontWeight: 600 }}>${(item.price * item.quantity).toFixed(2)}</td>
-                            </tr>
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
+                              <div>
+                                <span style={{ fontSize: 16, fontWeight: 500 }}>{item.quantity} × {item.name}</span>
+                                {item.special_instructions && <div style={{ fontSize: 12, color: '#FF8C00', marginTop: 2 }}>⚠️ {item.special_instructions}</div>}
+                              </div>
+                              <span style={{ fontSize: 16, fontWeight: 500, color: '#1A1A2E' }}>${(item.price * item.quantity).toFixed(2)}</span>
+                            </div>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        </div>
 
-                    {/* Earnings Breakdown */}
-                    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #FFE4EF', padding: 16, marginBottom: 16 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f5f5f5' }}>
-                        <span style={{ fontSize: 13, color: '#666' }}>Subtotal</span>
-                        <span style={{ fontSize: 13, fontWeight: 600 }}>${o.subtotal?.toFixed(2)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f5f5f5' }}>
-                        <span style={{ fontSize: 13, color: '#666' }}>Platform Commission (15%)</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#DC2626' }}>-${o.commission?.toFixed(2)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', marginTop: 4 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700 }}>Your Earnings</span>
-                        <span style={{ fontSize: 16, fontWeight: 800, color: '#10B981' }}>${o.shop_earnings?.toFixed(2)}</span>
-                      </div>
-                    </div>
-
-                    {/* Delivery Info */}
-                    <div style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.8 }}>
-                      <div><strong>Delivery:</strong> {o.delivery_address}</div>
-                      {o.delivery_instructions && <div><strong>Instructions:</strong> {o.delivery_instructions}</div>}
-                      {o.customer?.phone && <div><strong>Customer Phone:</strong> {o.customer.phone}</div>}
-                    </div>
-
-                    {/* Delivery Proof Photo */}
-                    {o.status === 'delivered' && o.delivery_photo_url && (
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Delivery Proof</div>
-                        <img src={o.delivery_photo_url} alt="Delivery proof" style={{ width: '100%', maxWidth: 300, borderRadius: 10, border: '1px solid #e5e7eb' }} />
-                      </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {o.status === 'pending' && <>
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'confirmed') }} disabled={updating === o.id}
-                          style={{ padding: '10px 28px', borderRadius: 10, fontSize: 15, fontWeight: 700, background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                          {updating === o.id ? '...' : 'Accept Order'}
-                        </button>
-                        {rejectingOrder === o.id ? (
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                            <select value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                              style={{ padding: '8px 10px', borderRadius: 8, fontSize: 13, border: '1px solid #FCA5A5' }}>
-                              {REJECTION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                            <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'cancelled', rejectReason) }} disabled={updating === o.id}
-                              style={{ padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#DC2626', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                              Confirm Reject
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); setRejectingOrder(null) }}
-                              style={{ padding: '8px 14px', borderRadius: 8, fontSize: 13, background: '#F3F4F6', color: '#666', border: 'none', cursor: 'pointer' }}>
-                              Cancel
-                            </button>
+                        {/* Totals */}
+                        <div style={{ borderTop: '2px solid #f0f0f0', paddingTop: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 14, color: '#666' }}>
+                            <span>Subtotal</span><span>${o.subtotal?.toFixed(2)}</span>
                           </div>
-                        ) : (
-                          <button onClick={(e) => { e.stopPropagation(); setRejectingOrder(o.id); setRejectReason('Out of stock') }}
-                            style={{ padding: '10px 28px', borderRadius: 10, fontSize: 15, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FCA5A5', cursor: 'pointer' }}>
-                            Reject
-                          </button>
-                        )}
-                      </>}
-                      {o.status === 'confirmed' && (
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'preparing') }} disabled={updating === o.id}
-                          style={{ padding: '10px 28px', borderRadius: 10, fontSize: 15, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                          {updating === o.id ? '...' : 'Start Preparing'}
-                        </button>
-                      )}
-                      {o.status === 'preparing' && (
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'ready_for_pickup') }} disabled={updating === o.id}
-                          style={{ padding: '10px 28px', borderRadius: 10, fontSize: 15, fontWeight: 700, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                          {updating === o.id ? '...' : 'Ready for Pickup'}
-                        </button>
-                      )}
-                      {o.status === 'cancelled' && o.cancellation_reason && (
-                        <span style={{ fontSize: 13, color: '#DC2626', fontStyle: 'italic' }}>Reason: {o.cancellation_reason}</span>
-                      )}
-                    </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 14, color: '#666' }}>
+                            <span>Commission (15%)</span><span style={{ color: '#DC2626' }}>-${o.commission?.toFixed(2)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 18, fontWeight: 800, borderTop: '1px solid #f0f0f0', marginTop: 4 }}>
+                            <span>Your Earnings</span><span style={{ color: '#10B981' }}>${o.shop_earnings?.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
 
-                    {/* Driver Tracking */}
-                    {isTrackable && shopLocation && (
-                      <div style={{ marginTop: 16, borderTop: '1px solid #FFE4EF', paddingTop: 16 }}>
-                        {!tracking ? (
+                      {/* RIGHT — Driver, delivery, actions */}
+                      <div style={{ width: 280, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {/* Driver info */}
+                        {isTrackable && tracking && (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#FFE4EF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🚗</div>
+                              <div>
+                                <div style={{ fontWeight: 700, fontSize: 14 }}>{tracking.driver?.name || 'Driver'}</div>
+                                <div style={{ fontSize: 12, color: '#FF1493', fontWeight: 600, textTransform: 'capitalize' }}>
+                                  {tracking.delivery_status?.replace(/_/g, ' ') || 'Assigned'}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e5e7eb', height: 160 }}>
+                              <DeliveryMap shopLat={shopLocation?.lat || 0} shopLng={shopLocation?.lng || 0} driverLat={tracking.location?.lat} driverLng={tracking.location?.lng} driverHeading={tracking.location?.heading} />
+                            </div>
+                          </div>
+                        )}
+
+                        {isTrackable && !tracking && (
                           <div style={{ padding: 16, textAlign: 'center', color: '#888', fontSize: 13, background: '#FFF0F5', borderRadius: 8 }}>
-                            {tracking === null ? 'No driver assigned yet' : 'Loading tracking...'}
+                            Waiting for driver...
                           </div>
-                        ) : (
-                          <>
-                            <div style={{ borderRadius: 10, overflow: 'hidden', border: '2px solid #FF1493', height: 250 }}>
-                              <DeliveryMap shopLat={shopLocation.lat} shopLng={shopLocation.lng} driverLat={tracking.location?.lat} driverLng={tracking.location?.lng} driverHeading={tracking.location?.heading} />
-                            </div>
-                            <div style={{ marginTop: 8, padding: '8px 14px', background: '#FFF0F5', borderRadius: 8, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                              <div><strong style={{ color: '#FF1493' }}>Driver:</strong> {tracking.driver?.name || 'Unknown'}</div>
-                              <span style={{ padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: '#FFE4EF', color: '#FF1493', textTransform: 'capitalize' }}>
-                                {tracking.delivery_status?.replace(/_/g, ' ') || 'En route'}
-                              </span>
-                            </div>
-                          </>
                         )}
+
+                        {/* Delivery address */}
+                        <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+                          <div style={{ fontWeight: 600, color: '#1A1A2E', marginBottom: 2 }}>Delivery</div>
+                          {o.delivery_address}
+                          {o.delivery_instructions && <div style={{ color: '#FF8C00', marginTop: 4 }}>📝 {o.delivery_instructions}</div>}
+                        </div>
+
+                        {/* Delivery Proof Photo */}
+                        {o.status === 'delivered' && o.delivery_photo_url && (
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', marginBottom: 4 }}>DELIVERY PROOF</div>
+                            <img src={o.delivery_photo_url} alt="Delivery proof" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb' }} />
+                          </div>
+                        )}
+
+                        {/* Scheduled time */}
+                        {o.scheduled_for && (
+                          <div style={{ background: '#FFF3E0', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#E65100', fontWeight: 600 }}>
+                            ⏰ Scheduled: {new Date(o.scheduled_for).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                          </div>
+                        )}
+
+                        {/* Spacer */}
+                        <div style={{ flex: 1 }} />
+
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {o.status === 'pending' && <>
+                            <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'confirmed') }} disabled={updating === o.id}
+                              style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                              {updating === o.id ? '...' : '✓ Accept Order'}
+                            </button>
+                            {rejectingOrder === o.id ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <select value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                                  style={{ padding: '10px', borderRadius: 8, fontSize: 13, border: '1px solid #FCA5A5' }}>
+                                  {REJECTION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'cancelled', rejectReason) }} disabled={updating === o.id}
+                                    style={{ flex: 1, padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#DC2626', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                                    Confirm Reject
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); setRejectingOrder(null) }}
+                                    style={{ padding: '10px 14px', borderRadius: 8, fontSize: 13, background: '#F3F4F6', color: '#666', border: 'none', cursor: 'pointer' }}>
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button onClick={(e) => { e.stopPropagation(); setRejectingOrder(o.id); setRejectReason('Out of stock') }}
+                                style={{ width: '100%', padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FCA5A5', cursor: 'pointer' }}>
+                                ✕ Reject
+                              </button>
+                            )}
+                          </>}
+                          {o.status === 'confirmed' && (
+                            <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'preparing') }} disabled={updating === o.id}
+                              style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                              {updating === o.id ? '...' : '🍩 Start Preparing'}
+                            </button>
+                          )}
+                          {o.status === 'preparing' && (
+                            <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'ready_for_pickup') }} disabled={updating === o.id}
+                              style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                              {updating === o.id ? '...' : '✓ Ready for Pickup'}
+                            </button>
+                          )}
+                          {o.status === 'cancelled' && o.cancellation_reason && (
+                            <div style={{ fontSize: 13, color: '#DC2626', fontStyle: 'italic', textAlign: 'center' }}>Rejected: {o.cancellation_reason}</div>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
