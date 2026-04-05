@@ -15,11 +15,11 @@ interface DriverDocument {
 }
 
 const DOC_TYPES = [
-  { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄' },
+  { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄', downloadUrl: 'https://www.irs.gov/pub/irs-pdf/fw9.pdf', downloadLabel: 'Download blank W-9' },
   { key: 'drivers_license', label: "Driver's License", description: 'Valid government-issued ID', icon: '🪪' },
   { key: 'insurance', label: 'Vehicle Insurance', description: 'Proof of active auto insurance', icon: '🛡️' },
   { key: 'vehicle_registration', label: 'Vehicle Registration', description: 'Current vehicle registration', icon: '🚗' },
-  { key: 'contractor_agreement', label: 'Contractor Agreement', description: 'Independent contractor agreement', icon: '📝' },
+  { key: 'contractor_agreement', label: 'Contractor Agreement', description: 'Independent contractor agreement', icon: '📝', downloadUrl: '/contractor-agreement', downloadLabel: 'View agreement' },
 ]
 
 const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
@@ -163,7 +163,16 @@ export default function DriverDocuments() {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 13, color: '#888', marginLeft: 28 }}>{docType.description}</div>
+                  <div style={{ fontSize: 13, color: '#888', marginLeft: 28 }}>
+                    {docType.description}
+                    {(docType as any).downloadUrl && (
+                      <span style={{ marginLeft: 8 }}>
+                        <a href={(docType as any).downloadUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#FF8C00', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+                          ↓ {(docType as any).downloadLabel}
+                        </a>
+                      </span>
+                    )}
+                  </div>
                   {doc && (
                     <div style={{ marginLeft: 28, marginTop: 6 }}>
                       <div style={{ fontSize: 12, color: '#aaa' }}>

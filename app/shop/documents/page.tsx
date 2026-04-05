@@ -15,13 +15,13 @@ interface ShopDocument {
 }
 
 const DOC_TYPES = [
-  { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄', required: true },
+  { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄', required: true, downloadUrl: 'https://www.irs.gov/pub/irs-pdf/fw9.pdf', downloadLabel: 'Download blank W-9' },
   { key: 'business_license', label: 'Business License', description: 'Proof of legal business operation', icon: '🏛️', required: true },
-  { key: 'health_permit', label: 'Health / Food Handler Permit', description: 'TX health department food handling permit', icon: '🏥', required: true },
+  { key: 'health_permit', label: 'Health / Food Handler Permit', description: 'TX health department food handling permit', icon: '🏥', required: true, downloadUrl: 'https://www.dshs.texas.gov/food-handlers', downloadLabel: 'TX Food Handler info' },
   { key: 'insurance_certificate', label: 'Certificate of Insurance', description: 'General liability insurance', icon: '🛡️', required: true },
-  { key: 'food_establishment_permit', label: 'Food Establishment Permit', description: 'TX DSHS food establishment permit', icon: '🍽️', required: false },
-  { key: 'sales_tax_permit', label: 'Sales Tax Permit', description: 'TX Comptroller sales tax permit', icon: '🧾', required: false },
-  { key: 'business_entity_docs', label: 'Business Entity Documents', description: 'LLC/Corp articles, DBA filing, or EIN letter', icon: '📁', required: false },
+  { key: 'food_establishment_permit', label: 'Food Establishment Permit', description: 'TX DSHS food establishment permit', icon: '🍽️', required: false, downloadUrl: 'https://www.dshs.texas.gov/food-establishments', downloadLabel: 'TX DSHS info' },
+  { key: 'sales_tax_permit', label: 'Sales Tax Permit', description: 'TX Comptroller sales tax permit', icon: '🧾', required: false, downloadUrl: 'https://comptroller.texas.gov/taxes/permit/', downloadLabel: 'Apply for permit' },
+  { key: 'business_entity_docs', label: 'Business Entity Documents', description: 'LLC/Corp articles, DBA filing, or EIN letter', icon: '📁', required: false, downloadUrl: 'https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online', downloadLabel: 'Apply for EIN' },
 ]
 
 const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
@@ -170,7 +170,16 @@ export default function ShopDocuments() {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 13, color: '#888', marginLeft: 28 }}>{docType.description}</div>
+                  <div style={{ fontSize: 13, color: '#888', marginLeft: 28 }}>
+                    {docType.description}
+                    {(docType as any).downloadUrl && (
+                      <span style={{ marginLeft: 8 }}>
+                        <a href={(docType as any).downloadUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#FF1493', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+                          ↓ {(docType as any).downloadLabel}
+                        </a>
+                      </span>
+                    )}
+                  </div>
                   {doc && (
                     <div style={{ marginLeft: 28, marginTop: 6 }}>
                       <div style={{ fontSize: 12, color: '#aaa' }}>
@@ -230,7 +239,16 @@ export default function ShopDocuments() {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 13, color: '#888', marginLeft: 28 }}>{docType.description}</div>
+                  <div style={{ fontSize: 13, color: '#888', marginLeft: 28 }}>
+                    {docType.description}
+                    {(docType as any).downloadUrl && (
+                      <span style={{ marginLeft: 8 }}>
+                        <a href={(docType as any).downloadUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#FF1493', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+                          ↓ {(docType as any).downloadLabel}
+                        </a>
+                      </span>
+                    )}
+                  </div>
                   {doc && (
                     <div style={{ marginLeft: 28, marginTop: 6 }}>
                       <div style={{ fontSize: 12, color: '#aaa' }}>
