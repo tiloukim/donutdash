@@ -238,8 +238,8 @@ export default function ShopOrders() {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: '#10B981' }}>${o.shop_earnings?.toFixed(2)}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>Your earnings</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#1A1A2E' }}>${o.subtotal?.toFixed(2)}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>{(o.items || []).reduce((s: number, i: any) => s + i.quantity, 0)} items</div>
                     <span style={{ fontSize: 14, color: '#ccc' }}>{isExpanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
@@ -283,16 +283,10 @@ export default function ShopOrders() {
                           ))}
                         </div>
 
-                        {/* Totals */}
+                        {/* Total */}
                         <div style={{ borderTop: '2px solid #f0f0f0', paddingTop: 12 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 14, color: '#666' }}>
-                            <span>Subtotal</span><span>${o.subtotal?.toFixed(2)}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 14, color: '#666' }}>
-                            <span>Commission (15%)</span><span style={{ color: '#DC2626' }}>-${o.commission?.toFixed(2)}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 18, fontWeight: 800, borderTop: '1px solid #f0f0f0', marginTop: 4 }}>
-                            <span>Your Earnings</span><span style={{ color: '#10B981' }}>${o.shop_earnings?.toFixed(2)}</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 18, fontWeight: 800 }}>
+                            <span>Total</span><span>${o.subtotal?.toFixed(2)}</span>
                           </div>
                         </div>
                       </div>
