@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-const DOC_TYPES = ['w9', 'business_license', 'health_permit', 'insurance_certificate', 'food_establishment_permit', 'sales_tax_permit', 'business_entity_docs']
+const DOC_TYPES = ['government_id', 'w9', 'business_license', 'health_permit', 'insurance_certificate', 'food_establishment_permit', 'sales_tax_permit', 'business_entity_docs']
 
 // GET — fetch shop's documents
 export async function GET() {

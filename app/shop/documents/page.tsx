@@ -15,6 +15,7 @@ interface ShopDocument {
 }
 
 const DOC_TYPES = [
+  { key: 'government_id', label: 'Government-Issued Photo ID', description: "Driver's license or passport", icon: '🪪', required: true },
   { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄', required: true, downloadUrl: 'https://www.irs.gov/pub/irs-pdf/fw9.pdf', downloadLabel: 'Download blank W-9' },
   { key: 'business_license', label: 'Business License', description: 'Proof of legal business operation', icon: '🏛️', required: true },
   { key: 'health_permit', label: 'Health / Food Handler Permit', description: 'TX health department food handling permit', icon: '🏥', required: true, downloadUrl: 'https://www.dshs.texas.gov/food-handlers', downloadLabel: 'TX Food Handler info' },
