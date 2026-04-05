@@ -150,10 +150,10 @@ export default function HomePage() {
       emoji: '🥐',
     },
     {
-      title: 'Free Delivery',
-      subtitle: 'On orders over $15 this week',
+      title: 'Order Online',
+      subtitle: 'Fresh donuts to your door',
       bg: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-      emoji: '🚗',
+      emoji: '🍩',
     },
   ]
 
