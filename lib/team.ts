@@ -22,7 +22,7 @@ export const team: TeamMember[] = [
   {
     slug: 'saray',
     name: 'Saray Tem',
-    title: 'Operating Manager',
+    title: 'Operations Manager',
     phone: '6264919094',
     email: 'Saraytem@donutdash.app',
     location: 'Tyler, Texas',
