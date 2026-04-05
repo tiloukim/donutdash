@@ -230,9 +230,9 @@ export default function AdminOrders() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['', 'Order ID', 'Customer', 'Shop', 'Subtotal', 'Shop Commission', 'Shop Receives', 'Delivery Fee', 'Service Fee', 'Tip', 'Total', 'Driver Pay', 'Admin Profit', 'Status', 'Date'].map(h => (
+                {['', 'Order', 'Customer', 'Shop', 'Total', 'Profit', 'Status', 'Date'].map(h => (
                   <th key={h || 'expand'} style={{
-                    padding: '12px 12px',
+                    padding: '10px 12px',
                     textAlign: h === '' ? 'center' : 'left',
                     fontSize: 11,
                     fontWeight: 600,
@@ -259,29 +259,14 @@ export default function AdminOrders() {
                         {isExpanded ? '\u25BC' : '\u25B6'}
                       </td>
                       <td style={{ padding: '10px 12px', fontWeight: 600, fontSize: 13, fontFamily: 'monospace' }}>
-                        {order.id.slice(0, 8)}
+                        #{order.id.slice(0, 6).toUpperCase()}
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 13 }}>
                         <div style={{ fontWeight: 500 }}>{order.customer?.name || '-'}</div>
                         <div style={{ color: '#9CA3AF', fontSize: 11 }}>{order.customer?.email || ''}</div>
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#6B7280' }}>{order.shop?.name || '-'}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13 }}>${(order.subtotal || 0).toFixed(2)}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#6366F1', fontWeight: 600 }}>
-                        ${((order.subtotal || 0) * SHOP_COMMISSION_RATE).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#059669' }}>
-                        ${((order.subtotal || 0) * (1 - SHOP_COMMISSION_RATE)).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13 }}>${(order.delivery_fee || 0).toFixed(2)}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#6366F1', fontWeight: 600 }}>
-                        ${(order.service_fee || 0).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13 }}>${(order.tip || 0).toFixed(2)}</td>
                       <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#DC2626', fontWeight: 600 }}>
-                        ${(delivery?.driver_earnings || 0).toFixed(2)}
-                      </td>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#059669', fontWeight: 700 }}>
                         ${(((order.subtotal || 0) * SHOP_COMMISSION_RATE) + (order.service_fee || 0) + (order.delivery_fee || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}
                       </td>
@@ -295,11 +280,6 @@ export default function AdminOrders() {
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: '#6B7280', whiteSpace: 'nowrap' }}>
                         {new Date(order.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
-                        {order.scheduled_for && (
-                          <div style={{ marginTop: 2, fontSize: 11, color: '#FF8C00', fontWeight: 600 }}>
-                            Scheduled: {new Date(order.scheduled_for).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
-                          </div>
-                        )}
                       </td>
                     </tr>
 
@@ -341,8 +321,25 @@ export default function AdminOrders() {
                               )}
                             </div>
 
+                            {/* Financial Breakdown */}
+                            <div style={{ flex: '0 1 200px' }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                                Breakdown
+                              </div>
+                              <div style={{ fontSize: 13, lineHeight: 2 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Subtotal</span><span>${(order.subtotal || 0).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Commission</span><span style={{ color: '#6366F1' }}>${((order.subtotal || 0) * SHOP_COMMISSION_RATE).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Delivery Fee</span><span>${(order.delivery_fee || 0).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Service Fee</span><span>${(order.service_fee || 0).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Tip</span><span>${(order.tip || 0).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Driver Pay</span><span style={{ color: '#DC2626' }}>-${(delivery?.driver_earnings || 0).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E5E7EB', paddingTop: 4, marginTop: 4 }}><span style={{ fontWeight: 700 }}>Total</span><span style={{ fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700, color: '#059669' }}>Admin Profit</span><span style={{ fontWeight: 700, color: '#059669' }}>${(((order.subtotal || 0) * SHOP_COMMISSION_RATE) + (order.service_fee || 0) + (order.delivery_fee || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}</span></div>
+                              </div>
+                            </div>
+
                             {/* Delivery & Address */}
-                            <div style={{ flex: '0 1 280px' }}>
+                            <div style={{ flex: '0 1 220px' }}>
                               <div style={{ fontSize: 12, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
                                 Delivery Info
                               </div>
