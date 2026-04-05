@@ -30,7 +30,7 @@ export const team: TeamMember[] = [
 ]
 
 export function getTeamMember(slug: string): TeamMember | undefined {
-  return team.find(m => m.slug === slug)
+  return team.find(m => m.slug.toLowerCase() === slug.toLowerCase())
 }
 
 export function formatPhone(phone: string): string {
