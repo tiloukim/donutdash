@@ -9,7 +9,7 @@ export async function GET() {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { data: disputes, error } = await svc
       .from('dd_disputes')
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest) {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
     const { dispute_id, status, admin_notes } = body

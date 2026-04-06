@@ -4,7 +4,7 @@ export interface User {
   email: string
   name: string
   phone: string | null
-  role: 'customer' | 'shop_owner' | 'driver' | 'admin'
+  role: 'customer' | 'shop_owner' | 'driver' | 'manager' | 'admin'
   avatar_url: string | null
   is_active: boolean
   created_at: string

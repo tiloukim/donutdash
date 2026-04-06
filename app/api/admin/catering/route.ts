@@ -17,7 +17,7 @@ export async function GET() {
       .eq('auth_id', authUser.id)
       .single()
 
-    if (!ddUser || ddUser.role !== 'admin') {
+    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest) {
       .eq('auth_id', authUser.id)
       .single()
 
-    if (!ddUser || ddUser.role !== 'admin') {
+    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

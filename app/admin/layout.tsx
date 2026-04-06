@@ -6,20 +6,20 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 
-const NAV_ITEMS = [
-  { href: '/admin', label: 'Dashboard', icon: '📊' },
-  { href: '/admin/shops', label: 'Shops', icon: '🏪' },
-  { href: '/admin/users', label: 'Users', icon: '👥' },
-  { href: '/admin/orders', label: 'Orders', icon: '📦' },
-  { href: '/admin/drivers', label: 'Drivers', icon: '🚗' },
-  { href: '/admin/driver-documents', label: 'Driver Docs', icon: '📋' },
-  { href: '/admin/shop-documents', label: 'Shop Docs', icon: '📑' },
-  { href: '/admin/payouts', label: 'Payouts', icon: '💰' },
-  { href: '/admin/catering', label: 'Catering', icon: '🎂' },
-  { href: '/admin/support', label: 'Support Chat', icon: '💬' },
-  { href: '/admin/disputes', label: 'Disputes', icon: '⚠️' },
-  { href: '/admin/tax', label: 'Tax Center', icon: '🧾' },
-  { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
+const ALL_NAV_ITEMS = [
+  { href: '/admin', label: 'Dashboard', icon: '📊', roles: ['admin', 'manager'] },
+  { href: '/admin/shops', label: 'Shops', icon: '🏪', roles: ['admin', 'manager'] },
+  { href: '/admin/users', label: 'Users', icon: '👥', roles: ['admin', 'manager'] },
+  { href: '/admin/orders', label: 'Orders', icon: '📦', roles: ['admin', 'manager'] },
+  { href: '/admin/drivers', label: 'Drivers', icon: '🚗', roles: ['admin', 'manager'] },
+  { href: '/admin/driver-documents', label: 'Driver Docs', icon: '📋', roles: ['admin', 'manager'] },
+  { href: '/admin/shop-documents', label: 'Shop Docs', icon: '📑', roles: ['admin', 'manager'] },
+  { href: '/admin/payouts', label: 'Payouts', icon: '💰', roles: ['admin', 'manager'] },
+  { href: '/admin/catering', label: 'Catering', icon: '🎂', roles: ['admin', 'manager'] },
+  { href: '/admin/support', label: 'Support Chat', icon: '💬', roles: ['admin', 'manager'] },
+  { href: '/admin/disputes', label: 'Disputes', icon: '⚠️', roles: ['admin', 'manager'] },
+  { href: '/admin/tax', label: 'Tax Center', icon: '🧾', roles: ['admin'] },
+  { href: '/admin/settings', label: 'Settings', icon: '⚙️', roles: ['admin'] },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -35,7 +35,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
-  if (!user || role !== 'admin') {
+  const isAdminOrManager = role === 'admin' || role === 'manager'
+  const NAV_ITEMS = ALL_NAV_ITEMS.filter(item => item.roles.includes(role || ''))
+
+  if (!user || !isAdminOrManager) {
     return (
       <RoleAuthForm
         role="admin"
@@ -59,7 +62,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <>
       <div style={{ padding: '24px 20px 16px' }}>
         <img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} />
-        <span style={{ background: '#6366F1', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block', letterSpacing: 1 }}>ADMIN</span>
+        <span style={{ background: role === 'manager' ? '#FF8C00' : '#6366F1', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block', letterSpacing: 1 }}>{role === 'manager' ? 'MANAGER' : 'ADMIN'}</span>
       </div>
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>
         {NAV_ITEMS.map(item => (

@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-  if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const period = searchParams.get('period') || 'week' // week, month, all

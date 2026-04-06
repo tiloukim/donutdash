@@ -13,7 +13,7 @@ interface UserRow {
   created_at: string
 }
 
-const ROLES = ['customer', 'shop_owner', 'driver', 'admin']
+const ROLES = ['customer', 'shop_owner', 'driver', 'manager', 'admin']
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<UserRow[]>([])

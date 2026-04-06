@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
-  if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const shopId = searchParams.get('shop_id')
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
-  if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { shop_id, message } = await req.json()
   if (!shop_id || !message?.trim()) return NextResponse.json({ error: 'shop_id and message required' }, { status: 400 })

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-  if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { order_id } = await req.json()
   if (!order_id) return NextResponse.json({ error: 'order_id required' }, { status: 400 })
