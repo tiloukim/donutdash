@@ -286,7 +286,7 @@ export default function CartPage() {
                 Add a tip for your driver
               </h3>
             </div>
-            <p style={{ fontSize: '0.75rem', color: '#888', lineHeight: 1.5, margin: '0 0 12px', padding: '8px 10px', background: '#FFF8F0', borderRadius: '8px', border: '1px solid #FFE8D0' }}>
+            <p style={{ fontSize: '1.1rem', color: '#888', lineHeight: 1.5, margin: '0 0 12px', padding: '10px 12px', background: '#FFF8F0', borderRadius: '8px', border: '1px solid #FFE8D0' }}>
               Your driver works hard to deliver your donuts fresh and fast. <strong style={{ color: '#FF8C00' }}>100% of your tip goes directly to your driver.</strong> Tips make a real difference — thank you for your generosity!
             </p>
             <div style={{ display: 'flex', gap: '8px' }}>
