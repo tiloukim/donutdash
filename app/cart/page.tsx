@@ -280,12 +280,15 @@ export default function CartPage() {
             border: '1px solid #f0f0f0',
             padding: '16px',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               <span style={{ fontSize: '1.1rem' }}>💰</span>
               <h3 style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1A1A2E', margin: 0 }}>
                 Add a tip for your driver
               </h3>
             </div>
+            <p style={{ fontSize: '0.75rem', color: '#888', lineHeight: 1.5, margin: '0 0 12px', padding: '8px 10px', background: '#FFF8F0', borderRadius: '8px', border: '1px solid #FFE8D0' }}>
+              Your driver works hard to deliver your donuts fresh and fast. <strong style={{ color: '#FF8C00' }}>100% of your tip goes directly to your driver.</strong> Tips make a real difference — thank you for your generosity!
+            </p>
             <div style={{ display: 'flex', gap: '8px' }}>
               {tipOptions.map((opt, idx) => {
                 const isSelected = !showCustomTip && selectedTipIndex === idx
