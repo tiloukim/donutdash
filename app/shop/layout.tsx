@@ -183,6 +183,31 @@ function GlobalOrderAlert() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const vibrateRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  const audioUnlockedRef = useRef(false)
+
+  // Pre-unlock audio on first user interaction (required by Chrome/Safari autoplay policy)
+  useEffect(() => {
+    const unlock = () => {
+      if (audioUnlockedRef.current) return
+      const audio = new Audio('/order-alert.wav')
+      audio.loop = true
+      audio.volume = 0.01
+      audio.play().then(() => {
+        audio.pause()
+        audio.currentTime = 0
+        audio.volume = 1.0
+        audioRef.current = audio
+        audioUnlockedRef.current = true
+      }).catch(() => {})
+    }
+    // Try immediately (navigating here counts as a gesture in some browsers)
+    unlock()
+    // Also on any interaction
+    const events = ['click', 'touchstart', 'keydown', 'pointerdown']
+    events.forEach(e => document.addEventListener(e, unlock, { passive: true }))
+    return () => { events.forEach(e => document.removeEventListener(e, unlock)) }
+  }, [])
+
   const playSound = useCallback(() => {
     try {
       if (!audioRef.current) {
