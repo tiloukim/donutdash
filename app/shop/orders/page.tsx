@@ -188,7 +188,7 @@ export default function ShopOrders() {
       {/* TOP BAR: Mute toggle + Pause button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <button onClick={() => setMuted(m => !m)} style={{
-          padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
+          padding: '16px 32px', borderRadius: 12, fontSize: 22, fontWeight: 700, border: 'none', cursor: 'pointer',
           background: muted ? '#FEE2E2' : '#ECFDF5', color: muted ? '#DC2626' : '#065F46',
         }}>
           {muted ? '🔇 Sound OFF — Tap to unmute' : '🔔 Sound ON'}
