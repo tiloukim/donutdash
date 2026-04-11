@@ -68,46 +68,40 @@ export default function ShopOrders() {
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
   }, [])
 
-  const enableSound = useCallback(async () => {
-    if (soundEnabled) return
-    try {
-      const { unlockAudio } = await import('@/lib/alert-sound')
-      unlockAudio()
-      if (!alertAudioRef.current) { alertAudioRef.current = new Audio('/order-alert.wav'); alertAudioRef.current.loop = true }
-      alertAudioRef.current.volume = 0.01
-      await alertAudioRef.current.play()
-      alertAudioRef.current.pause()
-      alertAudioRef.current.currentTime = 0
-      alertAudioRef.current.volume = 1.0
-      setSoundEnabled(true)
-    } catch {
-      // Browser blocked — will keep retrying on interactions
+  // Sound unlock: must create AND play audio inside the same user gesture on mobile
+  useEffect(() => {
+    let unlocked = false
+    const handler = async () => {
+      if (unlocked) return
+      try {
+        // Create fresh audio element inside the gesture
+        const audio = new Audio('/order-alert.wav')
+        audio.loop = true
+        audio.volume = 0.01
+        await audio.play()
+        audio.pause()
+        audio.currentTime = 0
+        audio.volume = 1.0
+        alertAudioRef.current = audio
+        unlocked = true
+        setSoundEnabled(true)
+        // Also unlock Web Audio API
+        import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio()).catch(() => {})
+        // Remove all listeners once unlocked
+        events.forEach(e => document.removeEventListener(e, handler))
+      } catch {
+        // Still blocked, will try again on next interaction
+      }
     }
-  }, [soundEnabled])
-
-  // Try to unlock audio on mount
-  useEffect(() => {
-    enableSound()
-    const t1 = setTimeout(enableSound, 500)
-    const t2 = setTimeout(enableSound, 1500)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [enableSound])
-
-  // Keep retrying on EVERY user interaction until sound is enabled
-  useEffect(() => {
-    if (soundEnabled) return
-    const handler = () => { enableSound() }
-    const events = ['click', 'touchstart', 'touchend', 'keydown', 'scroll', 'pointerdown']
-    // Do NOT use { once: true } — keep listening until sound works
+    const events = ['click', 'touchstart', 'touchend', 'pointerdown']
     events.forEach(e => document.addEventListener(e, handler, { passive: true }))
-    return () => { events.forEach(e => document.removeEventListener(e, handler)) }
-  }, [soundEnabled, enableSound])
-
-  // Auto-request notification permission
-  useEffect(() => {
+    // Also try immediately (works if navigated here via click)
+    handler()
+    // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
+    return () => { events.forEach(e => document.removeEventListener(e, handler)) }
   }, [])
 
   const playAlert = async () => {
@@ -175,11 +169,24 @@ export default function ShopOrders() {
   return (
     <div>
       {/* Sound status */}
-      <div style={{
+      <div onClick={async () => {
+        if (soundEnabled) return
+        try {
+          const audio = new Audio('/order-alert.wav')
+          audio.loop = true
+          audio.volume = 0.3
+          await audio.play()
+          setTimeout(() => { audio.pause(); audio.currentTime = 0; audio.volume = 1.0 }, 300)
+          alertAudioRef.current = audio
+          setSoundEnabled(true)
+          import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio()).catch(() => {})
+        } catch {}
+      }} style={{
         background: soundEnabled ? '#ECFDF5' : '#FFF7ED', border: `1px solid ${soundEnabled ? '#10B981' : '#FF8C00'}`,
-        borderRadius: 10, padding: '8px 16px', marginBottom: 16, fontSize: 12, color: soundEnabled ? '#065F46' : '#9A3412', fontWeight: 600,
+        borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: soundEnabled ? 12 : 14, color: soundEnabled ? '#065F46' : '#9A3412', fontWeight: 600,
+        cursor: soundEnabled ? 'default' : 'pointer', textAlign: 'center',
       }}>
-        {soundEnabled ? '🔔 Sound alerts ON' : '🔕 Tap anywhere to enable sound alerts'}
+        {soundEnabled ? '🔔 Sound alerts ON' : '🔕 TAP HERE to enable sound alerts'}
       </div>
 
       {/* Pending banner */}
