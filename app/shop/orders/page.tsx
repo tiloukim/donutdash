@@ -41,6 +41,10 @@ export default function ShopOrders() {
 
   const [trackingData, setTrackingData] = useState<Record<string, TrackingData | null>>({})
   const [shopLocation, setShopLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [paused, setPaused] = useState(false)
+  const [pauseReason, setPauseReason] = useState('')
+  const [showPauseModal, setShowPauseModal] = useState(false)
+  const [togglingPause, setTogglingPause] = useState(false)
 
   useEffect(() => {
     fetch('/api/shop/settings').then(r => r.ok ? r.json() : null).then(data => {
@@ -135,6 +139,13 @@ export default function ShopOrders() {
   }, [filter])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
+  // Load pause state
+  useEffect(() => {
+    fetch('/api/shop/pause').then(r => r.json()).then(d => {
+      setPaused(d.paused || false)
+      setPauseReason(d.pause_reason || '')
+    }).catch(() => {})
+  }, [])
   useEffect(() => { const i = setInterval(fetchOrders, 8000); return () => clearInterval(i) }, [fetchOrders])
 
   // Realtime: instant new order alerts (supplements polling)
@@ -157,10 +168,96 @@ export default function ShopOrders() {
 
   const pendingCount = orders.filter(o => o.status === 'pending').length
 
+  const togglePause = async (newPaused: boolean, reason?: string) => {
+    setTogglingPause(true)
+    const res = await fetch('/api/shop/pause', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paused: newPaused, reason: reason || '' }),
+    })
+    if (res.ok) {
+      setPaused(newPaused)
+      if (!newPaused) setPauseReason('')
+    }
+    setTogglingPause(false)
+    setShowPauseModal(false)
+  }
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Loading orders...</div>
 
   return (
     <div>
+      {/* PAUSE ORDERS BANNER — always visible at top */}
+      {paused ? (
+        <div style={{
+          background: '#DC2626', borderRadius: 12, padding: '16px 20px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        }}>
+          <div>
+            <div style={{ color: '#fff', fontWeight: 800, fontSize: 16 }}>⏸ ORDERS PAUSED</div>
+            {pauseReason && <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 }}>{pauseReason}</div>}
+          </div>
+          <button onClick={() => togglePause(false)} disabled={togglingPause} style={{
+            padding: '10px 20px', borderRadius: 8, background: '#fff', color: '#DC2626',
+            fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+          }}>
+            {togglingPause ? '...' : '▶ Resume Orders'}
+          </button>
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex', justifyContent: 'flex-end', marginBottom: 12,
+        }}>
+          <button onClick={() => setShowPauseModal(true)} style={{
+            padding: '10px 20px', borderRadius: 8, background: '#FEE2E2', color: '#DC2626',
+            fontWeight: 700, fontSize: 13, border: '1px solid #FECACA', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            ⏸ Pause Orders
+          </button>
+        </div>
+      )}
+
+      {/* Pause confirmation modal */}
+      {showPauseModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowPauseModal(false)}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 400, width: '100%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#DC2626', marginBottom: 16 }}>⏸ Pause Orders</div>
+            <p style={{ fontSize: 14, color: '#555', marginBottom: 16, lineHeight: 1.5 }}>
+              New customers will not be able to place orders while paused. Existing orders will not be affected.
+            </p>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#888', display: 'block', marginBottom: 6 }}>REASON (optional)</label>
+              <select value={pauseReason} onChange={e => setPauseReason(e.target.value)} style={{
+                width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box',
+              }}>
+                <option value="">Select a reason...</option>
+                <option value="Too busy">Too busy</option>
+                <option value="Sold out">Sold out</option>
+                <option value="Short staffed">Short staffed</option>
+                <option value="Taking a break">Taking a break</option>
+                <option value="Closing early">Closing early</option>
+                <option value="Technical issues">Technical issues</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => togglePause(true, pauseReason)} disabled={togglingPause} style={{
+                flex: 1, padding: '12px', borderRadius: 8, background: '#DC2626', color: '#fff',
+                fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 14,
+              }}>
+                {togglingPause ? 'Pausing...' : 'Pause Orders'}
+              </button>
+              <button onClick={() => setShowPauseModal(false)} style={{
+                padding: '12px 20px', borderRadius: 8, background: '#f5f5f5', color: '#555',
+                fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: 14,
+              }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sound status */}
       <div onClick={() => {
         if (soundEnabled) return

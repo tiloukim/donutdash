@@ -69,7 +69,12 @@ export async function POST(request: NextRequest) {
 
     // Fetch shop info including coordinates
     const svc = createServiceClient()
-    const { data: shop } = await svc.from('dd_shops').select('name, service_fee_pct, delivery_fee, min_order, tax_rate, lat, lng, owner_id').eq('id', shopId).single()
+    const { data: shop } = await svc.from('dd_shops').select('name, service_fee_pct, delivery_fee, min_order, tax_rate, lat, lng, owner_id, paused, pause_reason').eq('id', shopId).single()
+
+    // Check if shop has paused orders
+    if (shop?.paused) {
+      return NextResponse.json({ error: shop.pause_reason || 'This shop is temporarily not accepting orders. Please try again later.' }, { status: 400 })
+    }
     const shopFeeRate = shop ? shop.service_fee_pct / 100 : SERVICE_FEE_RATE
     const shopTaxRate = shop?.tax_rate ? shop.tax_rate / 100 : 0
 
