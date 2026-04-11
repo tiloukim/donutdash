@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 
@@ -118,6 +118,131 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
           ))}
         </nav>
       </div>
+    <GlobalDriverAlert />
     </>
+  )
+}
+
+// Global delivery offer popup — works on ANY driver page except /driver (which has its own)
+function GlobalDriverAlert() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const [offer, setOffer] = useState<any>(null)
+  const [responding, setResponding] = useState(false)
+  const prevOfferIdRef = useRef<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const vibrateRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const playSound = useCallback(() => {
+    try {
+      if (!audioRef.current) { audioRef.current = new Audio('/alert.wav'); audioRef.current.loop = true }
+      audioRef.current.volume = 1.0; audioRef.current.currentTime = 0
+      audioRef.current.play().catch(() => {})
+    } catch {}
+    if (navigator.vibrate) {
+      navigator.vibrate([400, 200, 400, 200, 400])
+      vibrateRef.current = setInterval(() => navigator.vibrate([400, 200, 400, 200, 400]), 2000)
+    }
+  }, [])
+
+  const stopSound = useCallback(() => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0 }
+    if (vibrateRef.current) { clearInterval(vibrateRef.current); vibrateRef.current = null }
+    if (navigator.vibrate) navigator.vibrate(0)
+  }, [])
+
+  // Poll for offers every 10 seconds
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch('/api/driver/offer')
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.offer && data.offer.id !== prevOfferIdRef.current) {
+          prevOfferIdRef.current = data.offer.id
+          setOffer(data.offer)
+          playSound()
+          if ('Notification' in window && Notification.permission === 'granted') {
+            const shopName = data.offer.delivery?.order?.shop?.name || 'New Order'
+            const earnings = (data.offer.delivery?.driver_earnings || 4).toFixed(2)
+            new Notification('New Delivery Offer!', { body: `${shopName} — Earn $${earnings}`, icon: '/logo.png', tag: 'delivery-offer', requireInteraction: true })
+          }
+        } else if (!data.offer) {
+          setOffer(null)
+          stopSound()
+        }
+      } catch {}
+    }
+    check()
+    const i = setInterval(check, 10000)
+    return () => { clearInterval(i); stopSound() }
+  }, [playSound, stopSound])
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
+  }, [])
+
+  const respond = async (action: 'accept' | 'decline') => {
+    if (!offer) return
+    setResponding(true)
+    stopSound()
+    const res = await fetch('/api/driver/offer', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ offer_id: offer.id, action }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.accepted) { router.push('/driver/active'); return }
+    }
+    setOffer(null)
+    setResponding(false)
+  }
+
+  // Skip on /driver page (it has its own offer UI)
+  if (pathname === '/driver') return null
+  if (!offer) return null
+
+  const shopName = offer.delivery?.order?.shop?.name || 'New Order'
+  const earnings = (offer.delivery?.driver_earnings || 4).toFixed(2)
+  const items = offer.delivery?.order?.items?.length || 0
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.6)', zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 20, maxWidth: 400, width: '100%',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden',
+      }}>
+        <div style={{ background: '#FF8C00', padding: '20px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 4 }}>🚗</div>
+          <div style={{ color: '#fff', fontSize: 22, fontWeight: 800 }}>New Delivery!</div>
+        </div>
+        <div style={{ padding: '20px 24px' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{shopName}</div>
+          <div style={{ fontSize: 14, color: '#888', marginBottom: 16 }}>{items} item{items !== 1 ? 's' : ''}</div>
+          <div style={{ background: '#FFF3E0', borderRadius: 10, padding: 16, textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 13, color: '#888' }}>You&apos;ll earn</div>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#FF8C00' }}>${earnings}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => respond('accept')} disabled={responding} style={{
+              flex: 1, padding: 16, borderRadius: 12, background: '#10B981', color: '#fff',
+              fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 18,
+            }}>
+              {responding ? '...' : '✓ Accept'}
+            </button>
+            <button onClick={() => respond('decline')} disabled={responding} style={{
+              padding: '16px 24px', borderRadius: 12, background: '#FEE2E2', color: '#DC2626',
+              fontWeight: 700, border: '1px solid #FCA5A5', cursor: 'pointer', fontSize: 16,
+            }}>
+              Decline
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

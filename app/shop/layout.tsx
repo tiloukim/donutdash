@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 import { ShopLangProvider, useShopLang } from '@/lib/shop-lang-context'
@@ -163,6 +163,189 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
         }
       `}</style>
     </div>
+    <GlobalOrderAlert />
     </>
+  )
+}
+
+// Global new-order popup — works on ANY shop page
+function GlobalOrderAlert() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const [pendingOrders, setPendingOrders] = useState<any[]>([])
+  const [updating, setUpdating] = useState<string | null>(null)
+  const [rejectingId, setRejectingId] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('Out of stock')
+  const knownIdsRef = useRef<Set<string>>(new Set())
+  const firstLoadRef = useRef(true)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const vibrateRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const playSound = useCallback(() => {
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio('/order-alert.wav')
+        audioRef.current.loop = true
+      }
+      audioRef.current.volume = 1.0
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(() => {})
+    } catch {}
+    // Continuous vibration
+    if (navigator.vibrate) {
+      navigator.vibrate([400, 200, 400, 200, 400])
+      vibrateRef.current = setInterval(() => navigator.vibrate([400, 200, 400, 200, 400]), 2000)
+    }
+  }, [])
+
+  const stopSound = useCallback(() => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0 }
+    if (vibrateRef.current) { clearInterval(vibrateRef.current); vibrateRef.current = null }
+    if (navigator.vibrate) navigator.vibrate(0)
+  }, [])
+
+  // Poll for pending orders every 8 seconds
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch('/api/shop/orders?status=pending')
+        if (!res.ok) return
+        const data = await res.json()
+        const pending = data.filter((o: any) => o.status === 'pending')
+
+        if (!firstLoadRef.current) {
+          const newOrders = pending.filter((o: any) => !knownIdsRef.current.has(o.id))
+          if (newOrders.length > 0) {
+            playSound()
+            // Browser notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+              newOrders.forEach((o: any) => {
+                new Notification('New Order!', {
+                  body: `Order #${o.id.slice(0, 8)} — $${o.subtotal?.toFixed(2)}`,
+                  icon: '/logo.png', tag: `order-${o.id}`, requireInteraction: true,
+                })
+              })
+            }
+          }
+        }
+        firstLoadRef.current = false
+        knownIdsRef.current = new Set(pending.map((o: any) => o.id))
+        setPendingOrders(pending)
+
+        // Stop sound if no more pending
+        if (pending.length === 0) stopSound()
+      } catch {}
+    }
+    check()
+    const i = setInterval(check, 8000)
+    return () => { clearInterval(i); stopSound() }
+  }, [playSound, stopSound])
+
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
+  }, [])
+
+  const updateOrder = async (orderId: string, status: string, reason?: string) => {
+    setUpdating(orderId)
+    await fetch('/api/shop/orders', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId, status, ...(reason ? { cancellation_reason: reason } : {}) }),
+    })
+    setPendingOrders(prev => prev.filter(o => o.id !== orderId))
+    setRejectingId(null)
+    setUpdating(null)
+    if (pendingOrders.length <= 1) stopSound()
+    // Refresh orders page if we're on it
+    if (pathname === '/shop/orders') router.refresh()
+  }
+
+  // Skip rendering popup on the orders page itself (it has its own UI)
+  if (pathname === '/shop/orders') return null
+  if (pendingOrders.length === 0) return null
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.6)', zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 20, maxWidth: 440, width: '100%',
+        maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      }}>
+        {/* Header */}
+        <div style={{
+          background: '#FF1493', padding: '20px 24px', borderRadius: '20px 20px 0 0',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 4 }}>🔔</div>
+          <div style={{ color: '#fff', fontSize: 22, fontWeight: 800 }}>
+            {pendingOrders.length === 1 ? 'New Order!' : `${pendingOrders.length} New Orders!`}
+          </div>
+        </div>
+
+        {/* Orders */}
+        <div style={{ padding: '16px 20px' }}>
+          {pendingOrders.map(o => (
+            <div key={o.id} style={{
+              border: '2px solid #FF1493', borderRadius: 12, padding: 16, marginBottom: 12,
+              background: '#FFF0F5',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontWeight: 800, color: '#FF1493', fontSize: 16 }}>#{o.id.slice(0, 8)}</span>
+                <span style={{ fontWeight: 800, fontSize: 18 }}>${o.subtotal?.toFixed(2)}</span>
+              </div>
+              <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
+                {o.customer?.name || 'Customer'} · {(o.items || []).reduce((s: number, i: any) => s + i.quantity, 0)} items
+              </div>
+              <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
+                {(o.items || []).map((i: any) => `${i.quantity}× ${i.name}`).join(', ')}
+              </div>
+
+              {rejectingId === o.id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <select value={rejectReason} onChange={e => setRejectReason(e.target.value)} style={{
+                    padding: 10, borderRadius: 8, border: '1px solid #FCA5A5', fontSize: 14,
+                  }}>
+                    <option value="Out of stock">Out of stock</option>
+                    <option value="Too busy">Too busy</option>
+                    <option value="Shop closing soon">Shop closing soon</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => updateOrder(o.id, 'cancelled', rejectReason)} disabled={updating === o.id} style={{
+                      flex: 1, padding: 12, borderRadius: 10, background: '#DC2626', color: '#fff',
+                      fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 14,
+                    }}>
+                      {updating === o.id ? '...' : 'Confirm Reject'}
+                    </button>
+                    <button onClick={() => setRejectingId(null)} style={{
+                      padding: '12px 16px', borderRadius: 10, background: '#f5f5f5', color: '#555',
+                      fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: 14,
+                    }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => updateOrder(o.id, 'confirmed')} disabled={updating === o.id} style={{
+                    flex: 1, padding: 14, borderRadius: 10, background: '#10B981', color: '#fff',
+                    fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 16,
+                  }}>
+                    {updating === o.id ? '...' : '✓ Accept'}
+                  </button>
+                  <button onClick={() => { setRejectingId(o.id); setRejectReason('Out of stock') }} style={{
+                    padding: '14px 20px', borderRadius: 10, background: '#FEE2E2', color: '#DC2626',
+                    fontWeight: 700, border: '1px solid #FCA5A5', cursor: 'pointer', fontSize: 14,
+                  }}>
+                    ✕ Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
