@@ -86,19 +86,30 @@ export default function ShopOrders() {
     }
   }, [])
 
-  // Try to unlock audio immediately on mount (page was reached via click)
+  // Try to unlock audio immediately on mount (page was reached via click/navigation)
   useEffect(() => {
     enableSound()
+    // Retry a few times in case the first attempt is too early
+    const t1 = setTimeout(enableSound, 500)
+    const t2 = setTimeout(enableSound, 1500)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [enableSound])
 
-  // Also unlock on any user interaction as fallback
+  // Also unlock on ANY user interaction as fallback
   useEffect(() => {
     if (soundEnabled) return
     const handler = () => enableSound()
-    document.addEventListener('click', handler, { once: true })
-    document.addEventListener('touchstart', handler, { once: true })
-    return () => { document.removeEventListener('click', handler); document.removeEventListener('touchstart', handler) }
+    const events = ['click', 'touchstart', 'touchend', 'keydown', 'scroll', 'pointerdown']
+    events.forEach(e => document.addEventListener(e, handler, { once: true, passive: true }))
+    return () => { events.forEach(e => document.removeEventListener(e, handler)) }
   }, [soundEnabled, enableSound])
+
+  // Auto-request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
 
   const playAlert = async () => {
     try {

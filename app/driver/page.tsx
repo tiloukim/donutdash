@@ -48,9 +48,8 @@ export default function DriverDashboard() {
     }
   }, [isOnline])
 
-  // Auto-unlock audio on any interaction (so sound works even if driver didn't tap Go Online fresh)
+  // Auto-unlock audio on page load and any interaction
   useEffect(() => {
-    if (!isOnline) return
     const unlock = async () => {
       const { unlockAudio } = await import('@/lib/alert-sound')
       unlockAudio()
@@ -69,13 +68,22 @@ export default function DriverDashboard() {
         }, 100)
       }).catch(() => {})
     }
-    document.addEventListener('click', unlock, { once: true })
-    document.addEventListener('touchstart', unlock, { once: true })
-    return () => {
-      document.removeEventListener('click', unlock)
-      document.removeEventListener('touchstart', unlock)
+    // Try immediately on mount
+    unlock()
+    const t1 = setTimeout(unlock, 500)
+    const t2 = setTimeout(unlock, 1500)
+    // Also unlock on any user interaction
+    const events = ['click', 'touchstart', 'touchend', 'keydown', 'scroll', 'pointerdown']
+    events.forEach(e => document.addEventListener(e, unlock, { once: true, passive: true }))
+    return () => { clearTimeout(t1); clearTimeout(t2); events.forEach(e => document.removeEventListener(e, unlock)) }
+  }, [])
+
+  // Auto-request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
     }
-  }, [isOnline])
+  }, [])
 
   // Alert when new offer arrives
   useEffect(() => {
