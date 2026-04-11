@@ -259,7 +259,20 @@ export default function ShopOrders() {
       )}
 
       {/* Sound status */}
-      <div onClick={() => {
+      <button type="button" onTouchEnd={(e) => {
+        e.preventDefault()
+        if (soundEnabled) return
+        const audio = new Audio('/order-alert.wav')
+        audio.loop = true
+        audio.volume = 0.3
+        const p = audio.play()
+        if (p) p.then(() => {
+          setTimeout(() => { audio.pause(); audio.currentTime = 0; audio.volume = 1.0 }, 300)
+          alertAudioRef.current = audio
+          setSoundEnabled(true)
+          import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio()).catch(() => {})
+        }).catch(() => {})
+      }} onClick={() => {
         if (soundEnabled) return
         const audio = new Audio('/order-alert.wav')
         audio.loop = true
@@ -272,12 +285,12 @@ export default function ShopOrders() {
           import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio()).catch(() => {})
         }).catch(() => {})
       }} style={{
-        background: soundEnabled ? '#ECFDF5' : '#FFF7ED', border: `1px solid ${soundEnabled ? '#10B981' : '#FF8C00'}`,
-        borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: soundEnabled ? 12 : 14, color: soundEnabled ? '#065F46' : '#9A3412', fontWeight: 600,
-        cursor: soundEnabled ? 'default' : 'pointer', textAlign: 'center',
+        width: '100%', background: soundEnabled ? '#ECFDF5' : '#FFF7ED', border: `2px solid ${soundEnabled ? '#10B981' : '#FF8C00'}`,
+        borderRadius: 10, padding: '14px 16px', marginBottom: 16, fontSize: soundEnabled ? 12 : 16, color: soundEnabled ? '#065F46' : '#9A3412', fontWeight: 700,
+        cursor: soundEnabled ? 'default' : 'pointer', textAlign: 'center', WebkitTapHighlightColor: 'transparent',
       }}>
         {soundEnabled ? '🔔 Sound alerts ON' : '🔕 TAP HERE to enable sound alerts'}
-      </div>
+      </button>
 
       {/* Pending banner */}
       {pendingCount > 0 && (
