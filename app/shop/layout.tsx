@@ -292,16 +292,38 @@ function GlobalOrderAlert() {
               border: '2px solid #FF1493', borderRadius: 12, padding: 16, marginBottom: 12,
               background: '#FFF0F5',
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontWeight: 800, color: '#FF1493', fontSize: 16 }}>#{o.id.slice(0, 8)}</span>
-                <span style={{ fontWeight: 800, fontSize: 18 }}>${o.subtotal?.toFixed(2)}</span>
+              {/* Order header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div>
+                  <span style={{ fontWeight: 800, color: '#FF1493', fontSize: 16 }}>#{o.id.slice(0, 8)}</span>
+                  <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{o.customer?.name || 'Customer'}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 800, fontSize: 20 }}>${o.subtotal?.toFixed(2)}</div>
+                  <div style={{ fontSize: 12, color: '#888' }}>{(o.items || []).reduce((s: number, i: any) => s + i.quantity, 0)} items</div>
+                </div>
               </div>
-              <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
-                {o.customer?.name || 'Customer'} · {(o.items || []).reduce((s: number, i: any) => s + i.quantity, 0)} items
+              {/* Item list */}
+              <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', marginBottom: 12 }}>
+                {(o.items || []).map((item: any, idx: number) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < (o.items || []).length - 1 ? '1px solid #f5f5f5' : 'none' }}>
+                    <div>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{item.quantity} × {item.name}</span>
+                      {item.special_instructions && <div style={{ fontSize: 11, color: '#FF8C00', marginTop: 2 }}>⚠️ {item.special_instructions}</div>}
+                    </div>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: '#333' }}>${(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
               </div>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
-                {(o.items || []).map((i: any) => `${i.quantity}× ${i.name}`).join(', ')}
-              </div>
+              {/* Delivery address */}
+              {o.delivery_address && (
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 12, display: 'flex', gap: 4 }}>
+                  <span>📍</span><span>{o.delivery_address}</span>
+                </div>
+              )}
+              {o.delivery_instructions && (
+                <div style={{ fontSize: 12, color: '#FF8C00', marginBottom: 12 }}>📝 {o.delivery_instructions}</div>
+              )}
 
               {rejectingId === o.id ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
