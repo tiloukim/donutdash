@@ -176,6 +176,8 @@ function GlobalOrderAlert() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('Out of stock')
+  const [adjustingId, setAdjustingId] = useState<string | null>(null)
+  const [adjustedItems, setAdjustedItems] = useState<Record<string, Record<number, number>>>({})
   const knownIdsRef = useRef<Set<string>>(new Set())
   const firstLoadRef = useRef(true)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -246,17 +248,47 @@ function GlobalOrderAlert() {
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
   }, [])
 
+  const getAdjustedQty = (orderId: string, idx: number, originalQty: number) => {
+    return adjustedItems[orderId]?.[idx] ?? originalQty
+  }
+
+  const setItemQty = (orderId: string, idx: number, qty: number) => {
+    setAdjustedItems(prev => ({ ...prev, [orderId]: { ...prev[orderId], [idx]: Math.max(0, qty) } }))
+  }
+
   const updateOrder = async (orderId: string, status: string, reason?: string) => {
     setUpdating(orderId)
+
+    // If accepting with adjustments, update items first
+    if (status === 'confirmed' && adjustedItems[orderId]) {
+      const order = pendingOrders.find(o => o.id === orderId)
+      if (order) {
+        const adj = adjustedItems[orderId]
+        const hasChanges = Object.keys(adj).some(k => adj[parseInt(k)] !== (order.items || [])[parseInt(k)]?.quantity)
+        if (hasChanges) {
+          await fetch('/api/shop/orders/adjust', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order_id: orderId,
+              items: (order.items || []).map((item: any, i: number) => ({
+                id: item.id, quantity: getAdjustedQty(orderId, i, item.quantity),
+              })).filter((item: any) => item.quantity > 0),
+            }),
+          })
+        }
+      }
+    }
+
     await fetch('/api/shop/orders', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order_id: orderId, status, ...(reason ? { cancellation_reason: reason } : {}) }),
     })
     setPendingOrders(prev => prev.filter(o => o.id !== orderId))
     setRejectingId(null)
+    setAdjustingId(null)
+    setAdjustedItems(prev => { const n = { ...prev }; delete n[orderId]; return n })
     setUpdating(null)
     if (pendingOrders.length <= 1) stopSound()
-    // Refresh orders page if we're on it
     if (pathname === '/shop/orders') router.refresh()
   }
 
@@ -304,17 +336,46 @@ function GlobalOrderAlert() {
                 </div>
               </div>
               {/* Item list */}
-              <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', marginBottom: 12 }}>
-                {(o.items || []).map((item: any, idx: number) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < (o.items || []).length - 1 ? '1px solid #f5f5f5' : 'none' }}>
-                    <div>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{item.quantity} × {item.name}</span>
-                      {item.special_instructions && <div style={{ fontSize: 11, color: '#FF8C00', marginTop: 2 }}>⚠️ {item.special_instructions}</div>}
+              <div style={{ background: '#fff', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+                {(o.items || []).map((item: any, idx: number) => {
+                  const qty = getAdjustedQty(o.id, idx, item.quantity)
+                  const removed = qty === 0
+                  return (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: idx < (o.items || []).length - 1 ? '1px solid #f5f5f5' : 'none', opacity: removed ? 0.4 : 1 }}>
+                      {adjustingId === o.id && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                          <button onClick={() => setItemQty(o.id, idx, qty - 1)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #ddd', background: qty === 0 ? '#eee' : '#FEE2E2', color: '#DC2626', fontWeight: 700, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                          <span style={{ width: 24, textAlign: 'center', fontWeight: 700, fontSize: 14 }}>{qty}</span>
+                          <button onClick={() => setItemQty(o.id, idx, qty + 1)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #ddd', background: '#ECFDF5', color: '#065F46', fontWeight: 700, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                        </div>
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontWeight: 600, fontSize: 14, textDecoration: removed ? 'line-through' : 'none' }}>{adjustingId !== o.id ? `${qty} × ` : ''}{item.name}</span>
+                        {item.special_instructions && <div style={{ fontSize: 11, color: '#FF8C00', marginTop: 2 }}>⚠️ {item.special_instructions}</div>}
+                      </div>
+                      <span style={{ fontWeight: 600, fontSize: 14, color: removed ? '#ccc' : '#333', flexShrink: 0 }}>${(item.price * qty).toFixed(2)}</span>
                     </div>
-                    <span style={{ fontWeight: 600, fontSize: 14, color: '#333' }}>${(item.price * item.quantity).toFixed(2)}</span>
+                  )
+                })}
+                {/* Adjusted total */}
+                {adjustingId === o.id && adjustedItems[o.id] && (
+                  <div style={{ borderTop: '2px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 15 }}>
+                    <span>Adjusted Total</span>
+                    <span>${(o.items || []).reduce((s: number, item: any, i: number) => s + item.price * getAdjustedQty(o.id, i, item.quantity), 0).toFixed(2)}</span>
                   </div>
-                ))}
+                )}
               </div>
+              {/* Adjust button */}
+              {adjustingId !== o.id && rejectingId !== o.id && (
+                <button onClick={() => setAdjustingId(o.id)} style={{ fontSize: 12, color: '#FF8C00', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: '4px 0', marginBottom: 8 }}>
+                  ✏️ Adjust items (out of stock?)
+                </button>
+              )}
+              {adjustingId === o.id && (
+                <button onClick={() => { setAdjustingId(null); setAdjustedItems(prev => { const n = { ...prev }; delete n[o.id]; return n }) }} style={{ fontSize: 12, color: '#888', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: '4px 0', marginBottom: 8 }}>
+                  ↩ Reset items
+                </button>
+              )}
               {/* Delivery address */}
               {o.delivery_address && (
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 12, display: 'flex', gap: 4 }}>
