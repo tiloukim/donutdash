@@ -68,36 +68,29 @@ export default function ShopOrders() {
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
   }, [])
 
-  // Sound unlock: must create AND play audio inside the same user gesture on mobile
+  // Sound unlock: must create AND play audio synchronously inside user gesture
   useEffect(() => {
     let unlocked = false
-    const handler = async () => {
+    const handler = () => {
       if (unlocked) return
-      try {
-        // Create fresh audio element inside the gesture
-        const audio = new Audio('/order-alert.wav')
-        audio.loop = true
-        audio.volume = 0.01
-        await audio.play()
+      const audio = new Audio('/order-alert.wav')
+      audio.loop = true
+      audio.volume = 0.01
+      const p = audio.play()
+      if (p) p.then(() => {
         audio.pause()
         audio.currentTime = 0
         audio.volume = 1.0
         alertAudioRef.current = audio
         unlocked = true
         setSoundEnabled(true)
-        // Also unlock Web Audio API
         import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio()).catch(() => {})
-        // Remove all listeners once unlocked
         events.forEach(e => document.removeEventListener(e, handler))
-      } catch {
-        // Still blocked, will try again on next interaction
-      }
+      }).catch(() => {})
     }
     const events = ['click', 'touchstart', 'touchend', 'pointerdown']
     events.forEach(e => document.addEventListener(e, handler, { passive: true }))
-    // Also try immediately (works if navigated here via click)
     handler()
-    // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
@@ -169,18 +162,18 @@ export default function ShopOrders() {
   return (
     <div>
       {/* Sound status */}
-      <div onClick={async () => {
+      <div onClick={() => {
         if (soundEnabled) return
-        try {
-          const audio = new Audio('/order-alert.wav')
-          audio.loop = true
-          audio.volume = 0.3
-          await audio.play()
+        const audio = new Audio('/order-alert.wav')
+        audio.loop = true
+        audio.volume = 0.3
+        const p = audio.play()
+        if (p) p.then(() => {
           setTimeout(() => { audio.pause(); audio.currentTime = 0; audio.volume = 1.0 }, 300)
           alertAudioRef.current = audio
           setSoundEnabled(true)
           import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio()).catch(() => {})
-        } catch {}
+        }).catch(() => {})
       }} style={{
         background: soundEnabled ? '#ECFDF5' : '#FFF7ED', border: `1px solid ${soundEnabled ? '#10B981' : '#FF8C00'}`,
         borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: soundEnabled ? 12 : 14, color: soundEnabled ? '#065F46' : '#9A3412', fontWeight: 600,
