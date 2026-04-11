@@ -54,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => {})
     }
     await supabase.auth.signOut()
+    // Clear cached role cookie
+    document.cookie = 'dd_role=; path=/; max-age=0'
     setUser(null)
     window.location.href = redirectTo || '/'
   }, [supabase, user?.role])
