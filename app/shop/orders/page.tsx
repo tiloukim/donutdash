@@ -69,7 +69,7 @@ export default function ShopOrders() {
   }, [])
 
   const enableSound = useCallback(async () => {
-    if (alertAudioRef.current?.dataset?.unlocked === 'true') return
+    if (soundEnabled) return
     try {
       const { unlockAudio } = await import('@/lib/alert-sound')
       unlockAudio()
@@ -79,28 +79,27 @@ export default function ShopOrders() {
       alertAudioRef.current.pause()
       alertAudioRef.current.currentTime = 0
       alertAudioRef.current.volume = 1.0
-      alertAudioRef.current.dataset.unlocked = 'true'
       setSoundEnabled(true)
     } catch {
-      // Browser blocked autoplay — will retry on next user interaction
+      // Browser blocked — will keep retrying on interactions
     }
-  }, [])
+  }, [soundEnabled])
 
-  // Try to unlock audio immediately on mount (page was reached via click/navigation)
+  // Try to unlock audio on mount
   useEffect(() => {
     enableSound()
-    // Retry a few times in case the first attempt is too early
     const t1 = setTimeout(enableSound, 500)
     const t2 = setTimeout(enableSound, 1500)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [enableSound])
 
-  // Also unlock on ANY user interaction as fallback
+  // Keep retrying on EVERY user interaction until sound is enabled
   useEffect(() => {
     if (soundEnabled) return
-    const handler = () => enableSound()
+    const handler = () => { enableSound() }
     const events = ['click', 'touchstart', 'touchend', 'keydown', 'scroll', 'pointerdown']
-    events.forEach(e => document.addEventListener(e, handler, { once: true, passive: true }))
+    // Do NOT use { once: true } — keep listening until sound works
+    events.forEach(e => document.addEventListener(e, handler, { passive: true }))
     return () => { events.forEach(e => document.removeEventListener(e, handler)) }
   }, [soundEnabled, enableSound])
 
