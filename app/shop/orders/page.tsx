@@ -72,34 +72,18 @@ export default function ShopOrders() {
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
   }, [])
 
-  // Sound unlock: must create AND play audio synchronously inside user gesture
-  useEffect(() => {
-    let unlocked = false
-    const handler = () => {
-      if (unlocked) return
-      const audio = new Audio('/order-alert.wav')
-      audio.loop = true
-      audio.volume = 0.01
-      const p = audio.play()
-      if (p) p.then(() => {
-        audio.pause()
-        audio.currentTime = 0
-        audio.volume = 1.0
-        alertAudioRef.current = audio
-        unlocked = true
-        setSoundEnabled(true)
-        import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio()).catch(() => {})
-        events.forEach(e => document.removeEventListener(e, handler))
-      }).catch(() => {})
-    }
-    const events = ['click', 'touchstart', 'touchend', 'pointerdown']
-    events.forEach(e => document.addEventListener(e, handler, { passive: true }))
-    handler()
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
-    return () => { events.forEach(e => document.removeEventListener(e, handler)) }
-  }, [])
+  const enableSoundNow = () => {
+    if (soundEnabled) return
+    const audio = new Audio('/order-alert.wav')
+    audio.loop = true
+    audio.volume = 0.3
+    audio.play().then(() => {
+      setTimeout(() => { audio.pause(); audio.currentTime = 0; audio.volume = 1.0 }, 200)
+      alertAudioRef.current = audio
+      setSoundEnabled(true)
+      try { const ctx = new AudioContext(); if (ctx.state === 'suspended') ctx.resume() } catch {}
+    }).catch(() => { /* browser blocked, user needs to tap button */ })
+  }
 
   const playAlert = async () => {
     try {
@@ -259,38 +243,23 @@ export default function ShopOrders() {
       )}
 
       {/* Sound status */}
-      <button type="button" onTouchEnd={(e) => {
-        e.preventDefault()
-        if (soundEnabled) return
-        const audio = new Audio('/order-alert.wav')
-        audio.loop = true
-        audio.volume = 0.3
-        const p = audio.play()
-        if (p) p.then(() => {
-          setTimeout(() => { audio.pause(); audio.currentTime = 0; audio.volume = 1.0 }, 300)
-          alertAudioRef.current = audio
-          setSoundEnabled(true)
-          import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio()).catch(() => {})
-        }).catch(() => {})
-      }} onClick={() => {
-        if (soundEnabled) return
-        const audio = new Audio('/order-alert.wav')
-        audio.loop = true
-        audio.volume = 0.3
-        const p = audio.play()
-        if (p) p.then(() => {
-          setTimeout(() => { audio.pause(); audio.currentTime = 0; audio.volume = 1.0 }, 300)
-          alertAudioRef.current = audio
-          setSoundEnabled(true)
-          import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio()).catch(() => {})
-        }).catch(() => {})
-      }} style={{
-        width: '100%', background: soundEnabled ? '#ECFDF5' : '#FFF7ED', border: `2px solid ${soundEnabled ? '#10B981' : '#FF8C00'}`,
-        borderRadius: 10, padding: '14px 16px', marginBottom: 16, fontSize: soundEnabled ? 12 : 16, color: soundEnabled ? '#065F46' : '#9A3412', fontWeight: 700,
-        cursor: soundEnabled ? 'default' : 'pointer', textAlign: 'center', WebkitTapHighlightColor: 'transparent',
-      }}>
-        {soundEnabled ? '🔔 Sound alerts ON' : '🔕 TAP HERE to enable sound alerts'}
-      </button>
+      {!soundEnabled && (
+        <button type="button" onClick={enableSoundNow} style={{
+          width: '100%', background: '#FFF7ED', border: '2px solid #FF8C00',
+          borderRadius: 10, padding: '16px', marginBottom: 16, fontSize: 16, color: '#9A3412', fontWeight: 700,
+          cursor: 'pointer', textAlign: 'center',
+        }}>
+          🔕 TAP HERE to enable sound alerts
+        </button>
+      )}
+      {soundEnabled && (
+        <div style={{
+          background: '#ECFDF5', border: '1px solid #10B981',
+          borderRadius: 10, padding: '8px 16px', marginBottom: 16, fontSize: 12, color: '#065F46', fontWeight: 600, textAlign: 'center',
+        }}>
+          🔔 Sound alerts ON
+        </div>
+      )}
 
       {/* Pending banner */}
       {pendingCount > 0 && (
