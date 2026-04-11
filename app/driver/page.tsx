@@ -51,7 +51,9 @@ export default function DriverDashboard() {
   // Auto-unlock audio on any interaction (so sound works even if driver didn't tap Go Online fresh)
   useEffect(() => {
     if (!isOnline) return
-    const unlock = () => {
+    const unlock = async () => {
+      const { unlockAudio } = await import('@/lib/alert-sound')
+      unlockAudio()
       if (!alertAudioRef.current) {
         alertAudioRef.current = new Audio('/alert.wav')
         alertAudioRef.current.loop = true
@@ -80,23 +82,10 @@ export default function DriverDashboard() {
     if (!offer || offer.id === prevOfferIdRef.current) return
     prevOfferIdRef.current = offer.id
 
-    // Play looping alert sound until driver responds
-    try {
-      if (!alertAudioRef.current) {
-        alertAudioRef.current = new Audio('/alert.wav')
-        alertAudioRef.current.loop = true
-      }
-      alertAudioRef.current.volume = 1.0
-      alertAudioRef.current.currentTime = 0
-      alertAudioRef.current.play().catch(() => {})
-    } catch {
-      // Audio not available
-    }
-
-    // Vibrate if supported
-    if (navigator.vibrate) {
-      navigator.vibrate([200, 100, 200, 100, 200])
-    }
+    // Play loud urgent alert until driver responds
+    import('@/lib/alert-sound').then(({ playUrgentAlertWithBackup }) => {
+      playUrgentAlertWithBackup('/alert.wav')
+    }).catch(() => {})
 
     // Browser notification
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -337,6 +326,7 @@ export default function DriverDashboard() {
     if (!newState) {
       setOffer(null)
       // Stop alert sound if playing
+      import('@/lib/alert-sound').then(({ stopUrgentAlert }) => stopUrgentAlert()).catch(() => {})
       if (alertAudioRef.current) {
         alertAudioRef.current.pause()
         alertAudioRef.current.currentTime = 0
@@ -348,6 +338,7 @@ export default function DriverDashboard() {
     if (!offer) return
     setResponding(true)
     // Stop alert sound
+    import('@/lib/alert-sound').then(({ stopUrgentAlert }) => stopUrgentAlert()).catch(() => {})
     if (alertAudioRef.current) {
       alertAudioRef.current.pause()
       alertAudioRef.current.currentTime = 0

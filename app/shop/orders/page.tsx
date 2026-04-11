@@ -71,6 +71,8 @@ export default function ShopOrders() {
   const enableSound = useCallback(async () => {
     if (alertAudioRef.current?.dataset?.unlocked === 'true') return
     try {
+      const { unlockAudio } = await import('@/lib/alert-sound')
+      unlockAudio()
       if (!alertAudioRef.current) { alertAudioRef.current = new Audio('/order-alert.wav'); alertAudioRef.current.loop = true }
       alertAudioRef.current.volume = 0.01
       await alertAudioRef.current.play()
@@ -98,13 +100,19 @@ export default function ShopOrders() {
     return () => { document.removeEventListener('click', handler); document.removeEventListener('touchstart', handler) }
   }, [soundEnabled, enableSound])
 
-  const playAlert = () => {
+  const playAlert = async () => {
     try {
-      if (!alertAudioRef.current) { alertAudioRef.current = new Audio('/order-alert.wav'); alertAudioRef.current.loop = true }
-      alertAudioRef.current.volume = 1.0; alertAudioRef.current.currentTime = 0; alertAudioRef.current.play().catch(() => {})
+      const { playUrgentAlertWithBackup } = await import('@/lib/alert-sound')
+      playUrgentAlertWithBackup('/order-alert.wav')
     } catch {}
   }
-  const stopAlert = () => { if (alertAudioRef.current) { alertAudioRef.current.pause(); alertAudioRef.current.currentTime = 0 } }
+  const stopAlert = async () => {
+    try {
+      const { stopUrgentAlert } = await import('@/lib/alert-sound')
+      stopUrgentAlert()
+    } catch {}
+    if (alertAudioRef.current) { alertAudioRef.current.pause(); alertAudioRef.current.currentTime = 0 }
+  }
 
   const fetchOrders = useCallback(async () => {
     const url = filter === 'all' ? '/api/shop/orders' : `/api/shop/orders?status=${filter}`
@@ -115,7 +123,6 @@ export default function ShopOrders() {
         const newPending = data.filter((o: any) => o.status === 'pending' && !knownOrderIdsRef.current.has(o.id))
         if (newPending.length > 0) {
           playAlert()
-          if (navigator.vibrate) navigator.vibrate([300, 100, 300])
           if ('Notification' in window && Notification.permission === 'granted') {
             newPending.forEach((o: any) => {
               new Notification('New Order!', { body: `Order #${o.id.slice(0, 8)} - $${o.subtotal?.toFixed(2)}`, icon: '/logo.png', tag: `order-${o.id}`, requireInteraction: true })
