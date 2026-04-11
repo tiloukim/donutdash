@@ -49,8 +49,13 @@ export async function middleware(request: NextRequest) {
   // Refresh the auth token
   const { data: { user: authUser } } = await supabase.auth.getUser()
 
-  // No auth user — let them through (public pages, login, etc.)
-  if (!authUser) return supabaseResponse
+  // No auth user — clear role cookie and let them through
+  if (!authUser) {
+    if (request.cookies.get('dd_role')?.value) {
+      supabaseResponse.cookies.set('dd_role', '', { path: '/', maxAge: 0 })
+    }
+    return supabaseResponse
+  }
 
   const pathname = request.nextUrl.pathname
 
@@ -80,8 +85,8 @@ export async function middleware(request: NextRequest) {
       // Cache role in a cookie so we don't query DB every request
       supabaseResponse.cookies.set('dd_role', role, {
         path: '/',
-        maxAge: 300, // 5 min cache
-        httpOnly: true,
+        maxAge: 60, // 1 min cache
+        httpOnly: false,
         sameSite: 'lax',
       })
     } catch {
@@ -103,7 +108,7 @@ export async function middleware(request: NextRequest) {
       redirect.cookies.set('dd_role', role, {
         path: '/',
         maxAge: 300,
-        httpOnly: true,
+        httpOnly: false,
         sameSite: 'lax',
       })
       return redirect
