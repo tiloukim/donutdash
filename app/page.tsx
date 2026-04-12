@@ -655,85 +655,80 @@ export default function HomePage() {
 
       {/* ===== DESKTOP LAYOUT (hidden on mobile) ===== */}
       <div className="desktop-only" style={{ flex: 1 }}>
-        {/* Banner Image */}
-        <div style={{ width: '100%', background: '#FF1493' }}>
-          <img src="/bannerpost.png" alt="DonutDash" style={{ width: '100%', maxWidth: '1000px', height: 'auto', display: 'block', margin: '0 auto' }} />
-        </div>
-
         {/* Hero Section */}
         <section style={{
           background: `linear-gradient(135deg, ${PINK} 0%, #FF69B4 50%, #FFB6C1 100%)`,
-          marginTop: '-2px',
           padding: '3rem 1.5rem',
-          textAlign: 'center',
           position: 'relative',
           overflow: 'hidden',
         }}>
           <div style={{
-            position: 'absolute', top: '10%', left: '5%', fontSize: '4rem', opacity: 0.15,
-          }}>🍩</div>
-          <div style={{
-            position: 'absolute', bottom: '10%', right: '8%', fontSize: '5rem', opacity: 0.15,
-          }}>🍩</div>
-
-          <div style={{ maxWidth: '700px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-            <h1 style={{
-              fontSize: 'clamp(2rem, 5vw, 3.5rem)',
-              fontWeight: 800,
-              color: 'white',
-              marginBottom: '1rem',
-              lineHeight: 1.15,
-              letterSpacing: '-1px',
-            }}>
-              {user
-                ? <>{getGreeting()}, {user.name.split(' ')[0]}! <span style={{ display: 'block' }}>Ready for donuts?</span></>
-                : <>Delicious Donuts <span style={{ display: 'block' }}>Delivered Fast</span></>
-              }
-            </h1>
-            <p style={{
-              color: 'rgba(255,255,255,0.9)',
-              fontSize: 'clamp(1rem, 2.5vw, 1.2rem)',
-              marginBottom: '2rem',
-              lineHeight: 1.5,
-            }}>
-              Fresh donuts, coffee, and breakfast treats from the best local shops, straight to your door.
-            </p>
-
-            <div style={{
-              display: 'flex',
-              maxWidth: '500px',
-              margin: '0 auto',
-              background: 'white',
-              borderRadius: '12px',
-              overflow: 'hidden',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-            }}>
-              <input
-                type="text"
-                placeholder="Enter your delivery address..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: '1rem 1.25rem',
-                  border: 'none',
-                  outline: 'none',
-                  fontSize: '1rem',
-                  color: '#1A1A2E',
-                }}
-              />
-              <Link href="/shops" style={{
-                background: ORANGE,
+            maxWidth: '1100px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '2rem', flexWrap: 'wrap', position: 'relative', zIndex: 1,
+          }}>
+            {/* Left: Text + Search */}
+            <div style={{ flex: '1 1 400px', textAlign: 'left' }}>
+              <h1 style={{
+                fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                fontWeight: 800,
                 color: 'white',
-                padding: '1rem 1.5rem',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                display: 'flex',
-                alignItems: 'center',
-                whiteSpace: 'nowrap',
+                marginBottom: '1rem',
+                lineHeight: 1.15,
+                letterSpacing: '-1px',
               }}>
-                Find Shops
-              </Link>
+                {user
+                  ? <>{getGreeting()}, {user.name.split(' ')[0]}! <span style={{ display: 'block' }}>Ready for donuts?</span></>
+                  : <>Delicious Donuts <span style={{ display: 'block' }}>Delivered Fast</span></>
+                }
+              </h1>
+              <p style={{
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 'clamp(1rem, 2.5vw, 1.2rem)',
+                marginBottom: '2rem',
+                lineHeight: 1.5,
+              }}>
+                Fresh donuts, coffee, and breakfast treats from the best local shops, straight to your door.
+              </p>
+
+              <div style={{
+                display: 'flex',
+                maxWidth: '500px',
+                background: 'white',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+              }}>
+                <input
+                  type="text"
+                  placeholder="Enter your delivery address..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '1rem 1.25rem',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: '1rem',
+                    color: '#1A1A2E',
+                  }}
+                />
+                <Link href="/shops" style={{
+                  background: ORANGE,
+                  color: 'white',
+                  padding: '1rem 1.5rem',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  whiteSpace: 'nowrap',
+                }}>
+                  Find Shops
+                </Link>
+              </div>
+            </div>
+
+            {/* Right: Banner Image */}
+            <div style={{ flex: '1 1 350px', display: 'flex', justifyContent: 'center' }}>
+              <img src="/bannerpost.png" alt="DonutDash App" style={{ width: '100%', maxWidth: '450px', height: 'auto', display: 'block' }} />
             </div>
           </div>
         </section>
