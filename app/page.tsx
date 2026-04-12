@@ -728,7 +728,13 @@ export default function HomePage() {
 
             {/* Right: Banner Image */}
             <div style={{ flex: '1 1 350px', display: 'flex', justifyContent: 'center' }}>
-              <img src="/bannerpost.png" alt="DonutDash App" style={{ width: '100%', maxWidth: '450px', height: 'auto', display: 'block' }} />
+              <div style={{ width: '100%', maxWidth: '450px', position: 'relative' }}>
+                <img src="/bannerpost.png" alt="DonutDash App" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                {/* Fade edges to blend with background */}
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
+                  background: 'radial-gradient(ellipse at center, transparent 50%, #E94E87 95%)',
+                }} />
+              </div>
             </div>
           </div>
         </section>
