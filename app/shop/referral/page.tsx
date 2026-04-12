@@ -128,7 +128,8 @@ export default function ShopReferralPage() {
               padding: '12px 0', borderBottom: '1px solid #f5f5f5',
             }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{r.orders_completed}/{r.orders_required} orders</div>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>{(r.referee_shop as any)?.name || 'New Shop'}</div>
+                <div style={{ fontSize: 13, color: '#555' }}>{r.orders_completed}/{r.orders_required} orders</div>
                 <div style={{ fontSize: 12, color: '#888' }}>Referred {new Date(r.created_at).toLocaleDateString()}</div>
               </div>
               <span style={{

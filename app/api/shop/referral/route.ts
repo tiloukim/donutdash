@@ -26,9 +26,9 @@ export async function GET() {
     await svc.from('dd_shops').update({ referral_code: referralCode }).eq('id', shop.id)
   }
 
-  // Get referral stats
+  // Get referral stats with referred shop name
   const { data: referrals } = await svc.from('dd_shop_referrals')
-    .select('id, status, orders_completed, orders_required, referee_shop_id, created_at, completed_at')
+    .select('id, status, orders_completed, orders_required, referee_shop_id, created_at, completed_at, referee_shop:dd_shops!referee_shop_id(name)')
     .eq('referrer_shop_id', shop.id)
     .order('created_at', { ascending: false })
 
