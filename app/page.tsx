@@ -663,7 +663,8 @@ export default function HomePage() {
         {/* Hero Section */}
         <section style={{
           background: `linear-gradient(135deg, ${PINK} 0%, #FF69B4 50%, #FFB6C1 100%)`,
-          padding: '5rem 1.5rem',
+          marginTop: '-2px',
+          padding: '3rem 1.5rem',
           textAlign: 'center',
           position: 'relative',
           overflow: 'hidden',
