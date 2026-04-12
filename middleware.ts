@@ -13,13 +13,16 @@ const ROLE_HOME: Record<string, string> = {
 // Pages that should redirect logged-in role users to their dashboard
 const REDIRECT_PATHS = ['/', '/login', '/signup']
 
+// Pages accessible by ALL roles (auth callback, onboarding, legal)
+const ALWAYS_ALLOWED = ['/auth', '/api', '/privacy', '/terms', '/sms-consent', '/partner-setup', '/contractor-agreement']
+
 // Pages each role is allowed to access (prefix match)
 const ROLE_ALLOWED: Record<string, string[]> = {
-  driver: ['/driver', '/api', '/privacy', '/terms', '/sms-consent', '/contractor-agreement'],
-  shop_owner: ['/shop', '/api', '/privacy', '/terms', '/sms-consent', '/partner-setup'],
-  admin: ['/admin', '/api', '/privacy', '/terms', '/sms-consent', '/shop', '/driver'],
-  manager: ['/admin', '/api', '/privacy', '/terms', '/sms-consent'],
-  customer: ['/', '/shops', '/cart', '/orders', '/checkout', '/api', '/privacy', '/terms', '/sms-consent', '/gift-cards', '/rewards', '/about', '/signup', '/login', '/catering', '/group-order', '/card', '/pass', '/best-donuts', '/donut-delivery'],
+  driver: ['/driver', ...ALWAYS_ALLOWED],
+  shop_owner: ['/shop', ...ALWAYS_ALLOWED],
+  admin: ['/admin', '/shop', '/driver', ...ALWAYS_ALLOWED],
+  manager: ['/admin', ...ALWAYS_ALLOWED],
+  customer: ['/', '/shops', '/cart', '/orders', '/checkout', '/gift-cards', '/rewards', '/about', '/signup', '/login', '/catering', '/group-order', '/card', '/pass', '/best-donuts', '/donut-delivery', ...ALWAYS_ALLOWED],
 }
 
 export async function middleware(request: NextRequest) {
