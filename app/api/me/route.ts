@@ -39,6 +39,19 @@ export async function GET() {
         .single()
 
       if (insertError) {
+        // Email might already exist with a different auth_id (e.g. re-signup)
+        // Try to link the existing row to this auth user
+        const { data: linked, error: linkError } = await svc
+          .from('dd_users')
+          .update({ auth_id: authUser.id })
+          .eq('email', authUser.email!)
+          .select()
+          .single()
+
+        if (!linkError && linked) {
+          return NextResponse.json({ user: linked })
+        }
+
         console.error('Failed to create dd_user:', insertError)
         return NextResponse.json({ user: null }, { status: 500 })
       }
