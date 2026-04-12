@@ -657,7 +657,7 @@ export default function HomePage() {
       <div className="desktop-only" style={{ flex: 1 }}>
         {/* Hero Section */}
         <section style={{
-          background: `linear-gradient(135deg, ${PINK} 0%, #FF69B4 50%, #FFB6C1 100%)`,
+          background: '#FF1493',
           padding: '3rem 1.5rem',
           position: 'relative',
           overflow: 'hidden',
