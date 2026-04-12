@@ -656,8 +656,8 @@ export default function HomePage() {
       {/* ===== DESKTOP LAYOUT (hidden on mobile) ===== */}
       <div className="desktop-only" style={{ flex: 1 }}>
         {/* Banner Image */}
-        <div style={{ width: '100%', maxHeight: '320px', overflow: 'hidden' }}>
-          <img src="/bannerpost.png" alt="DonutDash" style={{ width: '100%', display: 'block', objectFit: 'cover', objectPosition: 'center top', maxHeight: '320px' }} />
+        <div style={{ width: '100%', maxWidth: '900px', margin: '0 auto', padding: '0 16px' }}>
+          <img src="/bannerpost.png" alt="DonutDash" style={{ width: '100%', height: 'auto', display: 'block' }} />
         </div>
 
         {/* Hero Section */}
