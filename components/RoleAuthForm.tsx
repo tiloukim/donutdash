@@ -80,6 +80,7 @@ export default function RoleAuthForm({
               role,
             },
             captchaToken,
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         })
         if (signUpError) {
