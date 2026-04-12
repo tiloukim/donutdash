@@ -6,10 +6,11 @@ import { useRealtime } from '@/lib/use-realtime'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
-const FILTERS = ['all', 'pending', 'confirmed', 'preparing', 'ready_for_pickup', 'delivered', 'cancelled']
+const FILTERS = ['all', 'pending', 'adjusted', 'confirmed', 'preparing', 'ready_for_pickup', 'delivered', 'cancelled']
 const TRACKABLE_STATUSES = ['confirmed', 'preparing', 'ready_for_pickup']
 
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
+  adjusted: { bg: '#FEF3C7', color: '#DC2626' },
   pending: { bg: '#FEF3C7', color: '#92400E' },
   confirmed: { bg: '#DBEAFE', color: '#1E40AF' },
   preparing: { bg: '#E0E7FF', color: '#3730A3' },

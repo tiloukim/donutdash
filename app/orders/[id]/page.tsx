@@ -8,6 +8,7 @@ import ChatBox from '@/components/ChatBox'
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: string }> = {
+  adjusted: { label: 'Order Adjusted — Please Confirm', color: '#DC2626', icon: '⚠️' },
   pending: { label: 'Order Received', color: '#F59E0B', icon: '📋' },
   confirmed: { label: 'Confirmed', color: '#3B82F6', icon: '✓' },
   preparing: { label: 'Preparing', color: '#8B5CF6', icon: '👨‍🍳' },
@@ -19,6 +20,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: string
 }
 
 const STATUS_MESSAGES: Record<string, string> = {
+  adjusted: 'The shop adjusted some items. Please review and confirm.',
   confirmed: 'The shop has confirmed your order!',
   preparing: 'Your order is being prepared!',
   ready_for_pickup: 'Your order is ready for pickup!',
@@ -395,6 +397,55 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           </div>
         ) : null}
       </div>
+
+      {/* Adjusted Order — Confirm or Cancel */}
+      {order.status === 'adjusted' && (
+        <div style={{
+          background: '#FEF3C7', borderRadius: 12, padding: 20,
+          border: '2px solid #F59E0B', marginBottom: 20,
+        }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#92400E', marginBottom: 8 }}>
+            The shop adjusted your order
+          </h3>
+          <p style={{ fontSize: 14, color: '#92400E', lineHeight: 1.5, marginBottom: 16 }}>
+            Some items were out of stock or changed. Please review the updated items below and confirm to proceed, or cancel for a full refund.
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={async () => {
+                await fetch(`/api/orders/${order.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'confirmed' }),
+                })
+                window.location.reload()
+              }}
+              style={{
+                flex: 1, padding: '14px', borderRadius: 10, background: '#10B981', color: '#fff',
+                fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 16,
+              }}
+            >
+              ✓ Confirm Adjusted Order
+            </button>
+            <button
+              onClick={async () => {
+                await fetch(`/api/orders/${order.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'cancelled', cancellation_reason: 'Customer declined adjusted order' }),
+                })
+                window.location.reload()
+              }}
+              style={{
+                padding: '14px 20px', borderRadius: 10, background: '#FEE2E2', color: '#DC2626',
+                fontWeight: 700, border: '1px solid #FCA5A5', cursor: 'pointer', fontSize: 14,
+              }}
+            >
+              Cancel Order
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Cancel Order */}
       {(order.status === 'pending' || order.status === 'confirmed') && (

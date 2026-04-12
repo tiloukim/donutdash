@@ -65,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (currentOrder.customer_id !== ddUser.id && ddUser.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    const cancellableStatuses = ['pending', 'confirmed']
+    const cancellableStatuses = ['pending', 'confirmed', 'adjusted']
     if (!cancellableStatuses.includes(currentOrder.status)) {
       return NextResponse.json(
         { error: 'Order cannot be cancelled. It is already being prepared or further along.' },
@@ -93,9 +93,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ order: cancelled, cancelled: true })
   }
 
-  // Only admin or shop owner can update order status
   if (!currentOrder) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
+  // Customer can confirm or cancel an adjusted order
+  if (currentOrder.status === 'adjusted' && currentOrder.customer_id === ddUser.id) {
+    if (body.status === 'confirmed' || body.status === 'cancelled') {
+      const { data: updated, error: updateErr } = await svc
+        .from('dd_orders')
+        .update({
+          status: body.status,
+          ...(body.cancellation_reason ? { cancellation_reason: body.cancellation_reason } : {}),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+      if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+      if (body.status === 'cancelled') {
+        await svc.from('dd_deliveries').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('order_id', id)
+      }
+      return NextResponse.json({ order: updated })
+    }
+  }
+
+  // Only admin or shop owner can update order status
   if (ddUser.role !== 'admin') {
     // Check if user is the shop owner
     const { data: shop } = await svc.from('dd_shops').select('owner_id').eq('id', currentOrder.shop_id).single()
