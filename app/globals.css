@@ -46,8 +46,9 @@ img {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: #FF1493;
-  border-bottom: none;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #f0f0f0;
   overflow: visible;
 }
 
@@ -69,15 +70,14 @@ img {
 }
 
 .nav-link {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.95rem;
-  color: #fff;
-  transition: opacity 0.2s;
+  color: var(--dd-dark);
+  transition: color 0.2s;
 }
 
 .nav-link:hover {
-  opacity: 0.8;
-  color: #fff;
+  color: var(--dd-pink);
 }
 
 .mobile-menu-btn {

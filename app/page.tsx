@@ -657,7 +657,7 @@ export default function HomePage() {
       <div className="desktop-only" style={{ flex: 1 }}>
         {/* Hero Section */}
         <section style={{
-          background: '#FF1493',
+          background: '#F9528C',
           padding: '3rem 1.5rem',
           position: 'relative',
           overflow: 'hidden',
