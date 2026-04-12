@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
+import { SquareClient, SquareEnvironment } from 'square'
+
+function getSquareClient() {
+  return new SquareClient({
+    token: process.env.SQUARE_ACCESS_TOKEN!,
+    environment: process.env.SQUARE_ENVIRONMENT === 'production'
+      ? SquareEnvironment.Production
+      : SquareEnvironment.Sandbox,
+  })
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -54,7 +64,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Get current order to check status
   const { data: currentOrder } = await svc
     .from('dd_orders')
-    .select('status, shop_id, customer_id')
+    .select('status, shop_id, customer_id, total, original_total, payment_id')
     .eq('id', id)
     .single()
 
@@ -109,9 +119,70 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         .select()
         .single()
       if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+      // Issue partial refund for the price difference
+      if (body.status === 'confirmed' && currentOrder.original_total && currentOrder.total < currentOrder.original_total) {
+        const refundAmount = Math.round((currentOrder.original_total - currentOrder.total) * 100) // cents
+        try {
+          const square = getSquareClient()
+          // Find the Square payment for this order
+          const { data: payments } = await square.payments.list({
+            locationId: process.env.SQUARE_LOCATION_ID!,
+            sortOrder: 'DESC',
+            limit: 50,
+          })
+          // Match payment by amount (original total) and note containing order ID
+          const orderShort = id.slice(0, 8)
+          const payment = (payments || []).find((p: any) =>
+            p.note?.includes(orderShort) || p.orderId?.includes(id)
+          )
+          if (payment?.id) {
+            await square.refunds.refundPayment({
+              idempotencyKey: `refund-adjust-${id}`,
+              paymentId: payment.id,
+              amountMoney: { amount: BigInt(refundAmount), currency: 'USD' },
+              reason: 'Order adjusted — item(s) out of stock',
+            })
+            // Save refund info
+            await svc.from('dd_orders').update({
+              refund_amount: currentOrder.original_total - currentOrder.total,
+            }).eq('id', id)
+          }
+        } catch (refundErr) {
+          console.error('Partial refund failed:', refundErr)
+          // Don't block the confirmation — refund can be done manually
+        }
+      }
+
+      // Full refund if cancelled
       if (body.status === 'cancelled') {
         await svc.from('dd_deliveries').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('order_id', id)
+        // Attempt full refund
+        try {
+          const square = getSquareClient()
+          const { data: payments } = await square.payments.list({
+            locationId: process.env.SQUARE_LOCATION_ID!,
+            sortOrder: 'DESC',
+            limit: 50,
+          })
+          const orderShort = id.slice(0, 8)
+          const payment = (payments || []).find((p: any) =>
+            p.note?.includes(orderShort) || p.orderId?.includes(id)
+          )
+          if (payment?.id) {
+            const refundTotal = Math.round((currentOrder.original_total || currentOrder.total) * 100)
+            await square.refunds.refundPayment({
+              idempotencyKey: `refund-cancel-${id}`,
+              paymentId: payment.id,
+              amountMoney: { amount: BigInt(refundTotal), currency: 'USD' },
+              reason: 'Customer declined adjusted order',
+            })
+          }
+        } catch (refundErr) {
+          console.error('Full refund failed:', refundErr)
+        }
       }
+
       return NextResponse.json({ order: updated })
     }
   }

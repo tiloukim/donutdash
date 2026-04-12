@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   // Verify order belongs to this shop owner
   const { data: order } = await svc.from('dd_orders')
-    .select('id, shop_id, status, subtotal, customer_id, shop:dd_shops!inner(owner_id, name)')
+    .select('id, shop_id, status, subtotal, total, customer_id, shop:dd_shops!inner(owner_id, name)')
     .eq('id', order_id)
     .single()
 
@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
       tax: newTax,
       service_fee: newServiceFee,
       total: newTotal,
+      original_total: order.total, // Save original for refund calculation
       status: 'adjusted',
     }).eq('id', order_id)
   }
