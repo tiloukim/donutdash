@@ -4,19 +4,44 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!user) {
+    // Fallback: try to get user from session
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  }
+
+  const authUser = user || (await supabase.auth.getSession()).data.session?.user
+  if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const svc = createServiceClient()
-  const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-  if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', authUser.id).single()
+  if (!ddUser) {
+    // Auto-create dd_user from auth metadata
+    const meta = authUser.user_metadata || {}
+    const { data: newUser, error: insertErr } = await svc.from('dd_users')
+      .insert({ auth_id: authUser.id, email: authUser.email!, name: meta.name || authUser.email!.split('@')[0], phone: meta.phone || null, role: meta.role || 'customer' })
+      .select().single()
+    if (insertErr) {
+      // Try linking existing email
+      const { data: linked } = await svc.from('dd_users').update({ auth_id: authUser.id }).eq('email', authUser.email!).select().single()
+      if (!linked) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+  }
+
+  const { data: finalUser } = await svc.from('dd_users').select('*').eq('auth_id', authUser.id).single()
+  if (!finalUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  const ddUser2 = finalUser
 
   // Only shop_owner or admin can create shops
-  if (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin') {
+  if (ddUser2.role !== 'shop_owner' && ddUser2.role !== 'admin') {
     return NextResponse.json({ error: 'Only shop owners can create shops' }, { status: 403 })
   }
 
   // Check if user already has a shop
-  const { data: existingShop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+  const { data: existingShop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser2.id).single()
   if (existingShop) {
     return NextResponse.json({ error: 'You already have a shop' }, { status: 400 })
   }
@@ -53,7 +78,7 @@ export async function POST(req: Request) {
   const finalSlug = slugExists ? `${slug}-${Date.now().toString(36)}` : slug
 
   const { data: shop, error } = await svc.from('dd_shops').insert({
-    owner_id: ddUser.id,
+    owner_id: ddUser2.id,
     name,
     slug: finalSlug,
     description: description || null,
