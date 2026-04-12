@@ -33,16 +33,26 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, loading, role, signOut } = useAuth()
   const { lang, setLang, t } = useShopLang()
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [shopName, setShopName] = useState<string>('')
+  const [hasShop, setHasShop] = useState(true)
 
   useEffect(() => {
     if (!user || (role !== 'shop_owner' && role !== 'admin')) return
     fetch('/api/shop/settings')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.name) setShopName(data.name) })
+      .then(r => {
+        if (r.status === 404 || !r.ok) {
+          // No shop found — redirect to partner setup
+          setHasShop(false)
+          router.push('/partner-setup')
+          return null
+        }
+        return r.json()
+      })
+      .then(data => { if (data?.name) { setShopName(data.name); setHasShop(true) } })
       .catch(() => {})
-  }, [user, role])
+  }, [user, role, router])
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: 18 }}>Loading...</div>
 

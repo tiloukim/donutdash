@@ -4,23 +4,25 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 async function getShop() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user) return { error: 'unauthorized' as const }
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-  if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) return null
+  if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) return { error: 'unauthorized' as const }
   const { data: shop } = await svc.from('dd_shops').select('*').eq('owner_id', ddUser.id).single()
-  return shop ? { shop, svc } : null
+  if (!shop) return { error: 'no_shop' as const, svc }
+  return { shop, svc }
 }
 
 export async function GET() {
   const ctx = await getShop()
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if ('error' in ctx && ctx.error === 'unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if ('error' in ctx && ctx.error === 'no_shop') return NextResponse.json({ error: 'No shop found' }, { status: 404 })
   return NextResponse.json(ctx.shop)
 }
 
 export async function PUT(req: Request) {
   const ctx = await getShop()
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.error === 'no_shop' ? 404 : 401 })
 
   const body = await req.json()
   const allowed = ['name', 'description', 'address', 'city', 'state', 'zip', 'country', 'phone', 'delivery_fee', 'min_order', 'service_fee_pct', 'image_url', 'banner_url', 'lat', 'lng']
