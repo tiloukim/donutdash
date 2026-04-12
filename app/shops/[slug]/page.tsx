@@ -136,12 +136,14 @@ export default function ShopDetailPage() {
       {/* Shop Banner */}
       <div style={{
         width: '100%',
-        height: '280px',
+        height: 'clamp(200px, 25vw, 350px)',
         background: shop.banner_url
           ? `url(${shop.banner_url}) center/cover no-repeat`
           : 'linear-gradient(135deg, #FF1493 0%, #FF69B4 50%, #FFB6C1 100%)',
         display: 'flex',
         alignItems: 'flex-end',
+        position: 'relative',
+        overflow: 'hidden',
       }}>
         <div style={{
           width: '100%',
