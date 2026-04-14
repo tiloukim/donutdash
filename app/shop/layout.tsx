@@ -24,6 +24,7 @@ const NAV_ITEMS: { href: string; labelKey: TranslationKey; icon: string }[] = [
 const BOTTOM_NAV: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: '/shop/bookkeeping', labelKey: 'nav.bookkeeping', icon: '📒' },
   { href: '/shop/tax-forms', labelKey: 'nav.taxForms', icon: '📋' },
+  { href: '/shop/supplies', labelKey: 'nav.supplies', icon: '📦' },
 ]
 
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
