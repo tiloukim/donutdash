@@ -18,6 +18,16 @@ export default function ShopSettings() {
   const [referralCopied, setReferralCopied] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
+
+  // Banner crop state
+  const [cropImage, setCropImage] = useState<string | null>(null)
+  const [cropPos, setCropPos] = useState({ y: 0 })
+  const [imgNatural, setImgNatural] = useState({ w: 0, h: 0 })
+  const [dragging, setDragging] = useState(false)
+  const [dragStartY, setDragStartY] = useState(0)
+  const [dragStartPos, setDragStartPos] = useState(0)
+  const cropContainerRef = useRef<HTMLDivElement>(null)
+  const cropImgRef = useRef<HTMLImageElement>(null)
   useEffect(() => {
     fetch('/api/shop/settings').then(r => r.json()).then(setShop).finally(() => setLoading(false))
     fetch('/api/user/bank-info').then(r => r.json()).then(d => {
@@ -80,6 +90,86 @@ export default function ShopSettings() {
     } finally {
       setUploading(false)
     }
+  }
+
+  const startBannerCrop = (file: File) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      setImgNatural({ w: img.naturalWidth, h: img.naturalHeight })
+      setCropPos({ y: 0 })
+      setCropImage(url)
+    }
+    img.src = url
+  }
+
+  const handleCropMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault()
+    setDragging(true)
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    setDragStartY(clientY)
+    setDragStartPos(cropPos.y)
+  }
+
+  const handleCropMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!dragging || !cropContainerRef.current) return
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    const containerH = cropContainerRef.current.offsetHeight
+    // The image is scaled to fill width; calculate displayed height
+    const displayedW = cropContainerRef.current.offsetWidth
+    const scale = displayedW / imgNatural.w
+    const displayedH = imgNatural.h * scale
+    const maxOffset = Math.max(0, displayedH - containerH)
+    const delta = clientY - dragStartY
+    const newY = Math.max(-maxOffset, Math.min(0, dragStartPos + delta))
+    setCropPos({ y: newY })
+  }
+
+  const handleCropMouseUp = () => setDragging(false)
+
+  const applyCrop = async () => {
+    if (!cropImage || !cropContainerRef.current) return
+    setUploadingBanner(true)
+
+    const containerW = cropContainerRef.current.offsetWidth
+    const containerH = cropContainerRef.current.offsetHeight
+    const scale = containerW / imgNatural.w
+    const displayedH = imgNatural.h * scale
+
+    // Calculate source rect in natural coords
+    const srcY = Math.abs(cropPos.y) / scale
+    const srcH = containerH / scale
+    const srcW = imgNatural.w
+
+    const canvas = document.createElement('canvas')
+    // Output at reasonable resolution: 1200px wide, proportional height
+    const outW = Math.min(1200, srcW)
+    const outScale = outW / srcW
+    canvas.width = outW
+    canvas.height = Math.round(srcH * outScale)
+    const ctx = canvas.getContext('2d')!
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.src = cropImage
+
+    await new Promise<void>(resolve => {
+      img.onload = () => {
+        ctx.drawImage(img, 0, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height)
+        resolve()
+      }
+      if (img.complete) {
+        ctx.drawImage(img, 0, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height)
+        resolve()
+      }
+    })
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) { setUploadingBanner(false); return }
+      const file = new File([blob], 'banner-cropped.jpg', { type: 'image/jpeg' })
+      await uploadImage(file, 'banner')
+      setCropImage(null)
+      setUploadingBanner(false)
+    }, 'image/jpeg', 0.9)
   }
 
   if (loading || !shop) return <div>Loading settings...</div>
@@ -227,7 +317,7 @@ export default function ShopSettings() {
               cursor: uploadingBanner ? 'wait' : 'pointer', color: '#FF1493', fontSize: 13, fontWeight: 600,
               opacity: uploadingBanner ? 0.6 : 1,
             }}>
-              {uploadingBanner ? '⏳ Uploading...' : '🖼️ Upload Banner'}
+              {uploadingBanner ? '⏳ Uploading...' : '🖼️ Upload & Crop Banner'}
               <input
                 ref={bannerInputRef}
                 type="file"
@@ -235,11 +325,12 @@ export default function ShopSettings() {
                 style={{ display: 'none' }}
                 onChange={e => {
                   const f = e.target.files?.[0]
-                  if (f) uploadImage(f, 'banner')
+                  if (f) startBannerCrop(f)
                   if (bannerInputRef.current) bannerInputRef.current.value = ''
                 }}
               />
             </label>
+            <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>Recommended: wide landscape photo (16:5 ratio)</div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 20 }}>
@@ -378,6 +469,61 @@ export default function ShopSettings() {
                 borderRadius: 8,
                 transition: 'width 0.3s',
               }} />
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Banner Crop Modal */}
+      {cropImage && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, maxWidth: 600, width: '100%', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>Crop Banner Image</div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Drag image up/down to adjust position</div>
+              </div>
+              <button onClick={() => setCropImage(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888' }}>✕</button>
+            </div>
+
+            {/* Crop area — fixed aspect ratio container */}
+            <div
+              ref={cropContainerRef}
+              style={{
+                position: 'relative', width: '100%', aspectRatio: '16/5', overflow: 'hidden',
+                cursor: dragging ? 'grabbing' : 'grab', background: '#000', userSelect: 'none',
+              }}
+              onMouseDown={handleCropMouseDown}
+              onMouseMove={handleCropMouseMove}
+              onMouseUp={handleCropMouseUp}
+              onMouseLeave={handleCropMouseUp}
+              onTouchStart={handleCropMouseDown}
+              onTouchMove={handleCropMouseMove}
+              onTouchEnd={handleCropMouseUp}
+            >
+              <img
+                ref={cropImgRef}
+                src={cropImage}
+                alt="Crop preview"
+                draggable={false}
+                style={{
+                  width: '100%', position: 'absolute', left: 0, top: cropPos.y,
+                  pointerEvents: 'none',
+                }}
+              />
+              {/* Guide overlay */}
+              <div style={{ position: 'absolute', inset: 0, border: '2px solid rgba(255,20,147,0.5)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 11, padding: '4px 12px', borderRadius: 20, pointerEvents: 'none' }}>
+                ↕ Drag to reposition
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 20px', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setCropImage(null)} style={{ padding: '10px 20px', borderRadius: 8, background: '#f5f5f5', color: '#666', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: 14 }}>
+                Cancel
+              </button>
+              <button onClick={applyCrop} disabled={uploadingBanner} style={{ padding: '10px 24px', borderRadius: 8, background: '#FF1493', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 14, opacity: uploadingBanner ? 0.5 : 1 }}>
+                {uploadingBanner ? '⏳ Uploading...' : '✓ Apply & Upload'}
+              </button>
             </div>
           </div>
         </div>
