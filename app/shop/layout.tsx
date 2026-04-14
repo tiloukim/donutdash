@@ -82,68 +82,68 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
 
   const sidebar = (
     <>
-      <div style={{ padding: '24px 20px 16px' }}>
-        <img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} />
-        <div style={{ marginTop: 6 }}>
-          <span style={{ background: '#fff', color: '#FF1493', fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 4, display: 'inline-block' }}>
+      <div style={{ padding: '16px 14px 10px' }}>
+        <img src="/logo.png" alt="DonutDash" style={{ height: 32, width: 'auto', filter: 'brightness(10)' }} />
+        <div style={{ marginTop: 4 }}>
+          <span style={{ background: '#fff', color: '#FF1493', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>
             {shopName || 'SHOP'}
           </span>
         </div>
       </div>
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>
+      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1, padding: '0 6px', overflowY: 'auto', overflowX: 'hidden' }}>
         {NAV_ITEMS.map(item => (
           <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8,
-            textDecoration: 'none', fontSize: 14, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 6,
+            textDecoration: 'none', fontSize: 13, fontWeight: 600,
             color: pathname === item.href ? '#FF1493' : '#fff',
             background: pathname === item.href ? '#fff' : 'transparent',
           }}>
-            <span>{item.icon}</span> {t(item.labelKey)}
+            <span style={{ fontSize: 14 }}>{item.icon}</span> {t(item.labelKey)}
           </Link>
         ))}
         {/* Finance section */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', margin: '8px 0 4px', paddingTop: 8 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', padding: '0 12px 4px', textTransform: 'uppercase', letterSpacing: 1 }}>Finance</div>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', margin: '6px 0 2px', paddingTop: 6 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.5)', padding: '0 10px 2px', textTransform: 'uppercase', letterSpacing: 1 }}>Finance</div>
           {FINANCE_NAV.map(item => (
             <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8,
-              textDecoration: 'none', fontSize: 14, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 6,
+              textDecoration: 'none', fontSize: 13, fontWeight: 600,
               color: pathname === item.href ? '#FF1493' : '#fff',
               background: pathname === item.href ? '#fff' : 'transparent',
             }}>
-              <span>{item.icon}</span> {t(item.labelKey)}
+              <span style={{ fontSize: 14 }}>{item.icon}</span> {t(item.labelKey)}
             </Link>
           ))}
         </div>
         {/* Supplies section */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', margin: '8px 0 4px', paddingTop: 8 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', padding: '0 12px 4px', textTransform: 'uppercase', letterSpacing: 1 }}>Ordering</div>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', margin: '6px 0 2px', paddingTop: 6 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.5)', padding: '0 10px 2px', textTransform: 'uppercase', letterSpacing: 1 }}>Ordering</div>
           {SUPPLY_NAV.map(item => (
             <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8,
-              textDecoration: 'none', fontSize: 14, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 6,
+              textDecoration: 'none', fontSize: 13, fontWeight: 600,
               color: pathname === item.href ? '#FF1493' : '#fff',
               background: pathname === item.href ? '#fff' : 'transparent',
             }}>
-              <span>{item.icon}</span> {t(item.labelKey)}
+              <span style={{ fontSize: 14 }}>{item.icon}</span> {t(item.labelKey)}
             </Link>
           ))}
         </div>
       </nav>
-      <div style={{ padding: '16px 8px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+      <div style={{ padding: '10px 6px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
         <button
           onClick={() => setLang(lang === 'en' ? 'km' : 'en')}
           style={{
-            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-            padding: '8px 12px', color: '#fff', background: 'rgba(255,255,255,0.15)',
-            border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-            marginBottom: 6,
+            display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+            padding: '6px 10px', color: '#fff', background: 'rgba(255,255,255,0.15)',
+            border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            marginBottom: 4,
           }}
         >
           🌐 {lang === 'en' ? 'ភាសាខ្មែរ' : 'English'}
         </button>
-        <div style={{ padding: '8px 12px', color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>{user.name}</div>
-        <button onClick={() => signOut('/shop')} style={{ display: 'block', width: '100%', padding: '8px 12px', color: '#FFB6C1', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>{t('nav.signOut')}</button>
+        <div style={{ padding: '4px 10px', color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>{user.name}</div>
+        <button onClick={() => signOut('/shop')} style={{ display: 'block', width: '100%', padding: '4px 10px', color: '#FFB6C1', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>{t('nav.signOut')}</button>
       </div>
     </>
   )
