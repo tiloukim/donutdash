@@ -1,24 +1,23 @@
 /**
- * Send SMS via Twilio
+ * Send SMS via Telnyx
  */
 export async function sendSMS(to: string, body: string) {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken = process.env.TWILIO_AUTH_TOKEN
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER
+  const apiKey = process.env.TELNYX_API_KEY
+  const fromNumber = process.env.TELNYX_PHONE_NUMBER
 
-  if (!accountSid || !authToken || !fromNumber) {
-    console.warn('Twilio not configured, skipping SMS')
+  if (!apiKey || !fromNumber) {
+    console.warn('Telnyx not configured, skipping SMS')
     return false
   }
 
   try {
-    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    const res = await fetch('https://api.telnyx.com/v2/messages', {
       method: 'POST',
       headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-      body: new URLSearchParams({ To: to, From: fromNumber, Body: body }),
+      body: JSON.stringify({ from: fromNumber, to, text: body }),
     })
     return res.ok
   } catch (err) {
