@@ -13,6 +13,7 @@ const translations = {
   'nav.support': { en: 'Support', km: 'ជំនួយ' },
   'nav.issues': { en: 'Issues', km: 'បញ្ហា' },
   'nav.documents': { en: 'Documents', km: 'ឯកសារ' },
+  'nav.bookkeeping': { en: 'Bookkeeping', km: 'គណនេយ្យ' },
   'nav.settings': { en: 'Settings', km: 'ការកំណត់' },
   'nav.signOut': { en: 'Sign Out', km: 'ចាកចេញ' },
 
