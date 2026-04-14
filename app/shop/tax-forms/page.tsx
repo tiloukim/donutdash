@@ -85,7 +85,7 @@ table.form td{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size
     </tr>
     <tr>
       <td><div class="lbl">PAYEE'S TIN</div><div class="val">${data.shop.tax_id ? 'XX-XXX' + data.shop.tax_id.replace(/[^0-9]/g, '').slice(-4) : 'Not provided'}</div></td>
-      <td style="text-align:center;vertical-align:middle;padding:2px"><div class="val-xl">${year}</div></td>
+      <td style="text-align:center;vertical-align:middle;padding:2px"><div class="val-xl"><span style="font-size:28px;font-weight:400">${String(year).slice(0,2)}</span><span>${String(year).slice(2)}</span></div></td>
     </tr>
     <tr>
       <td colspan="2"><div class="lbl">1a&ensp;Gross amount of payment card/third party network transactions</div><div class="val-lg">$ ${fmt(data.grossAmount).slice(1)}</div></td>
