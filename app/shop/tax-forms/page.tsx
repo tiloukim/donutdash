@@ -32,7 +32,7 @@ table.form td{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size
 .lbl{font-size:6.5px;line-height:1.2}
 .val{font-size:9px;margin-top:1px}
 .val-lg{font-size:12px;font-weight:bold;margin-top:2px}
-.val-xl{font-size:28px;font-weight:bold;line-height:1}
+.val-xl{font-size:42px;font-weight:900;line-height:1;letter-spacing:-1px}
 .chk{display:inline-block;width:10px;height:10px;border:1.5px solid #000;text-align:center;font-size:9px;font-weight:bold;line-height:9px;margin-right:2px;vertical-align:middle}
 .page2{page-break-before:always}
 .cover p{margin-top:4px;font-size:7.5px;line-height:1.45}
