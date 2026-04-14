@@ -15,6 +15,7 @@ const translations = {
   'nav.documents': { en: 'Documents', km: 'ឯកសារ' },
   'nav.bookkeeping': { en: 'Bookkeeping', km: 'គណនេយ្យ' },
   'nav.supplies': { en: 'Supplies', km: 'គ្រឿងផ្គត់ផ្គង់' },
+  'nav.community': { en: 'Community', km: 'សហគមន៍' },
   'nav.taxForms': { en: '1099-K Forms', km: 'ទម្រង់ពន្ធ 1099-K' },
   'nav.settings': { en: 'Settings', km: 'ការកំណត់' },
   'nav.signOut': { en: 'Sign Out', km: 'ចាកចេញ' },

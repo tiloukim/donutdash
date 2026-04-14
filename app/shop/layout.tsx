@@ -30,6 +30,10 @@ const SUPPLY_NAV: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: '/shop/supplies', labelKey: 'nav.supplies', icon: '📦' },
 ]
 
+const COMMUNITY_NAV: { href: string; labelKey: TranslationKey; icon: string }[] = [
+  { href: '/shop/community', labelKey: 'nav.community', icon: '👥' },
+]
+
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
   return (
     <ShopLangProvider>
@@ -129,6 +133,20 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </div>
+        {/* Community section */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', margin: '6px 0 2px', paddingTop: 6 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.5)', padding: '0 10px 2px', textTransform: 'uppercase', letterSpacing: 1 }}>Community</div>
+          {COMMUNITY_NAV.map(item => (
+            <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 6,
+              textDecoration: 'none', fontSize: 13, fontWeight: 600,
+              color: pathname === item.href ? '#FF1493' : '#fff',
+              background: pathname === item.href ? '#fff' : 'transparent',
+            }}>
+              <span style={{ fontSize: 14 }}>{item.icon}</span> {t(item.labelKey)}
+            </Link>
+          ))}
+        </div>
       </nav>
       <div style={{ padding: '10px 6px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
         <button
@@ -193,7 +211,7 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
               ☰
             </button>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1A1A2E' }}>
-              {(() => { const nav = [...NAV_ITEMS, ...FINANCE_NAV, ...SUPPLY_NAV].find(n => n.href === pathname); return nav ? t(nav.labelKey) : t('nav.dashboard') })()}
+              {(() => { const nav = [...NAV_ITEMS, ...FINANCE_NAV, ...SUPPLY_NAV, ...COMMUNITY_NAV].find(n => n.href === pathname); return nav ? t(nav.labelKey) : t('nav.dashboard') })()}
             </h1>
           </div>
           <span style={{ fontSize: 14, color: '#666' }}>{user.name}</span>
