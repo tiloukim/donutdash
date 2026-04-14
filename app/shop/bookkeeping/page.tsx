@@ -633,10 +633,6 @@ function DashboardTab({ year, totalIncome, totalDonutDashIncome, totalManualInco
   monthlyData: { month: string; income: number; ddIncome: number; manIncome: number; expenses: number; profit: number }[]
   expByCategory: { cat: string; total: number }[]
 }) {
-  const [showEmailModal, setShowEmailModal] = useState(false)
-  const [emailAddr, setEmailAddr] = useState('')
-  const [emailing, setEmailing] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
   const maxIncome = Math.max(...monthlyData.map(d => d.income), 1)
 
   const handlePrint = () => {
@@ -647,90 +643,14 @@ function DashboardTab({ year, totalIncome, totalDonutDashIncome, totalManualInco
     w.print()
   }
 
-  const generatePdfBase64 = async (html: string): Promise<string> => {
-    const iframe = document.createElement('iframe')
-    iframe.style.cssText = 'position:fixed;left:0;top:0;width:816px;height:1056px;border:none;z-index:-1;opacity:0.01'
-    document.body.appendChild(iframe)
-    const doc = iframe.contentDocument!
-    doc.open()
-    doc.write(html)
-    doc.close()
-    await new Promise(r => iframe.onload = r)
-    await new Promise(r => setTimeout(r, 500))
-
-    const html2pdf = (await import('html2pdf.js')).default
-    const blob: Blob = await html2pdf().from(doc.body).set({
-      margin: [0.3, 0.4, 0.3, 0.4],
-      html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 816 },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-    }).outputPdf('blob')
-    document.body.removeChild(iframe)
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve((reader.result as string).split(',')[1])
-      reader.readAsDataURL(blob)
-    })
-  }
-
-  const handleEmail = async () => {
-    if (!emailAddr) return
-    setEmailing(true); setEmailSent(false)
-    try {
-      const html = buildIncomeStatementHtml(year, totalIncome, totalDonutDashIncome, totalManualIncome, totalExpenses, netProfit, monthlyData, expByCategory)
-      const pdfBase64 = await generatePdfBase64(html)
-      const res = await fetch('/api/shop/email-form', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject: `Income Statement — ${year}`,
-          email: emailAddr,
-          pdfBase64,
-          filename: `Income_Statement_${year}.pdf`,
-        }),
-      })
-      if (res.ok) { setEmailSent(true); setTimeout(() => { setEmailSent(false); setShowEmailModal(false) }, 2000) }
-      else alert('Failed to send email.')
-    } catch (err) {
-      console.error(err)
-      alert('Failed to generate PDF.')
-    }
-    setEmailing(false)
-  }
-
   return (
     <div>
-      {/* Print / Email buttons */}
+      {/* Print / Save PDF */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, justifyContent: 'flex-end' }}>
         <button onClick={handlePrint} style={{ padding: '8px 16px', borderRadius: 8, background: '#FF1493', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 13 }}>
           🖨️ Print / Save PDF
         </button>
-        <button onClick={() => setShowEmailModal(true)} style={{ padding: '8px 16px', borderRadius: 8, background: '#6366F1', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 13 }}>
-          📧 Email
-        </button>
       </div>
-
-      {/* Email modal */}
-      {showEmailModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-          onClick={() => setShowEmailModal(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, maxWidth: 420, width: '100%', padding: 24 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>Email Income Statement</h3>
-            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#888' }}>Send the {year} income statement to your email or CPA</p>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 4, display: 'block' }}>Email Address</label>
-            <input type="email" value={emailAddr} onChange={e => setEmailAddr(e.target.value)} placeholder="you@example.com"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, marginBottom: 16 }} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleEmail} disabled={emailing || !emailAddr}
-                style={{ flex: 1, padding: '12px 20px', borderRadius: 8, background: emailSent ? '#10B981' : '#6366F1', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 14, opacity: emailing || !emailAddr ? 0.5 : 1 }}>
-                {emailSent ? '✓ Sent!' : emailing ? 'Sending...' : '📧 Send Email'}
-              </button>
-              <button onClick={() => setShowEmailModal(false)}
-                style={{ padding: '12px 20px', borderRadius: 8, background: '#f5f5f5', color: '#666', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: 14 }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
