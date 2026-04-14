@@ -36,11 +36,6 @@ export default function SignupPage() {
       setLoading(false)
       return
     }
-    if (!smsConsent) {
-      setError('You must agree to receive SMS notifications to create an account.')
-      setLoading(false)
-      return
-    }
     if (!captchaToken) {
       setError('Please complete the CAPTCHA verification.')
       setLoading(false)
@@ -282,7 +277,8 @@ export default function SignupPage() {
             />
             <label htmlFor="sms-consent" style={{ fontSize: '0.8rem', color: '#555', lineHeight: 1.5 }}>
               I agree to receive SMS notifications about my orders, delivery updates, and account alerts.
-              Message &amp; data rates may apply. Reply STOP to unsubscribe.{' '}
+              Message &amp; data rates may apply. Reply STOP to unsubscribe.
+              Your mobile information will not be sold or shared with third parties for promotional or marketing purposes.{' '}
               <Link href="/privacy" style={{ color: '#FF1493', textDecoration: 'underline' }}>
                 Privacy Policy
               </Link>

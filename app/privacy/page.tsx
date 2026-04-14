@@ -101,7 +101,7 @@ export default function PrivacyPage() {
           <li style={{ marginBottom: '0.5rem' }}><strong>Analytics providers:</strong> Anonymized usage data may be shared with analytics services to improve the Platform.</li>
         </ul>
         <p style={paragraphStyle}>
-          We do not sell your personal information to third parties. We may disclose your information if required by law, court order, or governmental regulation, or if necessary to protect our rights, property, or safety.
+          We do not sell your personal information to third parties. Your mobile information will not be sold or shared with third parties for promotional or marketing purposes. We may disclose your information if required by law, court order, or governmental regulation, or if necessary to protect our rights, property, or safety.
         </p>
 
         {/* 4 */}

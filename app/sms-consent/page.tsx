@@ -36,7 +36,7 @@ export default function SmsConsentPage() {
 
         {/* How users consent */}
         <Section title="How You Consent to Receive SMS">
-          <p>You opt in to receive SMS notifications during account registration on DonutDash. During signup, you must check a mandatory consent checkbox that states:</p>
+          <p>You may opt in to receive SMS notifications during account registration on DonutDash. During signup, you can check an optional consent checkbox that states:</p>
           <div style={{ background: '#FFF8F0', border: '2px solid #FF8C00', borderRadius: 12, padding: '20px 24px', margin: '16px 0' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ width: 20, height: 20, border: '2px solid #FF8C00', borderRadius: 4, background: '#FF8C00', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
@@ -44,12 +44,13 @@ export default function SmsConsentPage() {
               </div>
               <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#333' }}>
                 I agree to receive SMS notifications about my orders, delivery updates, and account alerts.
-                Message &amp; data rates may apply. Reply STOP to unsubscribe.{' '}
+                Message &amp; data rates may apply. Reply STOP to unsubscribe.
+                Your mobile information will not be sold or shared with third parties for promotional or marketing purposes.{' '}
                 <Link href="/privacy" style={{ color: '#FF8C00', textDecoration: 'underline' }}>Privacy Policy</Link>
               </p>
             </div>
           </div>
-          <p>This checkbox is <strong>required</strong> before account creation can proceed. The consent form is visible at:</p>
+          <p>This checkbox is <strong>optional</strong> — you can create an account without opting in to SMS. The consent form is visible at:</p>
           <ul>
             <li><strong>Customer signup:</strong> <Link href="/signup" style={{ color: '#FF8C00' }}>donutdash.app/signup</Link></li>
             <li><strong>Shop owner signup:</strong> <Link href="/shop" style={{ color: '#FF8C00' }}>donutdash.app/shop</Link> (click &quot;Sign Up&quot;)</li>
@@ -98,7 +99,7 @@ export default function SmsConsentPage() {
         <Section title="How We Use Your Phone Number">
           <ul>
             <li>Your phone number is used <strong>only</strong> for sending transactional SMS notifications related to your DonutDash account</li>
-            <li>We do <strong>not</strong> sell, share, or use your phone number for marketing or promotional purposes</li>
+            <li>Your mobile information will <strong>not</strong> be sold or shared with third parties for promotional or marketing purposes</li>
             <li>We do <strong>not</strong> send spam or unsolicited messages</li>
             <li>For full details, see our <Link href="/privacy" style={{ color: '#FF8C00' }}>Privacy Policy</Link> and <Link href="/terms" style={{ color: '#FF8C00' }}>Terms of Service</Link></li>
           </ul>
