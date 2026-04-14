@@ -193,7 +193,7 @@ export default function TaxForms() {
     await new Promise(r => setTimeout(r, 300))
     const html2pdf = (await import('html2pdf.js')).default
     const blob: Blob = await html2pdf().from(container).set({
-      margin: [0.4, 0.4, 0.4, 0.4], html2canvas: { scale: 2, useCORS: true },
+      margin: [0.3, 0.4, 0.3, 0.4], html2canvas: { scale: 1.5, useCORS: true, logging: false },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
     }).outputPdf('blob')
     document.body.removeChild(container)
@@ -220,10 +220,10 @@ export default function TaxForms() {
         }),
       })
       if (res.ok) { setEmailSent(true); setTimeout(() => { setEmailSent(false); setShowEmailModal(false) }, 2000) }
-      else alert('Failed to send email.')
+      else { const d = await res.json().catch(() => ({})); console.error('Email error:', d); alert('Failed to send email: ' + (d.error || 'Unknown error')) }
     } catch (err) {
-      console.error(err)
-      alert('Failed to generate PDF.')
+      console.error('PDF generation error:', err)
+      alert('Failed to generate PDF: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }
     setEmailing(false)
   }

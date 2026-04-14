@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
+export const maxDuration = 30
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -36,6 +38,10 @@ export async function POST(req: NextRequest) {
     }),
   })
 
-  if (!res.ok) return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
+  if (!res.ok) {
+    const errData = await res.text().catch(() => '')
+    console.error('Resend error:', res.status, errData)
+    return NextResponse.json({ error: `Email service error: ${res.status}` }, { status: 500 })
+  }
   return NextResponse.json({ ok: true, to })
 }
