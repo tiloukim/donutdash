@@ -28,7 +28,7 @@ const input: React.CSSProperties = { padding: '10px 12px', borderRadius: 8, bord
 const btnPrimary: React.CSSProperties = { padding: '10px 20px', borderRadius: 8, background: '#FF1493', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 14 }
 
 export default function ShopBookkeeping() {
-  const [tab, setTab] = useState<'dashboard' | 'income' | 'expenses'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'income' | 'expenses' | 'tax'>('dashboard')
   const [year, setYear] = useState(new Date().getFullYear())
   const [entries, setEntries] = useState<Entry[]>([])
   const [ordersByMonth, setOrdersByMonth] = useState<OrdersByMonth>({})
@@ -231,10 +231,36 @@ export default function ShopBookkeeping() {
     cat, total: expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0)
   })).filter(e => e.total > 0).sort((a, b) => b.total - a.total)
 
+  // Tax estimation
+  const [filingStatus, setFilingStatus] = useState<'single' | 'mfj' | 'hoh'>('single')
+  const standardDeductions: Record<string, number> = { single: 15700, mfj: 31400, hoh: 23600 }
+  const stdDeduction = standardDeductions[filingStatus]
+  const qbiDeduction = Math.round(netProfit > 0 ? netProfit * 0.20 : 0)
+  const taxableIncome = Math.max(0, netProfit - stdDeduction - qbiDeduction)
+
+  const brackets: Record<string, { l: number; r: number }[]> = {
+    single: [{ l: 12150, r: 0.10 }, { l: 49475, r: 0.12 }, { l: 105275, r: 0.22 }, { l: 200800, r: 0.24 }, { l: 255050, r: 0.32 }, { l: 591975, r: 0.35 }, { l: Infinity, r: 0.37 }],
+    mfj: [{ l: 24300, r: 0.10 }, { l: 98950, r: 0.12 }, { l: 210550, r: 0.22 }, { l: 401600, r: 0.24 }, { l: 510100, r: 0.32 }, { l: 765400, r: 0.35 }, { l: Infinity, r: 0.37 }],
+    hoh: [{ l: 17300, r: 0.10 }, { l: 65950, r: 0.12 }, { l: 108250, r: 0.22 }, { l: 200800, r: 0.24 }, { l: 255050, r: 0.32 }, { l: 591975, r: 0.35 }, { l: Infinity, r: 0.37 }],
+  }
+  let fedTax = 0; let rem = taxableIncome; let prev = 0
+  for (const b of brackets[filingStatus]) { const t = Math.min(rem, b.l - prev); if (t <= 0) break; fedTax += t * b.r; rem -= t; prev = b.l }
+  fedTax = Math.round(fedTax)
+
+  // Self-employment tax (15.3% on 92.35% of net profit)
+  const seTaxable = Math.min(netProfit * 0.9235, 176100) // 2026 SS wage base estimate
+  const seTax = netProfit > 0 ? Math.round(seTaxable * 0.153) : 0
+  const seDeduction = Math.round(seTax * 0.5) // Half of SE tax is deductible
+
+  const totalTax = fedTax + seTax
+  const quarterly = Math.round(totalTax / 4)
+  const effectiveRate = totalIncome > 0 ? ((totalTax / totalIncome) * 100).toFixed(1) : '0.0'
+
   const tabs = [
     { key: 'dashboard', label: 'Dashboard', icon: '📊' },
     { key: 'income', label: 'Income', icon: '💰' },
     { key: 'expenses', label: 'Expenses', icon: '💸' },
+    { key: 'tax', label: 'Tax', icon: '🧾' },
   ] as const
 
   return (
@@ -267,6 +293,122 @@ export default function ShopBookkeeping() {
           totalManualIncome={totalManualIncome} totalExpenses={totalExpenses}
           netProfit={netProfit} monthlyData={monthlyData} expByCategory={expByCategory}
         />
+      ) : tab === 'tax' ? (
+        <div>
+          {/* Filing status selector */}
+          <div style={{ ...card, padding: 20, marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{year} Tax Estimate</h3>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {([['single', 'Single'], ['mfj', 'Married Filing Jointly'], ['hoh', 'Head of Household']] as const).map(([val, label]) => (
+                  <button key={val} onClick={() => setFilingStatus(val)} style={{
+                    padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                    background: filingStatus === val ? '#FF1493' : '#f5f5f5', color: filingStatus === val ? '#fff' : '#666',
+                  }}>{label}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Summary cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 20 }}>
+            {[
+              { label: 'Net Profit', value: fmt(netProfit), icon: '💰', color: netProfit >= 0 ? '#10B981' : '#DC2626' },
+              { label: 'Est. Federal Tax', value: fmt(fedTax), icon: '🏛️', color: '#6366F1' },
+              { label: 'Est. SE Tax', value: fmt(seTax), icon: '📋', color: '#F59E0B' },
+              { label: 'Total Est. Tax', value: fmt(totalTax), icon: '🧾', color: '#DC2626' },
+              { label: 'Quarterly Payment', value: fmt(quarterly), icon: '📅', color: '#FF1493' },
+              { label: 'Effective Rate', value: effectiveRate + '%', icon: '📊', color: '#6366F1' },
+            ].map(m => (
+              <div key={m.label} style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #FFE4EF' }}>
+                <div style={{ fontSize: 24, marginBottom: 6 }}>{m.icon}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: m.color }}>{m.value}</div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{m.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tax breakdown */}
+          <div style={{ ...card, marginBottom: 20 }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #FFE4EF' }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Tax Calculation Breakdown</h3>
+            </div>
+            <div style={{ padding: '0 20px 16px' }}>
+              {[
+                { label: 'Total Income', value: fmt(totalIncome), bold: true },
+                { label: 'Total Expenses', value: '-' + fmt(totalExpenses), color: '#10B981' },
+                { label: 'Net Profit', value: fmt(netProfit), bold: true, divider: true },
+                { label: `Standard Deduction (${filingStatus === 'mfj' ? 'MFJ' : filingStatus === 'hoh' ? 'HoH' : 'Single'})`, value: '-' + fmt(stdDeduction), color: '#10B981' },
+                { label: 'QBI Deduction (20%)', value: '-' + fmt(qbiDeduction), color: '#10B981' },
+                { label: 'Taxable Income', value: fmt(taxableIncome), bold: true, divider: true },
+                { label: 'Federal Income Tax', value: fmt(fedTax), color: '#DC2626' },
+                { label: 'Self-Employment Tax (15.3%)', value: fmt(seTax), color: '#DC2626' },
+                { label: 'SE Tax Deduction (50%)', value: '-' + fmt(seDeduction), color: '#10B981' },
+                { label: 'Total Estimated Tax', value: fmt(totalTax), bold: true, color: '#DC2626', divider: true },
+              ].map((row, i) => (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', padding: '10px 0',
+                  borderBottom: row.divider ? '2px solid #FFE4EF' : '1px solid #f8f8f8',
+                  fontWeight: row.bold ? 700 : 400, fontSize: 14,
+                }}>
+                  <span>{row.label}</span>
+                  <span style={{ color: row.color, fontWeight: row.bold ? 800 : 600 }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quarterly payments */}
+          <div style={{ background: '#FF1493', borderRadius: 12, padding: 20, marginBottom: 20, color: '#fff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, opacity: 0.9 }}>Estimated Quarterly Payment</div>
+                <div style={{ fontSize: 32, fontWeight: 800, marginTop: 4 }}>{fmt(quarterly)}</div>
+              </div>
+              <div style={{ fontSize: 48 }}>📅</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 16 }}>
+              {['Apr 15', 'Jun 15', 'Sep 15', 'Jan 15'].map((d, i) => (
+                <div key={i} style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, opacity: 0.8 }}>Q{i + 1}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{fmt(quarterly)}</div>
+                  <div style={{ fontSize: 10, opacity: 0.7 }}>Due {d}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Federal tax brackets */}
+          <div style={{ ...card, marginBottom: 20 }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #FFE4EF' }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Federal Tax Brackets Applied</h3>
+            </div>
+            <div style={{ padding: '0 20px 16px' }}>
+              {(() => {
+                let remaining = taxableIncome, prevLimit = 0
+                return brackets[filingStatus].map((b, i) => {
+                  const width = b.l - prevLimit
+                  const taxed = Math.min(remaining, width)
+                  const tax = Math.round(taxed * b.r)
+                  prevLimit = b.l
+                  remaining -= taxed
+                  if (taxed <= 0 && i > 0) return null
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f8f8f8', fontSize: 13 }}>
+                      <span style={{ color: '#666' }}>{(b.r * 100).toFixed(0)}% bracket</span>
+                      <span>{fmt(taxed)} taxed</span>
+                      <span style={{ fontWeight: 700, color: tax > 0 ? '#DC2626' : '#ccc' }}>{fmt(tax)}</span>
+                    </div>
+                  )
+                })
+              })()}
+            </div>
+          </div>
+
+          <div style={{ fontSize: 12, color: '#999', textAlign: 'center', padding: '10px 0 20px' }}>
+            This is an estimate only — consult a tax professional for actual filing. Based on {year} federal tax brackets.
+          </div>
+        </div>
       ) : (
         <div>
           {/* Month filter */}
