@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { subject, email, pdfBase64, filename, htmlContent, htmlFilename } = await req.json()
-  if (!subject || (!pdfBase64 && !htmlContent)) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  const { subject, email, pdfBase64, filename } = await req.json()
+  if (!subject || !pdfBase64) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
 
   const to = email || ddUser.email || user.email
   if (!to) return NextResponse.json({ error: 'No email address found' }, { status: 400 })
@@ -28,10 +28,10 @@ export async function POST(req: NextRequest) {
       from: process.env.RESEND_FROM_EMAIL || 'DonutDash <notifications@donutdash.app>',
       to,
       subject,
-      html: `<div style="font-family:Arial,sans-serif;padding:20px"><h2 style="color:#FF1493">DonutDash</h2><p>Please find your <b>${htmlFilename || filename || 'document'}</b> attached to this email.</p><p style="color:#888;font-size:13px">Open the attached file in your browser, then use Print → Save as PDF for a clean PDF copy.</p></div>`,
+      html: `<div style="font-family:Arial,sans-serif;padding:20px"><h2 style="color:#FF1493">DonutDash</h2><p>Please find your <b>${filename || 'document.pdf'}</b> attached to this email.</p></div>`,
       attachments: [{
-        filename: htmlFilename || filename || 'document.html',
-        content: htmlContent ? Buffer.from(htmlContent).toString('base64') : pdfBase64,
+        filename: filename || 'document.pdf',
+        content: pdfBase64,
       }],
     }),
   })

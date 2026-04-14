@@ -647,21 +647,49 @@ function DashboardTab({ year, totalIncome, totalDonutDashIncome, totalManualInco
     w.print()
   }
 
+  const generatePdfBase64 = async (html: string): Promise<string> => {
+    const container = document.createElement('div')
+    container.style.cssText = 'position:fixed;left:0;top:0;width:8.5in;background:#fff;z-index:-9999;opacity:0;pointer-events:none'
+    document.body.appendChild(container)
+    container.innerHTML = html.replace(/[\s\S]*<body[^>]*>/, '').replace(/<\/body>[\s\S]*/, '')
+    const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/)
+    if (styleMatch) { const s = document.createElement('style'); s.textContent = styleMatch[1]; container.prepend(s) }
+    await new Promise(r => setTimeout(r, 300))
+    const html2pdf = (await import('html2pdf.js')).default
+    const blob: Blob = await html2pdf().from(container).set({
+      margin: [0.4, 0.4, 0.4, 0.4], html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+    }).outputPdf('blob')
+    document.body.removeChild(container)
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve((reader.result as string).split(',')[1])
+      reader.readAsDataURL(blob)
+    })
+  }
+
   const handleEmail = async () => {
     if (!emailAddr) return
     setEmailing(true); setEmailSent(false)
-    const res = await fetch('/api/shop/email-form', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subject: `Income Statement — ${year}`,
-        email: emailAddr,
-        htmlContent: buildIncomeStatementHtml(year, totalIncome, totalDonutDashIncome, totalManualIncome, totalExpenses, netProfit, monthlyData, expByCategory),
-        htmlFilename: `Income_Statement_${year}.html`,
-      }),
-    })
+    try {
+      const html = buildIncomeStatementHtml(year, totalIncome, totalDonutDashIncome, totalManualIncome, totalExpenses, netProfit, monthlyData, expByCategory)
+      const pdfBase64 = await generatePdfBase64(html)
+      const res = await fetch('/api/shop/email-form', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: `Income Statement — ${year}`,
+          email: emailAddr,
+          pdfBase64,
+          filename: `Income_Statement_${year}.pdf`,
+        }),
+      })
+      if (res.ok) { setEmailSent(true); setTimeout(() => { setEmailSent(false); setShowEmailModal(false) }, 2000) }
+      else alert('Failed to send email.')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to generate PDF.')
+    }
     setEmailing(false)
-    if (res.ok) { setEmailSent(true); setTimeout(() => { setEmailSent(false); setShowEmailModal(false) }, 2000) }
-    else alert('Failed to send email.')
   }
 
   return (
