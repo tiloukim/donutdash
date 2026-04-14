@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface Category {
   id: string
@@ -23,6 +23,7 @@ interface Post {
   is_closed: boolean
   view_count: number
   reply_count: number
+  images: string[]
   created_at: string
   updated_at: string
   author: { name: string }
@@ -89,6 +90,9 @@ export default function CommunityPage() {
     price: '',
   })
   const [creating, setCreating] = useState(false)
+  const [uploadingImages, setUploadingImages] = useState(false)
+  const [postImages, setPostImages] = useState<string[]>([])
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   // Debounce search
   useEffect(() => {
@@ -153,6 +157,19 @@ export default function CommunityPage() {
     setDeleting(false)
   }
 
+  const uploadImage = async (file: File) => {
+    setUploadingImages(true)
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', 'forum')
+    const res = await fetch('/api/shop/upload', { method: 'POST', body: formData })
+    if (res.ok) {
+      const { url } = await res.json()
+      setPostImages(prev => [...prev, url])
+    }
+    setUploadingImages(false)
+  }
+
   const createPost = async () => {
     if (!createForm.category_id || !createForm.title.trim() || !createForm.body.trim()) return
     setCreating(true)
@@ -166,6 +183,7 @@ export default function CommunityPage() {
         type: createForm.type,
         location: createForm.location || null,
         price: createForm.price ? parseFloat(createForm.price) : null,
+        images: postImages,
       }),
     })
     if (res.ok) {
@@ -173,7 +191,7 @@ export default function CommunityPage() {
       setPosts(prev => [data.post, ...prev])
       setShowCreate(false)
       setCreateForm({ category_id: '', title: '', body: '', type: 'discussion', location: '', price: '' })
-      // Update category count
+      setPostImages([])
       setCategories(prev => prev.map(c => c.id === data.post.category_id ? { ...c, post_count: c.post_count + 1 } : c))
     }
     setCreating(false)
@@ -236,9 +254,20 @@ export default function CommunityPage() {
           </div>
 
           {/* Body */}
-          <div style={{ fontSize: 15, lineHeight: 1.7, color: '#333', whiteSpace: 'pre-wrap', marginBottom: 24 }}>
+          <div style={{ fontSize: 15, lineHeight: 1.7, color: '#333', whiteSpace: 'pre-wrap', marginBottom: 16 }}>
             {selectedPost.body}
           </div>
+
+          {/* Images */}
+          {selectedPost.images?.length > 0 && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
+              {selectedPost.images.map((url: string, i: number) => (
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', borderRadius: 10, overflow: 'hidden', border: '1px solid #FFE4EF' }}>
+                  <img src={url} alt="" style={{ maxWidth: 280, maxHeight: 220, objectFit: 'cover', display: 'block' }} />
+                </a>
+              ))}
+            </div>
+          )}
 
           {/* Replies */}
           <div style={{ borderTop: '1px solid #FFE4EF', paddingTop: 20 }}>
@@ -406,7 +435,19 @@ export default function CommunityPage() {
                     <span>{timeAgo(post.created_at)}</span>
                     {post.location && <span>📍 {post.location}</span>}
                     {post.price != null && <span style={{ fontWeight: 700, color: '#FF1493' }}>${post.price.toFixed(2)}</span>}
+                    {post.images?.length > 0 && <span>📷 {post.images.length}</span>}
                   </div>
+                  {/* Image thumbnails */}
+                  {post.images?.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                      {post.images.slice(0, 3).map((url: string, i: number) => (
+                        <div key={i} style={{ width: 48, height: 48, borderRadius: 6, overflow: 'hidden', border: '1px solid #FFE4EF', flexShrink: 0 }}>
+                          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      ))}
+                      {post.images.length > 3 && <div style={{ width: 48, height: 48, borderRadius: 6, background: '#FFF0F5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#FF1493' }}>+{post.images.length - 3}</div>}
+                    </div>
+                  )}
                 </div>
 
                 {/* Reply count */}
@@ -530,6 +571,37 @@ export default function CommunityPage() {
                 />
               </div>
             )}
+
+            {/* Photos */}
+            <div style={{ marginTop: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#333', display: 'block', marginBottom: 4 }}>Photos (optional)</label>
+              {postImages.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {postImages.map((url, i) => (
+                    <div key={i} style={{ position: 'relative', width: 80, height: 80, borderRadius: 8, overflow: 'hidden', border: '1px solid #FFE4EF' }}>
+                      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button onClick={() => setPostImages(prev => prev.filter((_, j) => j !== i))} style={{
+                        position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: '20px', textAlign: 'center', padding: 0,
+                      }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={uploadingImages || postImages.length >= 5}
+                style={{
+                  padding: '8px 16px', borderRadius: 8, border: '2px dashed #FFE4EF', background: '#fff',
+                  color: '#FF1493', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  opacity: uploadingImages || postImages.length >= 5 ? 0.5 : 1,
+                }}
+              >
+                {uploadingImages ? '⏳ Uploading...' : `📷 Add Photo${postImages.length > 0 ? ` (${postImages.length}/5)` : ''}`}
+              </button>
+              <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); if (imageInputRef.current) imageInputRef.current.value = '' }} />
+            </div>
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>

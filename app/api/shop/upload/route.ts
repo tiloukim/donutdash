@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ext = file.name.split('.').pop() || 'jpg'
-    const folder = type === 'banner' ? 'banners' : 'logos'
+    const folder = type === 'banner' ? 'banners' : type === 'forum' ? 'forum' : 'logos'
     const fileName = `${folder}/${ddUser.id}-${Date.now()}.${ext}`
 
     const buffer = Buffer.from(await file.arrayBuffer())

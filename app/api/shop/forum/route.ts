@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { category_id, title, body, type, location, price } = await req.json()
+  const { category_id, title, body, type, location, price, images } = await req.json()
   if (!category_id || !title?.trim() || !body?.trim()) {
     return NextResponse.json({ error: 'category_id, title, and body are required' }, { status: 400 })
   }
@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
       type: type || 'discussion',
       location: location?.trim() || null,
       price: price || null,
+      images: images || [],
     })
     .select('*, author:dd_users!author_id(name), category:dd_forum_categories!category_id(name, icon)')
     .single()
