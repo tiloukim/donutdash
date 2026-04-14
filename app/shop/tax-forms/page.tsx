@@ -8,7 +8,7 @@ function fmt(n: number) { return '$' + n.toLocaleString('en-US', { minimumFracti
 
 type TaxData = {
   year: number
-  shop: { name: string; address: string; city: string; state: string; zip: string; phone: string }
+  shop: { name: string; address: string; city: string; state: string; zip: string; phone: string; tax_id: string | null }
   owner: { name: string; email: string }
   grossAmount: number
   platformFees: number
@@ -84,7 +84,7 @@ table.form td{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size
       </td>
     </tr>
     <tr>
-      <td><div class="lbl">PAYEE'S TIN</div><div class="val">XX-XXX****</div></td>
+      <td><div class="lbl">PAYEE'S TIN</div><div class="val">${data.shop.tax_id ? 'XX-XXX' + data.shop.tax_id.replace(/[^0-9]/g, '').slice(-4) : 'Not provided'}</div></td>
       <td style="text-align:center;vertical-align:middle;padding:2px"><div class="val-xl">${year}</div></td>
     </tr>
     <tr>

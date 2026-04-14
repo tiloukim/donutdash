@@ -25,7 +25,7 @@ export async function PUT(req: Request) {
   if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.error === 'no_shop' ? 404 : 401 })
 
   const body = await req.json()
-  const allowed = ['name', 'description', 'address', 'city', 'state', 'zip', 'country', 'phone', 'delivery_fee', 'min_order', 'service_fee_pct', 'image_url', 'banner_url', 'lat', 'lng']
+  const allowed = ['name', 'description', 'address', 'city', 'state', 'zip', 'country', 'phone', 'delivery_fee', 'min_order', 'service_fee_pct', 'image_url', 'banner_url', 'lat', 'lng', 'tax_id']
   const updates: Record<string, any> = {}
   for (const key of allowed) {
     if (body[key] !== undefined) updates[key] = body[key]

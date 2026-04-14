@@ -342,6 +342,30 @@ export default function ShopSettings() {
         </div>
       </div>
 
+      {/* Tax ID (for 1099-K) */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Tax Information</h3>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>Your EIN or SSN for 1099-K tax reporting. This will appear masked on your 1099-K form.</p>
+        <div>
+          <label style={labelStyle}>Tax ID (EIN or SSN)</label>
+          <input style={{ ...inputStyle, maxWidth: 250 }} placeholder="XX-XXXXXXX"
+            value={shop.tax_id || ''}
+            onChange={e => {
+              let v = e.target.value.replace(/[^0-9-]/g, '')
+              if (v.length === 2 && !v.includes('-') && (shop.tax_id || '').length < v.length) v += '-'
+              setShop({ ...shop, tax_id: v })
+            }}
+            maxLength={10} />
+          <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>Enter your 9-digit EIN (XX-XXXXXXX) or SSN (XXX-XX-XXXX). Stored securely and shown masked on forms.</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
+          <button onClick={save} disabled={saving} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: '#FF1493', color: '#fff', border: 'none', cursor: 'pointer' }}>
+            {saving ? 'Saving...' : 'Save Tax ID'}
+          </button>
+          {saved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Saved!</span>}
+        </div>
+      </div>
+
       {/* Bank Account for Payouts */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Bank Account (for Weekly Payouts)</h3>

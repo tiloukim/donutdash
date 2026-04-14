@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const { data: ddUser } = await svc.from('dd_users').select('id, name, email, role').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: shop } = await svc.from('dd_shops').select('id, name, address, city, state, zip, phone').eq('owner_id', ddUser.id).single()
+  const { data: shop } = await svc.from('dd_shops').select('id, name, address, city, state, zip, phone, tax_id').eq('owner_id', ddUser.id).single()
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
 
   const { searchParams } = new URL(req.url)
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     year,
-    shop: { name: shop.name, address: shop.address, city: shop.city, state: shop.state, zip: shop.zip, phone: shop.phone },
+    shop: { name: shop.name, address: shop.address, city: shop.city, state: shop.state, zip: shop.zip, phone: shop.phone, tax_id: shop.tax_id },
     owner: { name: ddUser.name, email: ddUser.email },
     grossAmount,
     platformFees,
