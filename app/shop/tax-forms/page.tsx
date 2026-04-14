@@ -166,7 +166,7 @@ h4{font-size:11px;margin-bottom:6px}
           </div>
 
           {/* Printable 1099-K — hidden, used by print */}
-          <div ref={formRef} style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+          <div ref={formRef} style={{ position: 'fixed', left: '-9999px', top: 0, width: 0, height: 0, overflow: 'hidden' }}>
             {/* ——— PAGE 1 : Cover Letter ——— */}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div style={{ fontSize: 9, lineHeight: 1.5 }}>DonutDash Inc.<br/>donutdash.app<br/>Tyler, TX</div>
