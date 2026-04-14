@@ -346,17 +346,39 @@ export default function ShopSettings() {
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Tax Information</h3>
         <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>Your EIN or SSN for 1099-K tax reporting. This will appear masked on your 1099-K form.</p>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
+          {([['ein', 'EIN (Business)'], ['ssn', 'SSN (Individual)']] as const).map(([val, label]) => (
+            <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+              <input type="radio" name="tax_id_type"
+                checked={(shop.tax_id_type || 'ein') === val}
+                onChange={() => setShop({ ...shop, tax_id_type: val, tax_id: '' })}
+                style={{ accentColor: '#FF1493' }} />
+              {label}
+            </label>
+          ))}
+        </div>
         <div>
-          <label style={labelStyle}>Tax ID (EIN or SSN)</label>
-          <input style={{ ...inputStyle, maxWidth: 250 }} placeholder="XX-XXXXXXX"
+          <label style={labelStyle}>{(shop.tax_id_type || 'ein') === 'ssn' ? 'Social Security Number' : 'Employer Identification Number'}</label>
+          <input style={{ ...inputStyle, maxWidth: 250 }}
+            placeholder={(shop.tax_id_type || 'ein') === 'ssn' ? 'XXX-XX-XXXX' : 'XX-XXXXXXX'}
             value={shop.tax_id || ''}
             onChange={e => {
-              let v = e.target.value.replace(/[^0-9-]/g, '')
-              if (v.length === 2 && !v.includes('-') && (shop.tax_id || '').length < v.length) v += '-'
-              setShop({ ...shop, tax_id: v })
+              const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 9)
+              let formatted = ''
+              if ((shop.tax_id_type || 'ein') === 'ssn') {
+                // SSN: XXX-XX-XXXX
+                if (digits.length <= 3) formatted = digits
+                else if (digits.length <= 5) formatted = digits.slice(0, 3) + '-' + digits.slice(3)
+                else formatted = digits.slice(0, 3) + '-' + digits.slice(3, 5) + '-' + digits.slice(5)
+              } else {
+                // EIN: XX-XXXXXXX
+                if (digits.length <= 2) formatted = digits
+                else formatted = digits.slice(0, 2) + '-' + digits.slice(2)
+              }
+              setShop({ ...shop, tax_id: formatted })
             }}
-            maxLength={10} />
-          <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>Enter your 9-digit EIN (XX-XXXXXXX) or SSN (XXX-XX-XXXX). Stored securely and shown masked on forms.</div>
+            maxLength={(shop.tax_id_type || 'ein') === 'ssn' ? 11 : 10} />
+          <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>Stored securely and shown masked on tax forms (only last 4 digits visible).</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
           <button onClick={save} disabled={saving} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: '#FF1493', color: '#fff', border: 'none', cursor: 'pointer' }}>
