@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   // Build posts query
   let query = svc
     .from('dd_forum_posts')
-    .select('*, author:dd_users!author_id(name), category:dd_forum_categories!category_id(name, icon), replies:dd_forum_replies(count)')
+    .select('*, author:dd_users!author_id(name, id), category:dd_forum_categories!category_id(name, icon), replies:dd_forum_replies(count)')
     .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(100)
@@ -56,11 +56,20 @@ export async function GET(req: NextRequest) {
     post_count: countMap[c.id] || 0,
   }))
 
-  // Flatten reply count
+  // Get shop names for all post authors
+  const authorIds = [...new Set((posts || []).map((p: any) => p.author_id))]
+  const { data: shops } = authorIds.length > 0
+    ? await svc.from('dd_shops').select('owner_id, name').in('owner_id', authorIds)
+    : { data: [] }
+  const shopNameMap: Record<string, string> = {}
+  for (const s of shops || []) shopNameMap[s.owner_id] = s.name
+
+  // Flatten reply count + add shop name
   const formatted = (posts || []).map((p: any) => ({
     ...p,
     reply_count: p.replies?.[0]?.count || 0,
     replies: undefined,
+    shop_name: shopNameMap[p.author_id] || null,
   }))
 
   return NextResponse.json({ posts: formatted, categories: categoriesWithCounts, user_id: ddUser.id })
@@ -98,5 +107,9 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ post: { ...post, reply_count: 0 } })
+
+  // Get shop name for the author
+  const { data: authorShop } = await svc.from('dd_shops').select('name').eq('owner_id', ddUser.id).single()
+
+  return NextResponse.json({ post: { ...post, reply_count: 0, shop_name: authorShop?.name || null } })
 }

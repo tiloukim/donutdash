@@ -28,6 +28,7 @@ interface Post {
   updated_at: string
   author: { name: string }
   category: { name: string; icon: string }
+  shop_name: string | null
 }
 
 interface Reply {
@@ -37,6 +38,7 @@ interface Reply {
   body: string
   created_at: string
   author: { name: string }
+  shop_name: string | null
 }
 
 function timeAgo(dateStr: string): string {
@@ -241,7 +243,7 @@ export default function CommunityPage() {
 
           {/* Meta */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16, fontSize: 13, color: '#666' }}>
-            <span style={{ fontWeight: 600, color: '#333' }}>{selectedPost.author?.name}</span>
+            <span style={{ fontWeight: 600, color: '#333' }}>{selectedPost.shop_name || selectedPost.author?.name}</span>
             <span>{timeAgo(selectedPost.created_at)}</span>
             <span>{selectedPost.view_count} views</span>
             {selectedPost.type && TYPE_BADGES[selectedPost.type] && (
@@ -284,7 +286,7 @@ export default function CommunityPage() {
                 {replies.map(r => (
                   <div key={r.id} style={{ background: '#FFF5F8', borderRadius: 10, padding: '14px 16px', border: '1px solid #FFE4EF' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>{r.author?.name}</span>
+                      <span style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>{r.shop_name || r.author?.name}</span>
                       <span style={{ fontSize: 12, color: '#888' }}>{timeAgo(r.created_at)}</span>
                     </div>
                     <div style={{ fontSize: 14, lineHeight: 1.6, color: '#444', whiteSpace: 'pre-wrap' }}>{r.body}</div>
@@ -431,7 +433,7 @@ export default function CommunityPage() {
 
                   {/* Meta row */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#888', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, color: '#555' }}>{post.author?.name}</span>
+                    <span style={{ fontWeight: 600, color: '#555' }}>{post.shop_name || post.author?.name}</span>
                     <span>{timeAgo(post.created_at)}</span>
                     {post.location && <span>📍 {post.location}</span>}
                     {post.price != null && <span style={{ fontWeight: 700, color: '#FF1493' }}>${post.price.toFixed(2)}</span>}

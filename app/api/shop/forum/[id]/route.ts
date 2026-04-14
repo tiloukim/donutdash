@@ -27,14 +27,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (error || !post) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
 
+  // Get shop name for post author
+  const { data: postShop } = await svc.from('dd_shops').select('name').eq('owner_id', post.author_id).single()
+
   const { data: replies } = await svc
     .from('dd_forum_replies')
-    .select('*, author:dd_users!author_id(name)')
+    .select('*, author:dd_users!author_id(name, id)')
     .eq('post_id', id)
     .order('created_at', { ascending: true })
     .limit(200)
 
-  return NextResponse.json({ post, replies: replies || [], user_id: ddUser.id })
+  // Get shop names for reply authors
+  const replyAuthorIds = [...new Set((replies || []).map((r: any) => r.author_id))]
+  const { data: replyShops } = replyAuthorIds.length > 0
+    ? await svc.from('dd_shops').select('owner_id, name').in('owner_id', replyAuthorIds)
+    : { data: [] }
+  const shopMap: Record<string, string> = {}
+  for (const s of replyShops || []) shopMap[s.owner_id] = s.name
+
+  const repliesWithShops = (replies || []).map((r: any) => ({ ...r, shop_name: shopMap[r.author_id] || null }))
+
+  return NextResponse.json({ post: { ...post, shop_name: postShop?.name || null }, replies: repliesWithShops, user_id: ddUser.id })
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -67,7 +80,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Update post updated_at
   await svc.from('dd_forum_posts').update({ updated_at: new Date().toISOString() }).eq('id', id)
 
-  return NextResponse.json({ reply })
+  const { data: replyShop } = await svc.from('dd_shops').select('name').eq('owner_id', ddUser.id).single()
+
+  return NextResponse.json({ reply: { ...reply, shop_name: replyShop?.name || null } })
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
