@@ -650,47 +650,18 @@ function DashboardTab({ year, totalIncome, totalDonutDashIncome, totalManualInco
   const handleEmail = async () => {
     if (!emailAddr) return
     setEmailing(true); setEmailSent(false)
-    try {
-      const html = buildIncomeStatementHtml(year, totalIncome, totalDonutDashIncome, totalManualIncome, totalExpenses, netProfit, monthlyData, expByCategory)
-      const iframe = document.createElement('iframe')
-      iframe.style.cssText = 'position:fixed;left:-9999px;width:800px;height:1100px'
-      document.body.appendChild(iframe)
-      iframe.contentDocument!.open()
-      iframe.contentDocument!.write(html)
-      iframe.contentDocument!.close()
-      await new Promise(r => setTimeout(r, 500))
-
-      const html2pdf = (await import('html2pdf.js')).default
-      const pdfBlob: Blob = await html2pdf().from(iframe.contentDocument!.body).set({
-        margin: [0.3, 0.4, 0.3, 0.4],
-        filename: `Income_Statement_${year}.pdf`,
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      }).outputPdf('blob')
-      document.body.removeChild(iframe)
-
-      const reader = new FileReader()
-      const base64: string = await new Promise((resolve) => {
-        reader.onload = () => resolve((reader.result as string).split(',')[1])
-        reader.readAsDataURL(pdfBlob)
-      })
-
-      const res = await fetch('/api/shop/email-form', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject: `Income Statement — ${year}`,
-          email: emailAddr,
-          pdfBase64: base64,
-          filename: `Income_Statement_${year}.pdf`,
-        }),
-      })
-      if (res.ok) { setEmailSent(true); setTimeout(() => { setEmailSent(false); setShowEmailModal(false) }, 2000) }
-      else alert('Failed to send email.')
-    } catch (err) {
-      console.error('Email error:', err)
-      alert('Failed to generate PDF. Please try again.')
-    }
+    const res = await fetch('/api/shop/email-form', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject: `Income Statement — ${year}`,
+        email: emailAddr,
+        htmlContent: buildIncomeStatementHtml(year, totalIncome, totalDonutDashIncome, totalManualIncome, totalExpenses, netProfit, monthlyData, expByCategory),
+        htmlFilename: `Income_Statement_${year}.html`,
+      }),
+    })
     setEmailing(false)
+    if (res.ok) { setEmailSent(true); setTimeout(() => { setEmailSent(false); setShowEmailModal(false) }, 2000) }
+    else alert('Failed to send email.')
   }
 
   return (
