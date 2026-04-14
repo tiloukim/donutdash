@@ -35,57 +35,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: ctx.error }, { status })
   }
 
-  const { items, notes } = await req.json()
+  const { supplier_name, items_description, quantity_estimate, delivery_date, notes } = await req.json()
 
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ error: 'No items provided' }, { status: 400 })
+  if (!supplier_name || !items_description) {
+    return NextResponse.json({ error: 'supplier_name and items_description are required' }, { status: 400 })
   }
 
   const { svc, shop } = ctx
 
-  // Fetch product details for all items
-  const productIds = items.map((i: any) => i.product_id)
-  const { data: products, error: prodErr } = await svc
-    .from('dd_supply_products')
-    .select('*, supplier:dd_suppliers(name)')
-    .in('id', productIds)
+  // Build a readable notes string that captures all request details
+  const noteParts: string[] = [
+    `Supplier: ${supplier_name}`,
+    `Items: ${items_description}`,
+  ]
+  if (quantity_estimate) noteParts.push(`Quantity: ${quantity_estimate}`)
+  if (delivery_date) noteParts.push(`Preferred delivery: ${delivery_date}`)
+  if (notes) noteParts.push(`Notes: ${notes}`)
+  const combinedNotes = noteParts.join('\n')
 
-  if (prodErr || !products) {
-    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
-  }
-
-  const productMap = new Map(products.map((p: any) => [p.id, p]))
-
-  // Build order items and calculate totals
-  let subtotal = 0
-  let marginTotal = 0
-  const orderItems: any[] = []
-
-  for (const item of items) {
-    const product = productMap.get(item.product_id)
-    if (!product) continue
-
-    const qty = Math.max(product.min_qty || 1, item.quantity)
-    const lineTotal = Number(product.shop_price) * qty
-    const lineCost = Number(product.supplier_cost) * qty
-
-    subtotal += lineTotal
-    marginTotal += lineTotal - lineCost
-
-    orderItems.push({
-      product_id: product.id,
-      product_name: product.name,
-      supplier_name: product.supplier?.name || 'Unknown',
-      quantity: qty,
-      unit_price: product.shop_price,
-      supplier_cost: product.supplier_cost,
-      total: lineTotal,
-    })
-  }
-
-  const total = subtotal
-
-  // Create order
   const orderNumber = generateOrderNumber()
   const { data: order, error: orderErr } = await svc
     .from('dd_supply_orders')
@@ -93,10 +60,10 @@ export async function POST(req: NextRequest) {
       shop_id: shop.id,
       order_number: orderNumber,
       status: 'pending',
-      subtotal,
-      margin_total: marginTotal,
-      total,
-      notes: notes || null,
+      subtotal: 0,
+      margin_total: 0,
+      total: 0,
+      notes: combinedNotes,
     })
     .select()
     .single()
@@ -105,32 +72,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: orderErr?.message || 'Failed to create order' }, { status: 500 })
   }
 
-  // Insert order items
-  const itemsWithOrderId = orderItems.map(item => ({
-    ...item,
-    order_id: order.id,
-  }))
-
-  const { error: itemsErr } = await svc
-    .from('dd_supply_order_items')
-    .insert(itemsWithOrderId)
-
-  if (itemsErr) {
-    return NextResponse.json({ error: itemsErr.message }, { status: 500 })
-  }
-
   // Notify admins
   try {
     await notifyAdmins(
-      `New supply order ${orderNumber} from ${shop.name} — $${total.toFixed(2)} (${orderItems.length} items)`,
-      `Supply Order ${orderNumber}`,
-      `<p>New supply order <strong>${orderNumber}</strong> from <strong>${shop.name}</strong></p><p>Total: $${total.toFixed(2)} | Margin: $${marginTotal.toFixed(2)}</p>`
+      `New supply quote request ${orderNumber} from ${shop.name} — Supplier: ${supplier_name}`,
+      `Supply Quote Request ${orderNumber}`,
+      `<p>New supply quote request <strong>${orderNumber}</strong> from <strong>${shop.name}</strong></p>` +
+      `<pre style="font-family:sans-serif;font-size:14px;line-height:1.7;white-space:pre-wrap;">${combinedNotes}</pre>`,
     )
   } catch {
-    // Don't fail the order if notification fails
+    // Don't fail the request if notification fails
   }
 
-  return NextResponse.json({ ...order, items: itemsWithOrderId })
+  return NextResponse.json(order)
 }
 
 export async function GET() {
@@ -152,26 +106,6 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // Fetch items for all orders
-  if (orders && orders.length > 0) {
-    const orderIds = orders.map((o: any) => o.id)
-    const { data: allItems } = await svc
-      .from('dd_supply_order_items')
-      .select('*')
-      .in('order_id', orderIds)
-
-    const itemsByOrder = new Map<string, any[]>()
-    for (const item of allItems || []) {
-      const list = itemsByOrder.get(item.order_id) || []
-      list.push(item)
-      itemsByOrder.set(item.order_id, list)
-    }
-
-    for (const order of orders) {
-      order.items = itemsByOrder.get(order.id) || []
-    }
-  }
-
   return NextResponse.json(orders || [])
 }
 
@@ -189,7 +123,6 @@ export async function PATCH(req: NextRequest) {
 
   const { svc, shop } = ctx
 
-  // Check order belongs to shop and is pending
   const { data: order } = await svc
     .from('dd_supply_orders')
     .select('*')
