@@ -648,19 +648,23 @@ function DashboardTab({ year, totalIncome, totalDonutDashIncome, totalManualInco
   }
 
   const generatePdfBase64 = async (html: string): Promise<string> => {
-    const container = document.createElement('div')
-    container.style.cssText = 'position:fixed;left:0;top:0;width:8.5in;background:#fff;z-index:-9999;opacity:0;pointer-events:none'
-    document.body.appendChild(container)
-    container.innerHTML = html.replace(/[\s\S]*<body[^>]*>/, '').replace(/<\/body>[\s\S]*/, '')
-    const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/)
-    if (styleMatch) { const s = document.createElement('style'); s.textContent = styleMatch[1]; container.prepend(s) }
-    await new Promise(r => setTimeout(r, 300))
+    const iframe = document.createElement('iframe')
+    iframe.style.cssText = 'position:fixed;left:0;top:0;width:816px;height:1056px;border:none;z-index:-1;opacity:0.01'
+    document.body.appendChild(iframe)
+    const doc = iframe.contentDocument!
+    doc.open()
+    doc.write(html)
+    doc.close()
+    await new Promise(r => iframe.onload = r)
+    await new Promise(r => setTimeout(r, 500))
+
     const html2pdf = (await import('html2pdf.js')).default
-    const blob: Blob = await html2pdf().from(container).set({
-      margin: [0.4, 0.4, 0.4, 0.4], html2canvas: { scale: 2, useCORS: true },
+    const blob: Blob = await html2pdf().from(doc.body).set({
+      margin: [0.3, 0.4, 0.3, 0.4],
+      html2canvas: { scale: 1.5, useCORS: true, logging: false, windowWidth: 816 },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
     }).outputPdf('blob')
-    document.body.removeChild(container)
+    document.body.removeChild(iframe)
     return new Promise((resolve) => {
       const reader = new FileReader()
       reader.onload = () => resolve((reader.result as string).split(',')[1])
