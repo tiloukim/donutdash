@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const EXPENSE_CATEGORIES = [
@@ -46,6 +46,108 @@ export default function ShopBookkeeping() {
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filterMonth, setFilterMonth] = useState<number | null>(null)
+
+  // Receipt scanner
+  const receiptRef = useRef<HTMLInputElement>(null)
+  const [scanning, setScanning] = useState(false)
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
+  const [scanResult, setScanResult] = useState<{ date: string; desc: string; amount: string; category: string } | null>(null)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+
+  // Store name → category mapping for auto-categorization
+  const storeCatMap: [string[], string, string][] = [
+    [['WALMART', 'WAL-MART', 'WAL MART', 'WM SUPERCENTER'], 'Walmart', 'Supplies - General'],
+    [['SAM\'S CLUB', 'SAMS CLUB', 'SAM\'S'], 'Sam\'s Club', 'Supplies - General'],
+    [['COSTCO'], 'Costco', 'Supplies - General'],
+    [['DAWN FOOD', 'DAWN FOODS'], 'Dawn Food Products', 'Supplies - Flour/Mix'],
+    [['SYSCO'], 'Sysco', 'Supplies - Other Ingredients'],
+    [['US FOODS', 'USFOODS'], 'US Foods', 'Supplies - Other Ingredients'],
+    [['HOME DEPOT'], 'Home Depot', 'Maintenance/Repairs'],
+    [['LOWE\'S', 'LOWES'], 'Lowe\'s', 'Maintenance/Repairs'],
+    [['DOLLAR TREE', 'DOLLAR GENERAL'], 'Dollar Store', 'Cleaning Supplies'],
+    [['BROOKSHIRE'], 'Brookshire\'s', 'Supplies - General'],
+    [['ULINE'], 'Uline', 'Supplies - Boxes/Packaging'],
+  ]
+
+  const scanReceipt = async (file: File) => {
+    setScanning(true)
+    setScanResult(null)
+    setReceiptPreview(URL.createObjectURL(file))
+    setShowReceiptModal(true)
+    try {
+      const Tesseract = (await import('tesseract.js')).default
+      const { data: { text } } = await Tesseract.recognize(file, 'eng')
+      const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean)
+      const fullText = lines.join(' ').toUpperCase()
+
+      // 1. Extract store name + auto-category
+      let desc = '', cat = 'Other'
+      for (const [keywords, storeName, category] of storeCatMap) {
+        if (keywords.some(k => fullText.includes(k))) { desc = storeName; cat = category; break }
+      }
+      if (!desc && lines.length > 0) desc = lines[0].replace(/[^a-zA-Z0-9\s&'.-]/g, '').trim().slice(0, 40)
+
+      // 2. Extract date
+      let date = new Date().toISOString().slice(0, 10)
+      const monthNames: Record<string, string> = { JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12' }
+      let dateFound = false
+      for (const line of lines) {
+        if (dateFound) break
+        const mName = line.match(/(\w{3})\s+(\d{1,2}),?\s*(20\d{2})/i)
+        if (mName) { const mo = monthNames[mName[1].toUpperCase()]; if (mo) { date = `${mName[3]}-${mo}-${mName[2].padStart(2, '0')}`; dateFound = true; continue } }
+        const mISO = line.match(/(20\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
+        if (mISO) { date = `${mISO[1]}-${mISO[2].padStart(2, '0')}-${mISO[3].padStart(2, '0')}`; dateFound = true; continue }
+        const datePatterns = [/(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})/, /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})/]
+        for (const pat of datePatterns) {
+          const m = line.match(pat)
+          if (m) { const yr = m[3].length === 2 ? '20' + m[3] : m[3]; const mo = m[1].padStart(2, '0'); const dy = m[2].padStart(2, '0'); if (parseInt(mo) <= 12 && parseInt(dy) <= 31) { date = `${yr}-${mo}-${dy}`; dateFound = true; break } }
+        }
+      }
+
+      // 3. Extract total amount
+      const AMT = '(\\d{1,3}(?:[,\\s.]\\d{3})*\\.\\d{2}|\\d+\\.\\d{2})'
+      const totalKeywords = ['GRAND\\s*TOTAL', 'TOTAL\\s*DUE', 'TOTAL\\s*SALE', 'TOTAL\\s*AMOUNT', 'AMOUNT\\s*DUE', 'BALANCE\\s*DUE', 'SUBTOTAL', '(?:VISA|MASTERCARD|DEBIT|CREDIT)', 'TOTAL']
+      const totalPatterns = totalKeywords.map(kw => new RegExp(kw + '[:\\s]*\\$?\\s*' + AMT, 'i'))
+      const parseAmt = (raw: string) => parseFloat(raw.replace(/[\s]/g, '').replace(/\.(?=\d{3}\.)/g, '').replace(/,/g, ''))
+      let amount = ''
+      const reversedLines = [...lines].reverse()
+      for (const line of reversedLines) {
+        for (const pat of totalPatterns) { const m = line.match(pat); if (m) { const v = parseAmt(m[1]); amount = v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); break } }
+        if (amount) break
+      }
+      if (!amount) {
+        let maxVal = 0
+        for (const line of lines) { const matches = line.match(/\$?\s*(\d{1,3}(?:[,\s.]\d{3})*\.\d{2})/g); if (matches) for (const match of matches) { const v = parseAmt(match.replace(/^\$?\s*/, '')); if (v > maxVal && v < 50000) { maxVal = v; amount = v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } } }
+      }
+
+      setScanResult({ date, desc, amount, category: cat })
+    } catch (err) {
+      console.error('OCR error:', err)
+      setScanResult({ date: new Date().toISOString().slice(0, 10), desc: '', amount: '', category: 'Other' })
+    }
+    setScanning(false)
+  }
+
+  const applyReceipt = async () => {
+    if (!scanResult) return
+    const amt = parseFloat(scanResult.amount.replace(/,/g, ''))
+    if (!scanResult.desc || !amt) {
+      // Fill form for manual completion
+      setFormType('expense')
+      setFDate(scanResult.date); setFDesc(scanResult.desc); setFAmount(scanResult.amount); setFCat(scanResult.category); setFSource('Receipt Scan')
+      setShowForm(true)
+    } else {
+      // Save directly
+      setSaving(true)
+      await fetch('/api/shop/bookkeeping', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'expense', date: scanResult.date, description: scanResult.desc, amount: amt.toString(), category: scanResult.category, source: 'Receipt Scan' }),
+      })
+      setSaving(false)
+      fetchData()
+    }
+    setShowReceiptModal(false); setReceiptPreview(null); setScanResult(null)
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -181,11 +283,21 @@ export default function ShopBookkeeping() {
             ))}
           </div>
 
-          {/* Add button */}
+          {/* Add button + Scan Receipt */}
           {!showForm && (
-            <button onClick={() => { setFormType(tab === 'income' ? 'income' : 'expense'); setFCat(tab === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]); setShowForm(true); setEditingId(null) }} style={{ ...btnPrimary, marginBottom: 16 }}>
-              + Add {tab === 'income' ? 'Income' : 'Expense'}
-            </button>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <button onClick={() => { setFormType(tab === 'income' ? 'income' : 'expense'); setFCat(tab === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]); setShowForm(true); setEditingId(null) }} style={btnPrimary}>
+                + Add {tab === 'income' ? 'Income' : 'Expense'}
+              </button>
+              {tab === 'expenses' && (
+                <>
+                  <button onClick={() => receiptRef.current?.click()} style={{ ...btnPrimary, background: '#FF8C00' }}>
+                    📸 Scan Receipt
+                  </button>
+                  <input ref={receiptRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) scanReceipt(f); e.target.value = '' }} />
+                </>
+              )}
+            </div>
           )}
 
           {/* Entry form */}
@@ -293,6 +405,60 @@ export default function ShopBookkeeping() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Scanner Modal */}
+      {showReceiptModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={() => { setShowReceiptModal(false); setReceiptPreview(null); setScanResult(null) }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, maxWidth: 440, width: '100%', maxHeight: '85vh', overflow: 'auto', padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>📸 Receipt Scanner</div>
+              <button onClick={() => { setShowReceiptModal(false); setReceiptPreview(null); setScanResult(null) }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>✕</button>
+            </div>
+            {receiptPreview && <img src={receiptPreview} style={{ width: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 8, border: '1px solid #eee', marginBottom: 16 }} alt="Receipt" />}
+            {scanning && (
+              <div style={{ textAlign: 'center', padding: 24 }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
+                <div style={{ fontWeight: 600 }}>Scanning receipt...</div>
+                <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Reading text with OCR</div>
+              </div>
+            )}
+            {scanResult && !scanning && (
+              <>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#10B981', marginBottom: 12, background: '#ECFDF5', padding: '8px 12px', borderRadius: 8 }}>
+                  ✓ Scan complete — review & edit below
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#888', marginBottom: 2, display: 'block' }}>DATE</label>
+                    <input type="date" value={scanResult.date} onChange={e => setScanResult({ ...scanResult, date: e.target.value })} style={input} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#888', marginBottom: 2, display: 'block' }}>STORE / DESCRIPTION</label>
+                    <input value={scanResult.desc} onChange={e => setScanResult({ ...scanResult, desc: e.target.value })} placeholder="Store name" style={input} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#888', marginBottom: 2, display: 'block' }}>AMOUNT ($)</label>
+                    <input type="text" inputMode="decimal" value={scanResult.amount} onChange={e => setScanResult({ ...scanResult, amount: e.target.value.replace(/[^0-9.,]/g, '') })} placeholder="0.00" style={input} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#888', marginBottom: 2, display: 'block' }}>CATEGORY</label>
+                    <select value={scanResult.category} onChange={e => setScanResult({ ...scanResult, category: e.target.value })} style={input}>
+                      {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <button onClick={applyReceipt} disabled={saving} style={{ ...btnPrimary, flex: 1, opacity: saving ? 0.5 : 1 }}>
+                    {saving ? 'Saving...' : '✓ Add to Expenses'}
+                  </button>
+                  <button onClick={() => receiptRef.current?.click()} style={{ ...btnPrimary, background: '#f5f5f5', color: '#666' }}>Retake</button>
+                </div>
+              </>
             )}
           </div>
         </div>
