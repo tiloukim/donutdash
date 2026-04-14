@@ -160,6 +160,10 @@ export default function TaxForms() {
   const [year, setYear] = useState(new Date().getFullYear() - 1)
   const [data, setData] = useState<TaxData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [emailing, setEmailing] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [emailAddr, setEmailAddr] = useState('')
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -176,6 +180,20 @@ export default function TaxForms() {
     w.document.write(build1099K(data, year))
     w.document.close()
     w.print()
+  }
+
+  const handleEmail = async () => {
+    if (!data || !emailAddr) return
+    setEmailing(true)
+    setEmailSent(false)
+    const html = build1099K(data, year)
+    const res = await fetch('/api/shop/email-form', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, subject: `1099-K Tax Form — ${data.shop.name} — Tax Year ${year}`, email: emailAddr }),
+    })
+    setEmailing(false)
+    if (res.ok) { setEmailSent(true); setTimeout(() => { setEmailSent(false); setShowEmailModal(false) }, 2000) }
+    else alert('Failed to send email. Please try again.')
   }
 
   const card: React.CSSProperties = { background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', overflow: 'hidden' }
@@ -265,18 +283,47 @@ export default function TaxForms() {
             </div>
           </div>
 
-          {/* Download / Print */}
+          {/* Download / Print / Email */}
           <div style={{ ...card, padding: 20, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>1099-K Form — Tax Year {year}</h3>
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#888' }}>Print or save as PDF for your tax records</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#888' }}>Print, save as PDF, or email to yourself</p>
               </div>
-              <button onClick={handlePrint} style={{ padding: '10px 24px', borderRadius: 8, background: '#FF1493', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 14 }}>
-                🖨️ Print / Save PDF
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={handlePrint} style={{ padding: '10px 20px', borderRadius: 8, background: '#FF1493', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 14 }}>
+                  🖨️ Print / Save PDF
+                </button>
+                <button onClick={() => setShowEmailModal(true)} style={{ padding: '10px 20px', borderRadius: 8, background: '#6366F1', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 14 }}>
+                  📧 Email
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* Email modal */}
+          {showEmailModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+              onClick={() => setShowEmailModal(false)}>
+              <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, maxWidth: 420, width: '100%', padding: 24 }}>
+                <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>Email 1099-K Form</h3>
+                <p style={{ margin: '0 0 16px', fontSize: 13, color: '#888' }}>Send the {year} 1099-K form to your email or your CPA</p>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 4, display: 'block' }}>Email Address</label>
+                <input type="email" value={emailAddr} onChange={e => setEmailAddr(e.target.value)} placeholder="you@example.com"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, marginBottom: 16 }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleEmail} disabled={emailing || !emailAddr}
+                    style={{ flex: 1, padding: '12px 20px', borderRadius: 8, background: emailSent ? '#10B981' : '#6366F1', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 14, opacity: emailing || !emailAddr ? 0.5 : 1 }}>
+                    {emailSent ? '✓ Sent!' : emailing ? 'Sending...' : '📧 Send Email'}
+                  </button>
+                  <button onClick={() => setShowEmailModal(false)}
+                    style={{ padding: '12px 20px', borderRadius: 8, background: '#f5f5f5', color: '#666', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: 14 }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
