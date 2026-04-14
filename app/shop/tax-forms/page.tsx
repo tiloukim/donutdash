@@ -34,24 +34,35 @@ export default function TaxForms() {
 
   const handlePrint = () => {
     if (!formRef.current) return
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
-    printWindow.document.write(`
-      <html><head><title>1099-K ${year} - ${data?.shop.name}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 30px 40px; color: #000; background: #fff; font-size: 11px; line-height: 1.3; }
-        @media print { body { padding: 20px 30px; } @page { margin: 0.5in; } }
-        .form-box { border: 2px solid #000; }
-        .cell { border: 1px solid #000; padding: 4px 6px; }
-        .label { font-size: 8px; color: #000; }
-        .value { font-size: 12px; margin-top: 2px; }
-        .value-lg { font-size: 14px; font-weight: bold; margin-top: 2px; }
-        .checkbox { display: inline-block; width: 12px; height: 12px; border: 1px solid #000; text-align: center; font-size: 10px; line-height: 12px; margin-right: 3px; vertical-align: middle; }
-      </style></head><body>${formRef.current.innerHTML}</body></html>
-    `)
-    printWindow.document.close()
-    printWindow.print()
+    const w = window.open('', '_blank')
+    if (!w) return
+    w.document.write(`<!DOCTYPE html><html><head><title>1099-K ${year} - ${data?.shop.name}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;padding:0.4in 0.5in;color:#000;background:#fff;font-size:9px;line-height:1.25}
+@media print{body{padding:0.3in 0.4in}@page{margin:0.4in;size:letter}}
+table{border-collapse:collapse;width:100%}
+td{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size:9px}
+.lbl{font-size:6.5px;line-height:1.2;color:#000}
+.val{font-size:9px;margin-top:1px}
+.val-lg{font-size:12px;font-weight:bold;margin-top:2px}
+.val-xl{font-size:26px;font-weight:bold;line-height:1}
+.nb{border:none}
+.bt{border-top:1px solid #000}
+.br{border-right:1px solid #000}
+.bl{border-left:1px solid #000}
+.bb{border-bottom:1px solid #000}
+.b0{border:none}
+.chk{display:inline-block;width:10px;height:10px;border:1.5px solid #000;text-align:center;font-size:9px;font-weight:bold;line-height:9px;margin-right:2px;vertical-align:middle}
+.right-col{font-size:6.5px;line-height:1.3}
+.footer{font-size:7px;margin-top:4px;display:flex;justify-content:space-between}
+h4{font-size:11px;margin-bottom:6px}
+.instructions{font-size:7px;line-height:1.45}
+.instructions p{margin-top:4px}
+.page2{page-break-before:always}
+</style></head><body>${formRef.current.innerHTML}</body></html>`)
+    w.document.close()
+    w.print()
   }
 
   const card: React.CSSProperties = { background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', overflow: 'hidden' }
@@ -154,227 +165,202 @@ export default function TaxForms() {
             </div>
           </div>
 
-          {/* Printable 1099-K form — matches official IRS layout */}
+          {/* Printable 1099-K — hidden, used by print */}
           <div ref={formRef} style={{ position: 'absolute', left: '-9999px', top: 0 }}>
-            <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', width: 720, margin: '0 auto', color: '#000', fontSize: 10, lineHeight: 1.3 }}>
-
-              {/* === PAGE 1: Cover letter === */}
-              <div style={{ marginBottom: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 40 }}>
-                  <div style={{ fontSize: 10, lineHeight: 1.5 }}>DonutDash Inc.<br/>donutdash.app<br/>Tyler, TX</div>
-                  <div style={{ fontSize: 9, textAlign: 'right' }}>If you have questions contact:<br/>support@donutdash.app</div>
-                </div>
-                <div style={{ margin: '50px 0 50px 60px', fontSize: 12, lineHeight: 1.6 }}>
-                  <b>{data.shop.name}</b><br/>{data.shop.address || ''}<br/>{[data.shop.city, data.shop.state, data.shop.zip].filter(Boolean).join(', ')}
-                </div>
-                <div style={{ display: 'flex', gap: 20, marginTop: 40 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Instructions for Payee</div>
-                    <div style={{ fontSize: 8, lineHeight: 1.5 }}>
-                      <p>You have received this form because you have either (a) accepted payment cards for payments, or (b) received payments through a third party network in the calendar year reported on this form.</p>
-                      <p style={{ marginTop: 5 }}>Merchant acquirers and third party settlement organizations, as payment settlement entities (PSEs), must report the proceeds of payment card and third party network transactions made to you on Form 1099-K under Internal Revenue Code section 6050W.</p>
-                      <p style={{ marginTop: 5 }}><b>Payee&apos;s taxpayer identification number (TIN).</b> For your protection, this form may show only the last four digits of your TIN.</p>
-                      <p style={{ marginTop: 5 }}><b>Account number.</b> May show an account number or other unique number the PSE assigned to distinguish your account.</p>
-                      <p style={{ marginTop: 5 }}><b>Box 1a.</b> Shows the aggregate gross amount of payment card/third party network transactions made to you through the PSE during the calendar year.</p>
-                    </div>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 8, lineHeight: 1.5 }}>
-                      <p><b>Note:</b> The gross amount is the total dollar amount of total reportable payment transactions without regard to any adjustments for credits, cash equivalents, discount amounts, fees, refunded amounts, shipping amounts, or any other amounts. The dollar amount of each transaction is determined on the date of the transaction.</p>
-                      <p style={{ marginTop: 5 }}><b>Box 1b.</b> Shows the aggregate gross amount of all reportable payment transactions where the card was not present at the time of the transaction or the card number was keyed into the terminal. Typically, this refers to online sales, phone sales, or catalogue sales.</p>
-                      <p style={{ marginTop: 5 }}><b>Box 2.</b> Shows the merchant category code used for payment card/third party network transactions (if available) reported on this form.</p>
-                      <p style={{ marginTop: 5 }}><b>Box 3.</b> Shows the number of payment transactions (not including refund transactions) processed through the payment card/third party network.</p>
-                      <p style={{ marginTop: 5 }}><b>Box 4.</b> Shows backup withholding.</p>
-                      <p style={{ marginTop: 5 }}><b>Boxes 5a-5l.</b> Show the gross amount of payment card/third party network transactions made to you for each month of the calendar year.</p>
-                      <p style={{ marginTop: 5 }}><b>Boxes 6-8.</b> Show state and local income tax withheld from the payments.</p>
-                    </div>
-                  </div>
+            {/* ——— PAGE 1 : Cover Letter ——— */}
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 9, lineHeight: 1.5 }}>DonutDash Inc.<br/>donutdash.app<br/>Tyler, TX</div>
+              <div style={{ fontSize: 8, textAlign: 'right' }}>If you have questions contact:<br/>support@donutdash.app</div>
+            </div>
+            <div style={{ margin: '50px 0 50px 60px', fontSize: 11, lineHeight: 1.6 }}>
+              <b>{data.shop.name}</b><br/>{data.shop.address}<br/>{[data.shop.city, data.shop.state, data.shop.zip].filter(Boolean).join(', ')}
+            </div>
+            <div style={{ display: 'flex', gap: 24, marginTop: 30 }}>
+              <div style={{ flex: 1 }}>
+                <h4>Instructions for Payee</h4>
+                <div className="instructions">
+                  <p>You have received this form because you have either (a) accepted payment cards for payments, or (b) received payments through a third party network in the calendar year reported on this form.</p>
+                  <p>Merchant acquirers and third party settlement organizations, as payment settlement entities (PSEs), must report the proceeds of payment card and third party network transactions made to you on Form 1099-K under Internal Revenue Code section 6050W.</p>
+                  <p><b>Payee&apos;s taxpayer identification number (TIN).</b> For your protection, this form may show only the last four digits of your TIN.</p>
+                  <p><b>Account number.</b> May show an account number or other unique number the PSE assigned to distinguish your account.</p>
+                  <p><b>Box 1a.</b> Shows the aggregate gross amount of payment card/third party network transactions made to you through the PSE during the calendar year.</p>
                 </div>
               </div>
-
-              <div style={{ pageBreakBefore: 'always' }}></div>
-
-              {/* === PAGE 2: The 1099-K form — clean grid layout === */}
-              {(() => {
-                const b = '1px solid #000'
-                const cell = (extra?: React.CSSProperties): React.CSSProperties => ({ border: b, padding: '3px 5px', ...extra })
-                const lbl: React.CSSProperties = { fontSize: 7, color: '#000', lineHeight: 1.2 }
-                const val: React.CSSProperties = { fontSize: 10, marginTop: 1 }
-                const valBig: React.CSSProperties = { fontSize: 13, fontWeight: 700, marginTop: 2 }
-                const chk = (checked: boolean) => `[${checked ? 'X' : ' '}]`
-                const mo = (i: number) => data.monthly[i] > 0 ? fmt(data.monthly[i]).slice(1) : '0.00'
-
-                return (
-                  <div style={{ border: '2px solid #000', width: 720 }}>
-                    {/* Row 1 */}
-                    <div style={{ display: 'flex' }}>
-                      <div style={{ ...cell({ width: 270, borderRight: b }) }}>
-                        <div style={lbl}>FILER&apos;S name, street address, city or town, state or province, country, ZIP or foreign postal code, and telephone no.</div>
-                        <div style={{ ...val, lineHeight: 1.4, marginTop: 3 }}>DonutDash Inc.<br/>Tyler, TX<br/>donutdash.app</div>
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex' }}>
-                          <div style={{ ...cell({ flex: 1, borderRight: b }) }}>
-                            <div style={lbl}>FILER&apos;S TIN</div>
-                            <div style={val}>XX-XXXXXXX</div>
-                          </div>
-                          <div style={{ ...cell({ width: 90, borderRight: b }) }}>
-                            <div style={{ fontSize: 7 }}>OMB No. 1545-2205</div>
-                          </div>
-                          <div style={{ ...cell({ width: 180 }), textAlign: 'center', padding: '8px 5px' }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.2 }}>Payment Card<br/>and Third Party<br/>Network<br/>Transactions</div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex' }}>
-                          <div style={{ ...cell({ flex: 1, borderRight: b, borderTop: b }) }}>
-                            <div style={lbl}>PAYEE&apos;S TIN</div>
-                            <div style={val}>XX-XXX****</div>
-                          </div>
-                          <div style={{ ...cell({ width: 90, borderRight: b, borderTop: b }), textAlign: 'center', padding: '4px' }}>
-                            <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1 }}>{year}</div>
-                          </div>
-                          <div style={{ width: 180, borderTop: b, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ ...cell({ borderBottom: 'none' }), textAlign: 'center' }}>
-                              <div style={{ fontSize: 14, fontWeight: 700 }}>Form 1099-K</div>
-                            </div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex' }}>
-                          <div style={{ ...cell({ flex: 1, borderRight: b, borderTop: b }) }}>
-                            <div style={lbl}>1a Gross amount of payment card/third party network transactions</div>
-                            <div style={valBig}>$ {fmt(data.grossAmount).slice(1)}</div>
-                          </div>
-                          <div style={{ width: 270, borderTop: b, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ ...cell({}), textAlign: 'center' }}>
-                              <div style={{ fontSize: 9, fontWeight: 700 }}>Copy B</div>
-                              <div style={{ fontSize: 8, fontWeight: 700 }}>For Payee</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Row 2: Checkboxes + 1b + 2 */}
-                    <div style={{ display: 'flex', borderTop: b }}>
-                      <div style={{ ...cell({ width: 270, borderRight: b }) }}>
-                        <div style={lbl}>Check to indicate if FILER is a (an):</div>
-                        <div style={{ fontSize: 8, lineHeight: 1.7, marginTop: 2 }}>
-                          {chk(true)} Payment settlement entity (PSE)<br/>
-                          {chk(false)} Electronic Payment Facilitator (EPF)/Other third party
-                        </div>
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex' }}>
-                          <div style={{ ...cell({ flex: 1, borderRight: b }) }}>
-                            <div style={lbl}>1b Card Not Present transactions</div>
-                            <div style={{ ...val, fontWeight: 700 }}>$ {fmt(data.grossAmount).slice(1)}</div>
-                          </div>
-                          <div style={{ ...cell({ flex: 1, borderRight: b }) }}>
-                            <div style={lbl}>2 Merchant category code</div>
-                            <div style={val}>5462</div>
-                          </div>
-                          <div style={{ width: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderLeft: 'none' }}>
-                            <div style={{ fontSize: 7, lineHeight: 1.4, textAlign: 'left' }}>
-                              This is important tax information and is being furnished to the IRS.
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Row 3: Report type checkboxes + 3 + 4 */}
-                    <div style={{ display: 'flex', borderTop: b }}>
-                      <div style={{ ...cell({ width: 270, borderRight: b }) }}>
-                        <div style={lbl}>Check to indicate transactions reported are:</div>
-                        <div style={{ fontSize: 8, marginTop: 2 }}>
-                          {chk(false)} Payment card&nbsp;&nbsp;&nbsp;{chk(true)} Third party network
-                        </div>
-                      </div>
-                      <div style={{ ...cell({ flex: 1, borderRight: b }) }}>
-                        <div style={lbl}>3 Number of payment transactions</div>
-                        <div style={val}>{data.transactionCount.toLocaleString()}</div>
-                      </div>
-                      <div style={{ ...cell({ flex: 1, borderRight: b }) }}>
-                        <div style={lbl}>4 Federal income tax withheld</div>
-                        <div style={val}>$</div>
-                      </div>
-                      <div style={{ width: 180 }}></div>
-                    </div>
-
-                    {/* Months 5a-5l: left side = PAYEE info, right = month pairs */}
-                    {[
-                      [0, 1], [2, 3], [4, 5], [6, 7], [8, 9], [10, 11]
-                    ].map(([a, b2], rowIdx) => (
-                      <div key={rowIdx} style={{ display: 'flex', borderTop: b }}>
-                        {rowIdx === 0 ? (
-                          <div style={{ ...cell({ width: 270, borderRight: b }), minHeight: 24 * 6 }}>
-                            <div style={lbl}>PAYEE&apos;S name, street address (including apt. no.), city or town, state or province, country, and ZIP or foreign postal code</div>
-                            <div style={{ fontSize: 10, marginTop: 4, lineHeight: 1.5, fontWeight: 700 }}>
-                              {data.shop.name}
-                            </div>
-                            <div style={{ fontSize: 10, lineHeight: 1.5 }}>
-                              {data.shop.address || ''}<br/>
-                              {[data.shop.city, data.shop.state, data.shop.zip].filter(Boolean).join(', ')}
-                            </div>
-                          </div>
-                        ) : rowIdx === 1 ? null : rowIdx === 2 ? null : rowIdx === 3 ? null : rowIdx === 4 ? null : null}
-                        {rowIdx > 0 && <div style={{ width: 270, borderRight: b }}></div>}
-                        <div style={{ ...cell({ flex: 1, borderRight: b }) }}>
-                          <div style={lbl}>{'5' + String.fromCharCode(97 + a)} {MONTHS[a]}</div>
-                          <div style={val}>$ {mo(a)}</div>
-                        </div>
-                        <div style={{ ...cell({ flex: 1, borderRight: b }) }}>
-                          <div style={lbl}>{'5' + String.fromCharCode(97 + b2)} {MONTHS[b2]}</div>
-                          <div style={val}>$ {mo(b2)}</div>
-                        </div>
-                        <div style={{ width: 180 }}></div>
-                      </div>
-                    ))}
-
-                    {/* PSE + State */}
-                    <div style={{ display: 'flex', borderTop: b }}>
-                      <div style={{ ...cell({ width: 270, borderRight: b }) }}>
-                        <div style={lbl}>PSE&apos;S name and telephone number</div>
-                        <div style={val}>DonutDash Inc. support@donutdash.app</div>
-                      </div>
-                      <div style={{ ...cell({ flex: 1, borderRight: b }) }}>
-                        <div style={lbl}>6 State</div>
-                        <div style={val}>{data.shop.state || 'TX'}</div>
-                      </div>
-                      <div style={{ ...cell({ flex: 1, borderRight: b }) }}>
-                        <div style={lbl}>7 State identification no.</div>
-                        <div style={val}>&nbsp;</div>
-                      </div>
-                      <div style={{ ...cell({ width: 180 }) }}>
-                        <div style={lbl}>8 State income tax withheld</div>
-                        <div style={val}>$</div>
-                      </div>
-                    </div>
-
-                    {/* Account number */}
-                    <div style={{ display: 'flex', borderTop: b }}>
-                      <div style={{ ...cell({ width: 270, borderRight: b }) }}>
-                        <div style={lbl}>Account number (see instructions)</div>
-                        <div style={val}>&nbsp;</div>
-                      </div>
-                      <div style={{ ...cell({ flex: 1 }) }}>&nbsp;</div>
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* Footer */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 8 }}>
-                <span>Form 1099-K (Rev. 3-2024)</span>
-                <span>(Keep for your records)</span>
-                <span>www.irs.gov/Form1099K</span>
-                <span>Department of the Treasury - Internal Revenue Service</span>
+              <div style={{ flex: 1 }}>
+                <div className="instructions">
+                  <p><b>Note:</b> The gross amount is the total dollar amount of total reportable payment transactions without regard to any adjustments for credits, cash equivalents, discount amounts, fees, refunded amounts, shipping amounts, or any other amounts.</p>
+                  <p><b>Box 1b.</b> Shows the aggregate gross amount of all reportable payment transactions where the card was not present at the time of the transaction.</p>
+                  <p><b>Box 2.</b> Shows the merchant category code used for payment card/third party network transactions.</p>
+                  <p><b>Box 3.</b> Shows the number of payment transactions (not including refund transactions) processed through the payment card/third party network.</p>
+                  <p><b>Box 4.</b> Shows backup withholding.</p>
+                  <p><b>Boxes 5a-5l.</b> Show the gross amount of payment card/third party network transactions made to you for each month of the calendar year.</p>
+                  <p><b>Boxes 6-8.</b> Show state and local income tax withheld from the payments.</p>
+                </div>
               </div>
+            </div>
 
-              <div style={{ fontSize: 7, color: '#666', textAlign: 'center', marginTop: 16, borderTop: '1px solid #ccc', paddingTop: 6 }}>
-                This is an informational summary generated by DonutDash for tax year {year}. This document is provided for your records and may differ from the official IRS Form 1099-K.<br/>
-                Consult your tax professional for filing requirements. Generated on {new Date().toLocaleDateString()}.
-              </div>
+            {/* ——— PAGE 2 : 1099-K Form ——— */}
+            <div className="page2">
+            {(() => {
+              const mo = (i: number) => data.monthly[i] > 0 ? fmt(data.monthly[i]).slice(1) : '0.00'
+              const corrected = false
+              return (
+              <table style={{ border: '2px solid #000' }}>
+                <colgroup>
+                  <col style={{ width: '37%' }}/>
+                  <col style={{ width: '18%' }}/>
+                  <col style={{ width: '18%' }}/>
+                  <col style={{ width: '27%' }}/>
+                </colgroup>
+                <tbody>
+                  {/* R1 */}
+                  <tr>
+                    <td rowSpan={4} style={{ verticalAlign: 'top' }}>
+                      <div className="lbl">FILER&apos;S name, street address, city or town, state or province, country, ZIP or foreign postal code, and telephone no.</div>
+                      <div style={{ fontSize: 10, marginTop: 4, lineHeight: 1.5 }}>
+                        DonutDash Inc.<br/>donutdash.app<br/>Tyler, TX
+                      </div>
+                    </td>
+                    <td>
+                      <div className="lbl">FILER&apos;S TIN</div>
+                      <div className="val">XX-XXXXXXX</div>
+                    </td>
+                    <td><div className="lbl">OMB No. 1545-2205</div></td>
+                    <td rowSpan={2} style={{ textAlign: 'center', verticalAlign: 'middle', padding: '8px 4px' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>Payment Card<br/>and Third Party<br/>Network<br/>Transactions</div>
+                    </td>
+                  </tr>
+                  {/* R2 */}
+                  <tr>
+                    <td>
+                      <div className="lbl">PAYEE&apos;S TIN</div>
+                      <div className="val">XX-XXX****</div>
+                    </td>
+                    <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '2px' }}>
+                      <div className="val-xl">{year}</div>
+                    </td>
+                  </tr>
+                  {/* R3 */}
+                  <tr>
+                    <td colSpan={2}>
+                      <div className="lbl">1a&ensp;Gross amount of payment card/third party network transactions</div>
+                      <div className="val-lg">$ {fmt(data.grossAmount).slice(1)}</div>
+                    </td>
+                    <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Form 1099-K</div>
+                    </td>
+                  </tr>
+                  {/* R4 */}
+                  <tr>
+                    <td>
+                      <div className="lbl">1b&ensp;Card Not Present transactions</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, marginTop: 1 }}>$ {fmt(data.grossAmount).slice(1)}</div>
+                    </td>
+                    <td>
+                      <div className="lbl">2&ensp;Merchant category code</div>
+                      <div className="val">5462</div>
+                    </td>
+                    <td rowSpan={2} style={{ verticalAlign: 'top', padding: '6px 5px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700 }}>Copy B</div>
+                      <div style={{ fontSize: 9, fontWeight: 700 }}>For Payee</div>
+                      <div className="right-col" style={{ marginTop: 4, textAlign: 'left' }}>
+                        This is important tax information and is being furnished to the IRS. If you are required to file a return, a negligence penalty or other sanction may be imposed on you if taxable income results from this transaction and the IRS determines that it has not been reported.
+                      </div>
+                    </td>
+                  </tr>
+                  {/* R5 : checkboxes + 3 + 4 */}
+                  <tr>
+                    <td>
+                      <div className="lbl">Check to indicate if FILER is a (an):</div>
+                      <div style={{ fontSize: 8, lineHeight: 1.7, marginTop: 1 }}>
+                        <span className="chk">X</span> Payment settlement entity (PSE)<br/>
+                        <span className="chk">&nbsp;</span> Electronic Payment Facilitator (EPF)/Other third party
+                      </div>
+                    </td>
+                    <td>
+                      <div className="lbl">3&ensp;Number of payment transactions</div>
+                      <div className="val">{data.transactionCount.toLocaleString()}</div>
+                    </td>
+                    <td>
+                      <div className="lbl">4&ensp;Federal income tax withheld</div>
+                      <div className="val">$</div>
+                    </td>
+                  </tr>
+                  {/* R6 : report-type checkboxes + 5a + 5b */}
+                  <tr>
+                    <td>
+                      <div className="lbl">Check to indicate transactions reported are:</div>
+                      <div style={{ fontSize: 8, marginTop: 1 }}>
+                        <span className="chk">&nbsp;</span> Payment card&ensp;&ensp;
+                        <span className="chk">X</span> Third party network
+                      </div>
+                    </td>
+                    <td><div className="lbl">5a&ensp;January</div><div className="val">$ {mo(0)}</div></td>
+                    <td><div className="lbl">5b&ensp;February</div><div className="val">$ {mo(1)}</div></td>
+                    <td rowSpan={7} className="b0" style={{ border: '1px solid #000', verticalAlign: 'top' }}>&nbsp;</td>
+                  </tr>
+                  {/* R7-R12 : PAYEE address + months */}
+                  <tr>
+                    <td rowSpan={5} style={{ verticalAlign: 'top' }}>
+                      <div className="lbl">PAYEE&apos;S name, street address (including apt. no.), city or town, state or province, country, and ZIP or foreign postal code</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, marginTop: 4, lineHeight: 1.5 }}>{data.shop.name}</div>
+                      <div style={{ fontSize: 9, lineHeight: 1.5 }}>
+                        {data.shop.address}<br/>
+                        {[data.shop.city, data.shop.state, data.shop.zip].filter(Boolean).join(', ')}
+                      </div>
+                    </td>
+                    <td><div className="lbl">5c&ensp;March</div><div className="val">$ {mo(2)}</div></td>
+                    <td><div className="lbl">5d&ensp;April</div><div className="val">$ {mo(3)}</div></td>
+                  </tr>
+                  <tr>
+                    <td><div className="lbl">5e&ensp;May</div><div className="val">$ {mo(4)}</div></td>
+                    <td><div className="lbl">5f&ensp;June</div><div className="val">$ {mo(5)}</div></td>
+                  </tr>
+                  <tr>
+                    <td><div className="lbl">5g&ensp;July</div><div className="val">$ {mo(6)}</div></td>
+                    <td><div className="lbl">5h&ensp;August</div><div className="val">$ {mo(7)}</div></td>
+                  </tr>
+                  <tr>
+                    <td><div className="lbl">5i&ensp;September</div><div className="val">$ {mo(8)}</div></td>
+                    <td><div className="lbl">5j&ensp;October</div><div className="val">$ {mo(9)}</div></td>
+                  </tr>
+                  <tr>
+                    <td><div className="lbl">5k&ensp;November</div><div className="val">$ {mo(10)}</div></td>
+                    <td><div className="lbl">5l&ensp;December</div><div className="val">$ {mo(11)}</div></td>
+                  </tr>
+                  {/* PSE row */}
+                  <tr>
+                    <td>
+                      <div className="lbl">PSE&apos;S name and telephone number</div>
+                      <div className="val">DonutDash Inc.&ensp;support@donutdash.app</div>
+                    </td>
+                    <td><div className="lbl">6&ensp;State</div><div className="val">{data.shop.state || 'TX'}</div></td>
+                    <td><div className="lbl">7&ensp;State identification no.</div><div className="val">&nbsp;</div></td>
+                    <td><div className="lbl">8&ensp;State income tax withheld</div><div className="val">$</div></td>
+                  </tr>
+                  {/* Account row */}
+                  <tr>
+                    <td>
+                      <div className="lbl">Account number (see instructions)</div>
+                      <div className="val">&nbsp;</div>
+                    </td>
+                    <td colSpan={3}>&nbsp;</td>
+                  </tr>
+                </tbody>
+              </table>
+              )
+            })()}
+
+            <div className="footer">
+              <span>Form 1099-K (Rev. 3-2024)</span>
+              <span>(Keep for your records)</span>
+              <span>www.irs.gov/Form1099K</span>
+              <span>Department of the Treasury - Internal Revenue Service</span>
+            </div>
+            <div style={{ fontSize: 6.5, color: '#666', textAlign: 'center', marginTop: 12, borderTop: '1px solid #ccc', paddingTop: 5 }}>
+              This is an informational summary generated by DonutDash for tax year {year}. This document is provided for your records and may differ from the official IRS Form 1099-K.<br/>
+              Consult your tax professional for filing requirements. Generated on {new Date().toLocaleDateString()}.
+            </div>
             </div>
           </div>
         </>
