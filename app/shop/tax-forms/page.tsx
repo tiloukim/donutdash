@@ -186,14 +186,49 @@ export default function TaxForms() {
     if (!data || !emailAddr) return
     setEmailing(true)
     setEmailSent(false)
-    const html = build1099K(data, year)
-    const res = await fetch('/api/shop/email-form', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html, subject: `1099-K Tax Form — ${data.shop.name} — Tax Year ${year}`, email: emailAddr }),
-    })
+    try {
+      // Generate PDF in a hidden iframe
+      const html = build1099K(data, year)
+      const iframe = document.createElement('iframe')
+      iframe.style.cssText = 'position:fixed;left:-9999px;width:800px;height:1100px'
+      document.body.appendChild(iframe)
+      iframe.contentDocument!.open()
+      iframe.contentDocument!.write(html)
+      iframe.contentDocument!.close()
+      await new Promise(r => setTimeout(r, 500))
+
+      const html2pdf = (await import('html2pdf.js')).default
+      const pdfBlob: Blob = await html2pdf().from(iframe.contentDocument!.body).set({
+        margin: [0.3, 0.4, 0.3, 0.4],
+        filename: `1099-K_${year}_${data.shop.name}.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+      }).outputPdf('blob')
+      document.body.removeChild(iframe)
+
+      // Convert to base64
+      const reader = new FileReader()
+      const base64: string = await new Promise((resolve) => {
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.readAsDataURL(pdfBlob)
+      })
+
+      const res = await fetch('/api/shop/email-form', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: `1099-K Tax Form — ${data.shop.name} — Tax Year ${year}`,
+          email: emailAddr,
+          pdfBase64: base64,
+          filename: `1099-K_${year}_${data.shop.name}.pdf`,
+        }),
+      })
+      if (res.ok) { setEmailSent(true); setTimeout(() => { setEmailSent(false); setShowEmailModal(false) }, 2000) }
+      else alert('Failed to send email.')
+    } catch (err) {
+      console.error('Email error:', err)
+      alert('Failed to generate PDF. Please try again.')
+    }
     setEmailing(false)
-    if (res.ok) { setEmailSent(true); setTimeout(() => { setEmailSent(false); setShowEmailModal(false) }, 2000) }
-    else alert('Failed to send email. Please try again.')
   }
 
   const card: React.CSSProperties = { background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', overflow: 'hidden' }

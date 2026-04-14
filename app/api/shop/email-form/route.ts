@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { sendEmail } from '@/lib/sms'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -13,15 +12,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { html, subject, email } = await req.json()
-  if (!html || !subject) return NextResponse.json({ error: 'Missing html or subject' }, { status: 400 })
+  const { subject, email, pdfBase64, filename } = await req.json()
+  if (!subject || !pdfBase64) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
 
-  // Send to provided email or user's email
   const to = email || ddUser.email || user.email
   if (!to) return NextResponse.json({ error: 'No email address found' }, { status: 400 })
 
-  const ok = await sendEmail(to, subject, html)
-  if (!ok) return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return NextResponse.json({ error: 'Email not configured' }, { status: 500 })
 
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM_EMAIL || 'DonutDash <notifications@donutdash.app>',
+      to,
+      subject,
+      html: `<div style="font-family:Arial,sans-serif;padding:20px"><h2 style="color:#FF1493">DonutDash</h2><p>Please find your <b>${filename || 'document'}</b> attached to this email.</p><p style="color:#888;font-size:13px">This document was generated from your DonutDash shop dashboard.</p></div>`,
+      attachments: [{
+        filename: filename || 'document.pdf',
+        content: pdfBase64,
+      }],
+    }),
+  })
+
+  if (!res.ok) return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
   return NextResponse.json({ ok: true, to })
 }
