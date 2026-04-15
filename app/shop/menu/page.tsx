@@ -260,22 +260,22 @@ export default function ShopMenu() {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8 }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flex: 1 }}>
           {CATEGORIES.map(c => (
             <button key={c} onClick={() => setFilter(c)} style={{
-              padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+              padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
               background: filter === c ? '#FF1493' : '#FFF0F5', color: filter === c ? '#fff' : '#888', textTransform: 'capitalize',
             }}>{c}</button>
           ))}
         </div>
-        <button onClick={openAdd} style={{ padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>{t('menu.addItem')}</button>
+        <button onClick={openAdd} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{t('menu.addItem')}</button>
       </div>
 
       {showForm && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 24, border: '1px solid #FFE4EF', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>{editing?.id ? t('menu.editItem') : t('menu.newItem')}</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ background: '#fff', borderRadius: 12, padding: '16px 12px', border: '1px solid #FFE4EF', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>{editing?.id ? t('menu.editItem') : t('menu.newItem')}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.name')}</label><input style={inputStyle} value={editing?.name || ''} onChange={e => setEditing({ ...editing, name: e.target.value })} /></div>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.price')}</label><input style={inputStyle} type="number" step="0.01" value={editing?.price || ''} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
             <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.description')}</label><input style={inputStyle} value={editing?.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} /></div>
@@ -384,7 +384,7 @@ export default function ShopMenu() {
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
             {filtered.map(item => (
               <SortableMenuItem key={item.id} item={item} onEdit={openEdit} onDelete={deleteItem} onToggle={toggleAvailable} onToggleSoldOut={toggleSoldOut} />
             ))}
