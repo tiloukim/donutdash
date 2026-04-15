@@ -72,21 +72,21 @@ export default function ShopDashboard() {
       {referral?.referral_code && (
         <div style={{
           background: 'linear-gradient(135deg, #FF1493 0%, #FF69B4 50%, #FF8C00 100%)',
-          borderRadius: 16, padding: '20px 24px', marginBottom: 20,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
+          borderRadius: 12, padding: '14px 16px', marginBottom: 16,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10,
         }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 4 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 2 }}>
               Refer a Shop, Earn $100!
             </div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
-              Share your code — both shops earn $100 after 20 completed orders
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)' }}>
+              Share your code — both earn $100 after 20 orders
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '10px 18px',
-              fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: 3, backdropFilter: 'blur(4px)',
+              background: 'rgba(255,255,255,0.2)', borderRadius: 8, padding: '6px 12px',
+              fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: 2, backdropFilter: 'blur(4px)',
             }}>
               {referral.referral_code}
             </div>
@@ -95,11 +95,11 @@ export default function ShopDashboard() {
               setRefCopied(true)
               setTimeout(() => setRefCopied(false), 2000)
             }} style={{
-              padding: '10px 20px', borderRadius: 10, border: '2px solid rgba(255,255,255,0.4)',
+              padding: '6px 14px', borderRadius: 8, border: '2px solid rgba(255,255,255,0.4)',
               background: refCopied ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)',
-              color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)',
+              color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
             }}>
-              {refCopied ? 'Copied!' : 'Copy Code'}
+              {refCopied ? 'Copied!' : 'Copy'}
             </button>
           </div>
           {(referral.completed_count > 0 || referral.my_referral) && (
@@ -125,18 +125,18 @@ export default function ShopDashboard() {
       )}
 
       {/* Period Tabs */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 24, background: '#FFF0F5', borderRadius: 12, padding: 4, border: '1px solid #FFE4EF' }}>
+      <div style={{ display: 'flex', gap: 0, marginBottom: 20, background: '#FFF0F5', borderRadius: 10, padding: 3, border: '1px solid #FFE4EF' }}>
         {PERIODS.map(p => (
           <button
             key={p.key}
             onClick={() => setActivePeriod(p.key)}
             style={{
               flex: 1,
-              padding: '10px 16px',
+              padding: '8px 4px',
               border: 'none',
-              borderRadius: 10,
+              borderRadius: 8,
               fontWeight: 700,
-              fontSize: 14,
+              fontSize: 12,
               cursor: 'pointer',
               transition: 'all 0.2s',
               background: activePeriod === p.key ? '#FF1493' : 'transparent',
@@ -149,12 +149,12 @@ export default function ShopDashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 20 }}>
         {cards.map(c => (
-          <div key={c.label} style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #FFE4EF' }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>{c.icon}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: c.color }}>{c.value}</div>
-            <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>{c.label}</div>
+          <div key={c.label} style={{ background: '#fff', borderRadius: 10, padding: '14px 12px', border: '1px solid #FFE4EF' }}>
+            <div style={{ fontSize: 22, marginBottom: 4 }}>{c.icon}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: c.color }}>{c.value}</div>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{c.label}</div>
           </div>
         ))}
       </div>
@@ -179,42 +179,33 @@ export default function ShopDashboard() {
       )}
 
       {/* Recent Orders Table */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #FFE4EF' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Recent Orders</h3>
+      <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #FFE4EF', overflow: 'hidden' }}>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid #FFE4EF' }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Recent Orders</h3>
         </div>
         {stats.recentOrders.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>No orders yet</div>
+          <div style={{ padding: 30, textAlign: 'center', color: '#888', fontSize: 13 }}>No orders yet</div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #FFE4EF' }}>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Order</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Customer</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Subtotal</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>You Earn</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Status</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', color: '#888', fontWeight: 600 }}>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.recentOrders.map((o: any) => (
-                  <tr key={o.id} style={{ borderBottom: '1px solid #FFF0F5' }}>
-                    <td style={{ padding: '10px 16px', fontWeight: 600, color: '#FF1493' }}>#{o.id.slice(0, 8)}</td>
-                    <td style={{ padding: '10px 16px' }}>{o.customer?.name || 'Customer'}</td>
-                    <td style={{ padding: '10px 16px' }}>${(o.subtotal || o.total).toFixed(2)}</td>
-                    <td style={{ padding: '10px 16px', fontWeight: 700, color: '#10B981' }}>${((o.subtotal || o.total) * (1 - SHOP_COMMISSION_RATE)).toFixed(2)}</td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: o.status === 'delivered' ? '#D1FAE5' : o.status === 'pending' ? '#FEF3C7' : '#E0E7FF', color: o.status === 'delivered' ? '#065F46' : o.status === 'pending' ? '#92400E' : '#3730A3' }}>
-                        {o.status.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 16px', color: '#888' }}>{new Date(o.created_at).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            {stats.recentOrders.map((o: any) => (
+              <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid #FFF0F5', gap: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, color: '#FF1493', fontSize: 13 }}>#{o.id.slice(0, 8)}</span>
+                    <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: o.status === 'delivered' ? '#D1FAE5' : o.status === 'pending' ? '#FEF3C7' : '#E0E7FF', color: o.status === 'delivered' ? '#065F46' : o.status === 'pending' ? '#92400E' : '#3730A3' }}>
+                      {o.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                    {o.customer?.name || 'Customer'} · {new Date(o.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>${((o.subtotal || o.total) * (1 - SHOP_COMMISSION_RATE)).toFixed(2)}</div>
+                  <div style={{ fontSize: 10, color: '#888' }}>${(o.subtotal || o.total).toFixed(2)} total</div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

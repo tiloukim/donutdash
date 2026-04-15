@@ -216,10 +216,13 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
           <span style={{ fontSize: 14, color: '#666' }}>{user.name}</span>
         </header>
-        <div style={{ padding: 24 }}>{children}</div>
+        <div style={{ padding: '16px 12px' }} className="shop-content">{children}</div>
       </main>
 
       <style>{`
+        @media (min-width: 769px) {
+          .shop-content { padding: 24px !important; }
+        }
         @media (max-width: 768px) {
           .shop-sidebar-desktop { display: none !important; }
           .shop-sidebar-mobile { display: flex !important; }
