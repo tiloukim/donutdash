@@ -245,7 +245,7 @@ export default function RoleAuthForm({
               </div>
               <div>
                 <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
-                  Phone
+                  Phone <span style={{ fontSize: '0.75rem', color: '#999', fontWeight: 400 }}>(optional)</span>
                 </label>
                 <input
                   type="tel"
