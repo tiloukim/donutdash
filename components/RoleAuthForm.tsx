@@ -316,11 +316,11 @@ export default function RoleAuthForm({
 
           <button
             type="submit"
-            disabled={loading || !captchaToken || (mode === 'signup' && !smsConsent)}
+            disabled={loading || !captchaToken}
             style={{
               width: '100%',
               padding: '0.85rem',
-              background: (loading || !captchaToken || (mode === 'signup' && !smsConsent)) ? '#ccc' : accentColor,
+              background: (loading || !captchaToken) ? '#ccc' : accentColor,
               color: 'white',
               border: 'none',
               borderRadius: '10px',

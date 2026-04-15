@@ -289,10 +289,10 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={loading || !captchaToken || !smsConsent}
+            disabled={loading || !captchaToken}
             style={{
               width: '100%', padding: '0.85rem',
-              background: (loading || !captchaToken || !smsConsent) ? '#ccc' : '#FF1493',
+              background: (loading || !captchaToken) ? '#ccc' : '#FF1493',
               color: 'white', border: 'none', borderRadius: '10px',
               fontSize: '1rem', fontWeight: 700,
               cursor: loading ? 'not-allowed' : 'pointer',
