@@ -81,7 +81,7 @@ export default function PrivacyPage() {
         <ul style={{ ...paragraphStyle, paddingLeft: '1.5rem' }}>
           <li style={{ marginBottom: '0.5rem' }}><strong>Process orders:</strong> To facilitate ordering, payment processing, and order fulfillment.</li>
           <li style={{ marginBottom: '0.5rem' }}><strong>Delivery coordination:</strong> To connect customers with drivers and provide real-time delivery tracking.</li>
-          <li style={{ marginBottom: '0.5rem' }}><strong>Communications:</strong> To send order confirmations, delivery updates, promotional offers, and customer support responses via email (Resend) and SMS (Twilio).</li>
+          <li style={{ marginBottom: '0.5rem' }}><strong>Communications:</strong> To send order confirmations, delivery updates, promotional offers, and customer support responses via email (Resend) and SMS (Telnyx).</li>
           <li style={{ marginBottom: '0.5rem' }}><strong>Platform improvement:</strong> To analyze usage patterns, improve our services, and develop new features.</li>
           <li style={{ marginBottom: '0.5rem' }}><strong>Safety and security:</strong> To detect and prevent fraud, abuse, and unauthorized access.</li>
           <li style={{ marginBottom: '0.5rem' }}><strong>Legal compliance:</strong> To comply with applicable laws, regulations, and legal processes.</li>
@@ -96,12 +96,23 @@ export default function PrivacyPage() {
           <li style={{ marginBottom: '0.5rem' }}><strong>Donut shops:</strong> Your name, order details, and delivery address are shared with shops to prepare and fulfill your orders.</li>
           <li style={{ marginBottom: '0.5rem' }}><strong>Delivery drivers:</strong> Your name, delivery address, phone number, and delivery instructions are shared with drivers to complete deliveries.</li>
           <li style={{ marginBottom: '0.5rem' }}><strong>Square:</strong> Payment information is shared with Square for secure payment processing.</li>
-          <li style={{ marginBottom: '0.5rem' }}><strong>Twilio:</strong> Your phone number is shared with Twilio to send SMS notifications about your orders.</li>
+          <li style={{ marginBottom: '0.5rem' }}><strong>Telnyx:</strong> Your phone number is shared with Telnyx to send SMS notifications about your orders.</li>
           <li style={{ marginBottom: '0.5rem' }}><strong>Resend:</strong> Your email address is shared with Resend for transactional and marketing email delivery.</li>
           <li style={{ marginBottom: '0.5rem' }}><strong>Analytics providers:</strong> Anonymized usage data may be shared with analytics services to improve the Platform.</li>
         </ul>
         <p style={paragraphStyle}>
-          We do not sell your personal information to third parties. Your mobile information will not be sold or shared with third parties for promotional or marketing purposes. We may disclose your information if required by law, court order, or governmental regulation, or if necessary to protect our rights, property, or safety.
+          We do not sell your personal information to third parties. We may disclose your information if required by law, court order, or governmental regulation, or if necessary to protect our rights, property, or safety.
+        </p>
+
+        <h2 style={headingStyle}>SMS/Text Messaging Policy</h2>
+        <p style={paragraphStyle}>
+          DonutDash may send you SMS/text messages related to your account, orders, delivery updates, and driver notifications if you have opted in to receive them. By opting in, you consent to receive recurring automated text messages at the phone number you provided. Consent is not a condition of purchase or account creation.
+        </p>
+        <p style={paragraphStyle}>
+          <strong>Your mobile information will not be sold or shared with third parties for promotional or marketing purposes.</strong> All categories above exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties. We will not share your opt-in to an SMS campaign with any third party for purposes unrelated to providing you with the services of that campaign. We only use your phone number and SMS opt-in status to deliver the transactional messages you requested (order confirmations, delivery updates, driver alerts).
+        </p>
+        <p style={paragraphStyle}>
+          Message frequency varies based on your order activity. Message and data rates may apply. You may opt out at any time by replying <strong>STOP</strong> to any message. Reply <strong>HELP</strong> for help. For support, contact us at support@donutdash.app.
         </p>
 
         {/* 4 */}
