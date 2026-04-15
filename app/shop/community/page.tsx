@@ -217,18 +217,18 @@ export default function CommunityPage() {
           &larr; Back to posts
         </button>
 
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24 }}>
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: '16px 14px' }}>
           {/* Post header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 16 }}>{selectedPost.category?.icon}</span>
-                <span style={{ fontSize: 12, color: '#888' }}>{selectedPost.category?.name}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 8 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14 }}>{selectedPost.category?.icon}</span>
+                <span style={{ fontSize: 11, color: '#888' }}>{selectedPost.category?.name}</span>
                 {selectedPost.is_pinned && (
                   <span style={{ fontSize: 10, background: '#FF1493', color: '#fff', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>Pinned</span>
                 )}
               </div>
-              <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>{selectedPost.title}</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E', margin: 0, wordBreak: 'break-word' }}>{selectedPost.title}</h2>
             </div>
             {(selectedPost.author_id === userId) && (
               <button
@@ -265,7 +265,7 @@ export default function CommunityPage() {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
               {selectedPost.images.map((url: string, i: number) => (
                 <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', borderRadius: 10, overflow: 'hidden', border: '1px solid #FFE4EF' }}>
-                  <img src={url} alt="" style={{ maxWidth: 280, maxHeight: 220, objectFit: 'cover', display: 'block' }} />
+                  <img src={url} alt="" style={{ maxWidth: '100%', width: 280, maxHeight: 220, objectFit: 'cover', display: 'block' }} />
                 </a>
               ))}
             </div>
@@ -333,33 +333,32 @@ export default function CommunityPage() {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Community</h2>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search posts..."
-            style={{
-              padding: '8px 14px', borderRadius: 8, border: '1px solid #FFE4EF', fontSize: 13,
-              outline: 'none', width: 200, fontFamily: 'inherit',
-            }}
-            onFocus={e => (e.target.style.borderColor = '#FF1493')}
-            onBlur={e => (e.target.style.borderColor = '#FFE4EF')}
-          />
-          <button
-            onClick={() => { setShowCreate(true); if (!createForm.category_id && categories.length) setCreateForm(f => ({ ...f, category_id: categories[0].id })) }}
-            style={{
-              background: '#FF1493', color: '#fff', border: 'none', borderRadius: 8,
-              padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            + New Post
-          </button>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1A1A2E', margin: 0, flexShrink: 0 }}>Community</h2>
+        <button
+          onClick={() => { setShowCreate(true); if (!createForm.category_id && categories.length) setCreateForm(f => ({ ...f, category_id: categories[0].id })) }}
+          style={{
+            background: '#FF1493', color: '#fff', border: 'none', borderRadius: 8,
+            padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            whiteSpace: 'nowrap', flexShrink: 0,
+          }}
+        >
+          + New Post
+        </button>
       </div>
+      {/* Search */}
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Search posts..."
+        style={{
+          padding: '8px 14px', borderRadius: 8, border: '1px solid #FFE4EF', fontSize: 13,
+          outline: 'none', width: '100%', fontFamily: 'inherit', marginBottom: 12, boxSizing: 'border-box',
+        }}
+        onFocus={e => (e.target.style.borderColor = '#FF1493')}
+        onBlur={e => (e.target.style.borderColor = '#FFE4EF')}
+      />
 
       {/* Category pills */}
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12, marginBottom: 16 }}>
@@ -404,7 +403,7 @@ export default function CommunityPage() {
               key={post.id}
               onClick={() => openPost(post)}
               style={{
-                background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: '16px 20px',
+                background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: '12px 14px',
                 cursor: 'pointer', transition: 'box-shadow 0.15s',
               }}
               onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 2px 12px rgba(255,20,147,0.1)')}
@@ -476,8 +475,8 @@ export default function CommunityPage() {
           onClick={e => { if (e.target === e.currentTarget) setShowCreate(false) }}
         >
           <div style={{
-            background: '#fff', borderRadius: 16, maxWidth: 540, width: '100%', maxHeight: '85vh',
-            overflow: 'auto', padding: 28,
+            background: '#fff', borderRadius: 16, maxWidth: 540, width: '100%', maxHeight: '90vh',
+            overflow: 'auto', padding: '20px 16px',
           }}>
             <h3 style={{ fontSize: 20, fontWeight: 700, color: '#1A1A2E', marginTop: 0, marginBottom: 20 }}>New Post</h3>
 
