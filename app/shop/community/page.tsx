@@ -361,12 +361,12 @@ export default function CommunityPage() {
       />
 
       {/* Category pills */}
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 8, marginBottom: 12 }}>
         <button
           onClick={() => setSelectedCategory('')}
           style={{
-            padding: '6px 14px', borderRadius: 20, border: '1px solid #FFE4EF', fontSize: 12,
-            fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            padding: '5px 12px', borderRadius: 20, border: '1px solid #FFE4EF', fontSize: 11,
+            fontWeight: 600, cursor: 'pointer',
             background: !selectedCategory ? '#FF1493' : '#fff',
             color: !selectedCategory ? '#fff' : '#333',
           }}
@@ -378,8 +378,8 @@ export default function CommunityPage() {
             key={cat.id}
             onClick={() => setSelectedCategory(selectedCategory === cat.id ? '' : cat.id)}
             style={{
-              padding: '6px 14px', borderRadius: 20, border: '1px solid #FFE4EF', fontSize: 12,
-              fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              padding: '5px 12px', borderRadius: 20, border: '1px solid #FFE4EF', fontSize: 11,
+              fontWeight: 600, cursor: 'pointer',
               background: selectedCategory === cat.id ? '#FF1493' : '#fff',
               color: selectedCategory === cat.id ? '#fff' : '#333',
             }}
@@ -426,7 +426,7 @@ export default function CommunityPage() {
                   </div>
 
                   {/* Title */}
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E', marginBottom: 4, wordBreak: 'break-word' }}>
                     {post.title}
                   </div>
 
