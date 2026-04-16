@@ -216,6 +216,14 @@ export default function HomePage() {
     ? `/shops?lat=${gpsLocation.lat}&lng=${gpsLocation.lng}&sort=nearest`
     : '/shops'
 
+  // When GPS is available, filter all shops within 2 miles + sort nearest first.
+  // Otherwise fall back to first 8 shops in default order.
+  const mobileDisplayShops = (gpsLocation && shops.length > 0)
+    ? shops
+        .filter(s => s.distance_miles != null && s.distance_miles <= NEAR_ME_RADIUS_MILES)
+        .sort((a, b) => (a.distance_miles ?? 999) - (b.distance_miles ?? 999))
+    : shops.slice(0, 8)
+
   const promoBanners = [
     {
       title: 'EARN Rewards!',
@@ -745,9 +753,10 @@ export default function HomePage() {
           justifyContent: 'space-between',
         }}>
           <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
-            Nearby Shops
+            {gpsLocation ? `Shops Within ${NEAR_ME_RADIUS_MILES} Miles` : 'Nearby Shops'}
+            {gpsLocation && ` (${mobileDisplayShops.length})`}
           </h2>
-          <Link href="/shops" style={{ color: PINK, fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none' }}>
+          <Link href={viewMoreNearestHref} style={{ color: PINK, fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none' }}>
             See All
           </Link>
         </div>
@@ -769,13 +778,13 @@ export default function HomePage() {
                 }} />
               ))}
             </div>
-          ) : shops.length > 0 ? (
+          ) : mobileDisplayShops.length > 0 ? (
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(2, 1fr)',
               gap: '12px',
             }}>
-              {shops.slice(0, 8).map(shop => (
+              {mobileDisplayShops.map(shop => (
                 <div key={shop.id} style={{ position: 'relative' }}>
                   <Link
                     href={`/shops/${shop.slug}`}
@@ -1176,13 +1185,14 @@ export default function HomePage() {
             }}>
               <div>
                 <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 700, color: '#1A1A2E' }}>
-                  Featured Shops
+                  {gpsLocation ? `Shops Within ${NEAR_ME_RADIUS_MILES} Miles` : 'Featured Shops'}
+                  {gpsLocation && ` (${mobileDisplayShops.length})`}
                 </h2>
                 <p style={{ color: '#888', fontSize: '0.95rem' }}>
-                  Popular donut shops near you
+                  {gpsLocation ? 'Sorted by nearest to you' : 'Popular donut shops near you'}
                 </p>
               </div>
-              <Link href="/shops" style={{
+              <Link href={viewMoreNearestHref} style={{
                 color: PINK, fontWeight: 600, fontSize: '0.95rem',
                 display: 'flex', alignItems: 'center', gap: '0.25rem',
               }}>
@@ -1203,14 +1213,14 @@ export default function HomePage() {
                   }} />
                 ))}
               </div>
-            ) : shops.length > 0 ? (
+            ) : mobileDisplayShops.length > 0 ? (
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
                 gridAutoRows: '1fr',
                 gap: '1rem',
               }}>
-                {shops.slice(0, 6).map(shop => (
+                {mobileDisplayShops.map(shop => (
                   <ShopCard
                     key={shop.id}
                     shop={shop}
