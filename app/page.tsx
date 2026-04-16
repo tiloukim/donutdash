@@ -839,8 +839,9 @@ export default function HomePage() {
             {loading ? (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '1.5rem',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                gridAutoRows: '1fr',
+                gap: '1rem',
               }}>
                 {[1, 2, 3].map(i => (
                   <div key={i} style={{
@@ -851,8 +852,9 @@ export default function HomePage() {
             ) : shops.length > 0 ? (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '1.5rem',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                gridAutoRows: '1fr',
+                gap: '1rem',
               }}>
                 {shops.slice(0, 6).map(shop => (
                   <ShopCard
