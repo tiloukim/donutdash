@@ -85,6 +85,9 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
             ))}
           </nav>
           <div style={{ padding: '16px 8px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <a href="mailto:drivers@donutdash.app" style={{ display: 'block', padding: '8px 12px', color: '#D4A574', fontSize: 12, textDecoration: 'none' }}>
+              📧 Driver Support
+            </a>
             <div style={{ padding: '8px 12px', color: '#D4A574', fontSize: 12 }}>{user.name}</div>
             <button onClick={() => signOut('/driver')} style={{ display: 'block', width: '100%', padding: '8px 12px', color: '#FF8C00', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}>Sign Out</button>
           </div>
