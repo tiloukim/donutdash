@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import type { Shop } from '@/lib/types'
+import DonutIcon from './DonutIcon'
 
 function StarRating({ rating }: { rating: number }) {
   const stars = []
@@ -46,14 +47,14 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
             aspectRatio: '1',
             background: shop.image_url
               ? `url(${shop.image_url}) center/cover no-repeat`
-              : 'linear-gradient(135deg, #FF69B4, #FF1493)',
+              : 'linear-gradient(135deg, #FFE4F1 0%, #FFD6E8 50%, #FFC0D9 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             position: 'relative',
           }}>
             {!shop.image_url && (
-              <span style={{ fontSize: '2.5rem' }}>🍩</span>
+              <DonutIcon size={90} />
             )}
 
             {/* Unclaimed badge */}

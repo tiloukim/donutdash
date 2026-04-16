@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
+import DonutIcon from '@/components/DonutIcon'
 import { useAuth } from '@/lib/auth-context'
 import type { Shop } from '@/lib/types'
 
@@ -193,13 +194,13 @@ export default function ClaimShopPage() {
               aspectRatio: '16/9',
               background: shop.image_url
                 ? `url(${shop.image_url}) center/cover no-repeat`
-                : 'linear-gradient(135deg, #FF69B4, #FF1493)',
+                : 'linear-gradient(135deg, #FFE4F1 0%, #FFD6E8 50%, #FFC0D9 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               position: 'relative',
             }}>
-              {!shop.image_url && <span style={{ fontSize: '3rem' }}>🍩</span>}
+              {!shop.image_url && <DonutIcon size={120} />}
               <div style={{
                 position: 'absolute',
                 top: '12px',

@@ -10,6 +10,7 @@ import MobileBottomNav from '@/components/MobileBottomNav'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import type { Shop } from '@/lib/types'
+import DonutIcon from '@/components/DonutIcon'
 
 interface SearchResult {
   shop: { id: string; name: string; slug: string; image_url: string | null }
@@ -672,10 +673,10 @@ export default function HomePage() {
                           width: '100%', height: '110px',
                           background: shop.image_url
                             ? `url(${shop.image_url}) center/cover no-repeat`
-                            : `linear-gradient(135deg, #FF69B4, ${PINK})`,
+                            : 'linear-gradient(135deg, #FFE4F1 0%, #FFD6E8 50%, #FFC0D9 100%)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
-                          {!shop.image_url && <span style={{ fontSize: '2.5rem' }}>🍩</span>}
+                          {!shop.image_url && <DonutIcon size={80} />}
                         </div>
                         <div style={{ padding: '10px 12px' }}>
                           <h3 style={{
@@ -786,13 +787,13 @@ export default function HomePage() {
                         height: '110px',
                         background: shop.image_url
                           ? `url(${shop.image_url}) center/cover no-repeat`
-                          : `linear-gradient(135deg, #FF69B4, ${PINK})`,
+                          : 'linear-gradient(135deg, #FFE4F1 0%, #FFD6E8 50%, #FFC0D9 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}>
                         {!shop.image_url && (
-                          <span style={{ fontSize: '2.5rem' }}>🍩</span>
+                          <DonutIcon size={80} />
                         )}
                       </div>
                       <div style={{ padding: '10px 12px' }}>
