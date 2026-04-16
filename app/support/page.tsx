@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
+import ContactForm from '@/components/ContactForm'
 
 export const metadata: Metadata = {
   title: 'Customer Support | DonutDash',
@@ -36,29 +37,9 @@ export default function CustomerSupportPage() {
           </p>
         </div>
 
-        {/* Contact Card */}
-        <div style={{
-          background: 'white', borderRadius: '16px', padding: '1.5rem',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '2rem',
-          textAlign: 'center',
-        }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1A1A2E', marginBottom: '0.75rem' }}>
-            Contact Us
-          </h2>
-          <a
-            href="mailto:help@donutdash.app"
-            style={{
-              display: 'inline-block', padding: '0.85rem 2rem',
-              background: PINK, color: 'white', borderRadius: '10px',
-              fontWeight: 700, fontSize: '1rem', textDecoration: 'none',
-              marginBottom: '0.75rem',
-            }}
-          >
-            Email help@donutdash.app
-          </a>
-          <p style={{ color: '#888', fontSize: '0.85rem' }}>
-            We typically respond within a few hours during business hours.
-          </p>
+        {/* Contact Form */}
+        <div style={{ marginBottom: '2rem' }}>
+          <ContactForm category="customer" accentColor={PINK} recipientEmail="help@donutdash.app" />
         </div>
 
         {/* Other support links */}
