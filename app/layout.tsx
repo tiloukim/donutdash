@@ -21,11 +21,11 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'DonutDash - Donut Delivery in Tyler, TX | Fresh Donuts Delivered Fast',
+  title: 'DonutDash - Donut Delivery in Tyler, TX & East Texas | Fresh Donuts Delivered Fast',
   description:
-    'Order fresh donuts delivered to your door in Tyler, Texas. Browse local donut shops, track your delivery in real-time, and enjoy delicious donuts fast. Free delivery on your first order!',
+    'Order fresh donuts delivered to your door in Tyler, TX and across East Texas. Browse local donut shops, track your delivery in real-time, and enjoy delicious donuts fast. Free delivery on your first order!',
   keywords:
-    'donut delivery, tyler tx, donut shop, order donuts online, donut delivery near me, tyler texas donuts',
+    'donut delivery, tyler tx, east texas donuts, donut shop, order donuts online, donut delivery near me, tyler texas donuts, east texas donut delivery',
   icons: {
     icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
@@ -35,9 +35,9 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: 'DonutDash - Donut Delivery in Tyler, TX | Fresh Donuts Delivered Fast',
+    title: 'DonutDash - Donut Delivery in Tyler, TX & East Texas | Fresh Donuts Delivered Fast',
     description:
-      'Order fresh donuts delivered to your door in Tyler, Texas. Browse local donut shops, track your delivery in real-time, and enjoy delicious donuts fast.',
+      'Order fresh donuts delivered to your door in Tyler, TX and across East Texas. Browse local donut shops, track your delivery in real-time, and enjoy delicious donuts fast.',
     url: 'https://donutdash.app',
     siteName: 'DonutDash',
     images: [
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
         url: '/logo.png',
         width: 512,
         height: 512,
-        alt: 'DonutDash - Donut Delivery in Tyler, TX',
+        alt: 'DonutDash - Donut Delivery in Tyler, TX & East Texas',
       },
     ],
     locale: 'en_US',
@@ -53,9 +53,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DonutDash - Donut Delivery in Tyler, TX',
+    title: 'DonutDash - Donut Delivery in Tyler, TX & East Texas',
     description:
-      'Order fresh donuts delivered to your door in Tyler, Texas. Browse local donut shops and enjoy delicious donuts fast.',
+      'Order fresh donuts delivered to your door in Tyler, TX and across East Texas. Browse local donut shops and enjoy delicious donuts fast.',
     images: ['/logo.png'],
   },
   verification: {
@@ -96,7 +96,7 @@ export default function RootLayout({
                   '@id': 'https://donutdash.app/#localbusiness',
                   name: 'DonutDash',
                   description:
-                    'Donut delivery platform serving Tyler, Texas. Order fresh donuts from local shops delivered to your door.',
+                    'Donut delivery platform serving Tyler, TX and East Texas. Order fresh donuts from local shops delivered to your door.',
                   url: 'https://donutdash.app',
                   image: 'https://donutdash.app/logo.png',
                   address: {
@@ -110,11 +110,17 @@ export default function RootLayout({
                     latitude: 32.3513,
                     longitude: -95.3011,
                   },
-                  areaServed: {
-                    '@type': 'City',
-                    name: 'Tyler',
-                    '@id': 'https://www.wikidata.org/wiki/Q128261',
-                  },
+                  areaServed: [
+                    {
+                      '@type': 'City',
+                      name: 'Tyler',
+                      '@id': 'https://www.wikidata.org/wiki/Q128261',
+                    },
+                    {
+                      '@type': 'Place',
+                      name: 'East Texas',
+                    },
+                  ],
                   priceRange: '$',
                   servesCuisine: 'Donuts',
                 },
