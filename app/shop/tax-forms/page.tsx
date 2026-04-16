@@ -42,7 +42,7 @@ table.form td{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size
 <!-- PAGE 1: Cover Letter -->
 <div style="display:flex;justify-content:space-between">
   <div style="font-size:10px;line-height:1.5">Kimco LLC d/b/a DonutDash<br>7205 S Broadway Ave. #400<br>Tyler, TX 75703</div>
-  <div style="font-size:9px;text-align:right">If you have questions contact:<br>support@donutdash.app</div>
+  <div style="font-size:9px;text-align:right">If you have questions contact:<br>1099k@donutdash.app</div>
 </div>
 <div style="margin:50px 0 50px 60px;font-size:12px;line-height:1.6">
   <b>${data.shop.name}</b><br>${data.shop.address || ''}<br>${shopAddr}
@@ -131,7 +131,7 @@ table.form td{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size
     <tr><td><div class="lbl">5i&ensp;September</div><div class="val">$ ${mo(8)}</div></td><td><div class="lbl">5j&ensp;October</div><div class="val">$ ${mo(9)}</div></td></tr>
     <tr><td><div class="lbl">5k&ensp;November</div><div class="val">$ ${mo(10)}</div></td><td><div class="lbl">5l&ensp;December</div><div class="val">$ ${mo(11)}</div></td></tr>
     <tr>
-      <td><div class="lbl">PSE'S name and telephone number</div><div class="val">Kimco LLC d/b/a DonutDash&ensp;support@donutdash.app</div></td>
+      <td><div class="lbl">PSE'S name and telephone number</div><div class="val">Kimco LLC d/b/a DonutDash&ensp;1099k@donutdash.app</div></td>
       <td><div class="lbl">6&ensp;State</div><div class="val">${data.shop.state || 'TX'}</div></td>
       <td><div class="lbl">7&ensp;State identification no.</div><div class="val">&nbsp;</div></td>
       <td><div class="lbl">8&ensp;State income tax withheld</div><div class="val">$</div></td>
