@@ -24,9 +24,12 @@ interface ShopCardProps {
 }
 
 export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCardProps) {
+  const isUnclaimed = shop.is_claimed === false
+  const href = isUnclaimed ? `/shops/claim/${shop.slug}` : `/shops/${shop.slug}`
+
   return (
     <div style={{ position: 'relative' }}>
-      <Link href={`/shops/${shop.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <Link href={href} style={{ textDecoration: 'none', color: 'inherit' }}>
         <div
           style={{
             background: 'white',
@@ -44,9 +47,35 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            position: 'relative',
           }}>
             {!shop.image_url && (
               <span style={{ fontSize: '2.5rem' }}>🍩</span>
+            )}
+
+            {/* Unclaimed badge */}
+            {isUnclaimed && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  background: 'rgba(255,255,255,0.95)',
+                  border: '1.5px solid #FF1493',
+                  color: '#FF1493',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: '12px',
+                  letterSpacing: '0.3px',
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  zIndex: 1,
+                }}
+              >
+                Unclaimed
+              </div>
             )}
           </div>
 
@@ -103,25 +132,42 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
               </span>
             </div>
 
-            <div style={{
-              fontSize: '12px',
-              color: '#777',
-              marginTop: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}>
-              <span>🕐</span>
-              <span>{shop.estimated_delivery_min && shop.estimated_delivery_max
-                ? `${shop.estimated_delivery_min}-${shop.estimated_delivery_max} min`
-                : '20-35 min'}</span>
-            </div>
+            {isUnclaimed ? (
+              <div style={{
+                marginTop: '8px',
+                padding: '6px 10px',
+                background: '#FFF0F5',
+                border: '1px solid #FF1493',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#FF1493',
+                textAlign: 'center',
+                letterSpacing: '0.2px',
+              }}>
+                Claim this shop
+              </div>
+            ) : (
+              <div style={{
+                fontSize: '12px',
+                color: '#777',
+                marginTop: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}>
+                <span>🕐</span>
+                <span>{shop.estimated_delivery_min && shop.estimated_delivery_max
+                  ? `${shop.estimated_delivery_min}-${shop.estimated_delivery_max} min`
+                  : '20-35 min'}</span>
+              </div>
+            )}
           </div>
         </div>
       </Link>
 
-      {/* Favorite heart button */}
-      {onToggleFavorite && (
+      {/* Favorite heart button — hidden on unclaimed shops */}
+      {onToggleFavorite && !isUnclaimed && (
         <button
           onClick={(e) => {
             e.preventDefault()

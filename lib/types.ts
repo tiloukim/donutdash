@@ -12,7 +12,7 @@ export interface User {
 
 export interface Shop {
   id: string
-  owner_id: string
+  owner_id: string | null
   name: string
   slug: string
   description: string | null
@@ -37,6 +37,10 @@ export interface Shop {
   distance_miles?: number | null
   avg_rating?: number
   is_busy?: boolean
+  is_claimed?: boolean
+  claimed_at?: string | null
+  claim_source?: string | null
+  external_place_id?: string | null
 }
 
 export interface VariantOption {

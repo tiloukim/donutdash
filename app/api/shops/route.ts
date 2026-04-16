@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
         avg_rating,
         review_count,
         is_busy: busynessMap[shop.id] || false,
+        is_claimed: shop.is_claimed ?? true,
       }
     })
 

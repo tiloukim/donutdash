@@ -1,19 +1,22 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import Turnstile from '@/components/Turnstile'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const claimShopId = searchParams.get('claim')
   const { supabase, refreshUser } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [captchaToken, setCaptchaToken] = useState('')
+  const [claimMessage, setClaimMessage] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,7 +40,33 @@ export default function LoginPage() {
         return
       }
 
-      const userData = await refreshUser()
+      await refreshUser()
+
+      // If claiming a shop, attempt it now.
+      if (claimShopId) {
+        try {
+          const claimRes = await fetch('/api/shop/claim', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shop_id: claimShopId }),
+          })
+          if (claimRes.ok) {
+            setClaimMessage('Shop claimed! Redirecting to your dashboard...')
+            setTimeout(() => router.push('/shop'), 800)
+            return
+          } else {
+            const errData = await claimRes.json().catch(() => ({}))
+            setError(errData.error || 'Signed in, but we couldn\u2019t claim the shop.')
+            setTimeout(() => router.push('/shop'), 1500)
+            return
+          }
+        } catch {
+          setError('Signed in, but we couldn\u2019t claim the shop.')
+          setTimeout(() => router.push('/shop'), 1500)
+          return
+        }
+      }
+
       // Role-based redirect after login
       const res = await fetch('/api/me')
       if (res.ok) {
@@ -71,12 +100,32 @@ export default function LoginPage() {
             <img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} />
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1A1A2E', marginTop: '1rem' }}>
-            Welcome back
+            {claimShopId ? 'Sign in to claim your shop' : 'Welcome back'}
           </h1>
           <p style={{ color: '#888', fontSize: '0.9rem', marginTop: '0.35rem' }}>
-            Sign in to your account
+            {claimShopId ? 'We\u2019ll finish claiming the shop after you sign in' : 'Sign in to your account'}
           </p>
         </div>
+
+        {claimShopId && (
+          <div style={{
+            background: '#FFF0F5', border: '1px solid #FFD6E7',
+            borderRadius: '10px', padding: '0.75rem 1rem',
+            marginBottom: '1rem', fontSize: '0.85rem', color: '#1A1A2E',
+          }}>
+            You&apos;re signing in to claim a shop. Your account must be a shop owner.
+          </div>
+        )}
+
+        {claimMessage && (
+          <div style={{
+            background: '#F0FFF4', border: '1px solid #9AE6B4',
+            borderRadius: '10px', padding: '0.75rem 1rem',
+            marginBottom: '1rem', fontSize: '0.85rem', color: '#22543D',
+          }}>
+            {claimMessage}
+          </div>
+        )}
 
         {error && (
           <div style={{
@@ -150,7 +199,10 @@ export default function LoginPage() {
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem', color: '#666' }}>
           Don&apos;t have an account?{' '}
-          <Link href="/signup" style={{ color: '#FF1493', fontWeight: 600 }}>
+          <Link
+            href={claimShopId ? `/signup?role=shop_owner&claim=${claimShopId}` : '/signup'}
+            style={{ color: '#FF1493', fontWeight: 600 }}
+          >
             Sign Up
           </Link>
         </p>

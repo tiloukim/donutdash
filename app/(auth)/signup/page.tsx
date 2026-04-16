@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import Turnstile from '@/components/Turnstile'
@@ -14,17 +14,37 @@ const ROLES = [
 
 export default function SignupPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { supabase, refreshUser } = useAuth()
+  const claimShopId = searchParams.get('claim')
+  const rolePresetParam = searchParams.get('role')
+  const rolePreset: 'customer' | 'driver' | 'shop_owner' | null =
+    rolePresetParam === 'customer' || rolePresetParam === 'driver' || rolePresetParam === 'shop_owner'
+      ? rolePresetParam
+      : null
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<'customer' | 'driver' | 'shop_owner'>('customer')
+  const [role, setRole] = useState<'customer' | 'driver' | 'shop_owner'>(
+    claimShopId ? 'shop_owner' : (rolePreset ?? 'customer')
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [captchaToken, setCaptchaToken] = useState('')
   const [smsConsent, setSmsConsent] = useState(false)
   const [showConfirmEmail, setShowConfirmEmail] = useState(false)
+  const [claimMessage, setClaimMessage] = useState('')
+
+  // If a preset role is provided, keep state in sync
+  useEffect(() => {
+    if (claimShopId) {
+      setRole('shop_owner')
+    } else if (rolePreset) {
+      setRole(rolePreset)
+    }
+  }, [claimShopId, rolePreset])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,6 +89,32 @@ export default function SignupPage() {
       }
       if (data.user) {
         await refreshUser()
+
+        // If claiming a shop, attempt to claim it right away.
+        if (claimShopId && role === 'shop_owner') {
+          try {
+            const claimRes = await fetch('/api/shop/claim', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ shop_id: claimShopId }),
+            })
+            if (claimRes.ok) {
+              setClaimMessage('Shop claimed! Redirecting to your dashboard...')
+              setTimeout(() => router.push('/shop'), 1000)
+              return
+            } else {
+              const errData = await claimRes.json().catch(() => ({}))
+              setError(errData.error || 'Signed up, but we couldn\u2019t claim the shop. Please try again from your dashboard.')
+              setTimeout(() => router.push('/shop'), 2000)
+              return
+            }
+          } catch {
+            setError('Signed up, but we couldn\u2019t claim the shop. Please try again from your dashboard.')
+            setTimeout(() => router.push('/shop'), 2000)
+            return
+          }
+        }
+
         if (role === 'shop_owner') {
           router.push('/partner-setup')
         } else if (role === 'driver') {
@@ -154,12 +200,34 @@ export default function SignupPage() {
             <img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} />
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1A1A2E', marginTop: '1rem' }}>
-            Create an account
+            {claimShopId ? 'Claim your shop' : 'Create an account'}
           </h1>
           <p style={{ color: '#888', fontSize: '0.9rem', marginTop: '0.35rem' }}>
-            Join DonutDash today
+            {claimShopId
+              ? 'Create your shop owner account to finish claiming'
+              : 'Join DonutDash today'}
           </p>
         </div>
+
+        {claimShopId && (
+          <div style={{
+            background: '#FFF0F5', border: '1px solid #FFD6E7',
+            borderRadius: '10px', padding: '0.75rem 1rem',
+            marginBottom: '1rem', fontSize: '0.85rem', color: '#1A1A2E',
+          }}>
+            You&apos;re signing up to claim a shop. We&apos;ll assign it to your new account automatically.
+          </div>
+        )}
+
+        {claimMessage && (
+          <div style={{
+            background: '#F0FFF4', border: '1px solid #9AE6B4',
+            borderRadius: '10px', padding: '0.75rem 1rem',
+            marginBottom: '1rem', fontSize: '0.85rem', color: '#22543D',
+          }}>
+            {claimMessage}
+          </div>
+        )}
 
         {error && (
           <div style={{
