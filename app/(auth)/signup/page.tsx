@@ -302,37 +302,60 @@ export default function SignupPage() {
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.5rem', color: '#1A1A2E' }}>
-              I am a...
-            </label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {ROLES.map(r => (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => setRole(r.value as typeof role)}
-                  style={{
-                    flex: 1, padding: '0.65rem 0.5rem', borderRadius: '10px',
-                    border: role === r.value ? '2px solid #FF1493' : '1px solid #ddd',
-                    background: role === r.value ? '#FFF0F5' : 'white',
-                    cursor: 'pointer', textAlign: 'center',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  <div style={{
-                    fontWeight: 600, fontSize: '0.85rem',
-                    color: role === r.value ? '#FF1493' : '#1A1A2E',
-                  }}>
-                    {r.label}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: '#888', marginTop: '0.15rem' }}>
-                    {r.desc}
-                  </div>
-                </button>
-              ))}
+          {claimShopId ? (
+            // When claiming a shop, lock role to shop_owner — no role picker
+            <div style={{
+              padding: '0.75rem 1rem',
+              borderRadius: '10px',
+              background: '#FFF0F5',
+              border: '1.5px solid #FF1493',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.9rem',
+              color: '#1A1A2E',
+            }}>
+              <span style={{ fontSize: '1.1rem' }}>🏪</span>
+              <div>
+                <div style={{ fontWeight: 700, color: '#FF1493' }}>Signing up as Shop Owner</div>
+                <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>
+                  Required to claim and manage a donut shop
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.5rem', color: '#1A1A2E' }}>
+                I am a...
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {ROLES.map(r => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setRole(r.value as typeof role)}
+                    style={{
+                      flex: 1, padding: '0.65rem 0.5rem', borderRadius: '10px',
+                      border: role === r.value ? '2px solid #FF1493' : '1px solid #ddd',
+                      background: role === r.value ? '#FFF0F5' : 'white',
+                      cursor: 'pointer', textAlign: 'center',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <div style={{
+                      fontWeight: 600, fontSize: '0.85rem',
+                      color: role === r.value ? '#FF1493' : '#1A1A2E',
+                    }}>
+                      {r.label}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#888', marginTop: '0.15rem' }}>
+                      {r.desc}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
             <input
