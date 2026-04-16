@@ -23,6 +23,20 @@ function getGreeting(): string {
   return 'Good evening'
 }
 
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3958.8 // Earth radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+const NEAR_ME_RADIUS_MILES = 2
+const NEAR_ME_MAX_SHOPS = 3
+
 function StarRating({ rating }: { rating: number }) {
   const stars = []
   for (let i = 1; i <= 5; i++) {
@@ -53,6 +67,24 @@ export default function HomePage() {
   const [addressInput, setAddressInput] = useState('')
   const [addressLoading, setAddressLoading] = useState(false)
   const [addressError, setAddressError] = useState<string | null>(null)
+  const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [gpsStatus, setGpsStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported'>('idle')
+
+  const requestGps = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsStatus('unsupported')
+      return
+    }
+    setGpsStatus('requesting')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setGpsStatus('granted')
+      },
+      () => setGpsStatus('denied'),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+    )
+  }, [])
 
   const handleAddressSearch = useCallback(async () => {
     const addr = addressInput.trim()
@@ -163,6 +195,20 @@ export default function HomePage() {
   const PINK = '#FF1493'
   const ORANGE = '#FF8C00'
   const categories = ['All', 'Donuts', 'Coffee', 'Breakfast']
+
+  // Compute claimed shops within 2 miles of GPS, sorted by distance, top 3
+  const nearestShopsGps = (gpsLocation && shops.length > 0)
+    ? shops
+        .filter(s => s.is_claimed !== false && s.lat != null && s.lng != null)
+        .map(s => ({ shop: s, distance: haversineDistance(gpsLocation.lat, gpsLocation.lng, s.lat!, s.lng!) }))
+        .filter(x => x.distance <= NEAR_ME_RADIUS_MILES)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, NEAR_ME_MAX_SHOPS)
+    : []
+  const hasNearestShops = nearestShopsGps.length > 0
+  const viewMoreNearestHref = gpsLocation
+    ? `/shops?lat=${gpsLocation.lat}&lng=${gpsLocation.lng}&sort=nearest`
+    : '/shops'
 
   const promoBanners = [
     {
@@ -569,6 +615,121 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Near Me (GPS-based) — mobile */}
+        {gpsStatus !== 'granted' ? (
+          <div style={{ padding: '0 20px', marginBottom: '16px' }}>
+            <button
+              onClick={requestGps}
+              disabled={gpsStatus === 'requesting'}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                background: 'linear-gradient(135deg, #FFF0F5, #FFE4EC)',
+                border: `1.5px solid ${PINK}`,
+                borderRadius: '12px',
+                color: PINK,
+                fontWeight: 700,
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: gpsStatus === 'requesting' ? 'wait' : 'pointer',
+              }}
+            >
+              <span>📍</span>
+              <span>
+                {gpsStatus === 'requesting' ? 'Locating you…'
+                  : gpsStatus === 'denied' ? 'Location denied — tap to retry'
+                  : gpsStatus === 'unsupported' ? 'GPS not supported'
+                  : 'Find donut shops within 2 miles of me'}
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div style={{ padding: '0 20px', marginBottom: '20px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px',
+            }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
+                📍 Near You ({NEAR_ME_RADIUS_MILES} mi)
+              </h2>
+            </div>
+            {hasNearestShops ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                  {nearestShopsGps.map(({ shop, distance }) => (
+                    <Link
+                      key={shop.id}
+                      href={`/shops/${shop.slug}`}
+                      style={{ textDecoration: 'none', color: 'inherit' }}
+                    >
+                      <div style={{
+                        background: 'white', borderRadius: '14px', overflow: 'hidden',
+                        boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
+                      }}>
+                        <div style={{
+                          width: '100%', height: '110px',
+                          background: shop.image_url
+                            ? `url(${shop.image_url}) center/cover no-repeat`
+                            : `linear-gradient(135deg, #FF69B4, ${PINK})`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {!shop.image_url && <span style={{ fontSize: '2.5rem' }}>🍩</span>}
+                        </div>
+                        <div style={{ padding: '10px 12px' }}>
+                          <h3 style={{
+                            fontWeight: 700, fontSize: '0.85rem', margin: 0, color: '#1A1A2E',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>
+                            {shop.name}
+                          </h3>
+                          <div style={{ fontSize: '0.7rem', color: PINK, fontWeight: 600, marginTop: '4px' }}>
+                            {distance.toFixed(1)} mi away
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                <Link
+                  href={viewMoreNearestHref}
+                  style={{
+                    display: 'block',
+                    marginTop: '12px',
+                    textAlign: 'center',
+                    padding: '10px',
+                    borderRadius: '10px',
+                    background: 'white',
+                    border: `1.5px solid ${PINK}`,
+                    color: PINK,
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  View more nearby shops →
+                </Link>
+              </>
+            ) : (
+              <div style={{
+                padding: '14px',
+                background: '#FFF8FB',
+                border: '1px dashed #FFC0D9',
+                borderRadius: '12px',
+                fontSize: '13px',
+                color: '#666',
+                textAlign: 'center',
+              }}>
+                No donut shops within {NEAR_ME_RADIUS_MILES} miles.{' '}
+                <Link href={viewMoreNearestHref} style={{ color: PINK, fontWeight: 700 }}>
+                  Browse all shops →
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Section label */}
         <div style={{
           padding: '0 20px',
@@ -895,6 +1056,101 @@ export default function HomePage() {
             </div>
           </div>
         )}
+
+        {/* Near Me (GPS-based) — desktop */}
+        <section style={{ padding: '2rem 1.5rem 0' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            {gpsStatus !== 'granted' ? (
+              <button
+                onClick={requestGps}
+                disabled={gpsStatus === 'requesting'}
+                style={{
+                  padding: '12px 20px',
+                  background: 'linear-gradient(135deg, #FFF0F5, #FFE4EC)',
+                  border: `1.5px solid ${PINK}`,
+                  borderRadius: '12px',
+                  color: PINK,
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: gpsStatus === 'requesting' ? 'wait' : 'pointer',
+                }}
+              >
+                <span>📍</span>
+                <span>
+                  {gpsStatus === 'requesting' ? 'Locating you…'
+                    : gpsStatus === 'denied' ? 'Location denied — click to retry'
+                    : gpsStatus === 'unsupported' ? 'GPS not supported'
+                    : `Find donut shops within ${NEAR_ME_RADIUS_MILES} miles of me`}
+                </span>
+              </button>
+            ) : (
+              <>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem',
+                }}>
+                  <div>
+                    <h2 style={{ fontSize: 'clamp(1.3rem, 2.5vw, 1.75rem)', fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
+                      📍 Near You
+                    </h2>
+                    <p style={{ color: '#888', fontSize: '0.95rem', margin: '0.25rem 0 0' }}>
+                      Closest donut shops within {NEAR_ME_RADIUS_MILES} miles
+                    </p>
+                  </div>
+                  <Link href={viewMoreNearestHref} style={{
+                    color: PINK, fontWeight: 600, fontSize: '0.95rem',
+                    display: 'flex', alignItems: 'center', gap: '0.25rem',
+                  }}>
+                    View more &rarr;
+                  </Link>
+                </div>
+                {hasNearestShops ? (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                    gridAutoRows: '1fr',
+                    gap: '1rem',
+                  }}>
+                    {nearestShopsGps.map(({ shop, distance }) => (
+                      <div key={shop.id} style={{ position: 'relative' }}>
+                        <ShopCard
+                          shop={shop}
+                          isFavorited={favoriteIds.has(shop.id)}
+                          onToggleFavorite={user ? toggleFavorite : undefined}
+                        />
+                        <div style={{
+                          position: 'absolute', top: '8px', left: '8px',
+                          background: PINK, color: 'white',
+                          fontSize: '11px', fontWeight: 700,
+                          padding: '3px 8px', borderRadius: '10px', zIndex: 1,
+                        }}>
+                          {distance.toFixed(1)} mi
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '1.5rem',
+                    background: '#FFF8FB',
+                    border: '1px dashed #FFC0D9',
+                    borderRadius: '12px',
+                    color: '#666',
+                    textAlign: 'center',
+                  }}>
+                    No donut shops within {NEAR_ME_RADIUS_MILES} miles.{' '}
+                    <Link href={viewMoreNearestHref} style={{ color: PINK, fontWeight: 700 }}>
+                      Browse all shops →
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
 
         {/* Featured Shops */}
         <section style={{ padding: '4rem 1.5rem' }}>
