@@ -80,10 +80,25 @@ export async function GET(request: NextRequest) {
         estimated_delivery_max = 35
       }
 
-      // Use live review stats if available, otherwise fall back to dd_shops fields
+      // Blend the base rating on dd_shops (Google or manual) with any local
+      // dd_reviews, so a shop with 289 Google reviews + 1 local 5★ doesn't
+      // collapse to "5.0 (1)".
       const stats = reviewStats[shop.id]
-      const avg_rating = stats ? stats.avg_rating : shop.rating
-      const review_count = stats ? stats.review_count : shop.review_count
+      const baseRating = typeof shop.rating === 'number' ? shop.rating : 0
+      const baseCount = typeof shop.review_count === 'number' ? shop.review_count : 0
+      let avg_rating: number
+      let review_count: number
+      if (stats) {
+        const localSum = stats.avg_rating * stats.review_count
+        const totalCount = baseCount + stats.review_count
+        avg_rating = totalCount > 0
+          ? Math.round(((baseRating * baseCount + localSum) / totalCount) * 10) / 10
+          : stats.avg_rating
+        review_count = totalCount
+      } else {
+        avg_rating = baseRating
+        review_count = baseCount
+      }
 
       return {
         ...shop,
