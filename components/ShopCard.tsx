@@ -163,12 +163,20 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
                 paddingTop: '4px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: '6px',
+                flexWrap: 'wrap',
               }}>
-                <span>🕐</span>
-                <span>{shop.estimated_delivery_min && shop.estimated_delivery_max
+                <span>🕐 {shop.estimated_delivery_min && shop.estimated_delivery_max
                   ? `${shop.estimated_delivery_min}-${shop.estimated_delivery_max} min`
                   : '20-35 min'}</span>
+                {shop.distance_miles != null && (
+                  <>
+                    <span style={{ color: '#ddd' }}>•</span>
+                    <span style={{ color: '#FF1493', fontWeight: 600 }}>
+                      📍 {shop.distance_miles.toFixed(1)} mi
+                    </span>
+                  </>
+                )}
               </div>
             )}
           </div>

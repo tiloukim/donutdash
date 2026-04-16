@@ -110,8 +110,13 @@ export default function HomePage() {
     }
   }, [addressInput, router])
 
+  // Re-fetch shops whenever we gain (or already have) GPS coordinates so the
+  // server can attach distance_miles to every shop.
   useEffect(() => {
-    fetch('/api/shops')
+    const url = gpsLocation
+      ? `/api/shops?lat=${gpsLocation.lat}&lng=${gpsLocation.lng}`
+      : '/api/shops'
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         setShops(data.shops || [])
@@ -119,7 +124,7 @@ export default function HomePage() {
       })
       .catch(() => setShops([]))
       .finally(() => setLoading(false))
-  }, [])
+  }, [gpsLocation])
 
   // Fetch favorites
   useEffect(() => {
@@ -840,13 +845,22 @@ export default function HomePage() {
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '8px',
+                          gap: '6px',
                           fontSize: '0.7rem',
                           color: '#888',
+                          flexWrap: 'wrap',
                         }}>
                           <span>20-35 min</span>
                           <span style={{ color: '#ddd' }}>|</span>
                           <span>${shop.delivery_fee.toFixed(2)}</span>
+                          {shop.distance_miles != null && (
+                            <>
+                              <span style={{ color: '#ddd' }}>|</span>
+                              <span style={{ color: PINK, fontWeight: 600 }}>
+                                📍 {shop.distance_miles.toFixed(1)} mi
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

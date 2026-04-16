@@ -74,9 +74,12 @@ function ShopsPageInner() {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Fetch shops
+  // Fetch shops — include lat/lng if we have it so each shop gets distance_miles
   useEffect(() => {
-    fetch('/api/shops')
+    const url = customerLocation
+      ? `/api/shops?lat=${customerLocation.lat}&lng=${customerLocation.lng}`
+      : '/api/shops'
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         setShops(data.shops || [])
@@ -84,7 +87,7 @@ function ShopsPageInner() {
       })
       .catch(() => setShops([]))
       .finally(() => setLoading(false))
-  }, [])
+  }, [customerLocation])
 
   // Fetch favorites
   useEffect(() => {
