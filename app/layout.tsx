@@ -35,14 +35,14 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: 'DonutDash - Donut Delivery in Tyler, TX & East Texas | Fresh Donuts Delivered Fast',
+    title: 'Donut Delivery in Tyler, TX & East Texas',
     description:
-      'Order fresh donuts delivered to your door in Tyler, TX and across East Texas. Browse local donut shops, track your delivery in real-time, and enjoy delicious donuts fast.',
+      'Fresh donuts delivered fast from local shops. Order online and track your delivery in real-time.',
     url: 'https://donutdash.app',
     siteName: 'DonutDash',
     images: [
       {
-        url: '/OG-logo.png',
+        url: '/OG-LOG-new.png',
         width: 1200,
         height: 630,
         alt: 'DonutDash - Donut Delivery in Tyler, TX & East Texas',
@@ -53,10 +53,10 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DonutDash - Donut Delivery in Tyler, TX & East Texas',
+    title: 'Donut Delivery in Tyler, TX & East Texas',
     description:
-      'Order fresh donuts delivered to your door in Tyler, TX and across East Texas. Browse local donut shops and enjoy delicious donuts fast.',
-    images: ['/OG-logo.png'],
+      'Fresh donuts delivered fast from local shops. Order online and track your delivery in real-time.',
+    images: ['/OG-LOG-new.png'],
   },
   verification: {
     google: 'sSHbUVG0jA9lCCh2GKLSzI4OC9-cmeq8VaGgzVDAvR4',
