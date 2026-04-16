@@ -283,7 +283,7 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Delivery address */}
+        {/* Delivery address search */}
         <div style={{
           padding: '0 20px',
           marginBottom: '12px',
@@ -295,18 +295,60 @@ export default function HomePage() {
             color: PINK,
             fontSize: '0.8rem',
             fontWeight: 600,
+            marginBottom: '6px',
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill={PINK} stroke="none">
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
             </svg>
             <span>Deliver to</span>
-            <span style={{ color: '#1A1A2E', fontWeight: 700 }}>
-              {user ? 'Saved Address' : 'Set delivery address'}
-            </span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="3">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
           </div>
+          <div style={{
+            display: 'flex',
+            background: 'white',
+            borderRadius: '12px',
+            border: '1.5px solid #FFD4E5',
+            overflow: 'hidden',
+          }}>
+            <input
+              type="text"
+              placeholder="Enter your delivery address..."
+              value={addressInput}
+              onChange={e => setAddressInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddressSearch() }}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                border: 'none',
+                outline: 'none',
+                fontSize: '14px',
+                color: '#1A1A2E',
+                background: 'transparent',
+                minWidth: 0,
+              }}
+            />
+            <button
+              onClick={handleAddressSearch}
+              disabled={addressLoading}
+              style={{
+                background: PINK,
+                color: 'white',
+                padding: '0 16px',
+                fontWeight: 700,
+                fontSize: '13px',
+                border: 'none',
+                cursor: addressLoading ? 'wait' : 'pointer',
+                opacity: addressLoading ? 0.7 : 1,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {addressLoading ? '…' : 'Find'}
+            </button>
+          </div>
+          {addressError && (
+            <p style={{ color: '#D9446C', fontSize: '12px', marginTop: '4px' }}>
+              {addressError}
+            </p>
+          )}
         </div>
 
         {/* Search bar with item search dropdown */}
