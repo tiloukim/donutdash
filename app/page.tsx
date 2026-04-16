@@ -775,10 +775,13 @@ export default function HomePage() {
               gridTemplateColumns: 'repeat(2, 1fr)',
               gap: '12px',
             }}>
-              {shops.slice(0, 8).map(shop => (
+              {shops.slice(0, 8).map(shop => {
+                const isUnclaimed = shop.is_claimed === false
+                const href = isUnclaimed ? `/shops/claim/${shop.slug}` : `/shops/${shop.slug}`
+                return (
                 <div key={shop.id} style={{ position: 'relative' }}>
                   <Link
-                    href={`/shops/${shop.slug}`}
+                    href={href}
                     style={{ textDecoration: 'none', color: 'inherit' }}
                   >
                     <div style={{
@@ -796,9 +799,30 @@ export default function HomePage() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        position: 'relative',
                       }}>
                         {!shop.image_url && (
                           <DonutIcon size={80} />
+                        )}
+                        {isUnclaimed && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '8px',
+                            left: '8px',
+                            background: 'rgba(255,255,255,0.95)',
+                            border: '1.5px solid #FF1493',
+                            color: '#FF1493',
+                            fontSize: '9px',
+                            fontWeight: 800,
+                            padding: '3px 7px',
+                            borderRadius: '12px',
+                            letterSpacing: '0.3px',
+                            textTransform: 'uppercase',
+                            lineHeight: 1,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          }}>
+                            Unclaimed
+                          </div>
                         )}
                       </div>
                       <div style={{ padding: '10px 12px' }}>
@@ -816,7 +840,7 @@ export default function HomePage() {
                           }}>
                             {shop.name}
                           </h3>
-                          {shop.is_busy && (
+                          {shop.is_busy && !isUnclaimed && (
                             <span style={{
                               fontSize: '9px',
                               fontWeight: 700,
@@ -842,31 +866,48 @@ export default function HomePage() {
                             {shop.rating.toFixed(1)}
                           </span>
                         </div>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          fontSize: '0.7rem',
-                          color: '#888',
-                          flexWrap: 'wrap',
-                        }}>
-                          <span>20-35 min</span>
-                          <span style={{ color: '#ddd' }}>|</span>
-                          <span>${shop.delivery_fee.toFixed(2)}</span>
-                          {shop.distance_miles != null && (
-                            <>
-                              <span style={{ color: '#ddd' }}>|</span>
-                              <span style={{ color: PINK, fontWeight: 600 }}>
-                                📍 {shop.distance_miles.toFixed(1)} mi
-                              </span>
-                            </>
-                          )}
-                        </div>
+                        {isUnclaimed ? (
+                          <div style={{
+                            marginTop: '6px',
+                            padding: '6px 8px',
+                            background: '#FFF0F5',
+                            border: '1px solid #FF1493',
+                            borderRadius: '8px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            color: '#FF1493',
+                            textAlign: 'center',
+                            letterSpacing: '0.2px',
+                          }}>
+                            Claim this shop
+                          </div>
+                        ) : (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '0.7rem',
+                            color: '#888',
+                            flexWrap: 'wrap',
+                          }}>
+                            <span>20-35 min</span>
+                            <span style={{ color: '#ddd' }}>|</span>
+                            <span>${shop.delivery_fee.toFixed(2)}</span>
+                            {shop.distance_miles != null && (
+                              <>
+                                <span style={{ color: '#ddd' }}>|</span>
+                                <span style={{ color: PINK, fontWeight: 600 }}>
+                                  📍 {shop.distance_miles.toFixed(1)} mi
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Link>
-                  {/* Heart favorite button */}
-                  {user && (
+                  {/* Heart favorite button (hide on unclaimed shops) */}
+                  {user && !isUnclaimed && (
                     <button
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(shop.id) }}
                       style={{
@@ -886,7 +927,8 @@ export default function HomePage() {
                     </button>
                   )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div style={{
