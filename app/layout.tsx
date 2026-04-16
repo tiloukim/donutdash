@@ -42,9 +42,9 @@ export const metadata: Metadata = {
     siteName: 'DonutDash',
     images: [
       {
-        url: '/logo.png',
-        width: 512,
-        height: 512,
+        url: '/bannerpost.png',
+        width: 1200,
+        height: 630,
         alt: 'DonutDash - Donut Delivery in Tyler, TX & East Texas',
       },
     ],
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     title: 'DonutDash - Donut Delivery in Tyler, TX & East Texas',
     description:
       'Order fresh donuts delivered to your door in Tyler, TX and across East Texas. Browse local donut shops and enjoy delicious donuts fast.',
-    images: ['/logo.png'],
+    images: ['/bannerpost.png'],
   },
   verification: {
     google: 'sSHbUVG0jA9lCCh2GKLSzI4OC9-cmeq8VaGgzVDAvR4',
