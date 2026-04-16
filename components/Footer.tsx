@@ -71,15 +71,15 @@ export default function Footer() {
           <div>
             <h4 style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.95rem' }}>Support</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <a href="mailto:help@donutdash.app" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
-                help@donutdash.app
-              </a>
-              <a href="mailto:shops@donutdash.app" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+              <Link href="/support" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+                Customer Help
+              </Link>
+              <Link href="/support/shops" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
                 Shop Owner Support
-              </a>
-              <a href="mailto:drivers@donutdash.app" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
+              </Link>
+              <Link href="/support/drivers" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', transition: 'color 0.2s' }}>
                 Driver Support
-              </a>
+              </Link>
             </div>
           </div>
 

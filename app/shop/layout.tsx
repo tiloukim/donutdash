@@ -160,9 +160,9 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
         >
           🌐 {lang === 'en' ? 'ភាសាខ្មែរ' : 'English'}
         </button>
-        <a href="mailto:shops@donutdash.app" style={{ display: 'block', padding: '4px 10px', color: 'rgba(255,255,255,0.7)', fontSize: 11, textDecoration: 'none' }}>
+        <Link href="/support/shops" style={{ display: 'block', padding: '4px 10px', color: 'rgba(255,255,255,0.7)', fontSize: 11, textDecoration: 'none' }}>
           📧 Shop Support
-        </a>
+        </Link>
         <div style={{ padding: '4px 10px', color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>{user.name}</div>
         <button onClick={() => signOut('/shop')} style={{ display: 'block', width: '100%', padding: '4px 10px', color: '#FFB6C1', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, textAlign: 'left' }}>{t('nav.signOut')}</button>
       </div>

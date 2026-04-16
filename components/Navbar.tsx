@@ -140,8 +140,9 @@ export default function Navbar() {
                       >
                         Catering
                       </Link>
-                      <a
-                        href="mailto:help@donutdash.app"
+                      <Link
+                        href="/support"
+                        onClick={() => setUserMenuOpen(false)}
                         style={{
                           display: 'block', padding: '0.6rem 1rem', fontSize: '0.9rem',
                           color: '#333', textDecoration: 'none',
@@ -151,7 +152,7 @@ export default function Navbar() {
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       >
                         Need Help?
-                      </a>
+                      </Link>
                       <button
                         onClick={() => { setUserMenuOpen(false); signOut() }}
                         style={{
