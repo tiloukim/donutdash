@@ -28,14 +28,17 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
   const href = isUnclaimed ? `/shops/claim/${shop.slug}` : `/shops/${shop.slug}`
 
   return (
-    <div style={{ position: 'relative' }}>
-      <Link href={href} style={{ textDecoration: 'none', color: 'inherit' }}>
+    <div style={{ position: 'relative', height: '100%' }}>
+      <Link href={href} style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%' }}>
         <div
           style={{
             background: 'white',
             borderRadius: '12px',
             overflow: 'hidden',
             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
           }}
         >
           <div style={{
@@ -79,7 +82,7 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
             )}
           </div>
 
-          <div style={{ padding: '8px 10px 10px' }}>
+          <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <h3 style={{
                 fontWeight: 700,
@@ -134,24 +137,29 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
 
             {isUnclaimed ? (
               <div style={{
-                marginTop: '8px',
-                padding: '6px 10px',
-                background: '#FFF0F5',
-                border: '1px solid #FF1493',
-                borderRadius: '8px',
-                fontSize: '11px',
-                fontWeight: 700,
-                color: '#FF1493',
-                textAlign: 'center',
-                letterSpacing: '0.2px',
+                marginTop: 'auto',
+                paddingTop: '8px',
               }}>
-                Claim this shop
+                <div style={{
+                  padding: '6px 10px',
+                  background: '#FFF0F5',
+                  border: '1px solid #FF1493',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: '#FF1493',
+                  textAlign: 'center',
+                  letterSpacing: '0.2px',
+                }}>
+                  Claim this shop
+                </div>
               </div>
             ) : (
               <div style={{
                 fontSize: '12px',
                 color: '#777',
-                marginTop: '4px',
+                marginTop: 'auto',
+                paddingTop: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
