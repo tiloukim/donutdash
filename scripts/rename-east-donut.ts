@@ -55,11 +55,11 @@ const STREET_VIEW = {
 const NEW_NAME = 'East Texas Donut'
 
 async function findShop() {
-  // Prefer exact "East Donut Shop"; fall back to slug matches.
+  // Prefer by current slug (after rename) or old name.
   const { data } = await supabase
     .from('dd_shops')
     .select('id, name, slug, image_url, banner_url')
-    .or('name.ilike.%east donut shop%,slug.eq.east-donut-shop')
+    .or('slug.eq.east-texas-donut,slug.eq.east-donut-shop,name.ilike.%east donut shop%')
   return data || []
 }
 
