@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
   },
-  metadataBase: new URL('https://donutdash.app'),
+  metadataBase: new URL('https://www.donutdash.app'),
   alternates: {
     canonical: '/',
   },
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     title: 'Donut Delivery in Tyler, TX & East Texas',
     description:
       'Fresh donuts delivered fast from local shops. Order online and track your delivery in real-time.',
-    url: 'https://donutdash.app',
+    url: 'https://www.donutdash.app',
     siteName: 'DonutDash',
     images: [
       {
@@ -82,8 +82,8 @@ export default function RootLayout({
                   '@type': 'Organization',
                   name: 'DonutDash',
                   legalName: 'KIMCO LLC DBA DonutDash',
-                  url: 'https://donutdash.app',
-                  logo: 'https://donutdash.app/logo.png',
+                  url: 'https://www.donutdash.app',
+                  logo: 'https://www.donutdash.app/logo.png',
                   sameAs: ['https://www.facebook.com/profile.php?id=61575586874091'],
                   contactPoint: {
                     '@type': 'ContactPoint',
@@ -93,12 +93,12 @@ export default function RootLayout({
                 },
                 {
                   '@type': 'LocalBusiness',
-                  '@id': 'https://donutdash.app/#localbusiness',
+                  '@id': 'https://www.donutdash.app/#localbusiness',
                   name: 'DonutDash',
                   description:
                     'Donut delivery platform serving Tyler, TX and East Texas. Order fresh donuts from local shops delivered to your door.',
-                  url: 'https://donutdash.app',
-                  image: 'https://donutdash.app/logo.png',
+                  url: 'https://www.donutdash.app',
+                  image: 'https://www.donutdash.app/logo.png',
                   address: {
                     '@type': 'PostalAddress',
                     addressLocality: 'Tyler',
