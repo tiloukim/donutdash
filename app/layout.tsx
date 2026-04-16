@@ -40,14 +40,6 @@ export const metadata: Metadata = {
       'Order fresh donuts delivered to your door. Browse local donut shops in Tyler and East Texas.',
     url: 'https://www.donutdash.app',
     siteName: 'DonutDash',
-    images: [
-      {
-        url: '/OG-LOG-new.png',
-        width: 1200,
-        height: 630,
-        alt: 'DonutDash - Donut Delivery in Tyler, TX & East Texas',
-      },
-    ],
     locale: 'en_US',
     type: 'website',
   },
@@ -56,7 +48,6 @@ export const metadata: Metadata = {
     title: 'Donut Delivery in Tyler and East Texas | Fresh Donuts | Delivered Fast',
     description:
       'Order fresh donuts delivered to your door. Browse local donut shops in Tyler and East Texas.',
-    images: ['/OG-LOG-new.png'],
   },
   verification: {
     google: 'sSHbUVG0jA9lCCh2GKLSzI4OC9-cmeq8VaGgzVDAvR4',
