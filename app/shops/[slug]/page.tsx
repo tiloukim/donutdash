@@ -371,21 +371,44 @@ export default function ShopDetailPage() {
         </div>
       )}
 
-      {/* Customer Reviews */}
+      {/* Customer Reviews (local + Google) */}
       {reviews.length > 0 && (
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1A1A2E', marginBottom: '1rem' }}>
-            Customer Reviews ({reviews.length})
+            Reviews ({reviews.length})
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {reviews.slice(0, 10).map((r: any) => (
               <div key={r.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0f0f0', padding: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>{r.customer?.name || 'Customer'}</span>
-                    <span style={{ color: '#F59E0B', fontSize: 14 }}>{'★'.repeat(r.shop_rating)}{'☆'.repeat(5 - r.shop_rating)}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                    {r.profile_photo_url ? (
+                      <img
+                        src={r.profile_photo_url}
+                        alt={r.author_name}
+                        width={28}
+                        height={28}
+                        style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
+                      />
+                    ) : null}
+                    <span style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {r.author_name}
+                    </span>
+                    <span style={{ color: '#F59E0B', fontSize: 14, flexShrink: 0 }}>
+                      {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                    </span>
+                    {r.source === 'google' && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, color: '#4285F4',
+                        background: '#E8F0FE', padding: '2px 6px', borderRadius: 6, flexShrink: 0,
+                      }}>
+                        Google
+                      </span>
+                    )}
                   </div>
-                  <span style={{ fontSize: 12, color: '#9CA3AF' }}>{new Date(r.created_at).toLocaleDateString()}</span>
+                  <span style={{ fontSize: 12, color: '#9CA3AF', flexShrink: 0 }}>
+                    {r.relative_time || new Date(r.created_at).toLocaleDateString()}
+                  </span>
                 </div>
                 {r.comment && <p style={{ fontSize: 14, color: '#444', margin: 0, lineHeight: 1.5 }}>{r.comment}</p>}
               </div>
