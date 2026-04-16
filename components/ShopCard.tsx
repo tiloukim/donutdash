@@ -1,8 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { Shop } from '@/lib/types'
 import DonutIcon from './DonutIcon'
+
+const DESKTOP_BREAKPOINT = 768
 
 function StarRating({ rating }: { rating: number }) {
   const stars = []
@@ -25,8 +28,19 @@ interface ShopCardProps {
 }
 
 export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCardProps) {
+  // Show the unclaimed badge / claim CTA only on desktop. Mobile customers
+  // see unclaimed shops as regular cards that link to the shop detail page.
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   const isUnclaimed = shop.is_claimed === false
-  const href = isUnclaimed ? `/shops/claim/${shop.slug}` : `/shops/${shop.slug}`
+  const showClaimUI = isUnclaimed && isDesktop
+  const href = showClaimUI ? `/shops/claim/${shop.slug}` : `/shops/${shop.slug}`
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>
@@ -57,8 +71,8 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
               <DonutIcon size={90} />
             )}
 
-            {/* Unclaimed badge */}
-            {isUnclaimed && (
+            {/* Unclaimed badge — desktop only */}
+            {showClaimUI && (
               <div
                 style={{
                   position: 'absolute',
@@ -136,7 +150,7 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
               </span>
             </div>
 
-            {isUnclaimed ? (
+            {showClaimUI ? (
               <div style={{
                 marginTop: 'auto',
                 paddingTop: '8px',
@@ -183,8 +197,8 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
         </div>
       </Link>
 
-      {/* Favorite heart button — hidden on unclaimed shops */}
-      {onToggleFavorite && !isUnclaimed && (
+      {/* Favorite heart button — hidden when showing the claim CTA (desktop unclaimed) */}
+      {onToggleFavorite && !showClaimUI && (
         <button
           onClick={(e) => {
             e.preventDefault()
