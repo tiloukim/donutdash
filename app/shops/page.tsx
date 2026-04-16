@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
@@ -38,6 +39,20 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 export default function ShopsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ShopsPageInner />
+    </Suspense>
+  )
+}
+
+function ShopsPageInner() {
+  const searchParams = useSearchParams()
+  const urlLat = searchParams.get('lat')
+  const urlLng = searchParams.get('lng')
+  const urlSort = searchParams.get('sort') as SortOption | null
+  const urlAddr = searchParams.get('addr')
+
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [surgeActive, setSurgeActive] = useState(false)
@@ -47,8 +62,14 @@ export default function ShopsPage() {
   const [itemResults, setItemResults] = useState<SearchResult[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [searchingItems, setSearchingItems] = useState(false)
-  const [sortBy, setSortBy] = useState<SortOption>('recommended')
-  const [customerLocation, setCustomerLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [sortBy, setSortBy] = useState<SortOption>(
+    urlSort && ['recommended', 'fastest', 'highest_rated', 'nearest', 'lowest_fee'].includes(urlSort)
+      ? urlSort
+      : 'recommended'
+  )
+  const [customerLocation, setCustomerLocation] = useState<{ lat: number; lng: number } | null>(
+    urlLat && urlLng ? { lat: parseFloat(urlLat), lng: parseFloat(urlLng) } : null
+  )
   const { user } = useAuth()
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -446,6 +467,21 @@ export default function ShopsPage() {
               gap: '4px',
             }}>
               <span>📍</span> Enable location access to sort by distance
+            </div>
+          )}
+
+          {/* Show entered delivery address when sorting by nearest */}
+          {sortBy === 'nearest' && customerLocation && urlAddr && (
+            <div style={{
+              fontSize: '12px',
+              color: '#666',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}>
+              <span>📍</span>
+              <span>Closest to: <strong style={{ color: '#1A1A2E' }}>{urlAddr}</strong></span>
             </div>
           )}
 

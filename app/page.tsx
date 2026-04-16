@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import ShopCard from '@/components/ShopCard'
@@ -48,6 +49,33 @@ export default function HomePage() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { user } = useAuth()
   const { count } = useCart()
+  const router = useRouter()
+  const [addressInput, setAddressInput] = useState('')
+  const [addressLoading, setAddressLoading] = useState(false)
+  const [addressError, setAddressError] = useState<string | null>(null)
+
+  const handleAddressSearch = useCallback(async () => {
+    const addr = addressInput.trim()
+    if (!addr) {
+      router.push('/shops')
+      return
+    }
+    setAddressLoading(true)
+    setAddressError(null)
+    try {
+      const res = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
+      const data = await res.json()
+      if (!res.ok) {
+        setAddressError(data.error || 'Could not find that address')
+        setAddressLoading(false)
+        return
+      }
+      router.push(`/shops?lat=${data.lat}&lng=${data.lng}&sort=nearest&addr=${encodeURIComponent(data.formatted_address || addr)}`)
+    } catch {
+      setAddressError('Could not find that address')
+      setAddressLoading(false)
+    }
+  }, [addressInput, router])
 
   useEffect(() => {
     fetch('/api/shops')
@@ -700,8 +728,9 @@ export default function HomePage() {
                 <input
                   type="text"
                   placeholder="Enter your delivery address..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  value={addressInput}
+                  onChange={e => setAddressInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddressSearch() }}
                   style={{
                     flex: 1,
                     padding: '1rem 1.25rem',
@@ -711,19 +740,31 @@ export default function HomePage() {
                     color: '#1A1A2E',
                   }}
                 />
-                <Link href="/shops" style={{
-                  background: ORANGE,
-                  color: 'white',
-                  padding: '1rem 1.5rem',
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  whiteSpace: 'nowrap',
-                }}>
-                  Find Shops
-                </Link>
+                <button
+                  onClick={handleAddressSearch}
+                  disabled={addressLoading}
+                  style={{
+                    background: ORANGE,
+                    color: 'white',
+                    padding: '1rem 1.5rem',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    whiteSpace: 'nowrap',
+                    border: 'none',
+                    cursor: addressLoading ? 'wait' : 'pointer',
+                    opacity: addressLoading ? 0.7 : 1,
+                  }}
+                >
+                  {addressLoading ? 'Searching…' : 'Find Shops'}
+                </button>
               </div>
+              {addressError && (
+                <p style={{ color: '#FFE4E1', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                  {addressError}
+                </p>
+              )}
             </div>
 
             {/* Right: Banner Image */}
