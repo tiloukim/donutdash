@@ -14,6 +14,7 @@ const ALL_NAV_ITEMS = [
   { href: '/admin/drivers', label: 'Drivers', icon: '🚗', roles: ['admin', 'manager'] },
   { href: '/admin/driver-documents', label: 'Driver Docs', icon: '📋', roles: ['admin', 'manager'] },
   { href: '/admin/shop-documents', label: 'Shop Docs', icon: '📑', roles: ['admin', 'manager'] },
+  { href: '/admin/claim-requests', label: 'Claim Requests', icon: '🏷️', roles: ['admin'] },
   { href: '/admin/payouts', label: 'Payouts', icon: '💰', roles: ['admin', 'manager'] },
   { href: '/admin/catering', label: 'Catering', icon: '🎂', roles: ['admin', 'manager'] },
   { href: '/admin/support', label: 'Support Chat', icon: '💬', roles: ['admin', 'manager'] },

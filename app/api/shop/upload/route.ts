@@ -13,14 +13,14 @@ export async function POST(req: NextRequest) {
 
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
-  if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) {
+  if (!ddUser) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   try {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
-    const type = formData.get('type') as string | null // 'image' or 'banner'
+    const type = formData.get('type') as string | null // 'image' | 'banner' | 'forum' | 'claim-doc'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -34,8 +34,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'File too large. Max 5MB.' }, { status: 400 })
     }
 
+    // Role gating: claim-doc allows customers (who aren't shop_owners yet);
+    // everything else still requires shop_owner or admin.
+    const isClaimDoc = type === 'claim-doc'
+    if (!isClaimDoc && ddUser.role !== 'shop_owner' && ddUser.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const ext = file.name.split('.').pop() || 'jpg'
-    const folder = type === 'banner' ? 'banners' : type === 'forum' ? 'forum' : 'logos'
+    const folder =
+      type === 'banner' ? 'banners'
+      : type === 'forum' ? 'forum'
+      : isClaimDoc ? 'claim-docs'
+      : 'logos'
     const fileName = `${folder}/${ddUser.id}-${Date.now()}.${ext}`
 
     const buffer = Buffer.from(await file.arrayBuffer())
