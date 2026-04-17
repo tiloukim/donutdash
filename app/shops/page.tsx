@@ -199,6 +199,15 @@ function ShopsPageInner() {
       result = result.filter(s => s.name.toLowerCase().includes(q))
     }
 
+    // When location is known, only show shops within 30 miles (service area)
+    if (customerLocation) {
+      result = result.filter(s => {
+        if (s.distance_miles != null) return s.distance_miles <= 30
+        if (s.lat && s.lng) return haversineDistance(customerLocation.lat, customerLocation.lng, s.lat, s.lng) <= 30
+        return true
+      })
+    }
+
     // Apply sorting
     result = [...result]
     switch (sortBy) {
@@ -574,17 +583,19 @@ function ShopsPageInner() {
               color: '#888',
             }}>
               <span style={{ fontSize: '3rem', display: 'block', marginBottom: '0.75rem' }}>
-                {activeCategory === 'Favorites' ? '❤️' : '🍩'}
+                {activeCategory === 'Favorites' ? '❤️' : customerLocation ? '📍' : '🍩'}
               </span>
               <h2 style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
                 {activeCategory === 'Favorites'
                   ? 'No favorites yet'
+                  : customerLocation ? 'We\'re not in your area yet'
                   : search ? 'No shops found' : 'No shops available yet'
                 }
               </h2>
               <p style={{ fontSize: '14px' }}>
                 {activeCategory === 'Favorites'
                   ? 'Tap the heart icon on any shop to add it to your favorites'
+                  : customerLocation ? 'DonutDash currently serves Tyler, TX and surrounding East Texas areas within 30 miles.'
                   : search ? 'Try a different search term' : 'Check back soon for delicious donut shops!'
                 }
               </p>
