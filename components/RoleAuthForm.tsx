@@ -303,7 +303,7 @@ export default function RoleAuthForm({
               />
               <label htmlFor="sms-consent-role" style={{ fontSize: '0.8rem', color: '#555', lineHeight: 1.5 }}>
                 I agree to receive SMS notifications about my orders, delivery updates, and account alerts.
-                Message &amp; data rates may apply. Reply STOP to unsubscribe.
+                Message frequency varies. Message &amp; data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.
                 Your mobile information will not be sold or shared with third parties for promotional or marketing purposes.{' '}
                 <Link href="/privacy" style={{ color: accentColor, textDecoration: 'underline' }}>
                   Privacy Policy

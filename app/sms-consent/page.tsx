@@ -81,7 +81,7 @@ export default function SmsConsentPage() {
           </ul>
           <p>Help response:</p>
           <div style={{ background: '#f5f5f5', borderRadius: 8, padding: '12px 16px', margin: '12px 0', fontStyle: 'italic', color: '#555', fontSize: 14 }}>
-            &quot;Reply STOP to unsubscribe. Msg&amp;Data Rates May Apply.&quot;
+            &quot;DonutDash: Order &amp; delivery notifications. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to unsubscribe. For support visit donutdash.app/support or email help@donutdash.app&quot;
           </div>
         </Section>
 
@@ -130,7 +130,7 @@ export default function SmsConsentPage() {
                 </div>
                 <span style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>
                   I agree to receive SMS notifications about my orders, delivery updates, and account alerts.
-                  Message &amp; data rates may apply. Reply STOP to unsubscribe. <span style={{ color: '#FF1493', textDecoration: 'underline' }}>Privacy Policy</span>
+                  Message frequency varies. Message &amp; data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. <span style={{ color: '#FF1493', textDecoration: 'underline' }}>Privacy Policy</span>
                 </span>
               </div>
               <div style={{ marginTop: 12, padding: '10px', background: '#FF1493', color: '#fff', borderRadius: 8, textAlign: 'center', fontWeight: 600, fontSize: 14 }}>Create Account</div>
@@ -158,7 +158,7 @@ export default function SmsConsentPage() {
                 </div>
                 <span style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>
                   I agree to receive SMS notifications about my orders, delivery updates, and account alerts.
-                  Message &amp; data rates may apply. Reply STOP to unsubscribe. <span style={{ color: '#FF8C00', textDecoration: 'underline' }}>Privacy Policy</span>
+                  Message frequency varies. Message &amp; data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. <span style={{ color: '#FF8C00', textDecoration: 'underline' }}>Privacy Policy</span>
                 </span>
               </div>
               <div style={{ marginTop: 12, padding: '10px', background: '#FF8C00', color: '#fff', borderRadius: 8, textAlign: 'center', fontWeight: 600, fontSize: 14 }}>Create Account</div>

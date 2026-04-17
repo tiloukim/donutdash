@@ -21,6 +21,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // Handle opt-in/opt-out/help keywords (required for 10DLC compliance)
+  const keyword = body.trim().toUpperCase()
+  const STOP_KEYWORDS = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT', 'OPTOUT', 'REVOKE']
+  const START_KEYWORDS = ['START', 'YES', 'UNSTOP']
+  const HELP_KEYWORDS = ['HELP', 'INFO']
+
+  if (STOP_KEYWORDS.includes(keyword)) {
+    await sendSMS(from, 'You have been unsubscribed from DonutDash SMS notifications. You will not receive any more messages. Reply START to resubscribe.')
+    return NextResponse.json({ ok: true })
+  }
+
+  if (START_KEYWORDS.includes(keyword)) {
+    await sendSMS(from, 'You have been re-subscribed to DonutDash SMS notifications. Message frequency varies. Msg & data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.')
+    return NextResponse.json({ ok: true })
+  }
+
+  if (HELP_KEYWORDS.includes(keyword)) {
+    await sendSMS(from, 'DonutDash: Order & delivery notifications. Message frequency varies. Msg & data rates may apply. Reply STOP to unsubscribe. For support visit donutdash.app/support or email help@donutdash.app')
+    return NextResponse.json({ ok: true })
+  }
+
   const svc = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
