@@ -155,6 +155,19 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
                 marginTop: 'auto',
                 paddingTop: '8px',
               }}>
+                {shop.distance_miles != null && (
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#FF1493',
+                    fontWeight: 600,
+                    marginBottom: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                    <span>📍</span> {shop.distance_miles.toFixed(1)} mi away
+                  </div>
+                )}
                 <div style={{
                   padding: '6px 10px',
                   background: '#FFF0F5',
