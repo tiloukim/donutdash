@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Sort: pinned shops first (when near Tyler), then nearest distance, then highest rated
+    // Sort: pinned shops always first, then nearest distance, then highest rated
     const PINNED_IDS = [
       '22222222-2222-2222-2222-222222222222', // 1. Top Donuts
       'd56579d4-746d-4173-8ea0-8f73990b2faf', // 2. Shipley Do-Nuts
@@ -121,17 +121,9 @@ export async function GET(request: NextRequest) {
       '38cb57da-4e6b-4db3-9ab8-82ffcd932f4e', // 5. Donut Time
       'b36b8595-4fc3-4c1a-9124-8f184c080b7c', // 6. SUNRISE DONUTS
     ]
-    const TYLER_LAT = 32.3513
-    const TYLER_LNG = -95.3011
-    const TYLER_RADIUS = 30 // miles — pin these shops if customer is within 30mi of Tyler
-
-    const isNearTyler = customerLat && customerLng
-      ? haversineDistance(customerLat, customerLng, TYLER_LAT, TYLER_LNG) <= TYLER_RADIUS
-      : false
-
     shopsWithEta.sort((a, b) => {
-      // Pinned shops always first when customer is near Tyler
-      if (isNearTyler) {
+      // Pinned shops always appear first in the listed order
+      {
         const aPinIdx = PINNED_IDS.indexOf(a.id)
         const bPinIdx = PINNED_IDS.indexOf(b.id)
         const aPinned = aPinIdx !== -1
