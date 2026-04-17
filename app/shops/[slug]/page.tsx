@@ -417,6 +417,18 @@ export default function ShopDetailPage() {
         </div>
       )}
 
+      {/* Subtle claim link for unclaimed shops — visible on all devices */}
+      {shop.is_claimed === false && (
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem 1.5rem 2rem', textAlign: 'center' }}>
+          <Link
+            href={`/shops/claim/${shop.slug}`}
+            style={{ color: '#aaa', fontSize: '0.8rem', textDecoration: 'none' }}
+          >
+            Own this business? <span style={{ textDecoration: 'underline' }}>Claim it</span>
+          </Link>
+        </div>
+      )}
+
       <Footer />
     </div>
   )
