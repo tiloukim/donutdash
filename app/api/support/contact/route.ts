@@ -9,6 +9,12 @@ const CATEGORY_EMAILS: Record<string, string> = {
   shop_owner: 'shops@donutdash.app',
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  customer: 'Customer Inquiry',
+  driver: 'Driver Inquiry',
+  shop_owner: 'Shop Inquiry',
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { name, email, category, subject, message } = await req.json()
@@ -50,11 +56,11 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             from: process.env.RESEND_FROM_EMAIL || 'DonutDash <notifications@donutdash.app>',
             to: toEmail,
-            subject: `[Support] ${subject.trim()}`,
+            subject: `[${CATEGORY_LABELS[category] || 'Support'}] ${subject.trim()}`,
             html: `
-              <h3>New Support Request</h3>
+              <h3>${CATEGORY_LABELS[category] || 'Support Request'}</h3>
               <p><strong>From:</strong> ${name.trim()} (${email.trim()})</p>
-              <p><strong>Category:</strong> ${category}</p>
+              <p><strong>Type:</strong> ${CATEGORY_LABELS[category] || category}</p>
               <p><strong>Subject:</strong> ${subject.trim()}</p>
               <hr />
               <p>${message.trim().replace(/\n/g, '<br />')}</p>
