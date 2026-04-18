@@ -162,18 +162,45 @@ export default function SelfieCaptureModal({ onComplete, onClose }: SelfieCaptur
           />
           <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-          {/* Oval guide overlay */}
+          {/* Oval guide overlay with directional arrows */}
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             pointerEvents: 'none',
           }}>
+            {/* Left arrow (visible on 'turn left' step) */}
+            {STEPS[step].direction === 'left' && (
+              <div style={{
+                position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)',
+                fontSize: 48, color: '#FF8C00', animation: 'pulse 1s infinite',
+                textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+              }}>
+                ◀
+              </div>
+            )}
+            {/* Right arrow (visible on 'turn right' step) */}
+            {STEPS[step].direction === 'right' && (
+              <div style={{
+                position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)',
+                fontSize: 48, color: '#FF8C00', animation: 'pulse 1s infinite',
+                textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+              }}>
+                ▶
+              </div>
+            )}
             <div style={{
               width: 200, height: 260, borderRadius: '50%',
-              border: '3px solid rgba(255,255,255,0.5)',
+              border: `3px solid ${STEPS[step].direction === 'center' ? 'rgba(255,255,255,0.5)' : '#FF8C00'}`,
               boxShadow: '0 0 0 9999px rgba(0,0,0,0.4)',
+              transition: 'border-color 0.3s',
             }} />
           </div>
+          <style>{`
+            @keyframes pulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.4; }
+            }
+          `}</style>
 
           {/* Countdown overlay */}
           {countdown !== null && countdown > 0 && (

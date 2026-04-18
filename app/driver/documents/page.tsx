@@ -72,30 +72,67 @@ export default function DriverDocuments() {
     setSuccess('')
 
     try {
-      // Upload all 3 selfie photos as a single combined image
-      // We'll upload the first (front-facing) as the main selfie doc
-      // and include all 3 in a single upload
-      for (let i = 0; i < photos.length; i++) {
-        const formData = new FormData()
-        formData.append('file', photos[i])
-        // First photo is 'selfie', additional ones are 'selfie' with index suffix
-        formData.append('doc_type', i === 0 ? 'selfie' : `selfie`)
-
-        const res = await fetch('/api/driver/documents', {
-          method: 'POST',
-          body: formData,
+      // Combine all 3 selfie photos into one side-by-side image
+      const images = await Promise.all(photos.map(f => {
+        return new Promise<HTMLImageElement>((resolve) => {
+          const img = new Image()
+          img.onload = () => resolve(img)
+          img.src = URL.createObjectURL(f)
         })
-        const data = await res.json()
-        if (res.ok && i === 0) {
-          // Update UI with the front-facing selfie
-          setDocuments(prev => {
-            const filtered = prev.filter(d => d.doc_type !== 'selfie')
-            return [data.document, ...filtered]
-          })
-        }
+      }))
+
+      const canvas = document.createElement('canvas')
+      const gap = 4
+      canvas.width = images.reduce((w, img) => w + img.width, 0) + gap * (images.length - 1)
+      canvas.height = Math.max(...images.map(img => img.height))
+      const ctx = canvas.getContext('2d')!
+      ctx.fillStyle = '#1A1A2E'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      let x = 0
+      // Add labels
+      const labels = ['CENTER', 'LEFT', 'RIGHT']
+      images.forEach((img, i) => {
+        ctx.drawImage(img, x, 0)
+        // Label at bottom
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'
+        ctx.fillRect(x, img.height - 28, img.width, 28)
+        ctx.fillStyle = '#fff'
+        ctx.font = 'bold 14px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(labels[i], x + img.width / 2, img.height - 10)
+        x += img.width + gap
+      })
+
+      // Convert canvas to blob
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.9)
+      })
+      const combinedFile = new File([blob], `selfie-combined-${Date.now()}.jpg`, { type: 'image/jpeg' })
+
+      // Upload single combined image
+      const formData = new FormData()
+      formData.append('file', combinedFile)
+      formData.append('doc_type', 'selfie')
+
+      const res = await fetch('/api/driver/documents', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setDocuments(prev => {
+          const filtered = prev.filter(d => d.doc_type !== 'selfie')
+          return [data.document, ...filtered]
+        })
+        setSuccess('Selfie verification uploaded! (3 angles: center, left, right)')
+        setTimeout(() => setSuccess(''), 4000)
+      } else {
+        setError(data.error || 'Upload failed')
       }
-      setSuccess('Selfie verification photos uploaded successfully! (3 angles captured)')
-      setTimeout(() => setSuccess(''), 4000)
+
+      // Cleanup
+      images.forEach(img => URL.revokeObjectURL(img.src))
     } catch {
       setError('Selfie upload failed')
     } finally {
