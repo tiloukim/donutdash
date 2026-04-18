@@ -1,29 +1,57 @@
 /**
- * Send SMS via Telnyx
+ * Send SMS via Twilio (with Telnyx fallback)
  */
 export async function sendSMS(to: string, body: string) {
-  const apiKey = process.env.TELNYX_API_KEY
-  const fromNumber = process.env.TELNYX_PHONE_NUMBER
+  // Try Twilio first
+  const accountSid = process.env.TWILIO_ACCOUNT_SID
+  const authToken = process.env.TWILIO_AUTH_TOKEN
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID
 
-  if (!apiKey || !fromNumber) {
-    console.warn('Telnyx not configured, skipping SMS')
-    return false
+  if (accountSid && authToken && messagingServiceSid) {
+    try {
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
+      const params = new URLSearchParams({
+        To: to,
+        Body: body,
+        MessagingServiceSid: messagingServiceSid,
+      })
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      })
+      if (res.ok) return true
+      const err = await res.json().catch(() => ({}))
+      console.error('Twilio SMS error:', err.message || res.status)
+    } catch (err) {
+      console.error('Twilio SMS error:', err)
+    }
   }
 
-  try {
-    const res = await fetch('https://api.telnyx.com/v2/messages', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from: fromNumber, to, text: body }),
-    })
-    return res.ok
-  } catch (err) {
-    console.error('SMS send error:', err)
-    return false
+  // Fallback to Telnyx
+  const telnyxKey = process.env.TELNYX_API_KEY
+  const telnyxFrom = process.env.TELNYX_PHONE_NUMBER
+  if (telnyxKey && telnyxFrom) {
+    try {
+      const res = await fetch('https://api.telnyx.com/v2/messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${telnyxKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ from: telnyxFrom, to, text: body }),
+      })
+      return res.ok
+    } catch (err) {
+      console.error('Telnyx SMS error:', err)
+    }
   }
+
+  console.warn('No SMS provider configured')
+  return false
 }
 
 /**
