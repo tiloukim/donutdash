@@ -19,6 +19,7 @@ const ALL_NAV_ITEMS = [
   { href: '/admin/catering', label: 'Catering', icon: '🎂', roles: ['admin', 'manager'] },
   { href: '/admin/support', label: 'Support Chat', icon: '💬', roles: ['admin', 'manager'] },
   { href: '/admin/disputes', label: 'Disputes', icon: '⚠️', roles: ['admin', 'manager'] },
+  { href: '/admin/flyers', label: 'Shop Flyers', icon: '📄', roles: ['admin', 'manager'] },
   { href: '/admin/tax', label: 'Tax Center', icon: '🧾', roles: ['admin'] },
   { href: '/admin/settings', label: 'Settings', icon: '⚙️', roles: ['admin'] },
 ]
