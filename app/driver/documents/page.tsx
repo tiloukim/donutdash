@@ -17,7 +17,8 @@ interface DriverDocument {
 
 const DOC_TYPES = [
   { key: 'selfie', label: 'Selfie Photo', description: 'Clear photo of your face for identity verification', icon: '🤳' },
-  { key: 'drivers_license', label: "Driver's License", description: 'Valid government-issued ID', icon: '🪪' },
+  { key: 'drivers_license', label: "Driver's License (Front)", description: 'Front of your government-issued ID', icon: '🪪' },
+  { key: 'drivers_license_back', label: "Driver's License (Back)", description: 'Back of your government-issued ID', icon: '🪪' },
   { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄', downloadUrl: 'https://www.irs.gov/pub/irs-pdf/fw9.pdf', downloadLabel: 'Download blank W-9' },
   { key: 'insurance', label: 'Vehicle Insurance', description: 'Proof of active auto insurance', icon: '🛡️' },
   { key: 'vehicle_registration', label: 'Vehicle Registration', description: 'Current vehicle registration', icon: '🚗' },
