@@ -38,8 +38,8 @@ export default function RoleAuthForm({
   const [smsConsent, setSmsConsent] = useState(false)
   const [showConfirmEmail, setShowConfirmEmail] = useState(false)
 
-  // Phone verification state (drivers only)
-  const isDriver = role === 'driver'
+  // Phone verification state (drivers and shop owners)
+  const isDriver = role === 'driver' || role === 'shop_owner'
   const [phoneVerified, setPhoneVerified] = useState(false)
   const [verifyStep, setVerifyStep] = useState<'idle' | 'sent' | 'verified'>('idle')
   const [verifyCode, setVerifyCode] = useState('')

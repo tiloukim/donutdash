@@ -37,6 +37,58 @@ export default function SignupPage() {
   const [showConfirmEmail, setShowConfirmEmail] = useState(false)
   const [claimMessage, setClaimMessage] = useState('')
 
+  // Phone verification state
+  const [phoneVerified, setPhoneVerified] = useState(false)
+  const [verifyStep, setVerifyStep] = useState<'idle' | 'sent' | 'verified'>('idle')
+  const [verifyCode, setVerifyCode] = useState('')
+  const [verifySending, setVerifySending] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
+
+  const formatPhoneForApi = (p: string) => {
+    const digits = p.replace(/\D/g, '')
+    if (digits.length === 10) return `+1${digits}`
+    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+    return p.startsWith('+') ? p : `+${digits}`
+  }
+
+  const handleSendCode = async () => {
+    if (!phone.trim()) { setVerifyError('Enter your phone number first.'); return }
+    setVerifySending(true)
+    setVerifyError('')
+    try {
+      const res = await fetch('/api/verify/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formatPhoneForApi(phone) }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setVerifyError(data.error || 'Failed to send code.'); return }
+      setVerifyStep('sent')
+    } catch { setVerifyError('Failed to send code.') }
+    finally { setVerifySending(false) }
+  }
+
+  const handleCheckCode = async () => {
+    if (!verifyCode.trim()) { setVerifyError('Enter the 6-digit code.'); return }
+    setVerifySending(true)
+    setVerifyError('')
+    try {
+      const res = await fetch('/api/verify/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formatPhoneForApi(phone), code: verifyCode }),
+      })
+      const data = await res.json()
+      if (data.verified) {
+        setVerifyStep('verified')
+        setPhoneVerified(true)
+      } else {
+        setVerifyError(data.error || 'Invalid code.')
+      }
+    } catch { setVerifyError('Verification failed.') }
+    finally { setVerifySending(false) }
+  }
+
   // If a preset role is provided, keep state in sync
   useEffect(() => {
     if (claimShopId) {
@@ -53,6 +105,16 @@ export default function SignupPage() {
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters.')
+      setLoading(false)
+      return
+    }
+    if (!phone.trim()) {
+      setError('Phone number is required.')
+      setLoading(false)
+      return
+    }
+    if (!phoneVerified) {
+      setError('Please verify your phone number before signing up.')
       setLoading(false)
       return
     }
@@ -273,17 +335,76 @@ export default function SignupPage() {
 
           <div>
             <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
-              Phone Number <span style={{ fontSize: '0.75rem', color: '#999', fontWeight: 400 }}>(optional)</span>
+              Phone Number <span style={{ fontSize: '0.75rem', color: '#FF1493', fontWeight: 400 }}>(required)</span>
             </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="(555) 123-4567"
-              style={inputStyle}
-              onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
-              onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
-            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => { setPhone(e.target.value); if (phoneVerified) { setPhoneVerified(false); setVerifyStep('idle') } }}
+                placeholder="(903) 555-1234"
+                required
+                disabled={verifyStep === 'verified'}
+                style={{ ...inputStyle, flex: 1 }}
+                onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+              />
+              {verifyStep !== 'verified' ? (
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  disabled={verifySending || !phone.trim()}
+                  style={{
+                    padding: '0 16px', borderRadius: '10px', border: 'none',
+                    background: verifySending ? '#ccc' : '#FF1493',
+                    color: '#fff', fontWeight: 600, fontSize: '0.85rem',
+                    cursor: verifySending ? 'wait' : 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {verifySending ? '...' : verifyStep === 'sent' ? 'Resend' : 'Verify'}
+                </button>
+              ) : (
+                <div style={{
+                  display: 'flex', alignItems: 'center', padding: '0 12px',
+                  background: '#D1FAE5', borderRadius: '10px', fontSize: '0.85rem',
+                  fontWeight: 600, color: '#065F46', whiteSpace: 'nowrap',
+                }}>
+                  ✓ Verified
+                </div>
+              )}
+            </div>
+
+            {verifyStep === 'sent' && (
+              <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={verifyCode}
+                  onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Enter 6-digit code"
+                  maxLength={6}
+                  style={{ ...inputStyle, flex: 1, letterSpacing: '4px', textAlign: 'center', fontWeight: 700, fontSize: '1.1rem' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                />
+                <button
+                  type="button"
+                  onClick={handleCheckCode}
+                  disabled={verifySending || verifyCode.length < 6}
+                  style={{
+                    padding: '0 20px', borderRadius: '10px', border: 'none',
+                    background: verifySending || verifyCode.length < 6 ? '#ccc' : '#10B981',
+                    color: '#fff', fontWeight: 700, fontSize: '0.9rem',
+                    cursor: verifySending ? 'wait' : 'pointer',
+                  }}
+                >
+                  {verifySending ? '...' : 'Confirm'}
+                </button>
+              </div>
+            )}
+
+            {verifyError && (
+              <p style={{ color: '#DC2626', fontSize: '0.8rem', margin: '4px 0 0' }}>{verifyError}</p>
+            )}
           </div>
 
           <div>
