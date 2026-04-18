@@ -25,31 +25,38 @@ export default function SelfieCaptureModal({ onComplete, onClose }: SelfieCaptur
   const [cameraReady, setCameraReady] = useState(false)
 
   // Start camera
-  useEffect(() => {
-    let mounted = true
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: false,
-        })
-        if (!mounted) { stream.getTracks().forEach(t => t.stop()); return }
-        streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play()
-          setCameraReady(true)
-        }
-      } catch {
-        setError('Camera access denied. Please allow camera access and try again.')
+  const startCamera = useCallback(async () => {
+    setError('')
+    setCameraReady(false)
+    // Stop any existing stream first
+    streamRef.current?.getTracks().forEach(t => t.stop())
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+        setCameraReady(true)
+      }
+    } catch (err: any) {
+      if (err?.name === 'NotAllowedError') {
+        setError('Camera access denied. Go to your browser settings and allow camera for this site, then try again.')
+      } else {
+        setError('Could not access camera. Please make sure no other app is using it.')
       }
     }
+  }, [])
+
+  useEffect(() => {
     startCamera()
     return () => {
-      mounted = false
       streamRef.current?.getTracks().forEach(t => t.stop())
     }
-  }, [])
+  }, [startCamera])
 
   const capturePhoto = useCallback(() => {
     const video = videoRef.current
@@ -82,8 +89,7 @@ export default function SelfieCaptureModal({ onComplete, onClose }: SelfieCaptur
         setStep(step + 1)
         setCountdown(null)
       } else {
-        // All 3 captured — stop camera and complete
-        streamRef.current?.getTracks().forEach(t => t.stop())
+        // All 3 captured — complete (camera stopped by useEffect cleanup when modal closes)
         onComplete(newPhotos)
       }
     }, 'image/jpeg', 0.9)
@@ -266,12 +272,21 @@ export default function SelfieCaptureModal({ onComplete, onClose }: SelfieCaptur
           </div>
         )}
 
-        {/* Error */}
+        {/* Error + retry */}
         {error && (
           <div style={{ padding: '0 20px 12px' }}>
-            <div style={{ background: '#FEE2E2', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#DC2626' }}>
+            <div style={{ background: '#FEE2E2', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#DC2626', marginBottom: 8 }}>
               {error}
             </div>
+            <button
+              onClick={startCamera}
+              style={{
+                width: '100%', padding: '10px', borderRadius: 8, border: 'none',
+                background: '#FF8C00', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              }}
+            >
+              Retry Camera Access
+            </button>
           </div>
         )}
 
