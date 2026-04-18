@@ -28,6 +28,7 @@ export default function CheckoutPage() {
   const [scheduledTime, setScheduledTime] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'square' | 'paypal'>('square')
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
 
   // Promo code state
@@ -209,39 +210,56 @@ export default function CheckoutPage() {
     setSubmitting(true)
     setError('')
 
+    const orderPayload = {
+      shopId,
+      items: items.map(i => ({
+        menu_item_id: i.id.split('::')[0],
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+        image_url: i.image_url,
+        special_instructions: i.special_instructions,
+      })),
+      delivery_address: [address, apt && `Apt ${apt}`, building && `Bldg ${building}`, floor && `Floor ${floor}`].filter(Boolean).join(', '),
+      delivery_city: city,
+      delivery_instructions: [gateCode && `Gate code: ${gateCode}`, instructions].filter(Boolean).join('. ') || null,
+      tip,
+      promo_code: promoApplied?.code || null,
+      promo_discount: promoDiscount || 0,
+      scheduled_for: scheduledFor,
+    }
+
     try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopId,
-          items: items.map(i => ({
-            menu_item_id: i.id.split('::')[0],
-            name: i.name,
-            price: i.price,
-            quantity: i.quantity,
-            image_url: i.image_url,
-            special_instructions: i.special_instructions,
-          })),
-          delivery_address: [address, apt && `Apt ${apt}`, building && `Bldg ${building}`, floor && `Floor ${floor}`].filter(Boolean).join(', '),
-          delivery_city: city,
-          delivery_instructions: [gateCode && `Gate code: ${gateCode}`, instructions].filter(Boolean).join('. ') || null,
-          tip,
-          promo_code: promoApplied?.code || null,
-          promo_discount: promoDiscount || 0,
-          scheduled_for: scheduledFor,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Failed to create checkout session.')
-        return
-      }
-
-      if (data.url) {
-        window.location.href = data.url
+      if (paymentMethod === 'paypal') {
+        // PayPal checkout
+        const res = await fetch('/api/paypal/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderPayload),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.error || 'Failed to create PayPal checkout.')
+          return
+        }
+        if (data.approveUrl) {
+          window.location.href = data.approveUrl
+        }
+      } else {
+        // Square checkout
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderPayload),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.error || 'Failed to create checkout session.')
+          return
+        }
+        if (data.url) {
+          window.location.href = data.url
+        }
       }
     } catch {
       setError('Something went wrong. Please try again.')
@@ -612,6 +630,53 @@ export default function CheckoutPage() {
             *Delivery fee is calculated based on distance from shop to your address. Final amount determined at order placement.
           </p>
 
+          {/* Payment method selector */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.5rem', color: '#1A1A2E' }}>
+              Payment Method
+            </label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('square')}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: 10,
+                  border: paymentMethod === 'square' ? '2px solid #FF8C00' : '1.5px solid #ddd',
+                  background: paymentMethod === 'square' ? '#FFF8F0' : '#fff',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 8,
+                }}
+              >
+                <span style={{ fontSize: 20 }}>💳</span>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: paymentMethod === 'square' ? '#FF8C00' : '#1A1A2E' }}>
+                    Credit / Debit
+                  </div>
+                  <div style={{ fontSize: 11, color: '#999' }}>Via Square</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('paypal')}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: 10,
+                  border: paymentMethod === 'paypal' ? '2px solid #0070BA' : '1.5px solid #ddd',
+                  background: paymentMethod === 'paypal' ? '#F0F7FF' : '#fff',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 8,
+                }}
+              >
+                <span style={{ fontSize: 20 }}>🅿️</span>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: paymentMethod === 'paypal' ? '#0070BA' : '#1A1A2E' }}>
+                    PayPal / Venmo
+                  </div>
+                  <div style={{ fontSize: 11, color: '#999' }}>Pay with PayPal</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {error && (
             <div style={{
               background: '#F8D7DA', borderRadius: '10px', padding: '0.85rem 1rem',
@@ -626,16 +691,18 @@ export default function CheckoutPage() {
             disabled={submitting}
             style={{
               width: '100%', padding: '1rem',
-              background: submitting ? '#ccc' : '#FF8C00',
+              background: submitting ? '#ccc' : paymentMethod === 'paypal' ? '#0070BA' : '#FF8C00',
               color: 'white', border: 'none', borderRadius: '12px',
               fontSize: '1.05rem', fontWeight: 700,
               cursor: submitting ? 'not-allowed' : 'pointer',
               transition: 'background 0.2s',
             }}
-            onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = '#e67e00' }}
-            onMouseLeave={e => { if (!submitting) e.currentTarget.style.background = '#FF8C00' }}
           >
-            {submitting ? 'Processing...' : `Place Order - $${grandTotal.toFixed(2)}`}
+            {submitting ? 'Processing...'
+              : paymentMethod === 'paypal'
+                ? `Pay with PayPal - $${grandTotal.toFixed(2)}`
+                : `Place Order - $${grandTotal.toFixed(2)}`
+            }
           </button>
         </div>
       </main>
