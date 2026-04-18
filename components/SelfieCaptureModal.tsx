@@ -68,11 +68,10 @@ export default function SelfieCaptureModal({ onComplete, onClose }: SelfieCaptur
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Mirror the image (front camera is mirrored)
-    ctx.translate(canvas.width, 0)
-    ctx.scale(-1, 1)
+    // Save the TRUE camera image (not mirrored) so left/right are correct
+    // The video preview is mirrored for natural selfie feel, but the
+    // captured photo is the real orientation for identity verification
     ctx.drawImage(video, 0, 0)
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
 
     canvas.toBlob(blob => {
       if (!blob) return
