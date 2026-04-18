@@ -207,7 +207,7 @@ function FlyerTemplate({ shop }: { shop: Shop }) {
         <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A2E', margin: '0 0 12px 0' }}>
           Why Join DonutDash?
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
           {[
             { icon: '📱', title: 'Online Ordering', desc: 'Customers order from their phone' },
             { icon: '🚗', title: 'Delivery Network', desc: 'We handle the drivers' },
@@ -215,6 +215,9 @@ function FlyerTemplate({ shop }: { shop: Shop }) {
             { icon: '💰', title: 'Weekly Payouts', desc: 'Direct deposits to your bank' },
             { icon: '⭐', title: 'Reviews & Ratings', desc: 'Build your online reputation' },
             { icon: '📈', title: 'More Customers', desc: 'Reach new customers online' },
+            { icon: '📒', title: 'Bookkeeping', desc: 'Track income, expenses & tax estimates' },
+            { icon: '📦', title: 'Order Supplies', desc: 'Order from top bakery suppliers' },
+            { icon: '💬', title: 'Owner Community', desc: 'Connect with other shop owners' },
           ].map((b, i) => (
             <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
               <span style={{ fontSize: '20px' }}>{b.icon}</span>
