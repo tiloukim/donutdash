@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS dd_driver_documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   driver_id UUID NOT NULL REFERENCES dd_users(id) ON DELETE CASCADE,
-  doc_type TEXT NOT NULL CHECK (doc_type IN ('w9', 'drivers_license', 'insurance', 'vehicle_registration', 'contractor_agreement')),
+  doc_type TEXT NOT NULL CHECK (doc_type IN ('w9', 'drivers_license', 'insurance', 'vehicle_registration', 'contractor_agreement', 'selfie')),
   file_url TEXT NOT NULL,
   file_name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),

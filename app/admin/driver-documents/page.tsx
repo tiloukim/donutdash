@@ -17,6 +17,7 @@ interface DriverDocument {
 }
 
 const DOC_LABELS: Record<string, string> = {
+  selfie: 'Selfie Photo',
   w9: 'W-9 Form',
   drivers_license: "Driver's License",
   insurance: 'Vehicle Insurance',
