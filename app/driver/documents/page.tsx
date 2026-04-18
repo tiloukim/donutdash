@@ -21,7 +21,7 @@ const DOC_TYPES = [
   { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄', downloadUrl: 'https://www.irs.gov/pub/irs-pdf/fw9.pdf', downloadLabel: 'Download blank W-9' },
   { key: 'insurance', label: 'Vehicle Insurance', description: 'Proof of active auto insurance', icon: '🛡️' },
   { key: 'vehicle_registration', label: 'Vehicle Registration', description: 'Current vehicle registration', icon: '🚗' },
-  { key: 'contractor_agreement', label: 'Contractor Agreement', description: 'Independent contractor agreement', icon: '📝', downloadUrl: '/contractor-agreement', downloadLabel: 'View agreement' },
+  { key: 'contractor_agreement', label: 'Contractor Agreement', description: 'Sign the independent contractor agreement', icon: '📝', downloadUrl: '/driver/sign-agreement', downloadLabel: 'Sign agreement' },
 ]
 
 const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
