@@ -8,7 +8,7 @@ export async function GET() {
 
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users')
-    .select('bank_account_holder, bank_routing_number, bank_account_number')
+    .select('bank_account_holder, bank_routing_number, bank_account_number, payout_method, paypal_email, venmo_handle, cashapp_handle')
     .eq('auth_id', user.id)
     .single()
 
@@ -22,10 +22,16 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const svc = createServiceClient()
-  const { bank_account_holder, bank_routing_number, bank_account_number } = await req.json()
+  const {
+    bank_account_holder, bank_routing_number, bank_account_number,
+    payout_method, paypal_email, venmo_handle, cashapp_handle,
+  } = await req.json()
 
   const { error } = await svc.from('dd_users')
-    .update({ bank_account_holder, bank_routing_number, bank_account_number })
+    .update({
+      bank_account_holder, bank_routing_number, bank_account_number,
+      payout_method, paypal_email, venmo_handle, cashapp_handle,
+    })
     .eq('auth_id', user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

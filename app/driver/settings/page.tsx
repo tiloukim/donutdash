@@ -7,7 +7,10 @@ export default function DriverSettings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [bankInfo, setBankInfo] = useState({ bank_account_holder: '', bank_routing_number: '', bank_account_number: '' })
+  const [bankInfo, setBankInfo] = useState<any>({
+    bank_account_holder: '', bank_routing_number: '', bank_account_number: '',
+    payout_method: 'ach', paypal_email: '', venmo_handle: '', cashapp_handle: '',
+  })
   const [savingBank, setSavingBank] = useState(false)
   const [bankSaved, setBankSaved] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -309,45 +312,100 @@ export default function DriverSettings() {
         </div>
       </div>
 
-      {/* Bank Info Section */}
+      {/* Payout Settings */}
       <div style={cardStyle}>
         <div style={sectionTitleStyle}>
           <span style={{ width: 4, height: 20, background: '#10B981', borderRadius: 2, display: 'inline-block' }}></span>
-          Bank Account (for Weekly Payouts)
+          Payout Settings (Weekly Earnings)
         </div>
         <div style={{
-          background: '#F0FDF4',
-          border: '1px solid #BBF7D0',
-          borderRadius: 8,
-          padding: '8px 12px',
-          marginBottom: 14,
-          fontSize: 12,
-          color: '#166534',
+          background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8,
+          padding: '8px 12px', marginBottom: 14, fontSize: 12, color: '#166534',
         }}>
-          Your earnings will be deposited to this account every week.
+          Choose how you want to receive your weekly earnings.
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* Payout method selector */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Preferred Payout Method</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+            {[
+              { key: 'ach', label: 'Bank ACH', icon: '🏦', desc: 'Free, 1-2 days' },
+              { key: 'paypal', label: 'PayPal', icon: '🅿️', desc: 'Instant to PayPal' },
+              { key: 'venmo', label: 'Venmo', icon: '💜', desc: 'Instant to Venmo' },
+              { key: 'cashapp', label: 'Cash App', icon: '💚', desc: 'Instant to Cash App' },
+            ].map(m => (
+              <button key={m.key} type="button"
+                onClick={() => setBankInfo({ ...bankInfo, payout_method: m.key })}
+                style={{
+                  padding: '10px', borderRadius: 8, textAlign: 'center', cursor: 'pointer',
+                  border: bankInfo.payout_method === m.key ? '2px solid #10B981' : '1.5px solid #ddd',
+                  background: bankInfo.payout_method === m.key ? '#F0FDF4' : '#fff',
+                }}>
+                <div style={{ fontSize: 20, marginBottom: 2 }}>{m.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: bankInfo.payout_method === m.key ? '#10B981' : '#333' }}>{m.label}</div>
+                <div style={{ fontSize: 10, color: '#999' }}>{m.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ACH fields */}
+        {bankInfo.payout_method === 'ach' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Account Holder Name</label>
+              <input style={inputStyle} placeholder="John Doe"
+                value={bankInfo.bank_account_holder || ''}
+                onChange={e => setBankInfo({ ...bankInfo, bank_account_holder: e.target.value })} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Routing Number</label>
+                <input style={inputStyle} placeholder="9 digits"
+                  value={bankInfo.bank_routing_number || ''}
+                  onChange={e => setBankInfo({ ...bankInfo, bank_routing_number: e.target.value })} />
+              </div>
+              <div>
+                <label style={labelStyle}>Account Number</label>
+                <input style={inputStyle} placeholder="Account number" type="password"
+                  value={bankInfo.bank_account_number || ''}
+                  onChange={e => setBankInfo({ ...bankInfo, bank_account_number: e.target.value })} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PayPal field */}
+        {bankInfo.payout_method === 'paypal' && (
           <div>
-            <label style={labelStyle}>Account Holder Name</label>
-            <input style={inputStyle} placeholder="John Doe"
-              value={bankInfo.bank_account_holder || ''}
-              onChange={e => setBankInfo({ ...bankInfo, bank_account_holder: e.target.value })} />
+            <label style={labelStyle}>PayPal Email</label>
+            <input style={inputStyle} placeholder="you@email.com" type="email"
+              value={bankInfo.paypal_email || ''}
+              onChange={e => setBankInfo({ ...bankInfo, paypal_email: e.target.value })} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <label style={labelStyle}>Routing Number</label>
-              <input style={inputStyle} placeholder="9 digits"
-                value={bankInfo.bank_routing_number || ''}
-                onChange={e => setBankInfo({ ...bankInfo, bank_routing_number: e.target.value })} />
-            </div>
-            <div>
-              <label style={labelStyle}>Account Number</label>
-              <input style={inputStyle} placeholder="Account number"
-                value={bankInfo.bank_account_number || ''}
-                onChange={e => setBankInfo({ ...bankInfo, bank_account_number: e.target.value })} />
-            </div>
+        )}
+
+        {/* Venmo field */}
+        {bankInfo.payout_method === 'venmo' && (
+          <div>
+            <label style={labelStyle}>Venmo Username</label>
+            <input style={inputStyle} placeholder="@username"
+              value={bankInfo.venmo_handle || ''}
+              onChange={e => setBankInfo({ ...bankInfo, venmo_handle: e.target.value })} />
           </div>
-        </div>
+        )}
+
+        {/* Cash App field */}
+        {bankInfo.payout_method === 'cashapp' && (
+          <div>
+            <label style={labelStyle}>Cash App Tag</label>
+            <input style={inputStyle} placeholder="$cashtag"
+              value={bankInfo.cashapp_handle || ''}
+              onChange={e => setBankInfo({ ...bankInfo, cashapp_handle: e.target.value })} />
+          </div>
+        )}
+
         <button
           onClick={async () => {
             setSavingBank(true); setBankSaved(false)
@@ -366,9 +424,9 @@ export default function DriverSettings() {
             fontSize: 14, fontWeight: 700, cursor: savingBank ? 'not-allowed' : 'pointer',
           }}
         >
-          {savingBank ? 'Saving...' : 'Save Bank Info'}
+          {savingBank ? 'Saving...' : 'Save Payout Info'}
         </button>
-        {bankSaved && <div style={{ color: '#10B981', fontSize: 13, fontWeight: 600, marginTop: 8 }}>Bank info saved!</div>}
+        {bankSaved && <div style={{ color: '#10B981', fontSize: 13, fontWeight: 600, marginTop: 8 }}>Payout info saved!</div>}
       </div>
 
       {/* Save Button */}
