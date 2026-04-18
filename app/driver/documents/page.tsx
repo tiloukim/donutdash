@@ -36,6 +36,7 @@ export default function DriverDocuments() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const selfieInputRef = useRef<HTMLInputElement>(null)
   const [uploadDocType, setUploadDocType] = useState<string | null>(null)
 
   useEffect(() => {
@@ -53,7 +54,11 @@ export default function DriverDocuments() {
   const handleUploadClick = (docType: string) => {
     setUploadDocType(docType)
     setError('')
-    fileInputRef.current?.click()
+    if (docType === 'selfie') {
+      selfieInputRef.current?.click()
+    } else {
+      fileInputRef.current?.click()
+    }
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,6 +95,7 @@ export default function DriverDocuments() {
       setUploading(null)
       setUploadDocType(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
+      if (selfieInputRef.current) selfieInputRef.current.value = ''
     }
   }
 
@@ -134,6 +140,15 @@ export default function DriverDocuments() {
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp,application/pdf"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+      {/* Selfie input — camera only, no file picker */}
+      <input
+        ref={selfieInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="user"
         onChange={handleFileChange}
         style={{ display: 'none' }}
       />
