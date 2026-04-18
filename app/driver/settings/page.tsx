@@ -332,8 +332,6 @@ export default function DriverSettings() {
             {[
               { key: 'ach', label: 'Bank ACH', icon: '🏦', desc: 'Free, 1-2 days' },
               { key: 'paypal', label: 'PayPal', icon: '🅿️', desc: 'Instant to PayPal' },
-              { key: 'venmo', label: 'Venmo', icon: '💜', desc: 'Instant to Venmo' },
-              { key: 'cashapp', label: 'Cash App', icon: '💚', desc: 'Instant to Cash App' },
             ].map(m => (
               <button key={m.key} type="button"
                 onClick={() => setBankInfo({ ...bankInfo, payout_method: m.key })}
