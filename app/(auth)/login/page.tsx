@@ -30,11 +30,34 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-        ...(isApp ? {} : { options: { captchaToken } }),
-      })
+
+      let signInError: { message: string } | null = null
+
+      if (isApp) {
+        // Use server-side API to bypass captcha for mobile app
+        const res = await fetch('/api/auth/app-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        const result = await res.json()
+        if (!res.ok) {
+          signInError = { message: result.error || 'Login failed' }
+        } else if (result.session) {
+          // Set the session in the client
+          await supabase.auth.setSession({
+            access_token: result.session.access_token,
+            refresh_token: result.session.refresh_token,
+          })
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: { captchaToken },
+        })
+        signInError = error
+      }
 
       if (signInError) {
         setError(signInError.message)

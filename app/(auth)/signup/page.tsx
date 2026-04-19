@@ -132,20 +132,41 @@ export default function SignupPage() {
     }
 
     try {
-      const signUpOptions: Record<string, unknown> = {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: {
-          name,
-          phone: phone || null,
-          role,
-        },
+      if (isApp) {
+        // Use server-side API to bypass captcha for mobile app
+        const res = await fetch('/api/auth/app-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name, phone, role }),
+        })
+        const result = await res.json()
+        if (!res.ok) {
+          setError(result.error || 'Signup failed')
+          return
+        }
+        // Auto sign in after account creation
+        const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
+        if (signInErr) {
+          setError(signInErr.message)
+          return
+        }
+        await refreshUser()
+        router.push('/')
+        return
       }
-      if (!isApp) signUpOptions.captchaToken = captchaToken
 
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: signUpOptions,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            name,
+            phone: phone || null,
+            role,
+          },
+          captchaToken,
+        },
       })
 
       if (signUpError) {
