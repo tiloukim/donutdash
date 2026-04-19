@@ -10,12 +10,13 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const claimShopId = searchParams.get('claim')
+  const isApp = searchParams.get('app') === '1'
   const { supabase, refreshUser } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaToken, setCaptchaToken] = useState(isApp ? 'app-bypass' : '')
   const [claimMessage, setClaimMessage] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,7 +25,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      if (!captchaToken) {
+      if (!isApp && !captchaToken) {
         setError('Please complete the CAPTCHA verification.')
         setLoading(false)
         return
@@ -32,7 +33,7 @@ export default function LoginPage() {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: { captchaToken },
+        ...(isApp ? {} : { options: { captchaToken } }),
       })
 
       if (signInError) {
@@ -177,7 +178,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <Turnstile onToken={setCaptchaToken} />
+          {!isApp && <Turnstile onToken={setCaptchaToken} />}
 
           <button
             type="submit"

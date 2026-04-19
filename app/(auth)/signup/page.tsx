@@ -17,6 +17,7 @@ export default function SignupPage() {
   const searchParams = useSearchParams()
   const { supabase, refreshUser } = useAuth()
   const claimShopId = searchParams.get('claim')
+  const isApp = searchParams.get('app') === '1'
   const rolePresetParam = searchParams.get('role')
   const rolePreset: 'customer' | 'driver' | 'shop_owner' | null =
     rolePresetParam === 'customer' || rolePresetParam === 'driver' || rolePresetParam === 'shop_owner'
@@ -32,7 +33,7 @@ export default function SignupPage() {
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaToken, setCaptchaToken] = useState(isApp ? 'app-bypass' : '')
   const [smsConsent, setSmsConsent] = useState(false)
   const [showConfirmEmail, setShowConfirmEmail] = useState(false)
   const [claimMessage, setClaimMessage] = useState('')
@@ -124,25 +125,27 @@ export default function SignupPage() {
       setLoading(false)
       return
     }
-    if (!captchaToken) {
+    if (!isApp && !captchaToken) {
       setError('Please complete the CAPTCHA verification.')
       setLoading(false)
       return
     }
 
     try {
+      const signUpOptions: Record<string, unknown> = {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          name,
+          phone: phone || null,
+          role,
+        },
+      }
+      if (!isApp) signUpOptions.captchaToken = captchaToken
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            name,
-            phone: phone || null,
-            role,
-          },
-          captchaToken,
-        },
+        options: signUpOptions,
       })
 
       if (signUpError) {
@@ -521,7 +524,7 @@ export default function SignupPage() {
             </label>
           </div>
 
-          <Turnstile onToken={setCaptchaToken} />
+          {!isApp && <Turnstile onToken={setCaptchaToken} />}
 
           <button
             type="submit"
