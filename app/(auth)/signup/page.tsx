@@ -108,7 +108,18 @@ export default function SignupPage() {
       setLoading(false)
       return
     }
-    if (phone.trim() && !phoneVerified) {
+    if (role === 'driver' || role === 'shop_owner') {
+      if (!phone.trim()) {
+        setError('Phone number is required for drivers and shop owners.')
+        setLoading(false)
+        return
+      }
+      if (!phoneVerified) {
+        setError('Please verify your phone number before signing up.')
+        setLoading(false)
+        return
+      }
+    } else if (phone.trim() && !phoneVerified) {
       setError('Please verify your phone number before signing up.')
       setLoading(false)
       return
@@ -330,7 +341,10 @@ export default function SignupPage() {
 
           <div>
             <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
-              Phone Number <span style={{ fontSize: '0.75rem', color: '#999', fontWeight: 400 }}>(optional)</span>
+              Phone Number {role === 'driver' || role === 'shop_owner'
+                ? <span style={{ fontSize: '0.75rem', color: '#FF1493', fontWeight: 400 }}>(required)</span>
+                : <span style={{ fontSize: '0.75rem', color: '#999', fontWeight: 400 }}>(optional)</span>
+              }
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
