@@ -56,24 +56,27 @@ export default function MobileBottomNav() {
                 <div style={{ fontWeight: 600, fontSize: '0.95rem', color: '#1A1A2E' }}>{user.name}</div>
                 <div style={{ fontSize: '0.8rem', color: '#888' }}>{user.email}</div>
               </div>
-              <button
-                onClick={() => { setShowAccountMenu(false); router.push('/orders') }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', background: 'none', border: 'none', cursor: 'pointer' }}
+              <a
+                href="/orders"
+                onClick={() => setShowAccountMenu(false)}
+                style={{ display: 'block', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', cursor: 'pointer' }}
               >
                 My Orders
-              </button>
-              <button
-                onClick={() => { setShowAccountMenu(false); router.push('/profile') }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', background: 'none', border: 'none', cursor: 'pointer', borderTop: '1px solid #f0f0f0' }}
+              </a>
+              <a
+                href="/profile"
+                onClick={() => setShowAccountMenu(false)}
+                style={{ display: 'block', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', cursor: 'pointer', borderTop: '1px solid #f0f0f0' }}
               >
                 My Profile
-              </button>
-              <button
-                onClick={() => { setShowAccountMenu(false); router.push('/support') }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', background: 'none', border: 'none', cursor: 'pointer', borderTop: '1px solid #f0f0f0' }}
+              </a>
+              <a
+                href="/support"
+                onClick={() => setShowAccountMenu(false)}
+                style={{ display: 'block', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', cursor: 'pointer', borderTop: '1px solid #f0f0f0' }}
               >
                 Need Help?
-              </button>
+              </a>
               <button
                 onClick={() => { setShowAccountMenu(false); signOut() }}
                 style={{
