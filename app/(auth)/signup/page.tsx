@@ -108,12 +108,7 @@ export default function SignupPage() {
       setLoading(false)
       return
     }
-    if (!phone.trim()) {
-      setError('Phone number is required.')
-      setLoading(false)
-      return
-    }
-    if (!phoneVerified) {
+    if (phone.trim() && !phoneVerified) {
       setError('Please verify your phone number before signing up.')
       setLoading(false)
       return
@@ -335,7 +330,7 @@ export default function SignupPage() {
 
           <div>
             <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
-              Phone Number <span style={{ fontSize: '0.75rem', color: '#FF1493', fontWeight: 400 }}>(required)</span>
+              Phone Number <span style={{ fontSize: '0.75rem', color: '#999', fontWeight: 400 }}>(optional)</span>
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
@@ -343,7 +338,6 @@ export default function SignupPage() {
                 value={phone}
                 onChange={e => { setPhone(e.target.value); if (phoneVerified) { setPhoneVerified(false); setVerifyStep('idle') } }}
                 placeholder="(903) 555-1234"
-                required
                 disabled={verifyStep === 'verified'}
                 style={{ ...inputStyle, flex: 1 }}
                 onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
