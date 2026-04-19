@@ -26,6 +26,7 @@ export async function GET() {
     if (dbError || !user) {
       // User exists in auth but not in dd_users table - auto-create
       const meta = authUser.user_metadata || {}
+      const role = meta.role || 'customer'
       const { data: newUser, error: insertError } = await svc
         .from('dd_users')
         .insert({
@@ -33,7 +34,8 @@ export async function GET() {
           email: authUser.email!,
           name: meta.name || authUser.email!.split('@')[0],
           phone: meta.phone || null,
-          role: meta.role || 'customer',
+          role,
+          driver_status: role === 'driver' ? 'pending_documents' : null,
         })
         .select()
         .single()

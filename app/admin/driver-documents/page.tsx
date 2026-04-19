@@ -50,6 +50,20 @@ export default function AdminDriverDocuments() {
 
   useEffect(() => { fetchDocs() }, [])
 
+  const [driverStatuses, setDriverStatuses] = useState<Record<string, string>>({})
+
+  // Fetch driver statuses
+  useEffect(() => {
+    fetch('/api/admin/drivers')
+      .then(r => r.json())
+      .then(d => {
+        const map: Record<string, string> = {}
+        ;(d.drivers || []).forEach((drv: any) => { map[drv.id] = drv.driver_status || 'pending_documents' })
+        setDriverStatuses(map)
+      })
+      .catch(() => {})
+  }, [])
+
   const handleAction = async (docId: string, status: 'approved' | 'rejected') => {
     setProcessing(true)
     try {
@@ -62,6 +76,27 @@ export default function AdminDriverDocuments() {
         setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status, admin_notes: adminNotes || d.admin_notes, reviewed_at: new Date().toISOString() } : d))
         setActionDoc(null)
         setAdminNotes('')
+        // Refresh driver statuses
+        fetch('/api/admin/drivers').then(r => r.json()).then(d => {
+          const map: Record<string, string> = {}
+          ;(d.drivers || []).forEach((drv: any) => { map[drv.id] = drv.driver_status || 'pending_documents' })
+          setDriverStatuses(map)
+        }).catch(() => {})
+      }
+    } catch {}
+    finally { setProcessing(false) }
+  }
+
+  const approveDriver = async (driverId: string) => {
+    setProcessing(true)
+    try {
+      const res = await fetch('/api/admin/drivers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driverId, driver_status: 'approved' }),
+      })
+      if (res.ok) {
+        setDriverStatuses(prev => ({ ...prev, [driverId]: 'approved' }))
       }
     } catch {}
     finally { setProcessing(false) }
@@ -133,9 +168,28 @@ export default function AdminDriverDocuments() {
                 <span style={{ fontSize: 13, color: '#6B7280', marginLeft: 12 }}>{driver.email}</span>
                 {driver.phone && <span style={{ fontSize: 13, color: '#6B7280', marginLeft: 12 }}>{driver.phone}</span>}
               </div>
-              <span style={{ fontSize: 12, color: '#6B7280' }}>
-                {docs.filter(d => d.status === 'approved').length}/5 approved
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, color: '#6B7280' }}>
+                  {docs.filter(d => d.status === 'approved').length}/7 approved
+                </span>
+                {driverStatuses[driverId] === 'approved' ? (
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: '#D1FAE5', color: '#065F46' }}>
+                    Driver Approved
+                  </span>
+                ) : driverStatuses[driverId] === 'pending_approval' ? (
+                  <button
+                    onClick={() => approveDriver(driverId)}
+                    disabled={processing}
+                    style={{ padding: '4px 14px', borderRadius: 6, border: 'none', background: '#10B981', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Approve Driver
+                  </button>
+                ) : (
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: '#FEF3C7', color: '#92400E' }}>
+                    Pending Documents
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Documents */}

@@ -42,8 +42,26 @@ export async function PATCH(req: NextRequest) {
   }
   if (admin_notes) updates.admin_notes = admin_notes
 
+  // Get the document to find the driver_id
+  const { data: doc } = await svc.from('dd_driver_documents').select('driver_id').eq('id', documentId).single()
+  if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+
   const { error } = await svc.from('dd_driver_documents').update(updates).eq('id', documentId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Check if all 7 documents are now approved — auto-update driver_status to pending_approval
+  if (status === 'approved') {
+    const { data: allDocs } = await svc.from('dd_driver_documents')
+      .select('doc_type, status')
+      .eq('driver_id', doc.driver_id)
+      .eq('status', 'approved')
+    const approvedTypes = new Set((allDocs || []).map((d: any) => d.doc_type))
+    const requiredTypes = ['selfie', 'drivers_license', 'drivers_license_back', 'w9', 'insurance', 'vehicle_registration', 'contractor_agreement']
+    const allApproved = requiredTypes.every(t => approvedTypes.has(t))
+    if (allApproved) {
+      await svc.from('dd_users').update({ driver_status: 'pending_approval' }).eq('id', doc.driver_id)
+    }
+  }
 
   return NextResponse.json({ success: true })
 }

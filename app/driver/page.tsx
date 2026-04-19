@@ -11,6 +11,8 @@ export default function DriverDashboard() {
   const [responding, setResponding] = useState(false)
   const [locationError, setLocationError] = useState('')
   const [driverId, setDriverId] = useState<string | null>(null)
+  const [driverStatus, setDriverStatus] = useState<string | null>(null)
+  const [docProgress, setDocProgress] = useState({ approved: 0, total: 7 })
   const watchIdRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const alertAudioRef = useRef<HTMLAudioElement | null>(null)
@@ -30,13 +32,23 @@ export default function DriverDashboard() {
       fetch('/api/driver/online').then(r => r.json()).catch(() => ({ online: false })),
       fetch('/api/driver/offer').then(r => r.json()).catch(() => null),
       fetch('/api/me').then(r => r.json()).catch(() => ({ user: null })),
-    ]).then(([statusData, offerData, meData]) => {
+    ]).then(async ([statusData, offerData, meData]) => {
       if (statusData?.online) setIsOnline(true)
       if (offerData?.id) {
         setOffer(offerData)
         setIsOnline(true)
       }
-      if (meData?.user?.id) setDriverId(meData.user.id)
+      if (meData?.user?.id) {
+        setDriverId(meData.user.id)
+        setDriverStatus(meData.user.driver_status || null)
+      }
+      // Fetch document progress
+      try {
+        const docRes = await fetch('/api/driver/documents')
+        const docData = await docRes.json()
+        const docs = docData.documents || []
+        setDocProgress({ approved: docs.filter((d: any) => d.status === 'approved').length, total: 7 })
+      } catch {}
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -371,6 +383,96 @@ export default function DriverDashboard() {
   }
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>
+
+  // Gate: driver must be approved before going online
+  if (driverStatus !== 'approved') {
+    return (
+      <div>
+        <div style={{
+          background: '#fff', borderRadius: 16, padding: 32,
+          border: '2px solid #FFE8D6', textAlign: 'center',
+        }}>
+          {driverStatus === 'pending_approval' ? (
+            <>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>⏳</div>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1A1A2E', marginBottom: 8 }}>
+                Pending Admin Approval
+              </h2>
+              <p style={{ color: '#666', fontSize: 14, marginBottom: 20, lineHeight: 1.6 }}>
+                All your documents have been submitted. An admin will review and approve your account shortly.
+                You&apos;ll be able to go online and accept deliveries once approved.
+              </p>
+              <div style={{
+                background: '#FEF3C7', borderRadius: 12, padding: '12px 20px',
+                display: 'inline-block', fontSize: 13, color: '#92400E', fontWeight: 600,
+              }}>
+                Documents: {docProgress.approved}/{docProgress.total} approved
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1A1A2E', marginBottom: 8 }}>
+                Complete Your Onboarding
+              </h2>
+              <p style={{ color: '#666', fontSize: 14, marginBottom: 20, lineHeight: 1.6 }}>
+                Before you can start delivering, you need to upload your documents and get approved.
+              </p>
+
+              {/* Progress bar */}
+              <div style={{ maxWidth: 400, margin: '0 auto 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                  <span style={{ color: '#666' }}>Documents</span>
+                  <span style={{ color: docProgress.approved === docProgress.total ? '#10B981' : '#FF8C00' }}>
+                    {docProgress.approved}/{docProgress.total} approved
+                  </span>
+                </div>
+                <div style={{ background: '#F3F4F6', borderRadius: 8, height: 10, overflow: 'hidden' }}>
+                  <div style={{
+                    background: docProgress.approved === docProgress.total ? '#10B981' : '#FF8C00',
+                    height: '100%', borderRadius: 8, transition: 'width 0.3s',
+                    width: `${(docProgress.approved / docProgress.total) * 100}%`,
+                  }} />
+                </div>
+              </div>
+
+              {/* Steps */}
+              <div style={{ textAlign: 'left', maxWidth: 400, margin: '0 auto 24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
+                  <span style={{ fontSize: 20 }}>{docProgress.approved >= 1 ? '✅' : '1️⃣'}</span>
+                  <span style={{ fontSize: 14, color: '#333' }}>Upload selfie for identity verification</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
+                  <span style={{ fontSize: 20 }}>{docProgress.approved >= 3 ? '✅' : '2️⃣'}</span>
+                  <span style={{ fontSize: 14, color: '#333' }}>Upload driver&apos;s license (front &amp; back)</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
+                  <span style={{ fontSize: 20 }}>{docProgress.approved >= 4 ? '✅' : '3️⃣'}</span>
+                  <span style={{ fontSize: 14, color: '#333' }}>Submit W-9 tax form</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
+                  <span style={{ fontSize: 20 }}>{docProgress.approved >= 6 ? '✅' : '4️⃣'}</span>
+                  <span style={{ fontSize: 14, color: '#333' }}>Upload insurance &amp; vehicle registration</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+                  <span style={{ fontSize: 20 }}>{docProgress.approved >= 7 ? '✅' : '5️⃣'}</span>
+                  <span style={{ fontSize: 14, color: '#333' }}>Sign contractor agreement</span>
+                </div>
+              </div>
+
+              <a href="/driver/documents" style={{
+                display: 'inline-block', padding: '14px 40px', borderRadius: 50,
+                fontSize: 16, fontWeight: 700, background: '#FF8C00', color: '#fff',
+                textDecoration: 'none',
+              }}>
+                Upload Documents
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>

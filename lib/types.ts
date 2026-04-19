@@ -7,6 +7,7 @@ export interface User {
   role: 'customer' | 'shop_owner' | 'driver' | 'manager' | 'admin'
   avatar_url: string | null
   is_active: boolean
+  driver_status: 'pending_documents' | 'pending_approval' | 'approved' | null
   created_at: string
 }
 

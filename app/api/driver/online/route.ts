@@ -28,12 +28,17 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const svc = createServiceClient()
-  const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
+  const { data: ddUser } = await svc.from('dd_users').select('id, role, driver_status').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { online } = await req.json()
+
+  // Block non-approved drivers from going online
+  if (online && ddUser.role === 'driver' && ddUser.driver_status !== 'approved') {
+    return NextResponse.json({ error: 'Your account must be approved before you can go online.' }, { status: 403 })
+  }
 
   // Check if driver already has a location record
   const { data: existing } = await svc

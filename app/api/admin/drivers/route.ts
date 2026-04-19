@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -66,4 +66,27 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+}
+
+// PATCH — approve/update driver status
+export async function PATCH(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const svc = createServiceClient()
+  const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
+  if (!ddUser || (ddUser.role !== 'admin' && ddUser.role !== 'manager')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { driverId, driver_status } = await req.json()
+  if (!driverId || !['pending_documents', 'pending_approval', 'approved'].includes(driver_status)) {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+  }
+
+  const { error } = await svc.from('dd_users').update({ driver_status }).eq('id', driverId)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ success: true })
 }
