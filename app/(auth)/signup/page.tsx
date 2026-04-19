@@ -452,6 +452,23 @@ export default function SignupPage() {
                 </div>
               </div>
             </div>
+          ) : rolePreset ? (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.75rem', borderRadius: '10px',
+              background: '#FFF0F5', border: '2px solid #FF1493',
+              color: '#1A1A2E',
+            }}>
+              <span style={{ fontSize: '1.1rem' }}>{rolePreset === 'customer' ? '🍩' : rolePreset === 'driver' ? '🚗' : '🏪'}</span>
+              <div>
+                <div style={{ fontWeight: 700, color: '#FF1493' }}>
+                  Signing up as {ROLES.find(r => r.value === rolePreset)?.label}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>
+                  {ROLES.find(r => r.value === rolePreset)?.desc}
+                </div>
+              </div>
+            </div>
           ) : (
             <div>
               <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.5rem', color: '#1A1A2E' }}>

@@ -1,12 +1,12 @@
-// Generates a loud, urgent alert tone using Web Audio API
-// Plays a repeating pattern: 3 fast beeps, pause, repeat
-// Much louder and more attention-grabbing than a short wav file
+// DonutDash D3c alert melody — bright xylophone cascade
+// Plays a repeating melodic pattern until stopped
+// Used by: customer orders, shop orders, driver alerts, admin
 
 let audioCtx: AudioContext | null = null
 let isPlaying = false
 let vibrateInterval: ReturnType<typeof setInterval> | null = null
-let oscillatorNode: OscillatorNode | null = null
-let gainNode: GainNode | null = null
+let scheduledSources: OscillatorNode[] = []
+let masterGain: GainNode | null = null
 
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new AudioContext()
@@ -18,7 +18,6 @@ export function unlockAudio() {
   try {
     const ctx = getAudioCtx()
     if (ctx.state === 'suspended') ctx.resume()
-    // Play a silent buffer to unlock
     const buf = ctx.createBuffer(1, 1, 22050)
     const src = ctx.createBufferSource()
     src.buffer = buf
@@ -29,7 +28,72 @@ export function unlockAudio() {
   }
 }
 
-// Play a loud, repeating alert pattern
+// E3 melody: cheerful pop bounce
+// Notes: D5 → F#5 → A5 → D6, bounce F#6, resolve D6
+const MELODY_NOTES = [
+  { freq: 587,  start: 0.00, dur: 0.10 },  // D5
+  { freq: 740,  start: 0.08, dur: 0.10 },  // F#5
+  { freq: 880,  start: 0.16, dur: 0.10 },  // A5
+  { freq: 1175, start: 0.26, dur: 0.18 },  // D6
+  // bounce
+  { freq: 988,  start: 0.46, dur: 0.08 },  // B5
+  { freq: 1175, start: 0.54, dur: 0.08 },  // D6
+  { freq: 1319, start: 0.62, dur: 0.08 },  // E6
+  { freq: 1480, start: 0.70, dur: 0.25 },  // F#6 (bright!)
+  // resolve
+  { freq: 1175, start: 1.05, dur: 0.12 },  // D6
+  { freq: 1319, start: 1.17, dur: 0.12 },  // E6
+  { freq: 1175, start: 1.29, dur: 0.35 },  // D6 (home)
+]
+const CYCLE_DURATION = 2.0 // seconds per cycle (notes + pause)
+
+function scheduleNote(
+  ctx: AudioContext,
+  dest: AudioNode,
+  freq: number,
+  startTime: number,
+  duration: number,
+  volume: number = 0.28
+) {
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.connect(gain)
+  gain.connect(dest)
+
+  // Warm bell-like tone (sine with harmonics)
+  osc.type = 'sine'
+  osc.frequency.value = freq
+
+  // Envelope: quick attack, smooth release
+  const attack = 0.008
+  const release = 0.04
+  gain.gain.setValueAtTime(0, startTime)
+  gain.gain.linearRampToValueAtTime(volume, startTime + attack)
+  gain.gain.setValueAtTime(volume, startTime + duration - release)
+  gain.gain.linearRampToValueAtTime(0, startTime + duration)
+
+  osc.start(startTime)
+  osc.stop(startTime + duration + 0.01)
+
+  scheduledSources.push(osc)
+
+  // Add a harmonic overtone for shimmer
+  const osc2 = ctx.createOscillator()
+  const gain2 = ctx.createGain()
+  osc2.connect(gain2)
+  gain2.connect(dest)
+  osc2.type = 'sine'
+  osc2.frequency.value = freq * 2
+  gain2.gain.setValueAtTime(0, startTime)
+  gain2.gain.linearRampToValueAtTime(volume * 0.35, startTime + attack)
+  gain2.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.6)
+  osc2.start(startTime)
+  osc2.stop(startTime + duration + 0.01)
+
+  scheduledSources.push(osc2)
+}
+
+// Play the D3c melody on a loop until stopped
 export function playUrgentAlert() {
   if (isPlaying) return
   isPlaying = true
@@ -38,65 +102,33 @@ export function playUrgentAlert() {
     const ctx = getAudioCtx()
     if (ctx.state === 'suspended') ctx.resume()
 
-    // Create oscillator for beeping
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.type = 'square'
-    osc.frequency.value = 880 // A5 - high pitched, urgent
+    const master = ctx.createGain()
+    master.gain.value = 0.9
+    master.connect(ctx.destination)
+    masterGain = master
 
-    // Create a repeating beep pattern: beep-beep-beep-pause
-    // Each cycle = 2 seconds (3 beeps of 200ms with 100ms gaps, then 900ms pause)
     const now = ctx.currentTime
-    gain.gain.value = 0
+    const totalCycles = 30 // 60 seconds max
 
-    // Schedule 60 seconds of beeping (30 cycles) — will stop when accepted
-    for (let cycle = 0; cycle < 30; cycle++) {
-      const base = now + cycle * 2
-      // Beep 1
-      gain.gain.setValueAtTime(0.8, base)
-      gain.gain.setValueAtTime(0, base + 0.2)
-      // Beep 2
-      gain.gain.setValueAtTime(0.8, base + 0.3)
-      gain.gain.setValueAtTime(0, base + 0.5)
-      // Beep 3 (higher pitch for urgency)
-      gain.gain.setValueAtTime(1.0, base + 0.6)
-      gain.gain.setValueAtTime(0, base + 0.85)
-      // Pause until next cycle
+    for (let cycle = 0; cycle < totalCycles; cycle++) {
+      const cycleStart = now + cycle * CYCLE_DURATION
+      for (const note of MELODY_NOTES) {
+        scheduleNote(ctx, master, note.freq, cycleStart + note.start, note.dur)
+      }
     }
-
-    osc.start(now)
-    osc.stop(now + 60) // Max 60 seconds
-
-    oscillatorNode = osc
-    gainNode = gain
-
-    // Also do the frequency sweep for extra urgency
-    for (let cycle = 0; cycle < 30; cycle++) {
-      const base = now + cycle * 2
-      osc.frequency.setValueAtTime(880, base)
-      osc.frequency.setValueAtTime(880, base + 0.5)
-      osc.frequency.setValueAtTime(1100, base + 0.6) // Higher on 3rd beep
-      osc.frequency.setValueAtTime(880, base + 0.85)
-    }
-
-    osc.onended = () => { isPlaying = false }
   } catch {
     isPlaying = false
   }
 
-  // Continuous vibration pulsing
   startVibration()
 }
 
-// Also play the wav file on loop as backup (some devices handle it better)
+// Also loop the wav file as backup
 let backupAudio: HTMLAudioElement | null = null
 
 export function playUrgentAlertWithBackup(wavFile: string) {
   playUrgentAlert()
 
-  // Also loop the wav file for devices where Web Audio API is limited
   try {
     if (!backupAudio) {
       backupAudio = new Audio(wavFile)
@@ -114,32 +146,29 @@ export function stopUrgentAlert() {
   isPlaying = false
 
   try {
-    if (oscillatorNode) {
-      oscillatorNode.stop()
-      oscillatorNode.disconnect()
-      oscillatorNode = null
+    for (const osc of scheduledSources) {
+      try { osc.stop(); osc.disconnect() } catch { /* already stopped */ }
     }
-    if (gainNode) {
-      gainNode.disconnect()
-      gainNode = null
+    scheduledSources = []
+
+    if (masterGain) {
+      masterGain.disconnect()
+      masterGain = null
     }
   } catch {
     // Already stopped
   }
 
-  // Stop backup wav
   if (backupAudio) {
     backupAudio.pause()
     backupAudio.currentTime = 0
   }
 
-  // Stop vibration
   stopVibration()
 }
 
 function startVibration() {
   if (typeof navigator === 'undefined' || !navigator.vibrate) return
-  // Pulse vibration every 2 seconds until stopped
   navigator.vibrate([400, 200, 400, 200, 400])
   vibrateInterval = setInterval(() => {
     navigator.vibrate([400, 200, 400, 200, 400])
@@ -152,6 +181,6 @@ function stopVibration() {
     vibrateInterval = null
   }
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    navigator.vibrate(0) // Cancel all vibration
+    navigator.vibrate(0)
   }
 }
