@@ -10,7 +10,7 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const claimShopId = searchParams.get('claim')
-  const isApp = searchParams.get('app') === '1'
+  const isApp = searchParams.get('app') === '1' || (typeof window !== 'undefined' && !!(window as unknown as Record<string, unknown>).ReactNativeWebView)
   const { supabase, refreshUser } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

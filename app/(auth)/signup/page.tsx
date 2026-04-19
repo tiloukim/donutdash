@@ -17,7 +17,7 @@ export default function SignupPage() {
   const searchParams = useSearchParams()
   const { supabase, refreshUser } = useAuth()
   const claimShopId = searchParams.get('claim')
-  const isApp = searchParams.get('app') === '1'
+  const isApp = searchParams.get('app') === '1' || (typeof window !== 'undefined' && !!(window as unknown as Record<string, unknown>).ReactNativeWebView)
   const rolePresetParam = searchParams.get('role')
   const rolePreset: 'customer' | 'driver' | 'shop_owner' | null =
     rolePresetParam === 'customer' || rolePresetParam === 'driver' || rolePresetParam === 'shop_owner'
@@ -144,11 +144,22 @@ export default function SignupPage() {
           setError(result.error || 'Signup failed')
           return
         }
-        // Auto sign in after account creation
-        const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
-        if (signInErr) {
-          setError(signInErr.message)
+        // Auto sign in via server API (bypasses captcha)
+        const loginRes = await fetch('/api/auth/app-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        const loginResult = await loginRes.json()
+        if (!loginRes.ok) {
+          setError(loginResult.error || 'Login failed after signup')
           return
+        }
+        if (loginResult.session) {
+          await supabase.auth.setSession({
+            access_token: loginResult.session.access_token,
+            refresh_token: loginResult.session.refresh_token,
+          })
         }
         await refreshUser()
         router.push('/')
