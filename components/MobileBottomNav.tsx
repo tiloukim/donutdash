@@ -63,6 +63,13 @@ export default function MobileBottomNav() {
                 My Orders
               </Link>
               <Link
+                href="/profile"
+                onClick={() => setShowAccountMenu(false)}
+                style={{ display: 'block', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', borderTop: '1px solid #f0f0f0' }}
+              >
+                My Profile
+              </Link>
+              <Link
                 href="/support"
                 onClick={() => setShowAccountMenu(false)}
                 style={{ display: 'block', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', borderTop: '1px solid #f0f0f0' }}
