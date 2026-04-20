@@ -237,46 +237,82 @@ export default function W9Form() {
     doc.setLineWidth(1.5)
     doc.line(m, y, m + rw, y)
     y += 2
+
+    const partIHeight = 70
+    const leftColWidth = rw * 0.55
+    const rightColX = m + leftColWidth
+
+    // Part I header
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
     doc.text('Part I', m + 3, y + 12)
     doc.setFontSize(10)
     doc.text('Taxpayer Identification Number (TIN)', m + 40, y + 12)
-    y += 18
 
+    // Vertical divider between columns
     doc.setLineWidth(0.5)
+    doc.line(rightColX, y, rightColX, y + partIHeight)
+
+    // Left column: description text (constrained width)
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text('Enter your TIN in the appropriate box. The TIN provided must match the name given on line 1 to avoid', m + 3, y + 8)
-    doc.text('backup withholding.', m + 3, y + 17)
+    const tinDesc = doc.splitTextToSize(
+      'Enter your TIN in the appropriate box. The TIN provided must match the name given on line 1 to avoid backup withholding. For individuals, this is generally your social security number (SSN). For other entities, it is your employer identification number (EIN).',
+      leftColWidth - 10
+    )
+    doc.text(tinDesc, m + 3, y + 24)
 
-    // SSN/EIN boxes on right
-    const tinX = W - m - 180
+    // Right column: SSN
     doc.setFontSize(8)
     doc.setFont('helvetica', 'bold')
-    doc.text('Social security number', tinX, y + 8)
+    doc.text('Social security number', rightColX + 8, y + 14)
 
     if (form.taxIdType === 'ssn') {
-      const masked = `XXX-XX-${form.ssn3}`
-      doc.setFontSize(14)
-      doc.setFont('courier', 'bold')
-      doc.text(masked, tinX + 10, y + 24)
+      // Draw 9 boxes for SSN
+      const boxSize = 16
+      const boxY = y + 20
+      let bx = rightColX + 8
+      for (let i = 0; i < 9; i++) {
+        if (i === 3 || i === 5) { doc.text('-', bx + 1, boxY + 12); bx += 10 }
+        doc.rect(bx, boxY, boxSize, boxSize)
+        const digits = `${form.ssn1}${form.ssn2}${form.ssn3}`
+        const maskedDigits = `XXX XX${form.ssn3}`
+        const displayDigits = digits.length === 9 ? maskedDigits.replace(/\s/g, '') : ''
+        if (displayDigits[i]) {
+          doc.setFontSize(11)
+          doc.setFont('courier', 'bold')
+          doc.text(displayDigits[i], bx + 4, boxY + 12)
+        }
+        bx += boxSize + 2
+      }
     }
 
-    y += 30
+    // Right column: EIN
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text('or', tinX - 10, y + 4)
+    doc.text('or', rightColX + 8, y + 48)
     doc.setFont('helvetica', 'bold')
-    doc.text('Employer identification number', tinX, y + 4)
+    doc.text('Employer identification number', rightColX + 20, y + 48)
 
     if (form.taxIdType === 'ein') {
-      const masked = `${form.ein1}-XXXXX${form.ein2.slice(-2)}`
-      doc.setFontSize(14)
-      doc.setFont('courier', 'bold')
-      doc.text(masked, tinX + 10, y + 18)
+      const boxSize = 16
+      const boxY = y + 52
+      let bx = rightColX + 8
+      for (let i = 0; i < 9; i++) {
+        if (i === 2) { doc.text('-', bx + 1, boxY + 12); bx += 10 }
+        doc.rect(bx, boxY, boxSize, boxSize)
+        const digits = `${form.ein1}${form.ein2}`
+        const maskedDigits = digits.length === 9 ? `${form.ein1}XXXXX${form.ein2.slice(-2)}` : ''
+        if (maskedDigits[i]) {
+          doc.setFontSize(11)
+          doc.setFont('courier', 'bold')
+          doc.text(maskedDigits[i], bx + 4, boxY + 12)
+        }
+        bx += boxSize + 2
+      }
     }
-    y += 24
+
+    y += partIHeight
 
     // === PART II — Certification ===
     y += 6
