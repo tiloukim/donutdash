@@ -11,8 +11,9 @@ import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import type { Shop } from '@/lib/types'
 import DonutIcon from '@/components/DonutIcon'
+import RunningDonut from '@/components/RunningDonut'
 
-function PromoBannerCarousel({ banners }: { banners: { title: string; subtitle: string; bg: string; emoji: string }[] }) {
+function PromoBannerCarousel({ banners }: { banners: { title: string; subtitle: string; bg: string; emoji?: string; icon?: React.ReactNode }[] }) {
   const [active, setActive] = useState(0)
   const touchStartX = useRef(0)
 
@@ -52,10 +53,10 @@ function PromoBannerCarousel({ banners }: { banners: { title: string; subtitle: 
             pointerEvents: i === active ? 'auto' : 'none',
           }}>
             <span style={{
-              position: 'absolute', right: '12px', bottom: '8px',
-              fontSize: '3rem', opacity: 0.3,
+              position: 'absolute', right: '8px', bottom: '4px',
+              fontSize: '3rem', opacity: promo.icon ? 0.9 : 0.3,
             }}>
-              {promo.emoji}
+              {promo.icon || promo.emoji}
             </span>
             <h3 style={{
               color: 'white', fontSize: '1.2rem', fontWeight: 800,
@@ -324,7 +325,7 @@ export default function HomePage() {
       title: 'Order Online',
       subtitle: 'Fresh donuts to your door',
       bg: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-      emoji: '🍩',
+      icon: <RunningDonut size={90} />,
     },
   ]
 
