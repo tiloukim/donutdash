@@ -117,7 +117,7 @@ export default function DonutDeliveryTylerTX() {
             <strong>Real-time tracking</strong> &mdash; Know exactly where your donuts are.
           </li>
           <li style={{ marginBottom: '0.5rem' }}>
-            <strong>Rewards program</strong> &mdash; Order 5 times and earn a free donut.
+            <strong>Rewards program</strong> &mdash; Earn points with every order you place.
           </li>
           <li style={{ marginBottom: '0.5rem' }}>
             <strong>Free delivery</strong> on your first order.

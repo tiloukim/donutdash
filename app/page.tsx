@@ -227,7 +227,7 @@ export default function HomePage() {
   const promoBanners = [
     {
       title: 'EARN Rewards!',
-      subtitle: 'Order 5 times, get a free donut',
+      subtitle: 'Earn points with every order',
       bg: `linear-gradient(135deg, ${PINK}, #FF69B4)`,
       emoji: '🎁',
     },
