@@ -52,10 +52,10 @@ export default function W9Form() {
     fontFamily: 'Arial, sans-serif', padding: '4px 0', background: 'transparent',
     boxSizing: 'border-box',
   }
-  const ssnBoxStyle: React.CSSProperties = {
-    width: 28, height: 32, border: '1px solid #000', textAlign: 'center',
-    fontSize: 16, fontWeight: 700, fontFamily: 'Courier, monospace',
-    outline: 'none', background: '#fff',
+  const ssnGroupStyle: React.CSSProperties = {
+    border: '1px solid #000', textAlign: 'center',
+    fontSize: 18, fontWeight: 700, fontFamily: 'Courier, monospace',
+    letterSpacing: 8, outline: 'none', background: '#fff', padding: '4px 6px',
   }
 
   const isValid = () => {
@@ -602,97 +602,57 @@ export default function W9Form() {
               </div>
             </div>
 
-            {/* TIN boxes */}
+            {/* TIN inputs */}
             <div style={{ marginLeft: 20, flexShrink: 0 }}>
               {/* SSN */}
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, marginBottom: 4, cursor: 'pointer' }}>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, marginBottom: 6, cursor: 'pointer' }}>
                   <input type="radio" name="taxIdType" checked={form.taxIdType === 'ssn'}
                     onChange={() => set('taxIdType', 'ssn')} style={{ accentColor: '#000' }} />
                   Social security number
                 </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 2, opacity: form.taxIdType === 'ssn' ? 1 : 0.3 }}>
-                  {[0,1,2].map(i => (
-                    <input key={`s1-${i}`} style={ssnBoxStyle} maxLength={1}
-                      value={form.ssn1[i] || ''} disabled={form.taxIdType !== 'ssn'}
-                      onChange={e => {
-                        const v = form.ssn1.split('')
-                        v[i] = e.target.value.replace(/\D/g, '')
-                        const newVal = v.join('').slice(0, 3)
-                        set('ssn1', newVal)
-                        if (e.target.value && i < 2) (e.target.nextElementSibling as HTMLInputElement)?.focus()
-                        else if (e.target.value && i === 2) {
-                          const next = e.target.parentElement?.querySelectorAll('input')
-                          if (next && next[4]) (next[4] as HTMLInputElement).focus()
-                        }
-                      }} />
-                  ))}
-                  <span style={{ fontSize: 16, fontWeight: 700, margin: '0 2px' }}>-</span>
-                  {[0,1].map(i => (
-                    <input key={`s2-${i}`} style={ssnBoxStyle} maxLength={1}
-                      value={form.ssn2[i] || ''} disabled={form.taxIdType !== 'ssn'}
-                      onChange={e => {
-                        const v = form.ssn2.split('')
-                        v[i] = e.target.value.replace(/\D/g, '')
-                        const newVal = v.join('').slice(0, 2)
-                        set('ssn2', newVal)
-                        if (e.target.value && i < 1) (e.target.nextElementSibling as HTMLInputElement)?.focus()
-                        else if (e.target.value && i === 1) {
-                          const next = e.target.parentElement?.querySelectorAll('input')
-                          if (next && next[6]) (next[6] as HTMLInputElement).focus()
-                        }
-                      }} />
-                  ))}
-                  <span style={{ fontSize: 16, fontWeight: 700, margin: '0 2px' }}>-</span>
-                  {[0,1,2,3].map(i => (
-                    <input key={`s3-${i}`} style={ssnBoxStyle} maxLength={1}
-                      value={form.ssn3[i] || ''} disabled={form.taxIdType !== 'ssn'}
-                      onChange={e => {
-                        const v = form.ssn3.split('')
-                        v[i] = e.target.value.replace(/\D/g, '')
-                        const newVal = v.join('').slice(0, 4)
-                        set('ssn3', newVal)
-                        if (e.target.value && i < 3) (e.target.nextElementSibling as HTMLInputElement)?.focus()
-                      }} />
-                  ))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: form.taxIdType === 'ssn' ? 1 : 0.3 }}>
+                  <input style={{ ...ssnGroupStyle, width: 64 }} maxLength={3} placeholder="000"
+                    value={form.ssn1} disabled={form.taxIdType !== 'ssn'}
+                    onChange={e => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 3)
+                      set('ssn1', v)
+                      if (v.length === 3) (document.getElementById('ssn2') as HTMLInputElement)?.focus()
+                    }} />
+                  <span style={{ fontSize: 18, fontWeight: 700 }}>-</span>
+                  <input id="ssn2" style={{ ...ssnGroupStyle, width: 48 }} maxLength={2} placeholder="00"
+                    value={form.ssn2} disabled={form.taxIdType !== 'ssn'}
+                    onChange={e => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 2)
+                      set('ssn2', v)
+                      if (v.length === 2) (document.getElementById('ssn3') as HTMLInputElement)?.focus()
+                    }} />
+                  <span style={{ fontSize: 18, fontWeight: 700 }}>-</span>
+                  <input id="ssn3" style={{ ...ssnGroupStyle, width: 76 }} maxLength={4} placeholder="0000"
+                    value={form.ssn3} disabled={form.taxIdType !== 'ssn'}
+                    onChange={e => set('ssn3', e.target.value.replace(/\D/g, '').slice(0, 4))} />
                 </div>
               </div>
 
               {/* EIN */}
               <div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, marginBottom: 4, cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, marginBottom: 6, cursor: 'pointer' }}>
                   <input type="radio" name="taxIdType" checked={form.taxIdType === 'ein'}
                     onChange={() => set('taxIdType', 'ein')} style={{ accentColor: '#000' }} />
                   Employer identification number
                 </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 2, opacity: form.taxIdType === 'ein' ? 1 : 0.3 }}>
-                  {[0,1].map(i => (
-                    <input key={`e1-${i}`} style={ssnBoxStyle} maxLength={1}
-                      value={form.ein1[i] || ''} disabled={form.taxIdType !== 'ein'}
-                      onChange={e => {
-                        const v = form.ein1.split('')
-                        v[i] = e.target.value.replace(/\D/g, '')
-                        const newVal = v.join('').slice(0, 2)
-                        set('ein1', newVal)
-                        if (e.target.value && i < 1) (e.target.nextElementSibling as HTMLInputElement)?.focus()
-                        else if (e.target.value && i === 1) {
-                          const next = e.target.parentElement?.querySelectorAll('input')
-                          if (next && next[3]) (next[3] as HTMLInputElement).focus()
-                        }
-                      }} />
-                  ))}
-                  <span style={{ fontSize: 16, fontWeight: 700, margin: '0 2px' }}>-</span>
-                  {[0,1,2,3,4,5,6].map(i => (
-                    <input key={`e2-${i}`} style={ssnBoxStyle} maxLength={1}
-                      value={form.ein2[i] || ''} disabled={form.taxIdType !== 'ein'}
-                      onChange={e => {
-                        const v = form.ein2.split('')
-                        v[i] = e.target.value.replace(/\D/g, '')
-                        const newVal = v.join('').slice(0, 7)
-                        set('ein2', newVal)
-                        if (e.target.value && i < 6) (e.target.nextElementSibling as HTMLInputElement)?.focus()
-                      }} />
-                  ))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: form.taxIdType === 'ein' ? 1 : 0.3 }}>
+                  <input style={{ ...ssnGroupStyle, width: 48 }} maxLength={2} placeholder="00"
+                    value={form.ein1} disabled={form.taxIdType !== 'ein'}
+                    onChange={e => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 2)
+                      set('ein1', v)
+                      if (v.length === 2) (document.getElementById('ein2') as HTMLInputElement)?.focus()
+                    }} />
+                  <span style={{ fontSize: 18, fontWeight: 700 }}>-</span>
+                  <input id="ein2" style={{ ...ssnGroupStyle, width: 120 }} maxLength={7} placeholder="0000000"
+                    value={form.ein2} disabled={form.taxIdType !== 'ein'}
+                    onChange={e => set('ein2', e.target.value.replace(/\D/g, '').slice(0, 7))} />
                 </div>
               </div>
             </div>
