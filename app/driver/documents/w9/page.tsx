@@ -79,40 +79,47 @@ export default function W9Form() {
     let y = m
 
     // === TOP HEADER BAR ===
-    // Left column: Form info
-    doc.setFillColor(0, 0, 0)
+    // Header box with 3 sections
     doc.setDrawColor(0, 0, 0)
-    doc.setLineWidth(1.5)
-    doc.rect(m, y, rw, 60)
-
-    // Left section
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
     doc.setTextColor(0)
-    doc.text('Department of the Treasury', m + 4, y + 10)
-    doc.text('Internal Revenue Service', m + 4, y + 18)
+    doc.setLineWidth(1.5)
+    const headerH = 65
+    doc.rect(m, y, rw, headerH)
 
-    // Center: Form title
-    doc.setFontSize(22)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Form', m + 130, y + 22)
-    doc.setFontSize(28)
-    doc.text('W-9', m + 178, y + 22)
-
-    // Subtitle
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Request for Taxpayer', m + 130, y + 36)
-    doc.text('Identification Number and Certification', m + 130, y + 47)
-
-    // Right: OMB
+    // Left section: Department info
+    const leftW = 120
+    doc.setLineWidth(0.5)
+    doc.line(m + leftW, y, m + leftW, y + headerH)
     doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
-    doc.text('Give Form to the', W - m - 100, y + 14)
-    doc.text('requester. Do not', W - m - 100, y + 22)
-    doc.text('send to the IRS.', W - m - 100, y + 30)
+    doc.text('Department of the Treasury', m + 4, y + 12)
+    doc.text('Internal Revenue Service', m + 4, y + 21)
 
-    y += 60
+    // Right section: Give form to requester
+    const rightW = 120
+    const rightX = m + rw - rightW
+    doc.line(rightX, y, rightX, y + headerH)
+    doc.setFontSize(8)
+    doc.text('Give Form to the', rightX + 6, y + 18)
+    doc.text('requester. Do not', rightX + 6, y + 28)
+    doc.text('send to the IRS.', rightX + 6, y + 38)
+
+    // Center section: Form W-9 title
+    const centerX = m + leftW
+    const centerW = rw - leftW - rightW
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Form', centerX + centerW / 2 - 55, y + 20)
+    doc.setFontSize(30)
+    doc.setFont('helvetica', 'bold')
+    doc.text('W-9', centerX + centerW / 2 - 20, y + 22)
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Request for Taxpayer', centerX + (centerW - doc.getTextWidth('Request for Taxpayer')) / 2, y + 38)
+    doc.text('Identification Number and Certification', centerX + (centerW - doc.getTextWidth('Identification Number and Certification')) / 2, y + 50)
+
+    y += headerH
 
     // === LINE 1: Name ===
     doc.setLineWidth(0.5)
