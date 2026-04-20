@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import Turnstile from '@/components/Turnstile'
 
@@ -27,6 +28,8 @@ export default function RoleAuthForm({
   redirectTo,
 }: RoleAuthFormProps) {
   const { supabase, refreshUser } = useAuth()
+  const searchParams = useSearchParams()
+  const isApp = searchParams.get('app') === '1' || (typeof window !== 'undefined' && !!(window as unknown as Record<string, unknown>).ReactNativeWebView)
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -35,7 +38,7 @@ export default function RoleAuthForm({
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaToken, setCaptchaToken] = useState(isApp ? 'app-bypass' : '')
   const [smsConsent, setSmsConsent] = useState(false)
   const [showConfirmEmail, setShowConfirmEmail] = useState(false)
 
@@ -98,17 +101,38 @@ export default function RoleAuthForm({
     setError('')
 
     try {
-      if (!captchaToken) {
+      if (!isApp && !captchaToken) {
         setError('Please complete the CAPTCHA verification.')
         setLoading(false)
         return
       }
       if (mode === 'login') {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-          options: { captchaToken },
-        })
+        let signInError: { message: string } | null = null
+
+        if (isApp) {
+          const res = await fetch('/api/auth/app-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          })
+          const result = await res.json()
+          if (!res.ok) {
+            signInError = { message: result.error || 'Login failed' }
+          } else if (result.session) {
+            await supabase.auth.setSession({
+              access_token: result.session.access_token,
+              refresh_token: result.session.refresh_token,
+            })
+          }
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+            options: { captchaToken },
+          })
+          signInError = error
+        }
+
         if (signInError) {
           setError(signInError.message)
           return
@@ -451,7 +475,7 @@ export default function RoleAuthForm({
             </div>
           )}
 
-          <Turnstile onToken={setCaptchaToken} />
+          {!isApp && <Turnstile onToken={setCaptchaToken} />}
 
           <button
             type="submit"
