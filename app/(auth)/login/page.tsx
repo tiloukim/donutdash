@@ -91,13 +91,15 @@ export default function LoginPage() {
         }
       }
 
-      // Role-based redirect after login
-      const res = await fetch('/api/me')
-      if (res.ok) {
-        const { user: me } = await res.json()
-        if (me?.role === 'driver') { router.push('/driver'); return }
-        if (me?.role === 'shop_owner') { router.push('/shop'); return }
-        if (me?.role === 'admin') { router.push('/admin'); return }
+      // Role-based redirect after login (skip in mobile app — always go to customer home)
+      if (!isApp) {
+        const res = await fetch('/api/me')
+        if (res.ok) {
+          const { user: me } = await res.json()
+          if (me?.role === 'driver') { router.push('/driver'); return }
+          if (me?.role === 'shop_owner') { router.push('/shop'); return }
+          if (me?.role === 'admin') { router.push('/admin'); return }
+        }
       }
       router.push('/')
     } catch {
