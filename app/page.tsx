@@ -119,8 +119,8 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-const NEAR_ME_RADIUS_MILES = 2
-const NEAR_ME_MAX_SHOPS = 3
+const NEAR_ME_RADIUS_MILES = 15
+const NEAR_ME_MAX_SHOPS = 6
 
 function StarRating({ rating }: { rating: number }) {
   const stars = []

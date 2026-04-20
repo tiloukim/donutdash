@@ -202,8 +202,8 @@ function ShopsPageInner() {
     // When location is known, only show shops within 30 miles (service area)
     if (customerLocation) {
       result = result.filter(s => {
-        if (s.distance_miles != null) return s.distance_miles <= 30
-        if (s.lat && s.lng) return haversineDistance(customerLocation.lat, customerLocation.lng, s.lat, s.lng) <= 30
+        if (s.distance_miles != null) return s.distance_miles <= 50
+        if (s.lat && s.lng) return haversineDistance(customerLocation.lat, customerLocation.lng, s.lat, s.lng) <= 50
         return true
       })
     }
