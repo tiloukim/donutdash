@@ -97,7 +97,7 @@ export default function W9Form() {
     doc.setFont('helvetica', 'bold')
     doc.text('Form', m + 130, y + 22)
     doc.setFontSize(28)
-    doc.text('W-9', m + 168, y + 22)
+    doc.text('W-9', m + 178, y + 22)
 
     // Subtitle
     doc.setFontSize(10)
@@ -239,7 +239,7 @@ export default function W9Form() {
     y += 2
 
     const partIHeight = 70
-    const leftColWidth = rw * 0.55
+    const leftColWidth = rw * 0.5
     const rightColX = m + leftColWidth
 
     // Part I header
@@ -254,11 +254,11 @@ export default function W9Form() {
     doc.line(rightColX, y, rightColX, y + partIHeight)
 
     // Left column: description text (constrained width)
-    doc.setFontSize(8)
+    doc.setFontSize(7.5)
     doc.setFont('helvetica', 'normal')
     const tinDesc = doc.splitTextToSize(
       'Enter your TIN in the appropriate box. The TIN provided must match the name given on line 1 to avoid backup withholding. For individuals, this is generally your social security number (SSN). For other entities, it is your employer identification number (EIN).',
-      leftColWidth - 10
+      leftColWidth - 16
     )
     doc.text(tinDesc, m + 3, y + 24)
 
