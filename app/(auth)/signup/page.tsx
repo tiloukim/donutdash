@@ -28,6 +28,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [role, setRole] = useState<'customer' | 'driver' | 'shop_owner'>(
     claimShopId ? 'shop_owner' : (rolePreset ?? 'customer')
   )
@@ -454,16 +455,29 @@ export default function SignupPage() {
             <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
               Password
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              placeholder="At least 6 characters"
-              style={inputStyle}
-              onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
-              onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                placeholder="At least 6 characters"
+                style={{ ...inputStyle, paddingRight: '3rem' }}
+                onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '4px',
+                  color: '#888', fontSize: '1.1rem',
+                }}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           {claimShopId ? (

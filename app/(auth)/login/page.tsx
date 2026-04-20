@@ -14,6 +14,7 @@ export default function LoginPage() {
   const { supabase, refreshUser } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [captchaToken, setCaptchaToken] = useState(isApp ? 'app-bypass' : '')
@@ -187,20 +188,33 @@ export default function LoginPage() {
             <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
               Password
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              placeholder="Your password"
-              style={{
-                width: '100%', padding: '0.75rem 1rem', borderRadius: '10px',
-                border: '1px solid #ddd', fontSize: '0.95rem', outline: 'none',
-                transition: 'border-color 0.2s',
-              }}
-              onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
-              onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                placeholder="Your password"
+                style={{
+                  width: '100%', padding: '0.75rem 1rem', paddingRight: '3rem', borderRadius: '10px',
+                  border: '1px solid #ddd', fontSize: '0.95rem', outline: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '4px',
+                  color: '#888', fontSize: '1.1rem',
+                }}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           <div style={{ textAlign: 'right' }}>
