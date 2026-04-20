@@ -326,13 +326,14 @@ export default function HomePage() {
             </p>
           </div>
           {user ? (
-            <div style={{
+            <a href="/profile" style={{
               width: '40px', height: '40px', borderRadius: '50%',
               background: PINK, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'white', fontWeight: 700, fontSize: '1rem',
+              color: 'white', fontWeight: 700, fontSize: '1rem', textDecoration: 'none',
+              cursor: 'pointer',
             }}>
               {user.name?.charAt(0)?.toUpperCase() || 'U'}
-            </div>
+            </a>
           ) : (
             <Link href="/login" style={{
               padding: '8px 16px', background: PINK, color: 'white',

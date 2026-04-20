@@ -25,20 +25,21 @@ export default function MobileBottomNav() {
 
   return (
     <>
-      {/* Account menu overlay */}
+      {/* Account menu */}
       {showAccountMenu && (
+        <>
+        {/* Backdrop — pointer-events none so it doesn't steal taps */}
         <div
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 9998,
             background: 'rgba(0,0,0,0.3)',
+            pointerEvents: 'auto',
           }}
+          onTouchEnd={() => setShowAccountMenu(false)}
           onClick={() => setShowAccountMenu(false)}
         />
-      )}
-
-      {showAccountMenu && (
         <div style={{
           position: 'fixed',
           bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
@@ -48,7 +49,6 @@ export default function MobileBottomNav() {
           borderRadius: '12px',
           boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
           minWidth: '200px',
-          overflow: 'hidden',
         }}>
           {user ? (
             <>
@@ -56,34 +56,10 @@ export default function MobileBottomNav() {
                 <div style={{ fontWeight: 600, fontSize: '0.95rem', color: '#1A1A2E' }}>{user.name}</div>
                 <div style={{ fontSize: '0.8rem', color: '#888' }}>{user.email}</div>
               </div>
-              {[
-                { href: '/orders', label: 'My Orders' },
-                { href: '/profile', label: 'My Profile' },
-                { href: '/support', label: 'Need Help?' },
-              ].map((item, i) => (
-                <div
-                  key={item.href}
-                  onClick={(e) => { e.stopPropagation(); setShowAccountMenu(false); window.location.href = item.href }}
-                  style={{
-                    padding: '12px 16px', fontSize: '0.9rem', color: '#1A1A2E',
-                    cursor: 'pointer', borderTop: i > 0 ? '1px solid #f0f0f0' : 'none',
-                    WebkitTapHighlightColor: 'rgba(0,0,0,0.05)',
-                  }}
-                >
-                  {item.label}
-                </div>
-              ))}
-              <div
-                onClick={(e) => { e.stopPropagation(); setShowAccountMenu(false); signOut() }}
-                style={{
-                  padding: '12px 16px', fontSize: '0.9rem',
-                  cursor: 'pointer', borderTop: '1px solid #f0f0f0',
-                  color: PINK, fontWeight: 600,
-                  WebkitTapHighlightColor: 'rgba(0,0,0,0.05)',
-                }}
-              >
-                Sign Out
-              </div>
+              <a href="/orders" style={{ display: 'block', padding: '12px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none' }}>My Orders</a>
+              <a href="/profile" style={{ display: 'block', padding: '12px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', borderTop: '1px solid #f0f0f0' }}>My Profile</a>
+              <a href="/support" style={{ display: 'block', padding: '12px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', borderTop: '1px solid #f0f0f0' }}>Need Help?</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setShowAccountMenu(false); signOut() }} style={{ display: 'block', padding: '12px 16px', fontSize: '0.9rem', color: PINK, fontWeight: 600, textDecoration: 'none', borderTop: '1px solid #f0f0f0' }}>Sign Out</a>
             </>
           ) : (
             <Link
@@ -95,6 +71,7 @@ export default function MobileBottomNav() {
             </Link>
           )}
         </div>
+        </>
       )}
 
       {/* Bottom Nav Bar */}
