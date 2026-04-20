@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import SelfieCaptureModal from '@/components/SelfieCaptureModal'
 
 interface DriverDocument {
@@ -19,7 +20,7 @@ const DOC_TYPES = [
   { key: 'selfie', label: 'Selfie Photo', description: 'Clear photo of your face for identity verification', icon: '🤳' },
   { key: 'drivers_license', label: "Driver's License (Front)", description: 'Front of your government-issued ID', icon: '🪪' },
   { key: 'drivers_license_back', label: "Driver's License (Back)", description: 'Back of your government-issued ID', icon: '🪪' },
-  { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄', downloadUrl: 'https://www.irs.gov/pub/irs-pdf/fw9.pdf', downloadLabel: 'Download blank W-9' },
+  { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄', downloadUrl: '/driver/documents/w9', downloadLabel: 'Fill out W-9 online', isInternal: true },
   { key: 'insurance', label: 'Vehicle Insurance', description: 'Proof of active auto insurance', icon: '🛡️' },
   { key: 'vehicle_registration', label: 'Vehicle Registration', description: 'Current vehicle registration', icon: '🚗' },
   { key: 'contractor_agreement', label: 'Contractor Agreement', description: 'Sign the independent contractor agreement', icon: '📝', downloadUrl: '/driver/sign-agreement', downloadLabel: 'Sign agreement' },
@@ -41,6 +42,7 @@ export default function DriverDocuments() {
   const selfieInputRef = useRef<HTMLInputElement>(null)
   const [uploadDocType, setUploadDocType] = useState<string | null>(null)
   const [showSelfieModal, setShowSelfieModal] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     fetch('/api/driver/documents')
@@ -271,9 +273,18 @@ export default function DriverDocuments() {
                     {docType.description}
                     {(docType as any).downloadUrl && (
                       <span style={{ marginLeft: 8 }}>
-                        <a href={(docType as any).downloadUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#FF8C00', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
-                          ↓ {(docType as any).downloadLabel}
-                        </a>
+                        {(docType as any).isInternal ? (
+                          <button onClick={() => router.push((docType as any).downloadUrl)} style={{
+                            background: 'none', border: 'none', color: '#FF8C00', fontWeight: 600,
+                            fontSize: 12, cursor: 'pointer', padding: 0, textDecoration: 'underline',
+                          }}>
+                            {(docType as any).downloadLabel}
+                          </button>
+                        ) : (
+                          <a href={(docType as any).downloadUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#FF8C00', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+                            ↓ {(docType as any).downloadLabel}
+                          </a>
+                        )}
                       </span>
                     )}
                   </div>
