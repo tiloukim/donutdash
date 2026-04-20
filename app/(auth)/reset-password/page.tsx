@@ -11,6 +11,7 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -116,17 +117,30 @@ export default function ResetPasswordPage() {
               <label style={{ display: 'block', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.35rem', color: '#1A1A2E' }}>
                 Confirm Password
               </label>
-              <input
-                type="password"
-                value={confirm}
-                onChange={e => setConfirm(e.target.value)}
-                required
-                placeholder="Re-enter password"
-                style={{
-                  width: '100%', padding: '0.75rem 1rem', borderRadius: '10px',
-                  border: '1px solid #ddd', fontSize: '0.95rem', outline: 'none',
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
+                  required
+                  placeholder="Re-enter password"
+                  style={{
+                    width: '100%', padding: '0.75rem 1rem', paddingRight: '3rem', borderRadius: '10px',
+                    border: '1px solid #ddd', fontSize: '0.95rem', outline: 'none',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  style={{
+                    position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', padding: '4px',
+                    color: '#888', fontSize: '1.1rem',
+                  }}
+                >
+                  {showConfirm ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
 
             <button
