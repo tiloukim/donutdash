@@ -11,6 +11,7 @@ export default function DriverSettings() {
     bank_account_holder: '', bank_routing_number: '', bank_account_number: '',
     payout_method: 'ach', paypal_email: '', venmo_handle: '', cashapp_handle: '',
   })
+  const [confirmAccountNumber, setConfirmAccountNumber] = useState('')
   const [savingBank, setSavingBank] = useState(false)
   const [bankSaved, setBankSaved] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -371,6 +372,18 @@ export default function DriverSettings() {
                   onChange={e => setBankInfo({ ...bankInfo, bank_account_number: e.target.value })} />
               </div>
             </div>
+            <div>
+              <label style={labelStyle}>Confirm Account Number</label>
+              <input style={{
+                  ...inputStyle,
+                  borderColor: confirmAccountNumber && confirmAccountNumber !== bankInfo.bank_account_number ? '#DC2626' : undefined,
+                }} placeholder="Re-enter account number" type="password"
+                value={confirmAccountNumber}
+                onChange={e => setConfirmAccountNumber(e.target.value)} />
+              {confirmAccountNumber && confirmAccountNumber !== bankInfo.bank_account_number && (
+                <div style={{ color: '#DC2626', fontSize: 12, marginTop: 4 }}>Account numbers do not match.</div>
+              )}
+            </div>
           </div>
         )}
 
@@ -406,6 +419,9 @@ export default function DriverSettings() {
 
         <button
           onClick={async () => {
+            if (bankInfo.payout_method === 'ach' && bankInfo.bank_account_number && confirmAccountNumber !== bankInfo.bank_account_number) {
+              alert('Account numbers do not match.'); return
+            }
             setSavingBank(true); setBankSaved(false)
             const res = await fetch('/api/user/bank-info', {
               method: 'POST',
