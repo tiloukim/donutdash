@@ -22,7 +22,7 @@ const ROLE_ALLOWED: Record<string, string[]> = {
   shop_owner: ['/shop', ...ALWAYS_ALLOWED],
   admin: ['/admin', '/shop', '/driver', ...ALWAYS_ALLOWED],
   manager: ['/admin', ...ALWAYS_ALLOWED],
-  customer: ['/', '/shops', '/cart', '/orders', '/checkout', '/gift-cards', '/rewards', '/about', '/signup', '/login', '/catering', '/group-order', '/card', '/pass', '/best-donuts', '/donut-delivery', ...ALWAYS_ALLOWED],
+  customer: ['/', '/shops', '/cart', '/orders', '/checkout', '/gift-cards', '/rewards', '/about', '/signup', '/login', '/catering', '/group-order', '/card', '/pass', '/best-donuts', '/donut-delivery', '/profile', '/support', '/promo', ...ALWAYS_ALLOWED],
 }
 
 export async function middleware(request: NextRequest) {
