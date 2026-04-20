@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch all data in parallel
   const [driversRes, deliveriesRes, ordersRes, payoutsRes, docsRes, shopsRes, shopDocsRes] = await Promise.all([
-    svc.from('dd_users').select('id, name, email, phone, created_at').eq('role', 'driver'),
+    svc.from('dd_users').select('id, name, email, phone, created_at, w9_legal_name, w9_address, w9_city, w9_state, w9_zip, w9_tax_id_type, w9_tax_id, w9_submitted_at').eq('role', 'driver'),
     svc.from('dd_deliveries')
       .select('id, driver_id, driver_earnings, base_pay, distance_miles, status, delivered_at, order:dd_orders(tip)')
       .eq('status', 'delivered')
@@ -82,6 +82,16 @@ export async function GET(req: NextRequest) {
       unpaid: Math.round((totalEarnings - totalPaid) * 100) / 100,
       needs1099: totalEarnings >= 600,
       w9Status: w9 ? w9.status : 'missing',
+      w9Data: (driver as any).w9_tax_id ? {
+        legalName: (driver as any).w9_legal_name,
+        address: (driver as any).w9_address,
+        city: (driver as any).w9_city,
+        state: (driver as any).w9_state,
+        zip: (driver as any).w9_zip,
+        taxIdType: (driver as any).w9_tax_id_type,
+        taxId: (driver as any).w9_tax_id, // full SSN/EIN for 1099 filing
+        submittedAt: (driver as any).w9_submitted_at,
+      } : null,
     }
   }).filter(d => d.deliveryCount > 0 || d.totalPaid > 0)
     .sort((a, b) => b.totalEarnings - a.totalEarnings)

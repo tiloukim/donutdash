@@ -199,6 +199,35 @@ export default function W9Form() {
     setError('')
 
     try {
+      // 1. Save full W-9 data (including full SSN) securely to database
+      const fullTaxId = form.taxIdType === 'ssn'
+        ? `${form.ssn1}${form.ssn2}${form.ssn3}`
+        : `${form.ein1}${form.ein2}`
+
+      const w9Res = await fetch('/api/driver/w9', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          legal_name: form.name,
+          business_name: form.businessName,
+          tax_classification: form.taxClassification,
+          address: form.address,
+          city: form.city,
+          state: form.state,
+          zip: form.zip,
+          tax_id_type: form.taxIdType,
+          tax_id: fullTaxId,
+        }),
+      })
+
+      if (!w9Res.ok) {
+        const w9Data = await w9Res.json()
+        setError(w9Data.error || 'Failed to save W-9 data')
+        setSaving(false)
+        return
+      }
+
+      // 2. Generate masked PDF and upload as document
       const pdfBlob = generatePDF()
       const file = new File([pdfBlob], `W9-${form.name.replace(/\s+/g, '_')}-${Date.now()}.pdf`, { type: 'application/pdf' })
 
