@@ -1,5 +1,7 @@
+'use client'
+
 import Link from 'next/link'
-import { cookies } from 'next/headers'
+import { useEffect, useState } from 'react'
 
 const linkStyle: React.CSSProperties = {
   color: 'rgba(255,255,255,0.6)',
@@ -16,10 +18,18 @@ const headingStyle: React.CSSProperties = {
   letterSpacing: '0.02em',
 }
 
-export default async function Footer() {
-  const cookieStore = await cookies()
-  const role = cookieStore.get('dd_role')?.value || 'customer'
-  const isCustomer = role === 'customer'
+function getRole(): string {
+  if (typeof document === 'undefined') return 'customer'
+  const match = document.cookie.match(/(?:^|;\s*)dd_role=([^;]*)/)
+  return match ? match[1] : 'customer'
+}
+
+export default function Footer() {
+  const [isCustomer, setIsCustomer] = useState(true)
+
+  useEffect(() => {
+    setIsCustomer(getRole() === 'customer')
+  }, [])
 
   return (
     <footer style={{ background: '#1A1A2E', color: 'white', padding: '2.5rem 1.5rem 1.5rem' }}>
