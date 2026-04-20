@@ -14,7 +14,7 @@ const ROLE_HOME: Record<string, string> = {
 const REDIRECT_PATHS = ['/', '/login', '/signup']
 
 // Pages accessible by ALL roles (auth callback, onboarding, legal)
-const ALWAYS_ALLOWED = ['/auth', '/api', '/privacy', '/terms', '/sms-consent', '/partner-setup', '/contractor-agreement']
+const ALWAYS_ALLOWED = ['/auth', '/api', '/privacy', '/terms', '/sms-consent', '/partner-setup', '/contractor-agreement', '/forgot-password', '/reset-password']
 
 // Pages each role is allowed to access (prefix match)
 const ROLE_ALLOWED: Record<string, string[]> = {
@@ -22,7 +22,7 @@ const ROLE_ALLOWED: Record<string, string[]> = {
   shop_owner: ['/shop', ...ALWAYS_ALLOWED],
   admin: ['/admin', '/shop', '/driver', ...ALWAYS_ALLOWED],
   manager: ['/admin', ...ALWAYS_ALLOWED],
-  customer: ['/', '/shops', '/cart', '/orders', '/checkout', '/gift-cards', '/rewards', '/about', '/signup', '/login', '/catering', '/group-order', '/card', '/pass', '/best-donuts', '/donut-delivery', '/profile', '/support', '/promo', ...ALWAYS_ALLOWED],
+  customer: ['/', '/shops', '/cart', '/orders', '/checkout', '/gift-cards', '/rewards', '/about', '/signup', '/login', '/catering', '/group-order', '/card', '/pass', '/best-donuts', '/donut-delivery', '/profile', '/support', '/promo', '/forgot-password', '/reset-password', ...ALWAYS_ALLOWED],
 }
 
 export async function middleware(request: NextRequest) {

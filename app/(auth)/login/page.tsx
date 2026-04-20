@@ -203,6 +203,12 @@ export default function LoginPage() {
             />
           </div>
 
+          <div style={{ textAlign: 'right' }}>
+            <Link href="/forgot-password" style={{ fontSize: '0.85rem', color: '#FF1493', textDecoration: 'none', fontWeight: 500 }}>
+              Forgot password?
+            </Link>
+          </div>
+
           {!isApp && <Turnstile onToken={setCaptchaToken} />}
 
           <button
