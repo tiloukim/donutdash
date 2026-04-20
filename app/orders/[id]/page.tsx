@@ -211,22 +211,41 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
     }
   }
 
+  // Sound refs for different status alerts
+  const readyAudioRef = useRef<HTMLAudioElement | null>(null)
+  const knockAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Map status to which sound to play
+  const STATUS_SOUNDS: Record<string, 'ready' | 'knock' | 'default'> = {
+    ready_for_pickup: 'ready',
+    delivered: 'knock',
+    confirmed: 'default',
+    preparing: 'default',
+    picked_up: 'default',
+    delivering: 'default',
+  }
+
   // Request notification permission
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
-    // Pre-load audio on first interaction
+    // Pre-load all audio on first interaction
     const unlock = () => {
-      if (!alertAudioRef.current) {
-        alertAudioRef.current = new Audio('/order-alert.wav')
-      }
-      alertAudioRef.current.volume = 0.01
-      alertAudioRef.current.play().then(() => {
-        alertAudioRef.current!.pause()
-        alertAudioRef.current!.currentTime = 0
-        alertAudioRef.current!.volume = 1.0
-      }).catch(() => {})
+      const audios = [
+        { ref: alertAudioRef, src: '/order-alert.wav' },
+        { ref: readyAudioRef, src: '/order-ready.wav' },
+        { ref: knockAudioRef, src: '/door-knock.wav' },
+      ]
+      audios.forEach(({ ref, src }) => {
+        if (!ref.current) ref.current = new Audio(src)
+        ref.current.volume = 0.01
+        ref.current.play().then(() => {
+          ref.current!.pause()
+          ref.current!.currentTime = 0
+          ref.current!.volume = 1.0
+        }).catch(() => {})
+      })
     }
     document.addEventListener('click', unlock, { once: true })
     document.addEventListener('touchstart', unlock, { once: true })
@@ -278,17 +297,20 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
               setStatusUpdate(msg)
               setTimeout(() => setStatusUpdate(null), 5000)
 
-              // Play sound
-              if (alertAudioRef.current) {
-                alertAudioRef.current.currentTime = 0
-                alertAudioRef.current.play().catch(() => {})
-                // Stop after 2 seconds (don't loop for customer)
+              // Play the right sound for this status
+              const soundType = STATUS_SOUNDS[data.status] || 'default'
+              const audioRef = soundType === 'ready' ? readyAudioRef
+                : soundType === 'knock' ? knockAudioRef
+                : alertAudioRef
+              if (audioRef.current) {
+                audioRef.current.currentTime = 0
+                audioRef.current.play().catch(() => {})
                 setTimeout(() => {
-                  if (alertAudioRef.current) {
-                    alertAudioRef.current.pause()
-                    alertAudioRef.current.currentTime = 0
+                  if (audioRef.current) {
+                    audioRef.current.pause()
+                    audioRef.current.currentTime = 0
                   }
-                }, 2000)
+                }, soundType === 'knock' ? 3000 : 2000)
               }
 
               // Browser notification (works even if tab is in background)
