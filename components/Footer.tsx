@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { cookies } from 'next/headers'
 
 const linkStyle: React.CSSProperties = {
   color: 'rgba(255,255,255,0.6)',
@@ -15,7 +16,11 @@ const headingStyle: React.CSSProperties = {
   letterSpacing: '0.02em',
 }
 
-export default function Footer() {
+export default async function Footer() {
+  const cookieStore = await cookies()
+  const role = cookieStore.get('dd_role')?.value || 'customer'
+  const isCustomer = role === 'customer'
+
   return (
     <footer style={{ background: '#1A1A2E', color: 'white', padding: '2.5rem 1.5rem 1.5rem' }}>
       <style>{`
@@ -27,7 +32,7 @@ export default function Footer() {
         }
         @media (min-width: 768px) {
           .footer-grid {
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(${isCustomer ? 3 : 4}, 1fr);
             gap: 2rem 3rem;
           }
         }
@@ -44,7 +49,7 @@ export default function Footer() {
           </p>
         </div>
 
-        {/* Links grid — 2 cols on mobile, 4 on desktop */}
+        {/* Links grid */}
         <div className="footer-grid">
           <div>
             <h4 style={headingStyle}>Explore</h4>
@@ -61,25 +66,31 @@ export default function Footer() {
               <Link href="/about" style={linkStyle}>About Us</Link>
               <Link href="/terms" style={linkStyle}>Terms of Service</Link>
               <Link href="/privacy" style={linkStyle}>Privacy Policy</Link>
-              <Link href="/contractor-agreement" style={linkStyle}>Contractor Agreement</Link>
+              {!isCustomer && <Link href="/contractor-agreement" style={linkStyle}>Contractor Agreement</Link>}
               <Link href="/sms-consent" style={linkStyle}>SMS Consent</Link>
             </div>
           </div>
 
-          <div>
-            <h4 style={headingStyle}>For Business</h4>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Link href="/shop" style={linkStyle}>Become a Partner</Link>
-              <Link href="/driver" style={linkStyle}>Drive with Us</Link>
+          {!isCustomer && (
+            <div>
+              <h4 style={headingStyle}>For Business</h4>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <Link href="/shop" style={linkStyle}>Become a Partner</Link>
+                <Link href="/driver" style={linkStyle}>Drive with Us</Link>
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <h4 style={headingStyle}>Support</h4>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <Link href="/support" style={linkStyle}>Customer Help</Link>
-              <Link href="/support/shops" style={linkStyle}>Shop Support</Link>
-              <Link href="/support/drivers" style={linkStyle}>Driver Support</Link>
+              {!isCustomer && (
+                <>
+                  <Link href="/support/shops" style={linkStyle}>Shop Support</Link>
+                  <Link href="/support/drivers" style={linkStyle}>Driver Support</Link>
+                </>
+              )}
             </div>
             <h4 style={{ ...headingStyle, marginTop: '1rem' }}>Follow Us</h4>
             <div style={{ display: 'flex', gap: '0.75rem' }}>

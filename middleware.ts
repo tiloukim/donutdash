@@ -118,6 +118,19 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Block customers from driver/shop-specific pages that might slip through prefix matching
+  if (role === 'customer') {
+    const customerDenied = ['/support/shops', '/support/drivers', '/partner-setup', '/contractor-agreement', '/driver', '/shop', '/admin']
+    const isDenied = customerDenied.some(p => pathname === p || pathname.startsWith(p + '/'))
+    if (isDenied) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      const redirect = NextResponse.redirect(url)
+      supabaseResponse.cookies.getAll().forEach(c => redirect.cookies.set(c.name, c.value))
+      return redirect
+    }
+  }
+
   // Prevent role users from accessing wrong sections
   // e.g., driver shouldn't access /shop, shop_owner shouldn't access /driver
   const allowed = ROLE_ALLOWED[role] || ROLE_ALLOWED.customer
