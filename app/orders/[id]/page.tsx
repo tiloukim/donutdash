@@ -310,7 +310,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                     audioRef.current.pause()
                     audioRef.current.currentTime = 0
                   }
-                }, soundType === 'knock' ? 3000 : 2000)
+                }, soundType === 'knock' ? 5000 : 2000)
               }
 
               // Browser notification (works even if tab is in background)
