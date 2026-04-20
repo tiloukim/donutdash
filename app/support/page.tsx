@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
@@ -21,7 +22,11 @@ const FAQS = [
   { q: 'How do I save my favorite shops?', a: 'Tap the heart icon on any shop card to add it to your favorites. View them from the Favorites tab on the Browse page.' },
 ]
 
-export default function CustomerSupportPage() {
+export default async function CustomerSupportPage() {
+  const cookieStore = await cookies()
+  const role = cookieStore.get('dd_role')?.value || 'customer'
+  const isCustomer = role === 'customer'
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#FAFAFA' }}>
       <div className="desktop-only"><Navbar /></div>
@@ -42,26 +47,28 @@ export default function CustomerSupportPage() {
           <ContactForm category="customer" accentColor={PINK} recipientEmail="help@donutdash.app" />
         </div>
 
-        {/* Other support links */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem', marginBottom: '2rem',
-        }}>
-          <Link href="/support/shops" style={{
-            display: 'block', background: 'white', borderRadius: '12px', padding: '1.25rem',
-            boxShadow: '0 1px 6px rgba(0,0,0,0.06)', textDecoration: 'none', textAlign: 'center',
+        {/* Other support links — hide for customers */}
+        {!isCustomer && (
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1rem', marginBottom: '2rem',
           }}>
-            <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🏪</span>
-            <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1A1A2E' }}>Shop Owner Support</span>
-          </Link>
-          <Link href="/support/drivers" style={{
-            display: 'block', background: 'white', borderRadius: '12px', padding: '1.25rem',
-            boxShadow: '0 1px 6px rgba(0,0,0,0.06)', textDecoration: 'none', textAlign: 'center',
-          }}>
-            <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🚗</span>
-            <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1A1A2E' }}>Driver Support</span>
-          </Link>
-        </div>
+            <Link href="/support/shops" style={{
+              display: 'block', background: 'white', borderRadius: '12px', padding: '1.25rem',
+              boxShadow: '0 1px 6px rgba(0,0,0,0.06)', textDecoration: 'none', textAlign: 'center',
+            }}>
+              <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🏪</span>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1A1A2E' }}>Shop Owner Support</span>
+            </Link>
+            <Link href="/support/drivers" style={{
+              display: 'block', background: 'white', borderRadius: '12px', padding: '1.25rem',
+              boxShadow: '0 1px 6px rgba(0,0,0,0.06)', textDecoration: 'none', textAlign: 'center',
+            }}>
+              <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🚗</span>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1A1A2E' }}>Driver Support</span>
+            </Link>
+          </div>
+        )}
 
         {/* FAQs */}
         <div style={{
