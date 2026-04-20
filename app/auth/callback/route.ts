@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         }
         if (type === 'recovery') {
           // Password reset — redirect to password update page
-          return NextResponse.redirect(`${origin}/update-password`)
+          return NextResponse.redirect(`${origin}/reset-password`)
         }
       }
       return NextResponse.redirect(`${origin}${next}`)
