@@ -12,6 +12,89 @@ import { useCart } from '@/lib/cart-context'
 import type { Shop } from '@/lib/types'
 import DonutIcon from '@/components/DonutIcon'
 
+function PromoBannerCarousel({ banners }: { banners: { title: string; subtitle: string; bg: string; emoji: string }[] }) {
+  const [active, setActive] = useState(0)
+  const touchStartX = useRef(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActive(prev => (prev + 1) % banners.length)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [banners.length])
+
+  return (
+    <div style={{ padding: '0 20px', marginBottom: '24px' }}>
+      <div
+        style={{ position: 'relative', overflow: 'hidden', borderRadius: '16px', height: '120px' }}
+        onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+        onTouchEnd={e => {
+          const diff = touchStartX.current - e.changedTouches[0].clientX
+          if (Math.abs(diff) > 50) {
+            setActive(prev => diff > 0 ? (prev + 1) % banners.length : (prev - 1 + banners.length) % banners.length)
+          }
+        }}
+      >
+        {banners.map((promo, i) => (
+          <div key={i} style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '16px',
+            background: promo.bg,
+            padding: '18px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            opacity: i === active ? 1 : 0,
+            transform: i === active ? 'translateX(0)' : i > active ? 'translateX(40px)' : 'translateX(-40px)',
+            transition: 'opacity 0.5s ease, transform 0.5s ease',
+            pointerEvents: i === active ? 'auto' : 'none',
+          }}>
+            <span style={{
+              position: 'absolute', right: '12px', bottom: '8px',
+              fontSize: '3rem', opacity: 0.3,
+            }}>
+              {promo.emoji}
+            </span>
+            <h3 style={{
+              color: 'white', fontSize: '1.2rem', fontWeight: 800,
+              margin: '0 0 4px', position: 'relative', zIndex: 1,
+            }}>
+              {promo.title}
+            </h3>
+            <p style={{
+              color: 'rgba(255,255,255,0.9)', fontSize: '0.8rem',
+              margin: 0, position: 'relative', zIndex: 1,
+            }}>
+              {promo.subtitle}
+            </p>
+          </div>
+        ))}
+      </div>
+      {/* Dots */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '10px' }}>
+        {banners.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setActive(i)}
+            style={{
+              width: i === active ? '20px' : '6px',
+              height: '6px',
+              borderRadius: '3px',
+              background: i === active ? '#FF1493' : '#ddd',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 interface SearchResult {
   shop: { id: string; name: string; slug: string; image_url: string | null }
   items: { name: string; price: number; image_url: string | null }[]
@@ -532,67 +615,7 @@ export default function HomePage() {
         )}
 
         {/* Promo Banners - horizontal scroll */}
-        <div style={{
-          padding: '0 0 0 20px',
-          marginBottom: '24px',
-        }}>
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            overflowX: 'auto',
-            scrollSnapType: 'x mandatory',
-            WebkitOverflowScrolling: 'touch',
-            paddingRight: '20px',
-            msOverflowStyle: 'none',
-            scrollbarWidth: 'none',
-          }}>
-            {promoBanners.map((promo, i) => (
-              <div key={i} style={{
-                minWidth: '260px',
-                height: '120px',
-                borderRadius: '16px',
-                background: promo.bg,
-                padding: '18px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                position: 'relative',
-                overflow: 'hidden',
-                scrollSnapAlign: 'start',
-                flexShrink: 0,
-              }}>
-                <span style={{
-                  position: 'absolute',
-                  right: '12px',
-                  bottom: '8px',
-                  fontSize: '3rem',
-                  opacity: 0.3,
-                }}>
-                  {promo.emoji}
-                </span>
-                <h3 style={{
-                  color: 'white',
-                  fontSize: '1.2rem',
-                  fontWeight: 800,
-                  margin: '0 0 4px',
-                  position: 'relative',
-                  zIndex: 1,
-                }}>
-                  {promo.title}
-                </h3>
-                <p style={{
-                  color: 'rgba(255,255,255,0.9)',
-                  fontSize: '0.8rem',
-                  margin: 0,
-                  position: 'relative',
-                  zIndex: 1,
-                }}>
-                  {promo.subtitle}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <PromoBannerCarousel banners={promoBanners} />
 
         {/* Category tabs - horizontal scroll */}
         <div style={{
