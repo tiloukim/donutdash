@@ -318,7 +318,7 @@ export default function HomePage() {
       title: 'New Kolaches!',
       subtitle: 'Try our fresh breakfast kolaches',
       bg: `linear-gradient(135deg, ${ORANGE}, #FFA500)`,
-      emoji: '🥐',
+      emoji: '🔥',
     },
     {
       title: 'Order Online',
