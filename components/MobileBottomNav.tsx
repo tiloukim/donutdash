@@ -56,38 +56,34 @@ export default function MobileBottomNav() {
                 <div style={{ fontWeight: 600, fontSize: '0.95rem', color: '#1A1A2E' }}>{user.name}</div>
                 <div style={{ fontSize: '0.8rem', color: '#888' }}>{user.email}</div>
               </div>
-              <a
-                href="/orders"
-                onClick={() => setShowAccountMenu(false)}
-                style={{ display: 'block', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', cursor: 'pointer' }}
-              >
-                My Orders
-              </a>
-              <a
-                href="/profile"
-                onClick={() => setShowAccountMenu(false)}
-                style={{ display: 'block', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', cursor: 'pointer', borderTop: '1px solid #f0f0f0' }}
-              >
-                My Profile
-              </a>
-              <a
-                href="/support"
-                onClick={() => setShowAccountMenu(false)}
-                style={{ display: 'block', padding: '10px 16px', fontSize: '0.9rem', color: '#1A1A2E', textDecoration: 'none', cursor: 'pointer', borderTop: '1px solid #f0f0f0' }}
-              >
-                Need Help?
-              </a>
-              <button
-                onClick={() => { setShowAccountMenu(false); signOut() }}
+              {[
+                { href: '/orders', label: 'My Orders' },
+                { href: '/profile', label: 'My Profile' },
+                { href: '/support', label: 'Need Help?' },
+              ].map((item, i) => (
+                <div
+                  key={item.href}
+                  onClick={(e) => { e.stopPropagation(); setShowAccountMenu(false); window.location.href = item.href }}
+                  style={{
+                    padding: '12px 16px', fontSize: '0.9rem', color: '#1A1A2E',
+                    cursor: 'pointer', borderTop: i > 0 ? '1px solid #f0f0f0' : 'none',
+                    WebkitTapHighlightColor: 'rgba(0,0,0,0.05)',
+                  }}
+                >
+                  {item.label}
+                </div>
+              ))}
+              <div
+                onClick={(e) => { e.stopPropagation(); setShowAccountMenu(false); signOut() }}
                 style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  padding: '10px 16px', fontSize: '0.9rem',
-                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '12px 16px', fontSize: '0.9rem',
+                  cursor: 'pointer', borderTop: '1px solid #f0f0f0',
                   color: PINK, fontWeight: 600,
+                  WebkitTapHighlightColor: 'rgba(0,0,0,0.05)',
                 }}
               >
                 Sign Out
-              </button>
+              </div>
             </>
           ) : (
             <Link
