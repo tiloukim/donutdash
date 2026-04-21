@@ -23,6 +23,7 @@ export default function FlyerGenerator() {
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
   const [generating, setGenerating] = useState(false)
   const [filter, setFilter] = useState<'all' | 'unclaimed' | 'claimed'>('unclaimed')
+  const [search, setSearch] = useState('')
   const flyerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -34,8 +35,12 @@ export default function FlyerGenerator() {
   }, [])
 
   const filteredShops = shops.filter(s => {
-    if (filter === 'unclaimed') return s.is_claimed === false
-    if (filter === 'claimed') return s.is_claimed !== false
+    if (filter === 'unclaimed' && s.is_claimed !== false) return false
+    if (filter === 'claimed' && s.is_claimed === false) return false
+    if (search) {
+      const q = search.toLowerCase()
+      return s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q) || s.address.toLowerCase().includes(q)
+    }
     return true
   })
 
@@ -96,6 +101,20 @@ export default function FlyerGenerator() {
           ))}
         </div>
       </div>
+
+      <input
+        type="text"
+        placeholder="Search shops by name, city, or address..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{
+          width: '100%', padding: '10px 14px', borderRadius: 10,
+          border: '1.5px solid #ddd', fontSize: 14, outline: 'none',
+          marginBottom: 16, boxSizing: 'border-box',
+        }}
+        onFocus={e => e.currentTarget.style.borderColor = '#6366F1'}
+        onBlur={e => e.currentTarget.style.borderColor = '#ddd'}
+      />
 
       {filteredShops.length > 1 && (
         <button onClick={generateAll} disabled={generating} style={{

@@ -22,6 +22,7 @@ export default function AdminShops() {
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     fetch('/api/admin/shops')
@@ -63,8 +64,27 @@ export default function AdminShops() {
 
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading shops...</div>
 
+  const filteredShops = shops.filter(s => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q) || (s.owner?.name || '').toLowerCase().includes(q)
+  })
+
   return (
     <div>
+      <input
+        type="text"
+        placeholder="Search shops by name, city, or owner..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{
+          width: '100%', padding: '10px 14px', borderRadius: 10,
+          border: '1.5px solid #ddd', fontSize: 14, outline: 'none',
+          marginBottom: 16, boxSizing: 'border-box',
+        }}
+        onFocus={e => e.currentTarget.style.borderColor = '#6366F1'}
+        onBlur={e => e.currentTarget.style.borderColor = '#ddd'}
+      />
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -76,7 +96,7 @@ export default function AdminShops() {
               </tr>
             </thead>
             <tbody>
-              {shops.map(shop => (
+              {filteredShops.map(shop => (
                 <tr key={shop.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
                   <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>{shop.name}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{shop.owner?.name || '-'}</td>
