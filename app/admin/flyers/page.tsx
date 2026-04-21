@@ -174,69 +174,66 @@ function FlyerTemplate({ shop }: { shop: Shop }) {
     <div style={{
       width: '8.5in', height: '11in', background: '#fff',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      display: 'flex', flexDirection: 'column', padding: '0.75in',
+      display: 'flex', flexDirection: 'column', padding: '0.5in 0.6in',
       boxSizing: 'border-box',
     }}>
       {/* Header with logo */}
-      <div style={{ textAlign: 'center', marginBottom: '0.4in' }}>
-        <img src="/logo.png" alt="DonutDash" style={{ height: '80px', width: 'auto' }} />
+      <div style={{ textAlign: 'center', marginBottom: '0.2in' }}>
+        <img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} />
       </div>
 
       {/* Main headline */}
       <div style={{
         background: 'linear-gradient(135deg, #FF1493, #FF69B4)',
-        borderRadius: '16px', padding: '24px 32px', textAlign: 'center',
-        marginBottom: '0.3in', color: '#fff',
+        borderRadius: '12px', padding: '16px 24px', textAlign: 'center',
+        marginBottom: '0.2in', color: '#fff',
       }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 8px 0', lineHeight: 1.2 }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 4px 0', lineHeight: 1.2 }}>
           Your Shop Is Already on DonutDash!
         </h1>
-        <p style={{ fontSize: '16px', margin: 0, opacity: 0.9 }}>
+        <p style={{ fontSize: '14px', margin: 0, opacity: 0.9 }}>
           Claim your listing and start receiving online orders today
         </p>
       </div>
 
       {/* Shop card */}
       <div style={{
-        border: '2px solid #FF1493', borderRadius: '16px', padding: '20px',
-        marginBottom: '0.3in', display: 'flex', gap: '16px', alignItems: 'center',
+        border: '2px solid #FF1493', borderRadius: '12px', padding: '14px',
+        marginBottom: '0.2in', display: 'flex', gap: '14px', alignItems: 'center',
       }}>
         {shop.image_url ? (
-          <img src={shop.image_url} alt={shop.name} width={100} height={100} style={{ borderRadius: 12, objectFit: 'cover' }} />
+          <img src={shop.image_url} alt={shop.name} width={80} height={80} style={{ borderRadius: 10, objectFit: 'cover' }} />
         ) : (
-          <div style={{ width: 100, height: 100, borderRadius: 12, background: '#FFE4F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48 }}>🍩</div>
+          <div style={{ width: 80, height: 80, borderRadius: 10, background: '#FFE4F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>🍩</div>
         )}
         <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A2E', margin: '0 0 4px 0' }}>{shop.name}</h2>
-          <p style={{ fontSize: '14px', color: '#666', margin: '0 0 4px 0' }}>{shop.address}, {shop.city}, {shop.state} {shop.zip}</p>
-          <p style={{ fontSize: '14px', color: '#F59E0B', margin: 0, fontWeight: 600 }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1A1A2E', margin: '0 0 3px 0' }}>{shop.name}</h2>
+          <p style={{ fontSize: '13px', color: '#666', margin: '0 0 3px 0' }}>{shop.address}, {shop.city}, {shop.state} {shop.zip}</p>
+          <p style={{ fontSize: '13px', color: '#F59E0B', margin: 0, fontWeight: 600 }}>
             ★ {shop.rating.toFixed(1)} ({shop.review_count} Google reviews)
           </p>
         </div>
       </div>
 
       {/* Benefits */}
-      <div style={{ marginBottom: '0.3in' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A2E', margin: '0 0 12px 0' }}>
+      <div style={{ marginBottom: '0.15in' }}>
+        <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A2E', margin: '0 0 8px 0' }}>
           Why Join DonutDash?
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px 10px' }}>
           {[
             { icon: '📱', title: 'Online Ordering', desc: 'Customers order from their phone' },
             { icon: '🚗', title: 'Delivery Network', desc: 'We handle the drivers' },
-            { icon: '📊', title: 'Dashboard', desc: 'Manage orders, menu & analytics' },
+            { icon: '📊', title: 'Dashboard', desc: 'Manage orders & analytics' },
             { icon: '💰', title: 'Weekly Payouts', desc: 'Direct deposits to your bank' },
             { icon: '⭐', title: 'Reviews & Ratings', desc: 'Build your online reputation' },
             { icon: '📈', title: 'More Customers', desc: 'Reach new customers online' },
-            { icon: '📒', title: 'Bookkeeping', desc: 'Track income, expenses & tax estimates' },
-            { icon: '📦', title: 'Order Supplies', desc: 'Order from top bakery suppliers' },
-            { icon: '💬', title: 'Owner Community', desc: 'Connect with other shop owners' },
           ].map((b, i) => (
-            <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '20px' }}>{b.icon}</span>
+            <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '16px' }}>{b.icon}</span>
               <div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A2E' }}>{b.title}</div>
-                <div style={{ fontSize: '12px', color: '#888' }}>{b.desc}</div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A2E' }}>{b.title}</div>
+                <div style={{ fontSize: '10px', color: '#888' }}>{b.desc}</div>
               </div>
             </div>
           ))}
@@ -245,25 +242,25 @@ function FlyerTemplate({ shop }: { shop: Shop }) {
 
       {/* How to claim */}
       <div style={{
-        background: '#FFF0F5', borderRadius: '16px', padding: '20px',
-        marginBottom: '0.3in',
+        background: '#FFF0F5', borderRadius: '12px', padding: '14px',
+        marginBottom: '0.15in',
       }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FF1493', margin: '0 0 12px 0' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#FF1493', margin: '0 0 8px 0' }}>
           How to Claim Your Shop (3 Easy Steps)
         </h3>
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '12px' }}>
           {[
-            { step: '1', text: 'Visit your shop page and tap "Claim this shop"' },
-            { step: '2', text: 'Create an account and upload your business documents' },
+            { step: '1', text: 'Scan the QR code or visit the link below' },
+            { step: '2', text: 'Create an account and upload business docs' },
             { step: '3', text: 'Set up your menu and start receiving orders!' },
           ].map((s, i) => (
             <div key={i} style={{ flex: 1, textAlign: 'center' }}>
               <div style={{
-                width: 36, height: 36, borderRadius: '50%', background: '#FF1493',
-                color: '#fff', fontSize: '18px', fontWeight: 800, display: 'flex',
-                alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px',
+                width: 30, height: 30, borderRadius: '50%', background: '#FF1493',
+                color: '#fff', fontSize: '15px', fontWeight: 800, display: 'flex',
+                alignItems: 'center', justifyContent: 'center', margin: '0 auto 4px',
               }}>{s.step}</div>
-              <div style={{ fontSize: '12px', color: '#444', lineHeight: 1.4 }}>{s.text}</div>
+              <div style={{ fontSize: '11px', color: '#444', lineHeight: 1.3 }}>{s.text}</div>
             </div>
           ))}
         </div>
@@ -271,42 +268,42 @@ function FlyerTemplate({ shop }: { shop: Shop }) {
 
       {/* CTA with QR Code */}
       <div style={{
-        background: '#1A1A2E', borderRadius: '16px', padding: '24px',
-        marginBottom: '0.2in', display: 'flex', alignItems: 'center', gap: '24px',
+        background: '#1A1A2E', borderRadius: '12px', padding: '18px 20px',
+        display: 'flex', alignItems: 'center', gap: '20px',
       }}>
         <div style={{ flex: 1 }}>
-          <p style={{ color: '#fff', fontSize: '16px', fontWeight: 700, margin: '0 0 8px 0' }}>
+          <p style={{ color: '#fff', fontSize: '15px', fontWeight: 700, margin: '0 0 6px 0' }}>
             Scan to claim your shop:
           </p>
-          <p style={{ color: '#FF1493', fontSize: '15px', fontWeight: 800, margin: '0 0 12px 0', wordBreak: 'break-all' }}>
+          <p style={{ color: '#FF1493', fontSize: '13px', fontWeight: 800, margin: '0 0 10px 0', wordBreak: 'break-all' }}>
             {shop.is_claimed === false ? claimUrl : shopUrl}
           </p>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: 0 }}>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', margin: 0 }}>
             Or call us: <span style={{ color: '#FF8C00', fontWeight: 700 }}>(430) 999-0168</span>
           </p>
         </div>
         <div style={{
-          flexShrink: 0, background: '#fff', borderRadius: 12, padding: 8,
+          flexShrink: 0, background: '#fff', borderRadius: 10, padding: 6,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`https://donutdash.app/api/qr/shop?slug=${shop.slug}&type=${shop.is_claimed === false ? 'claim' : 'order'}&size=200&color=%23FF1493`}
             alt="QR Code"
-            width={140}
-            height={140}
+            width={120}
+            height={120}
             style={{ display: 'block' }}
           />
-          <div style={{ fontSize: '9px', color: '#888', marginTop: 4, fontWeight: 600 }}>SCAN ME</div>
+          <div style={{ fontSize: '8px', color: '#888', marginTop: 3, fontWeight: 600 }}>SCAN ME</div>
         </div>
       </div>
 
       {/* Footer */}
-      <div style={{ textAlign: 'center', marginTop: 'auto' }}>
-        <p style={{ fontSize: '13px', color: '#888', margin: '0 0 4px 0' }}>
-          Questions? Contact us at <span style={{ color: '#FF1493', fontWeight: 600 }}>shops@donutdash.app</span>
+      <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: '0.1in' }}>
+        <p style={{ fontSize: '12px', color: '#888', margin: '0 0 3px 0' }}>
+          Questions? Contact us at <span style={{ color: '#FF1493', fontWeight: 600 }}>shops@donutdash.app</span> | <span style={{ color: '#FF8C00', fontWeight: 600 }}>(430) 999-0168</span>
         </p>
-        <p style={{ fontSize: '11px', color: '#bbb', margin: 0 }}>
+        <p style={{ fontSize: '10px', color: '#bbb', margin: 0 }}>
           DonutDash™ — Donut Delivery in Tyler, TX &amp; East Texas | www.donutdash.app
         </p>
       </div>
