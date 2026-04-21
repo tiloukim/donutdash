@@ -1,8 +1,29 @@
 /**
- * Send SMS via Twilio (with Telnyx fallback)
+ * Send SMS via Telnyx (with Twilio fallback)
  */
 export async function sendSMS(to: string, body: string) {
-  // Try Twilio first
+  // Try Telnyx first (primary — 10DLC registered, cheaper)
+  const telnyxKey = process.env.TELNYX_API_KEY
+  const telnyxFrom = process.env.TELNYX_PHONE_NUMBER
+  if (telnyxKey && telnyxFrom) {
+    try {
+      const res = await fetch('https://api.telnyx.com/v2/messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${telnyxKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ from: telnyxFrom, to, text: body }),
+      })
+      if (res.ok) return true
+      const err = await res.json().catch(() => ({}))
+      console.error('Telnyx SMS error:', err.message || res.status)
+    } catch (err) {
+      console.error('Telnyx SMS error:', err)
+    }
+  }
+
+  // Fallback to Twilio
   const accountSid = process.env.TWILIO_ACCOUNT_SID
   const authToken = process.env.TWILIO_AUTH_TOKEN
   const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID
@@ -28,25 +49,6 @@ export async function sendSMS(to: string, body: string) {
       console.error('Twilio SMS error:', err.message || res.status)
     } catch (err) {
       console.error('Twilio SMS error:', err)
-    }
-  }
-
-  // Fallback to Telnyx
-  const telnyxKey = process.env.TELNYX_API_KEY
-  const telnyxFrom = process.env.TELNYX_PHONE_NUMBER
-  if (telnyxKey && telnyxFrom) {
-    try {
-      const res = await fetch('https://api.telnyx.com/v2/messages', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${telnyxKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ from: telnyxFrom, to, text: body }),
-      })
-      return res.ok
-    } catch (err) {
-      console.error('Telnyx SMS error:', err)
     }
   }
 
