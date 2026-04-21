@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   if (!digits || digits.length < 4) {
     return texml(`
-      <Say voice="Polly.Joanna-Neural" language="en-US">
+      <Say voice="Telnyx.Ultra.3e1ed423-17e5-4773-b87c-25b031106e41" language="en-US">
         Sorry, we couldn't find that order. Please make sure you entered the correct order number.
       </Say>
       <Redirect method="POST">https://donutdash.app/api/telnyx/voice</Redirect>
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     if (!orders || orders.length === 0) {
       return texml(`
-        <Say voice="Polly.Joanna-Neural" language="en-US">
+        <Say voice="Telnyx.Ultra.3e1ed423-17e5-4773-b87c-25b031106e41" language="en-US">
           Sorry, we couldn't find an order matching that number.
           Please double-check your order number and try again, or visit donut dash dot app to check your order online.
         </Say>
@@ -61,18 +61,18 @@ export async function POST(req: NextRequest) {
     const shortId = order.id.slice(0, 8).toUpperCase()
 
     return texml(`
-      <Say voice="Polly.Joanna-Neural" language="en-US">
+      <Say voice="Telnyx.Ultra.3e1ed423-17e5-4773-b87c-25b031106e41" language="en-US">
         We found your order. Order number ${shortId.split('').join(' ')}, from ${shopName}, totaling $${total}.
         ${statusMsg}
         To return to the main menu, press 9. To check another order, press 1.
       </Say>
       <Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="1" timeout="5"/>
-      <Say voice="Polly.Joanna-Neural" language="en-US">Thank you for calling DonutDash. Goodbye!</Say>
+      <Say voice="Telnyx.Ultra.3e1ed423-17e5-4773-b87c-25b031106e41" language="en-US">Thank you for calling DonutDash. Goodbye!</Say>
       <Hangup/>
     `)
   } catch {
     return texml(`
-      <Say voice="Polly.Joanna-Neural" language="en-US">
+      <Say voice="Telnyx.Ultra.3e1ed423-17e5-4773-b87c-25b031106e41" language="en-US">
         Sorry, we're having trouble looking up your order right now. Please try again later or check online at donut dash dot app.
       </Say>
       <Redirect method="POST">https://donutdash.app/api/telnyx/voice</Redirect>
