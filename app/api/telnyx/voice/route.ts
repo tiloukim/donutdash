@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const FORWARD_NUMBER = process.env.IVR_FORWARD_NUMBER || '+19033455599'
 const BUSINESS_HOURS_START = 8   // 8 AM CT
-const BUSINESS_HOURS_END = 13   // 1 PM CT
+const BUSINESS_HOURS_END = 16   // 4 PM CT
 
 function isBusinessHours(): boolean {
   const now = new Date()
@@ -121,7 +121,7 @@ function handleMenuSelection(digit: string) {
       if (!isBusinessHours()) {
         return texml(`
           <Say voice="alice" language="en-US">
-            Our office is currently closed. Our business hours are 8 AM to 1 PM Central Time, 7 days a week.
+            Our office is currently closed. Our support hours are 8 AM to 4 PM Central Time, 7 days a week.
             Please call back during business hours, or email us at support at donut dash dot app.
             Thank you for calling DonutDash. Goodbye!
           </Say>
