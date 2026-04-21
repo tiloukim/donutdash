@@ -475,6 +475,13 @@ export default function DriverSettings() {
           Settings saved successfully!
         </div>
       )}
+
+      {/* Delete Account */}
+      <div style={{ marginTop: 30, padding: '20px 0', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>
+        <a href="/account/delete" style={{ fontSize: 13, color: '#DC2626', textDecoration: 'none' }}>
+          Delete My Account
+        </a>
+      </div>
     </div>
   )
 }

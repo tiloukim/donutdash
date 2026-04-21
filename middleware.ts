@@ -18,10 +18,10 @@ const ALWAYS_ALLOWED = ['/auth', '/api', '/privacy', '/terms', '/sms-consent', '
 
 // Pages each role is allowed to access (prefix match)
 const ROLE_ALLOWED: Record<string, string[]> = {
-  driver: ['/driver', ...ALWAYS_ALLOWED],
-  shop_owner: ['/shop', ...ALWAYS_ALLOWED],
-  admin: ['/admin', '/shop', '/driver', ...ALWAYS_ALLOWED],
-  manager: ['/admin', ...ALWAYS_ALLOWED],
+  driver: ['/driver', '/account', '/support', ...ALWAYS_ALLOWED],
+  shop_owner: ['/shop', '/account', '/support', ...ALWAYS_ALLOWED],
+  admin: ['/admin', '/shop', '/driver', '/account', ...ALWAYS_ALLOWED],
+  manager: ['/admin', '/account', ...ALWAYS_ALLOWED],
   customer: ['/', '/shops', '/cart', '/orders', '/checkout', '/gift-cards', '/rewards', '/about', '/signup', '/login', '/catering', '/group-order', '/card', '/pass', '/best-donuts', '/donut-delivery', '/profile', '/account', '/support', '/promo', '/forgot-password', '/reset-password', ...ALWAYS_ALLOWED],
 }
 
