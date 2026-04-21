@@ -161,7 +161,7 @@ export default function AdminAnalytics() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600 }}>
-                      {c.city}{c.region ? `, ${c.region}` : ''}
+                      {c.city}{c.region && c.region.length === 2 && /^[A-Z]+$/.test(c.region) ? `, ${c.region}` : c.country ? ` (${c.country})` : ''}
                     </div>
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#6366F1' }}>{c.count}</div>
