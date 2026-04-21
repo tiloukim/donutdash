@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   return texml(`
-    <Say voice="alice" language="en-US">
+    <Say voice="Polly.Joanna" language="en-US">
       Thank you for your message. We'll get back to you as soon as possible. Goodbye!
     </Say>
     <Hangup/>
