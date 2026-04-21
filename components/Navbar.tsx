@@ -153,19 +153,6 @@ export default function Navbar() {
                       >
                         Need Help?
                       </Link>
-                      <Link
-                        href="/account/delete"
-                        onClick={() => setUserMenuOpen(false)}
-                        style={{
-                          display: 'block', padding: '0.6rem 1rem', fontSize: '0.85rem',
-                          color: '#DC2626', textDecoration: 'none',
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        Delete Account
-                      </Link>
                       <button
                         onClick={() => { setUserMenuOpen(false); signOut() }}
                         style={{

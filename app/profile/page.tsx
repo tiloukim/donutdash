@@ -303,6 +303,15 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Delete Account */}
+        <div style={{ marginTop: 40, padding: '20px 0', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>
+          <Link href="/account/delete" style={{
+            fontSize: 13, color: '#DC2626', textDecoration: 'none',
+          }}>
+            Delete My Account
+          </Link>
+        </div>
       </div>
     </div>
   )
