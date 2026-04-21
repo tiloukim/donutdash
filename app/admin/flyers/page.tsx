@@ -132,13 +132,26 @@ export default function FlyerGenerator() {
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#FF1493', background: '#FFF0F5', padding: '2px 6px', borderRadius: 4 }}>Unclaimed</span>
               )}
             </div>
-            <button onClick={() => generatePDF(shop)} disabled={generating} style={{
-              marginTop: 'auto', padding: '8px 16px', borderRadius: 8, border: 'none',
-              background: generating && selectedShop?.id === shop.id ? '#ccc' : '#FF1493',
-              color: '#fff', fontWeight: 600, fontSize: 13, cursor: generating ? 'wait' : 'pointer',
-            }}>
-              {generating && selectedShop?.id === shop.id ? 'Generating...' : '📄 Download Flyer'}
-            </button>
+            <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
+              <button onClick={() => generatePDF(shop)} disabled={generating} style={{
+                flex: 1, padding: '8px 16px', borderRadius: 8, border: 'none',
+                background: generating && selectedShop?.id === shop.id ? '#ccc' : '#FF1493',
+                color: '#fff', fontWeight: 600, fontSize: 13, cursor: generating ? 'wait' : 'pointer',
+              }}>
+                {generating && selectedShop?.id === shop.id ? 'Generating...' : '📄 Flyer'}
+              </button>
+              <a
+                href={`/api/qr/shop?slug=${shop.slug}&type=${shop.is_claimed === false ? 'claim' : 'order'}&size=400&color=%23FF1493`}
+                download={`QR-${shop.slug}.png`}
+                style={{
+                  padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd',
+                  background: '#fff', color: '#333', fontWeight: 600, fontSize: 13,
+                  cursor: 'pointer', textDecoration: 'none', textAlign: 'center',
+                }}
+              >
+                QR
+              </a>
+            </div>
           </div>
         ))}
       </div>
@@ -256,17 +269,36 @@ function FlyerTemplate({ shop }: { shop: Shop }) {
         </div>
       </div>
 
-      {/* CTA */}
+      {/* CTA with QR Code */}
       <div style={{
         background: '#1A1A2E', borderRadius: '16px', padding: '24px',
-        textAlign: 'center', marginBottom: '0.2in',
+        marginBottom: '0.2in', display: 'flex', alignItems: 'center', gap: '24px',
       }}>
-        <p style={{ color: '#fff', fontSize: '16px', fontWeight: 700, margin: '0 0 8px 0' }}>
-          Claim your shop now at:
-        </p>
-        <p style={{ color: '#FF1493', fontSize: '20px', fontWeight: 800, margin: 0 }}>
-          {shop.is_claimed === false ? claimUrl : shopUrl}
-        </p>
+        <div style={{ flex: 1 }}>
+          <p style={{ color: '#fff', fontSize: '16px', fontWeight: 700, margin: '0 0 8px 0' }}>
+            Scan to claim your shop:
+          </p>
+          <p style={{ color: '#FF1493', fontSize: '15px', fontWeight: 800, margin: '0 0 12px 0', wordBreak: 'break-all' }}>
+            {shop.is_claimed === false ? claimUrl : shopUrl}
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: 0 }}>
+            Or call us: <span style={{ color: '#FF8C00', fontWeight: 700 }}>(430) 999-0168</span>
+          </p>
+        </div>
+        <div style={{
+          flexShrink: 0, background: '#fff', borderRadius: 12, padding: 8,
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+        }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`https://donutdash.app/api/qr/shop?slug=${shop.slug}&type=${shop.is_claimed === false ? 'claim' : 'order'}&size=200&color=%23FF1493`}
+            alt="QR Code"
+            width={140}
+            height={140}
+            style={{ display: 'block' }}
+          />
+          <div style={{ fontSize: '9px', color: '#888', marginTop: 4, fontWeight: 600 }}>SCAN ME</div>
+        </div>
       </div>
 
       {/* Footer */}
