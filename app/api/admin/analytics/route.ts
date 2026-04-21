@@ -83,10 +83,16 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 20)
 
-  // Views by page (top 15)
+  // Views by page (top 15) — clean up UUID paths
   const pageMap: Record<string, number> = {}
   pageviews.forEach(v => {
-    const p = v.path.split('?')[0] // strip query params
+    let p = v.path.split('?')[0] // strip query params
+    // Skip raw UUID paths (e.g. /fbab6490-...)
+    if (/^\/[0-9a-f]{8}-[0-9a-f]{4}-/.test(p)) p = '/orders/[id]'
+    // Group order detail pages
+    if (/^\/orders\/[0-9a-f]{8}-/.test(p)) p = '/orders/[id]'
+    // Group shop detail pages into shop name
+    if (/^\/shops\/claim\//.test(p)) p = '/shops/claim/[shop]'
     pageMap[p] = (pageMap[p] || 0) + 1
   })
   const topPages = Object.entries(pageMap)
