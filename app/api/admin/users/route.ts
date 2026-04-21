@@ -37,6 +37,10 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { id, role, is_active, name, email, phone, new_password } = body
 
+    // Fetch the user first
+    const { data: targetUser } = await svc.from('dd_users').select('*').eq('id', id).single()
+    if (!targetUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
     const updateData: Record<string, unknown> = {}
     if (role !== undefined) updateData.role = role
     if (is_active !== undefined) updateData.is_active = is_active
@@ -44,15 +48,19 @@ export async function PATCH(request: NextRequest) {
     if (email !== undefined) updateData.email = email
     if (phone !== undefined) updateData.phone = phone
 
-    const { data: updatedRows, error } = await svc
-      .from('dd_users')
-      .update(updateData)
-      .eq('id', id)
-      .select()
+    let updatedUser = targetUser
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    if (!updatedRows || updatedRows.length === 0) return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    const updatedUser = updatedRows[0]
+    // Only update dd_users if there are fields to update
+    if (Object.keys(updateData).length > 0) {
+      const { data: updatedRows, error } = await svc
+        .from('dd_users')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (updatedRows && updatedRows.length > 0) updatedUser = updatedRows[0]
+    }
 
     // Update Supabase Auth email if changed
     if (email && updatedUser.auth_id) {
