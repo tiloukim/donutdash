@@ -63,19 +63,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const sidebar = (
     <>
-      <div style={{ padding: '24px 20px 16px' }}>
+      <div style={{ padding: '16px 20px 10px' }}>
         <img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} />
         <span style={{ background: role === 'manager' ? '#FF8C00' : '#6366F1', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block', letterSpacing: 1 }}>{role === 'manager' ? 'MANAGER' : 'ADMIN'}</span>
       </div>
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>
+      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1, padding: '0 8px', overflowY: 'auto' }}>
         {NAV_ITEMS.map(item => (
           <Link
             key={item.href}
             href={item.href}
             onClick={() => setMobileOpen(false)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8,
-              textDecoration: 'none', fontSize: 14, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8,
+              textDecoration: 'none', fontSize: 13, fontWeight: 600,
               color: isActive(item.href) ? '#6366F1' : 'rgba(255,255,255,0.8)',
               background: isActive(item.href) ? '#fff' : 'transparent',
               transition: 'all 0.15s',
