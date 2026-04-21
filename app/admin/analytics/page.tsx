@@ -292,12 +292,154 @@ export default function AdminAnalytics() {
         </div>
       </div>
 
+      {/* Visitor Log */}
+      <VisitorLog />
+
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
         }
       `}</style>
+    </div>
+  )
+}
+
+interface Visitor {
+  id: string
+  path: string
+  referrer: string | null
+  ip_hash: string
+  country: string | null
+  region: string | null
+  city: string | null
+  device_type: string | null
+  session_id: string | null
+  user_agent: string | null
+  created_at: string
+}
+
+function VisitorLog() {
+  const [visitors, setVisitors] = useState<Visitor[]>([])
+  const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [search, setSearch] = useState('')
+  const [expanded, setExpanded] = useState(false)
+
+  const fetchVisitors = useCallback(async () => {
+    setLoading(true)
+    const params = new URLSearchParams({ page: String(page) })
+    if (search) params.set('search', search)
+    const res = await fetch(`/api/admin/analytics/visitors?${params}`)
+    if (res.ok) {
+      const d = await res.json()
+      setVisitors(d.visitors || [])
+      setTotalPages(d.totalPages || 1)
+      setTotal(d.total || 0)
+    }
+    setLoading(false)
+  }, [page, search])
+
+  useEffect(() => {
+    if (expanded) fetchVisitors()
+  }, [expanded, fetchVisitors])
+
+  const cardStyle: React.CSSProperties = {
+    background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+    padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginTop: 20,
+  }
+
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: expanded ? 14 : 0 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+          👤 Visitor Log {total > 0 && <span style={{ fontSize: 13, color: '#888', fontWeight: 400 }}>({total.toLocaleString()} records)</span>}
+        </h3>
+        <button onClick={() => setExpanded(!expanded)} style={{
+          background: 'none', border: '1px solid #E5E7EB', borderRadius: 6,
+          padding: '4px 14px', fontSize: 12, color: '#6B7280', cursor: 'pointer',
+        }}>
+          {expanded ? 'Hide' : 'Show'}
+        </button>
+      </div>
+
+      {expanded && (
+        <>
+          <input
+            type="text"
+            placeholder="Search by IP, city, path, or session ID..."
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            style={{
+              width: '100%', padding: '8px 12px', borderRadius: 8,
+              border: '1.5px solid #ddd', fontSize: 13, outline: 'none',
+              marginBottom: 12, boxSizing: 'border-box',
+            }}
+            onFocus={e => e.currentTarget.style.borderColor = '#6366F1'}
+            onBlur={e => e.currentTarget.style.borderColor = '#ddd'}
+            onKeyDown={e => { if (e.key === 'Enter') fetchVisitors() }}
+          />
+
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>Loading...</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
+                    {['Time', 'IP Address', 'Location', 'Page', 'Device', 'Session'].map(h => (
+                      <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', fontSize: 10, letterSpacing: 0.5 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visitors.map(v => (
+                    <tr key={v.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#555' }}>
+                        {new Date(v.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: '#333' }}>
+                        {v.ip_hash}
+                      </td>
+                      <td style={{ padding: '8px 10px', color: '#555' }}>
+                        {v.city || '—'}{v.region && v.region.length === 2 && /^[A-Z]+$/.test(v.region) ? `, ${v.region}` : v.country ? ` (${v.country})` : ''}
+                      </td>
+                      <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: '#6366F1', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {v.path}
+                      </td>
+                      <td style={{ padding: '8px 10px', color: '#888' }}>
+                        {v.device_type === 'mobile' ? '📱' : v.device_type === 'tablet' ? '📟' : '💻'}
+                      </td>
+                      <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 10, color: '#aaa' }}>
+                        {v.session_id?.slice(0, 8) || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 14 }}>
+              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+                style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: page <= 1 ? 'default' : 'pointer', color: page <= 1 ? '#ccc' : '#333', fontSize: 13 }}>
+                Previous
+              </button>
+              <span style={{ padding: '6px 14px', fontSize: 13, color: '#666' }}>
+                Page {page} of {totalPages}
+              </span>
+              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
+                style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: page >= totalPages ? 'default' : 'pointer', color: page >= totalPages ? '#ccc' : '#333', fontSize: 13 }}>
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

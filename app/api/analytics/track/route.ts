@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       path,
       referrer: referrer || null,
       user_agent: ua.slice(0, 500),
-      ip_hash: hashIP(ip),
+      ip_hash: ip !== 'unknown' ? ip : hashIP(ip),
       country,
       region,
       city: city ? decodeURIComponent(city) : null,
