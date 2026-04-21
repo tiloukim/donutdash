@@ -6,6 +6,7 @@ interface AnalyticsData {
   totalViews: number
   uniqueSessions: number
   liveVisitors: number
+  liveByRole: { customers: number; drivers: number; shopOwners: number }
   topCities: { city: string; count: number; lat: number | null; lng: number | null; region: string | null; country: string | null }[]
   topPages: { page: string; count: number }[]
   devices: { desktop: number; mobile: number; tablet: number }
@@ -85,16 +86,44 @@ export default function AdminAnalytics() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
+      {/* Live Online by Role */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 20 }}>
         <div style={{ ...cardStyle, borderLeft: '4px solid #10B981' }}>
           <div style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>LIVE NOW</div>
           <div style={{ fontSize: 32, fontWeight: 800, color: '#10B981' }}>
             {data.liveVisitors}
             <span style={{ fontSize: 11, fontWeight: 400, marginLeft: 4, color: '#10B981', animation: 'pulse 2s infinite' }}>●</span>
           </div>
-          <div style={{ fontSize: 11, color: '#aaa' }}>visitors right now</div>
+          <div style={{ fontSize: 11, color: '#aaa' }}>total online</div>
         </div>
+        <div style={{ ...cardStyle, borderLeft: '4px solid #FF8C00' }}>
+          <div style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>🛒 CUSTOMERS</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: '#FF8C00' }}>
+            {data.liveByRole.customers}
+            {data.liveByRole.customers > 0 && <span style={{ fontSize: 11, fontWeight: 400, marginLeft: 4, color: '#FF8C00', animation: 'pulse 2s infinite' }}>●</span>}
+          </div>
+          <div style={{ fontSize: 11, color: '#aaa' }}>browsing / ordering</div>
+        </div>
+        <div style={{ ...cardStyle, borderLeft: '4px solid #3B82F6' }}>
+          <div style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>🚗 DRIVERS</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: '#3B82F6' }}>
+            {data.liveByRole.drivers}
+            {data.liveByRole.drivers > 0 && <span style={{ fontSize: 11, fontWeight: 400, marginLeft: 4, color: '#3B82F6', animation: 'pulse 2s infinite' }}>●</span>}
+          </div>
+          <div style={{ fontSize: 11, color: '#aaa' }}>driver portal</div>
+        </div>
+        <div style={{ ...cardStyle, borderLeft: '4px solid #8B5CF6' }}>
+          <div style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>🏪 SHOP OWNERS</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: '#8B5CF6' }}>
+            {data.liveByRole.shopOwners}
+            {data.liveByRole.shopOwners > 0 && <span style={{ fontSize: 11, fontWeight: 400, marginLeft: 4, color: '#8B5CF6', animation: 'pulse 2s infinite' }}>●</span>}
+          </div>
+          <div style={{ fontSize: 11, color: '#aaa' }}>shop dashboard</div>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
         <div style={{ ...cardStyle, borderLeft: '4px solid #6366F1' }}>
           <div style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>PAGE VIEWS</div>
           <div style={{ fontSize: 32, fontWeight: 800, color: '#1A1A2E' }}>{data.totalViews.toLocaleString()}</div>

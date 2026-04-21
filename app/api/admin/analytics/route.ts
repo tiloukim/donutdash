@@ -41,11 +41,33 @@ export async function GET(req: NextRequest) {
   const totalViews = pageviews.length
   const uniqueSessions = new Set(pageviews.map(v => v.session_id).filter(Boolean)).size
 
-  // Live visitors (last 5 minutes)
+  // Live visitors (last 5 minutes) — broken down by role
   const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString()
-  const liveVisitors = new Set(
-    pageviews.filter(v => v.created_at >= fiveMinAgo).map(v => v.session_id).filter(Boolean)
-  ).size
+  const recentViews = pageviews.filter(v => v.created_at >= fiveMinAgo)
+
+  const liveDriverSessions = new Set<string>()
+  const liveShopSessions = new Set<string>()
+  const liveCustomerSessions = new Set<string>()
+  const liveAllSessions = new Set<string>()
+
+  recentViews.forEach(v => {
+    if (!v.session_id) return
+    liveAllSessions.add(v.session_id)
+    if (v.path.startsWith('/driver')) {
+      liveDriverSessions.add(v.session_id)
+    } else if (v.path.startsWith('/shop')) {
+      liveShopSessions.add(v.session_id)
+    } else {
+      liveCustomerSessions.add(v.session_id)
+    }
+  })
+
+  const liveVisitors = liveAllSessions.size
+  const liveByRole = {
+    customers: liveCustomerSessions.size,
+    drivers: liveDriverSessions.size,
+    shopOwners: liveShopSessions.size,
+  }
 
   // Views by city (top 20)
   const cityMap: Record<string, { count: number; lat: number | null; lng: number | null; region: string | null; country: string | null }> = {}
@@ -132,6 +154,7 @@ export async function GET(req: NextRequest) {
     totalViews,
     uniqueSessions,
     liveVisitors,
+    liveByRole,
     topCities,
     topPages,
     devices,
