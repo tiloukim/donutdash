@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
+import { useAuth } from '@/lib/auth-context'
 
 function getSessionId(): string {
   if (typeof window === 'undefined') return ''
@@ -16,6 +17,7 @@ function getSessionId(): string {
 export default function PageTracker() {
   const pathname = usePathname()
   const lastPath = useRef('')
+  const { user } = useAuth()
 
   useEffect(() => {
     // Skip admin pages and API routes
@@ -33,9 +35,10 @@ export default function PageTracker() {
         path: pathname,
         referrer: document.referrer || null,
         sessionId,
+        userId: user?.id || null,
       }),
     }).catch(() => {}) // fail silently
-  }, [pathname])
+  }, [pathname, user])
 
   return null
 }

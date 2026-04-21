@@ -317,6 +317,7 @@ interface Visitor {
   session_id: string | null
   user_agent: string | null
   created_at: string
+  user: { name: string; email: string; role: string } | null
 }
 
 function VisitorLog() {
@@ -389,7 +390,7 @@ function VisitorLog() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                    {['Time', 'IP Address', 'Location', 'Page', 'Device', 'Session'].map(h => (
+                    {['Time', 'User', 'IP Address', 'Location', 'Page', 'Device', 'Session'].map(h => (
                       <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', fontSize: 10, letterSpacing: 0.5 }}>{h}</th>
                     ))}
                   </tr>
@@ -399,6 +400,16 @@ function VisitorLog() {
                     <tr key={v.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
                       <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#555' }}>
                         {new Date(v.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td style={{ padding: '8px 10px', fontSize: 12 }}>
+                        {v.user ? (
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#1A1A2E' }}>{v.user.name}</div>
+                            <div style={{ fontSize: 10, color: '#888' }}>{v.user.role}</div>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#ccc' }}>Guest</span>
+                        )}
                       </td>
                       <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: '#333' }}>
                         {v.ip_hash}
