@@ -44,14 +44,15 @@ export async function PATCH(request: NextRequest) {
     if (email !== undefined) updateData.email = email
     if (phone !== undefined) updateData.phone = phone
 
-    const { data: updatedUser, error } = await svc
+    const { data: updatedRows, error } = await svc
       .from('dd_users')
       .update(updateData)
       .eq('id', id)
       .select()
-      .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!updatedRows || updatedRows.length === 0) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    const updatedUser = updatedRows[0]
 
     // Update Supabase Auth email if changed
     if (email && updatedUser.auth_id) {
