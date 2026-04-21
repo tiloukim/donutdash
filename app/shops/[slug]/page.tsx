@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
@@ -20,6 +20,7 @@ const CATEGORIES = [
 
 export default function ShopDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const slug = params.slug as string
   const { items, total, count, shopId } = useCart()
 
@@ -132,6 +133,20 @@ export default function ShopDetailPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar />
+
+      {/* Back button */}
+      <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', padding: '10px 1.5rem 0' }}>
+        <button
+          onClick={() => router.back()}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 14, fontWeight: 600, color: '#FF8C00',
+          }}
+        >
+          <span style={{ fontSize: 20 }}>&#8249;</span> Back
+        </button>
+      </div>
 
       {/* Shop Banner */}
       <div style={{
