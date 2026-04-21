@@ -42,7 +42,7 @@ function mainMenu() {
 
   return texml(`
     <Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="1" timeout="8">
-      <Say voice="Polly.Joanna" language="en-US">
+      <Say voice="Polly.Joanna-Neural" language="en-US">
         Thank you for calling DonutDash, delicious donuts delivered fast!
         ${!open ? 'Our office is currently closed, but you can still check your order status.' : ''}
         Please listen to the following options.
@@ -54,7 +54,7 @@ function mainMenu() {
         Or visit us online at donut dash dot app.
       </Say>
     </Gather>
-    <Say voice="Polly.Joanna" language="en-US">We didn't receive your selection. Goodbye!</Say>
+    <Say voice="Polly.Joanna-Neural" language="en-US">We didn't receive your selection. Goodbye!</Say>
     <Hangup/>
   `)
 }
@@ -65,19 +65,19 @@ function handleMenuSelection(digit: string) {
       // Order status
       return texml(`
         <Gather action="https://donutdash.app/api/telnyx/voice/order-status" method="POST" numDigits="8" timeout="10">
-          <Say voice="Polly.Joanna" language="en-US">
+          <Say voice="Polly.Joanna-Neural" language="en-US">
             To check your order status, please enter the first 8 digits of your order number, followed by the pound key.
             You can find your order number in your confirmation email or text message.
           </Say>
         </Gather>
-        <Say voice="Polly.Joanna" language="en-US">We didn't receive your order number. Returning to the main menu.</Say>
+        <Say voice="Polly.Joanna-Neural" language="en-US">We didn't receive your order number. Returning to the main menu.</Say>
         <Redirect method="POST">https://donutdash.app/api/telnyx/voice</Redirect>
       `)
 
     case '2':
       // Customer support
       return texml(`
-        <Say voice="Polly.Joanna" language="en-US">
+        <Say voice="Polly.Joanna-Neural" language="en-US">
           For customer support, you can email us at support at donut dash dot app,
           or visit donut dash dot app slash support.
           To speak with a representative, press 0.
@@ -90,7 +90,7 @@ function handleMenuSelection(digit: string) {
     case '3':
       // Driver support
       return texml(`
-        <Say voice="Polly.Joanna" language="en-US">
+        <Say voice="Polly.Joanna-Neural" language="en-US">
           For driver support, please visit donut dash dot app slash support slash drivers,
           or email driver support at donut dash dot app.
           If you're interested in becoming a DonutDash driver, visit donut dash dot app slash driver to sign up.
@@ -104,7 +104,7 @@ function handleMenuSelection(digit: string) {
     case '4':
       // Shop partnership
       return texml(`
-        <Say voice="Polly.Joanna" language="en-US">
+        <Say voice="Polly.Joanna-Neural" language="en-US">
           Thank you for your interest in partnering with DonutDash!
           We help local donut shops reach more customers through online ordering and delivery.
           To get started, visit donut dash dot app slash partner dash setup,
@@ -120,7 +120,7 @@ function handleMenuSelection(digit: string) {
       // Forward to representative
       if (!isBusinessHours()) {
         return texml(`
-          <Say voice="Polly.Joanna" language="en-US">
+          <Say voice="Polly.Joanna-Neural" language="en-US">
             Our office is currently closed. Our support hours are 8 AM to 4 PM Central Time, 7 days a week.
             Please call back during business hours, or email us at support at donut dash dot app.
             Thank you for calling DonutDash. Goodbye!
@@ -129,13 +129,13 @@ function handleMenuSelection(digit: string) {
         `)
       }
       return texml(`
-        <Say voice="Polly.Joanna" language="en-US">
+        <Say voice="Polly.Joanna-Neural" language="en-US">
           Please hold while we connect you to a representative. This call may be recorded for quality purposes.
         </Say>
         <Dial callerId="+14309990168" timeout="30">
           <Number>${FORWARD_NUMBER}</Number>
         </Dial>
-        <Say voice="Polly.Joanna" language="en-US">
+        <Say voice="Polly.Joanna-Neural" language="en-US">
           We're sorry, no one is available to take your call right now.
           Please leave a message after the beep, or email us at support at donut dash dot app.
         </Say>
@@ -149,7 +149,7 @@ function handleMenuSelection(digit: string) {
 
     default:
       return texml(`
-        <Say voice="Polly.Joanna" language="en-US">Invalid selection. Please try again.</Say>
+        <Say voice="Polly.Joanna-Neural" language="en-US">Invalid selection. Please try again.</Say>
         <Redirect method="POST">https://donutdash.app/api/telnyx/voice</Redirect>
       `)
   }
