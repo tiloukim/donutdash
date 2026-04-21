@@ -140,8 +140,8 @@ export default function RootLayout({
       <body className={`${dmSans.variable} ${playfair.variable} antialiased`}>
         <AuthProvider>
           <CartProvider>{children}</CartProvider>
+          <PageTracker />
         </AuthProvider>
-        <PageTracker />
         <InstallPrompt />
         <CookieConsent />
       </body>
