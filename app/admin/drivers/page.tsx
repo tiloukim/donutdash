@@ -24,6 +24,7 @@ export default function AdminDrivers() {
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
   const [showMap, setShowMap] = useState(true)
+  const [search, setSearch] = useState('')
 
   const fetchDrivers = () => {
     fetch(`/api/admin/drivers?t=${Date.now()}`)
@@ -108,6 +109,21 @@ export default function AdminDrivers() {
         </div>
       )}
 
+      {/* Search */}
+      <input
+        type="text"
+        placeholder="Search drivers by name, email, or phone..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{
+          width: '100%', padding: '10px 14px', borderRadius: 10,
+          border: '1.5px solid #ddd', fontSize: 14, outline: 'none',
+          marginBottom: 16, boxSizing: 'border-box',
+        }}
+        onFocus={e => e.currentTarget.style.borderColor = '#6366F1'}
+        onBlur={e => e.currentTarget.style.borderColor = '#ddd'}
+      />
+
       {/* Drivers table */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
@@ -120,7 +136,11 @@ export default function AdminDrivers() {
               </tr>
             </thead>
             <tbody>
-              {drivers.map(driver => (
+              {drivers.filter(d => {
+                if (!search) return true
+                const q = search.toLowerCase()
+                return d.name.toLowerCase().includes(q) || d.email.toLowerCase().includes(q) || (d.phone || '').toLowerCase().includes(q)
+              }).map(driver => (
                 <tr key={driver.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
                   <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>{driver.name}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{driver.email}</td>

@@ -171,6 +171,7 @@ export default function AdminOrders() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reassigning, setReassigning] = useState<string | null>(null)
   const [reassignMsg, setReassignMsg] = useState('')
+  const [search, setSearch] = useState('')
 
   const handleReassign = async (orderId: string) => {
     setReassigning(orderId)
@@ -224,6 +225,21 @@ export default function AdminOrders() {
         <SummaryCard label="Tips" value={fmt(tipsCollected)} sub="100% to drivers" />
       </div>
 
+      {/* Search */}
+      <input
+        type="text"
+        placeholder="Search by order ID, customer, shop, or address..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{
+          width: '100%', padding: '10px 14px', borderRadius: 10,
+          border: '1.5px solid #ddd', fontSize: 14, outline: 'none',
+          marginBottom: 16, boxSizing: 'border-box',
+        }}
+        onFocus={e => e.currentTarget.style.borderColor = '#6366F1'}
+        onBlur={e => e.currentTarget.style.borderColor = '#ddd'}
+      />
+
       {/* Orders Table */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
@@ -245,7 +261,16 @@ export default function AdminOrders() {
               </tr>
             </thead>
             <tbody>
-              {orders.map(order => {
+              {orders.filter(o => {
+                if (!search) return true
+                const q = search.toLowerCase()
+                return o.id.toLowerCase().includes(q) ||
+                  (o.customer?.name || '').toLowerCase().includes(q) ||
+                  (o.customer?.email || '').toLowerCase().includes(q) ||
+                  (o.shop?.name || '').toLowerCase().includes(q) ||
+                  (o.delivery_address || '').toLowerCase().includes(q) ||
+                  o.status.toLowerCase().includes(q)
+              }).map(order => {
                 const colors = STATUS_COLORS[order.status] || { bg: '#F3F4F6', text: '#374151' }
                 const delivery = Array.isArray(order.delivery) ? order.delivery[0] : order.delivery || null
                 const isExpanded = expandedId === order.id
