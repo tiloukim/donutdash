@@ -9,6 +9,8 @@ export default function CookieConsent() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
+    // Hide cookie banner in mobile app WebView
+    if ((window as any).ReactNativeWebView) return
     const accepted = localStorage.getItem(STORAGE_KEY)
     if (!accepted) {
       setVisible(true)
