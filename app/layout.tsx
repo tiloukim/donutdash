@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/auth-context'
 import { CartProvider } from '@/lib/cart-context'
 import CookieConsent from '@/components/CookieConsent'
 import InstallPrompt from '@/components/InstallPrompt'
+import PageTracker from '@/components/PageTracker'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -140,6 +141,7 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>{children}</CartProvider>
         </AuthProvider>
+        <PageTracker />
         <InstallPrompt />
         <CookieConsent />
       </body>
