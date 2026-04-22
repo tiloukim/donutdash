@@ -704,26 +704,7 @@ export default function CheckoutPage() {
                   </div>
                 </button>
               )}
-              {/* PayPal — always visible as alternative */}
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('paypal')}
-                style={{
-                  flex: 1, padding: '12px', borderRadius: 10,
-                  border: paymentMethod === 'paypal' ? '2px solid #0070BA' : '1.5px solid #ddd',
-                  background: paymentMethod === 'paypal' ? '#F0F7FF' : '#fff',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', gap: 8,
-                }}
-              >
-                <span style={{ fontSize: 20 }}>&#x1F17F;&#xFE0F;</span>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: paymentMethod === 'paypal' ? '#0070BA' : '#1A1A2E' }}>
-                    PayPal / Venmo
-                  </div>
-                  <div style={{ fontSize: 11, color: '#999' }}>Pay with PayPal</div>
-                </div>
-              </button>
+              {/* PayPal — hidden, kept as backup */}
             </div>
           </div>
 
