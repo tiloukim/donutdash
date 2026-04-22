@@ -501,8 +501,14 @@ export default function ShopSettings() {
               try {
                 const res = await fetch('/api/stripe/connect', { method: 'POST' })
                 const data = await res.json()
-                if (data.url) window.location.href = data.url
-              } catch { /* ignore */ }
+                if (data.url) {
+                  window.location.href = data.url
+                } else {
+                  alert(data.error || 'Failed to create Stripe Connect account. Please try again.')
+                }
+              } catch (err) {
+                alert('Network error. Please try again.')
+              }
               setStripeLoading(false)
             }}
             disabled={stripeLoading}
