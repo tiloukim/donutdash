@@ -254,10 +254,16 @@ export default function ContractorAgreementPage() {
           </p>
         </div>
 
-        {/* Print button */}
+        {/* Print / Save button */}
         <div style={{ textAlign: 'center', marginTop: '2rem' }}>
           <button
-            onClick={() => window.print()}
+            onClick={() => {
+              if (navigator.share) {
+                navigator.share({ title: 'DonutDash Contractor Agreement', url: window.location.href })
+              } else {
+                window.print()
+              }
+            }}
             style={{
               background: '#FF8C00',
               color: '#fff',
@@ -272,7 +278,7 @@ export default function ContractorAgreementPage() {
             onMouseEnter={e => (e.currentTarget.style.background = '#E07B00')}
             onMouseLeave={e => (e.currentTarget.style.background = '#FF8C00')}
           >
-            Print Agreement
+            Save / Print Agreement
           </button>
         </div>
       </div>
