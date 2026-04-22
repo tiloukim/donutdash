@@ -28,6 +28,7 @@ export default function DriverEarnings() {
   const [bankAccountNumber, setBankAccountNumber] = useState('')
   const [bankAccountHolder, setBankAccountHolder] = useState('')
   const [payoutNotes, setPayoutNotes] = useState('')
+  const [confirmBankAccountNumber, setConfirmBankAccountNumber] = useState('')
   const [payoutSubmitting, setPayoutSubmitting] = useState(false)
   const [payoutError, setPayoutError] = useState('')
   const [payoutSuccess, setPayoutSuccess] = useState('')
@@ -46,6 +47,7 @@ export default function DriverEarnings() {
       if (!bankAccountHolder.trim()) { setPayoutError('Enter the account holder name'); return }
       if (!bankRoutingNumber.trim()) { setPayoutError('Enter the routing number'); return }
       if (!bankAccountNumber.trim()) { setPayoutError('Enter the account number'); return }
+      if (confirmBankAccountNumber !== bankAccountNumber) { setPayoutError('Account numbers do not match'); return }
     } else if (!payoutInfo.trim()) { setPayoutError('Enter your payment info'); return }
     setPayoutSubmitting(true)
     setPayoutError('')
@@ -67,7 +69,7 @@ export default function DriverEarnings() {
         setPayoutSuccess('Payout request submitted!')
         setShowPayoutForm(false)
         setPayoutAmount(''); setPayoutInfo(''); setPayoutNotes('')
-        setBankRoutingNumber(''); setBankAccountNumber(''); setBankAccountHolder('')
+        setBankRoutingNumber(''); setBankAccountNumber(''); setBankAccountHolder(''); setConfirmBankAccountNumber('')
         setPayoutRequests(prev => [d.request, ...prev])
         setTimeout(() => setPayoutSuccess(''), 5000)
       } else {
@@ -213,8 +215,16 @@ export default function DriverEarnings() {
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Account Number</label>
-              <input type="text" placeholder="Account number" value={bankAccountNumber} onChange={e => setBankAccountNumber(e.target.value)}
+              <input type="password" placeholder="Account number" value={bankAccountNumber} onChange={e => setBankAccountNumber(e.target.value)}
                 style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Confirm Account Number</label>
+              <input type="password" placeholder="Re-enter account number" value={confirmBankAccountNumber} onChange={e => setConfirmBankAccountNumber(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: confirmBankAccountNumber && confirmBankAccountNumber !== bankAccountNumber ? '1px solid #DC2626' : '1px solid #ddd', fontSize: 14, outline: 'none' }} />
+              {confirmBankAccountNumber && confirmBankAccountNumber !== bankAccountNumber && (
+                <div style={{ color: '#DC2626', fontSize: 12, marginTop: 4 }}>Account numbers do not match.</div>
+              )}
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Notes (optional)</label>
