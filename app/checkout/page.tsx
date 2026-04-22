@@ -654,59 +654,7 @@ export default function CheckoutPage() {
             *Delivery fee is calculated based on distance from shop to your address. Final amount determined at order placement.
           </p>
 
-          {/* Payment method selector */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.5rem', color: '#1A1A2E' }}>
-              Payment Method
-            </label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {/* Stripe — primary payment method when shop supports it */}
-              {shopHasStripe && (
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('stripe')}
-                  style={{
-                    flex: 1, padding: '12px', borderRadius: 10,
-                    border: paymentMethod === 'stripe' ? '2px solid #6772E5' : '1.5px solid #ddd',
-                    background: paymentMethod === 'stripe' ? '#F0F0FF' : '#fff',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 20 }}>&#x1F4B3;</span>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: paymentMethod === 'stripe' ? '#6772E5' : '#1A1A2E' }}>
-                      Credit / Debit
-                    </div>
-                    <div style={{ fontSize: 11, color: '#999' }}>Secure checkout</div>
-                  </div>
-                </button>
-              )}
-              {/* Square — fallback when shop has no Stripe */}
-              {!shopHasStripe && (
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('square')}
-                  style={{
-                    flex: 1, padding: '12px', borderRadius: 10,
-                    border: paymentMethod === 'square' ? '2px solid #FF8C00' : '1.5px solid #ddd',
-                    background: paymentMethod === 'square' ? '#FFF8F0' : '#fff',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 20 }}>&#x1F4B3;</span>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: paymentMethod === 'square' ? '#FF8C00' : '#1A1A2E' }}>
-                      Credit / Debit
-                    </div>
-                    <div style={{ fontSize: 11, color: '#999' }}>Via Square</div>
-                  </div>
-                </button>
-              )}
-              {/* PayPal — hidden, kept as backup */}
-            </div>
-          </div>
+          {/* Payment method — auto-selected, no selector shown */}
 
           {error && (
             <div style={{
@@ -722,21 +670,14 @@ export default function CheckoutPage() {
             disabled={submitting}
             style={{
               width: '100%', padding: '1rem',
-              background: submitting ? '#ccc'
-                : paymentMethod === 'stripe' ? '#6772E5'
-                : paymentMethod === 'paypal' ? '#0070BA'
-                : '#FF8C00',
+              background: submitting ? '#ccc' : '#FF8C00',
               color: 'white', border: 'none', borderRadius: '12px',
               fontSize: '1.05rem', fontWeight: 700,
               cursor: submitting ? 'not-allowed' : 'pointer',
               transition: 'background 0.2s',
             }}
           >
-            {submitting ? 'Processing...'
-              : paymentMethod === 'paypal'
-                ? `Pay with PayPal - $${grandTotal.toFixed(2)}`
-                : `Place Order - $${grandTotal.toFixed(2)}`
-            }
+            {submitting ? 'Processing...' : `Place Order – $${grandTotal.toFixed(2)}`}
           </button>
         </div>
       </main>
