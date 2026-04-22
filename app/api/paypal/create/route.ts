@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     await supabase.from('dd_orders').update({ payment_id: paypalOrder.id }).eq('id', order.id)
 
     // Notify admin + shop (fire and forget)
-    const itemCount = items.length
+    const itemCount = items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0)
     const smsMsg = `New DonutDash Order (PayPal)!\n$${total.toFixed(2)} - ${itemCount} items from ${shopName}\nOrder #${order.id.slice(0, 8)}`
     notifyAdmins(smsMsg).catch(() => {})
 

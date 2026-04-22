@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
     // Notify admins of new order
     notifyAdmins(
-      `🍩 New DonutDash Order!\n$${order.total?.toFixed(2) || '0.00'} — ${items?.length || 0} item(s)\nDelivery: ${delivery_address || 'N/A'}\nOrder #${order.id.slice(0, 8)}`
+      `🍩 New DonutDash Order!\n$${order.total?.toFixed(2) || '0.00'} — ${(items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0)} item(s)\nDelivery: ${delivery_address || 'N/A'}\nOrder #${order.id.slice(0, 8)}`
     ).catch(() => {})
 
     return NextResponse.json({ order }, { status: 201 })

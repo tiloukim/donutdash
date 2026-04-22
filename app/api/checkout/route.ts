@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
 
     // Notify admins of new order (fire and forget)
     const shopName = shop?.name || 'a shop'
-    const itemCount = items.length
+    const itemCount = items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0)
     const smsMsg = `New DonutDash Order!\n$${total.toFixed(2)} - ${itemCount} item${itemCount > 1 ? 's' : ''} from ${shopName}\nDelivery: ${delivery_address}\nOrder #${order.id.slice(0, 8)}`
     const emailHtml = `
       <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
