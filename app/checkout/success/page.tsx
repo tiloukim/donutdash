@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
@@ -16,12 +16,37 @@ export default function CheckoutSuccessPage() {
 
 function SuccessContent() {
   const searchParams = useSearchParams()
-  const orderId = searchParams.get('order_id') || ''
+  const orderIdParam = searchParams.get('order_id') || ''
+  const sessionId = searchParams.get('session_id') || ''
+  const isStripe = searchParams.get('stripe') === '1'
+  const [orderId, setOrderId] = useState(orderIdParam)
   const { clearCart } = useCart()
 
   useEffect(() => {
     clearCart()
   }, [clearCart])
+
+  // For Stripe payments, look up the order by session_id (order created via webhook)
+  useEffect(() => {
+    if (!isStripe || !sessionId || orderId) return
+    let attempts = 0
+    const maxAttempts = 10
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/stripe/order-lookup?session_id=${sessionId}`)
+        const data = await res.json()
+        if (data.order_id) {
+          setOrderId(data.order_id)
+          return
+        }
+      } catch { /* ignore */ }
+      attempts++
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 2000)
+      }
+    }
+    poll()
+  }, [isStripe, sessionId, orderId])
 
   // Confirm the order and trigger driver auto-assignment
   useEffect(() => {

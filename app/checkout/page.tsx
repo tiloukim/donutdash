@@ -28,7 +28,8 @@ export default function CheckoutPage() {
   const [scheduledTime, setScheduledTime] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'square' | 'paypal'>('square')
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'square' | 'paypal'>('stripe')
+  const [shopHasStripe, setShopHasStripe] = useState<boolean | null>(null)
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
 
   // Promo code state
@@ -56,6 +57,14 @@ export default function CheckoutPage() {
             delivery_fee: s.delivery_fee,
             tax_rate: s.tax_rate || 0,
           })
+        }
+        // Check if shop has Stripe connected
+        if (s && s.stripe_onboarding_complete) {
+          setShopHasStripe(true)
+          setPaymentMethod('stripe')
+        } else {
+          setShopHasStripe(false)
+          setPaymentMethod('square')
         }
       })
       .catch(() => {})
@@ -230,8 +239,23 @@ export default function CheckoutPage() {
     }
 
     try {
-      if (paymentMethod === 'paypal') {
-        // PayPal checkout
+      if (paymentMethod === 'stripe') {
+        // Stripe Checkout (primary — connected accounts)
+        const res = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderPayload),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.error || 'Failed to create Stripe checkout session.')
+          return
+        }
+        if (data.url) {
+          window.location.href = data.url
+        }
+      } else if (paymentMethod === 'paypal') {
+        // PayPal checkout (fallback)
         const res = await fetch('/api/paypal/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -246,7 +270,7 @@ export default function CheckoutPage() {
           window.location.href = data.approveUrl
         }
       } else {
-        // Square checkout
+        // Square checkout (fallback)
         const res = await fetch('/api/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -636,25 +660,51 @@ export default function CheckoutPage() {
               Payment Method
             </label>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('square')}
-                style={{
-                  flex: 1, padding: '12px', borderRadius: 10,
-                  border: paymentMethod === 'square' ? '2px solid #FF8C00' : '1.5px solid #ddd',
-                  background: paymentMethod === 'square' ? '#FFF8F0' : '#fff',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', gap: 8,
-                }}
-              >
-                <span style={{ fontSize: 20 }}>💳</span>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: paymentMethod === 'square' ? '#FF8C00' : '#1A1A2E' }}>
-                    Credit / Debit
+              {/* Stripe — primary payment method when shop supports it */}
+              {shopHasStripe && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('stripe')}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: 10,
+                    border: paymentMethod === 'stripe' ? '2px solid #6772E5' : '1.5px solid #ddd',
+                    background: paymentMethod === 'stripe' ? '#F0F0FF' : '#fff',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 20 }}>&#x1F4B3;</span>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: paymentMethod === 'stripe' ? '#6772E5' : '#1A1A2E' }}>
+                      Credit / Debit
+                    </div>
+                    <div style={{ fontSize: 11, color: '#999' }}>Secure checkout</div>
                   </div>
-                  <div style={{ fontSize: 11, color: '#999' }}>Via Square</div>
-                </div>
-              </button>
+                </button>
+              )}
+              {/* Square — fallback when shop has no Stripe */}
+              {!shopHasStripe && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('square')}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: 10,
+                    border: paymentMethod === 'square' ? '2px solid #FF8C00' : '1.5px solid #ddd',
+                    background: paymentMethod === 'square' ? '#FFF8F0' : '#fff',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 20 }}>&#x1F4B3;</span>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: paymentMethod === 'square' ? '#FF8C00' : '#1A1A2E' }}>
+                      Credit / Debit
+                    </div>
+                    <div style={{ fontSize: 11, color: '#999' }}>Via Square</div>
+                  </div>
+                </button>
+              )}
+              {/* PayPal — always visible as alternative */}
               <button
                 type="button"
                 onClick={() => setPaymentMethod('paypal')}
@@ -666,7 +716,7 @@ export default function CheckoutPage() {
                   justifyContent: 'center', gap: 8,
                 }}
               >
-                <span style={{ fontSize: 20 }}>🅿️</span>
+                <span style={{ fontSize: 20 }}>&#x1F17F;&#xFE0F;</span>
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: paymentMethod === 'paypal' ? '#0070BA' : '#1A1A2E' }}>
                     PayPal / Venmo
@@ -691,7 +741,10 @@ export default function CheckoutPage() {
             disabled={submitting}
             style={{
               width: '100%', padding: '1rem',
-              background: submitting ? '#ccc' : paymentMethod === 'paypal' ? '#0070BA' : '#FF8C00',
+              background: submitting ? '#ccc'
+                : paymentMethod === 'stripe' ? '#6772E5'
+                : paymentMethod === 'paypal' ? '#0070BA'
+                : '#FF8C00',
               color: 'white', border: 'none', borderRadius: '12px',
               fontSize: '1.05rem', fontWeight: 700,
               cursor: submitting ? 'not-allowed' : 'pointer',

@@ -16,6 +16,8 @@ export default function ShopSettings() {
   const [bankSaved, setBankSaved] = useState(false)
   const [shopReferral, setShopReferral] = useState<any>(null)
   const [referralCopied, setReferralCopied] = useState(false)
+  const [stripeStatus, setStripeStatus] = useState<{ connected: boolean; onboarding_complete: boolean; charges_enabled?: boolean; payouts_enabled?: boolean } | null>(null)
+  const [stripeLoading, setStripeLoading] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
 
@@ -34,6 +36,9 @@ export default function ShopSettings() {
       if (d.bankInfo) setBankInfo(d.bankInfo)
     }).catch(() => {})
     fetch('/api/shop/referral').then(r => r.json()).then(setShopReferral).catch(() => {})
+    fetch('/api/stripe/connect').then(r => r.json()).then(d => {
+      if (!d.error) setStripeStatus(d)
+    }).catch(() => {})
   }, [])
 
   const save = async () => {
@@ -434,6 +439,86 @@ export default function ShopSettings() {
           {bankSaved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Bank info saved!</span>}
         </div>
       </div>
+      {/* Stripe Connect */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Stripe Payments</h3>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>
+          Connect your Stripe account to receive customer payments directly. DonutDash takes a 15% platform fee automatically.
+        </p>
+
+        {stripeStatus?.onboarding_complete ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: '#D1FAE5', borderRadius: 10, padding: '12px 16px',
+          }}>
+            <span style={{ fontSize: 20 }}>&#x2705;</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#065F46' }}>Stripe Connected</div>
+              <div style={{ fontSize: 12, color: '#047857' }}>
+                Your account is active and receiving payments.
+                {stripeStatus.charges_enabled && stripeStatus.payouts_enabled && ' Charges and payouts enabled.'}
+              </div>
+            </div>
+          </div>
+        ) : stripeStatus?.connected ? (
+          <div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              background: '#FEF3C7', borderRadius: 10, padding: '12px 16px', marginBottom: 12,
+            }}>
+              <span style={{ fontSize: 20 }}>&#x26A0;&#xFE0F;</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#92400E' }}>Onboarding Incomplete</div>
+                <div style={{ fontSize: 12, color: '#B45309' }}>
+                  Your Stripe account was created but onboarding is not complete. Please finish the setup.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                setStripeLoading(true)
+                try {
+                  const res = await fetch('/api/stripe/connect', { method: 'POST' })
+                  const data = await res.json()
+                  if (data.url) window.location.href = data.url
+                } catch { /* ignore */ }
+                setStripeLoading(false)
+              }}
+              disabled={stripeLoading}
+              style={{
+                padding: '10px 24px', borderRadius: 8, border: 'none',
+                background: stripeLoading ? '#CCC' : '#6772E5', color: '#fff',
+                fontSize: 14, fontWeight: 700, cursor: stripeLoading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {stripeLoading ? 'Loading...' : 'Complete Stripe Setup'}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={async () => {
+              setStripeLoading(true)
+              try {
+                const res = await fetch('/api/stripe/connect', { method: 'POST' })
+                const data = await res.json()
+                if (data.url) window.location.href = data.url
+              } catch { /* ignore */ }
+              setStripeLoading(false)
+            }}
+            disabled={stripeLoading}
+            style={{
+              padding: '12px 28px', borderRadius: 8, border: 'none',
+              background: stripeLoading ? '#CCC' : '#6772E5', color: '#fff',
+              fontSize: 15, fontWeight: 700, cursor: stripeLoading ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 18 }}>&#x1F4B3;</span>
+            {stripeLoading ? 'Setting up...' : 'Connect Stripe Account'}
+          </button>
+        )}
+      </div>
+
       {/* Shop Referral Program */}
       {shopReferral && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
