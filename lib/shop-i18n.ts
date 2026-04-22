@@ -6,6 +6,7 @@ const translations = {
   // Layout & Navigation
   'nav.dashboard': { en: 'Dashboard', km: 'ផ្ទាំងគ្រប់គ្រង' },
   'nav.orders': { en: 'Orders', km: 'ការបញ្ជាទិញ' },
+  'nav.earnings': { en: 'Earnings', km: 'ចំណូល' },
   'nav.menu': { en: 'Menu', km: 'មុខម្ហូប' },
   'nav.analytics': { en: 'Analytics', km: 'ការវិភាគ' },
   'nav.hours': { en: 'Hours', km: 'ម៉ោងបើក' },
