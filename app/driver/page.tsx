@@ -209,8 +209,11 @@ export default function DriverDashboard() {
     // watchPosition for real-time movement detection
     watchIdRef.current = navigator.geolocation.watchPosition(
       sendLocation,
-      (err) => setLocationError(err.message),
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      (err) => {
+        if (err.code === 1) setLocationError('Please enable location access in your device settings to receive nearby deliveries.')
+        else setLocationError('')  // Don't show timeout errors — GPS will retry automatically
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
     )
 
     // Backup: poll getCurrentPosition every 8 seconds
@@ -496,7 +499,7 @@ export default function DriverDashboard() {
         }}>
           {isOnline ? 'Go Offline' : 'Go Online'}
         </button>
-        {locationError && <p style={{ color: '#EF4444', fontSize: 12, marginTop: 8 }}>{locationError}</p>}
+        {locationError && <p style={{ color: '#B45309', fontSize: 12, marginTop: 8, background: '#FEF3C7', padding: '6px 12px', borderRadius: 8, display: 'inline-block' }}>{locationError}</p>}
       </div>
 
       {/* Delivery Offer */}
