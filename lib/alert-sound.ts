@@ -1,186 +1,107 @@
-// DonutDash D3c alert melody — bright xylophone cascade
-// Plays a repeating melodic pattern until stopped
-// Used by: customer orders, shop orders, driver alerts, admin
+// Reliable audio alert system for DonutDash
+// Uses a single HTMLAudioElement with robust unlock and retry logic
 
-let audioCtx: AudioContext | null = null
+let alertAudio: HTMLAudioElement | null = null
+let isUnlocked = false
 let isPlaying = false
-let vibrateInterval: ReturnType<typeof setInterval> | null = null
-let scheduledSources: OscillatorNode[] = []
-let masterGain: GainNode | null = null
+let retryTimer: ReturnType<typeof setInterval> | null = null
 
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new AudioContext()
-  return audioCtx
-}
-
-// Unlock audio context on user interaction (required for mobile)
-export function unlockAudio() {
-  try {
-    const ctx = getAudioCtx()
-    if (ctx.state === 'suspended') ctx.resume()
-    const buf = ctx.createBuffer(1, 1, 22050)
-    const src = ctx.createBufferSource()
-    src.buffer = buf
-    src.connect(ctx.destination)
-    src.start(0)
-  } catch {
-    // Audio not available
+function getAudio(src: string): HTMLAudioElement {
+  if (!alertAudio || alertAudio.src !== new URL(src, window.location.origin).href) {
+    alertAudio = new Audio(src)
+    alertAudio.loop = true
+    alertAudio.preload = 'auto'
   }
+  return alertAudio
 }
 
-// E3 melody: cheerful pop bounce
-// Notes: D5 → F#5 → A5 → D6, bounce F#6, resolve D6
-const MELODY_NOTES = [
-  { freq: 587,  start: 0.00, dur: 0.10 },  // D5
-  { freq: 740,  start: 0.08, dur: 0.10 },  // F#5
-  { freq: 880,  start: 0.16, dur: 0.10 },  // A5
-  { freq: 1175, start: 0.26, dur: 0.18 },  // D6
-  // bounce
-  { freq: 988,  start: 0.46, dur: 0.08 },  // B5
-  { freq: 1175, start: 0.54, dur: 0.08 },  // D6
-  { freq: 1319, start: 0.62, dur: 0.08 },  // E6
-  { freq: 1480, start: 0.70, dur: 0.25 },  // F#6 (bright!)
-  // resolve
-  { freq: 1175, start: 1.05, dur: 0.12 },  // D6
-  { freq: 1319, start: 1.17, dur: 0.12 },  // E6
-  { freq: 1175, start: 1.29, dur: 0.35 },  // D6 (home)
-]
-const CYCLE_DURATION = 2.0 // seconds per cycle (notes + pause)
-
-function scheduleNote(
-  ctx: AudioContext,
-  dest: AudioNode,
-  freq: number,
-  startTime: number,
-  duration: number,
-  volume: number = 0.28
-) {
-  const osc = ctx.createOscillator()
-  const gain = ctx.createGain()
-  osc.connect(gain)
-  gain.connect(dest)
-
-  // Warm bell-like tone (sine with harmonics)
-  osc.type = 'sine'
-  osc.frequency.value = freq
-
-  // Envelope: quick attack, smooth release
-  const attack = 0.008
-  const release = 0.04
-  gain.gain.setValueAtTime(0, startTime)
-  gain.gain.linearRampToValueAtTime(volume, startTime + attack)
-  gain.gain.setValueAtTime(volume, startTime + duration - release)
-  gain.gain.linearRampToValueAtTime(0, startTime + duration)
-
-  osc.start(startTime)
-  osc.stop(startTime + duration + 0.01)
-
-  scheduledSources.push(osc)
-
-  // Add a harmonic overtone for shimmer
-  const osc2 = ctx.createOscillator()
-  const gain2 = ctx.createGain()
-  osc2.connect(gain2)
-  gain2.connect(dest)
-  osc2.type = 'sine'
-  osc2.frequency.value = freq * 2
-  gain2.gain.setValueAtTime(0, startTime)
-  gain2.gain.linearRampToValueAtTime(volume * 0.35, startTime + attack)
-  gain2.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.6)
-  osc2.start(startTime)
-  osc2.stop(startTime + duration + 0.01)
-
-  scheduledSources.push(osc2)
+// Must be called from a user gesture (click/tap) to unlock audio on mobile
+export function unlockAudio(src = '/order-alert.wav') {
+  if (isUnlocked) return
+  try {
+    const audio = getAudio(src)
+    audio.volume = 0.01
+    const p = audio.play()
+    if (p) {
+      p.then(() => {
+        audio.pause()
+        audio.currentTime = 0
+        audio.volume = 1.0
+        isUnlocked = true
+      }).catch(() => {})
+    }
+  } catch {}
 }
 
-// Play the D3c melody on a loop until stopped
-export function playUrgentAlert() {
+// Auto-unlock: listen for first user interaction
+if (typeof document !== 'undefined') {
+  const autoUnlock = () => {
+    unlockAudio()
+    document.removeEventListener('click', autoUnlock)
+    document.removeEventListener('touchstart', autoUnlock)
+    document.removeEventListener('keydown', autoUnlock)
+  }
+  document.addEventListener('click', autoUnlock)
+  document.addEventListener('touchstart', autoUnlock)
+  document.addEventListener('keydown', autoUnlock)
+}
+
+export function playUrgentAlert(src = '/order-alert.wav') {
   if (isPlaying) return
   isPlaying = true
 
-  try {
-    const ctx = getAudioCtx()
-    if (ctx.state === 'suspended') ctx.resume()
+  const audio = getAudio(src)
+  audio.volume = 1.0
+  audio.currentTime = 0
+  audio.loop = true
 
-    const master = ctx.createGain()
-    master.gain.value = 0.9
-    master.connect(ctx.destination)
-    masterGain = master
-
-    const now = ctx.currentTime
-    const totalCycles = 30 // 60 seconds max
-
-    for (let cycle = 0; cycle < totalCycles; cycle++) {
-      const cycleStart = now + cycle * CYCLE_DURATION
-      for (const note of MELODY_NOTES) {
-        scheduleNote(ctx, master, note.freq, cycleStart + note.start, note.dur)
-      }
-    }
-  } catch {
-    isPlaying = false
+  const tryPlay = () => {
+    audio.play().catch(() => {
+      // If play fails, keep retrying every 500ms
+      // (will succeed once user interacts with page)
+    })
   }
 
-  startVibration()
+  tryPlay()
+
+  // Retry every 2 seconds in case first play was blocked
+  retryTimer = setInterval(() => {
+    if (!isPlaying) {
+      if (retryTimer) clearInterval(retryTimer)
+      return
+    }
+    if (audio.paused) tryPlay()
+  }, 2000)
+
+  // Vibrate on mobile
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    navigator.vibrate([400, 200, 400, 200, 400])
+  }
 }
 
-// Also loop the wav file as backup
-let backupAudio: HTMLAudioElement | null = null
-
-export function playUrgentAlertWithBackup(wavFile: string) {
-  playUrgentAlert()
-
-  try {
-    if (!backupAudio) {
-      backupAudio = new Audio(wavFile)
-      backupAudio.loop = true
-    }
-    backupAudio.volume = 1.0
-    backupAudio.currentTime = 0
-    backupAudio.play().catch(() => {})
-  } catch {
-    // Audio not available
-  }
+// Alias for backward compatibility
+export function playUrgentAlertWithBackup(src: string) {
+  playUrgentAlert(src)
 }
 
 export function stopUrgentAlert() {
   isPlaying = false
 
-  try {
-    for (const osc of scheduledSources) {
-      try { osc.stop(); osc.disconnect() } catch { /* already stopped */ }
-    }
-    scheduledSources = []
-
-    if (masterGain) {
-      masterGain.disconnect()
-      masterGain = null
-    }
-  } catch {
-    // Already stopped
+  if (retryTimer) {
+    clearInterval(retryTimer)
+    retryTimer = null
   }
 
-  if (backupAudio) {
-    backupAudio.pause()
-    backupAudio.currentTime = 0
+  if (alertAudio) {
+    alertAudio.pause()
+    alertAudio.currentTime = 0
   }
 
-  stopVibration()
-}
-
-function startVibration() {
-  if (typeof navigator === 'undefined' || !navigator.vibrate) return
-  navigator.vibrate([400, 200, 400, 200, 400])
-  vibrateInterval = setInterval(() => {
-    navigator.vibrate([400, 200, 400, 200, 400])
-  }, 2000)
-}
-
-function stopVibration() {
-  if (vibrateInterval) {
-    clearInterval(vibrateInterval)
-    vibrateInterval = null
-  }
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
     navigator.vibrate(0)
   }
+}
+
+export function isAlertPlaying() {
+  return isPlaying
 }

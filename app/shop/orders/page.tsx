@@ -38,7 +38,7 @@ export default function ShopOrders() {
   const [rejectReason, setRejectReason] = useState('Out of stock')
   const knownOrderIdsRef = useRef<Set<string>>(new Set())
   const isFirstLoadRef = useRef(true)
-  const alertAudioRef = useRef<HTMLAudioElement | null>(null)
+  // Alert sound handled by @/lib/alert-sound module
 
   const [trackingData, setTrackingData] = useState<Record<string, TrackingData | null>>({})
   const [shopLocation, setShopLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -72,50 +72,16 @@ export default function ShopOrders() {
     return () => clearInterval(interval)
   }, [expandedId, orders])
 
-  // Pre-load audio on first user interaction to bypass autoplay policy
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
-    const unlockAudio = () => {
-      if (!alertAudioRef.current) {
-        alertAudioRef.current = new Audio('/order-alert.wav')
-        alertAudioRef.current.loop = true
-      }
-      // Silent play+pause to unlock audio context
-      alertAudioRef.current.volume = 0
-      alertAudioRef.current.play().then(() => {
-        alertAudioRef.current!.pause()
-        alertAudioRef.current!.currentTime = 0
-        alertAudioRef.current!.volume = 1.0
-      }).catch(() => {})
-      document.removeEventListener('click', unlockAudio)
-      document.removeEventListener('touchstart', unlockAudio)
-    }
-    document.addEventListener('click', unlockAudio)
-    document.addEventListener('touchstart', unlockAudio)
-    return () => {
-      document.removeEventListener('click', unlockAudio)
-      document.removeEventListener('touchstart', unlockAudio)
-    }
   }, [])
 
-  // Sound is ON by default. Just play/stop the audio element directly.
   const playAlert = () => {
     if (muted) return
-    try {
-      if (!alertAudioRef.current) {
-        alertAudioRef.current = new Audio('/order-alert.wav')
-        alertAudioRef.current.loop = true
-      }
-      alertAudioRef.current.volume = 1.0
-      alertAudioRef.current.currentTime = 0
-      alertAudioRef.current.play().catch(() => {})
-    } catch {}
-    // Vibrate
-    if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400])
+    import('@/lib/alert-sound').then(({ playUrgentAlert }) => playUrgentAlert('/order-alert.wav'))
   }
   const stopAlert = () => {
-    if (alertAudioRef.current) { alertAudioRef.current.pause(); alertAudioRef.current.currentTime = 0 }
-    if (navigator.vibrate) navigator.vibrate(0)
+    import('@/lib/alert-sound').then(({ stopUrgentAlert }) => stopUrgentAlert())
   }
 
   const fetchOrders = useCallback(async () => {

@@ -15,7 +15,7 @@ export default function DriverDashboard() {
   const [docProgress, setDocProgress] = useState({ approved: 0, total: 7 })
   const watchIdRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const alertAudioRef = useRef<HTMLAudioElement | null>(null)
+  // Alert sound handled by @/lib/alert-sound module
   const prevOfferIdRef = useRef<string | null>(null)
   const supabaseRef = useRef(createClient())
 
@@ -60,34 +60,9 @@ export default function DriverDashboard() {
     }
   }, [isOnline])
 
-  // Auto-unlock audio on page load and any interaction
+  // Auto-unlock audio on page load
   useEffect(() => {
-    const unlock = async () => {
-      const { unlockAudio } = await import('@/lib/alert-sound')
-      unlockAudio()
-      if (!alertAudioRef.current) {
-        alertAudioRef.current = new Audio('/alert.wav')
-        alertAudioRef.current.loop = true
-      }
-      alertAudioRef.current.volume = 0.01
-      alertAudioRef.current.play().then(() => {
-        setTimeout(() => {
-          if (alertAudioRef.current) {
-            alertAudioRef.current.pause()
-            alertAudioRef.current.currentTime = 0
-            alertAudioRef.current.volume = 1.0
-          }
-        }, 100)
-      }).catch(() => {})
-    }
-    // Try immediately on mount
-    unlock()
-    const t1 = setTimeout(unlock, 500)
-    const t2 = setTimeout(unlock, 1500)
-    // Also unlock on any user interaction
-    const events = ['click', 'touchstart', 'touchend', 'keydown', 'scroll', 'pointerdown']
-    events.forEach(e => document.addEventListener(e, unlock, { once: true, passive: true }))
-    return () => { clearTimeout(t1); clearTimeout(t2); events.forEach(e => document.removeEventListener(e, unlock)) }
+    import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio('/order-alert.wav'))
   }, [])
 
   // Auto-request notification permission
@@ -103,8 +78,8 @@ export default function DriverDashboard() {
     prevOfferIdRef.current = offer.id
 
     // Play loud urgent alert until driver responds
-    import('@/lib/alert-sound').then(({ playUrgentAlertWithBackup }) => {
-      playUrgentAlertWithBackup('/alert.wav')
+    import('@/lib/alert-sound').then(({ playUrgentAlert }) => {
+      playUrgentAlert('/order-alert.wav')
     }).catch(() => {})
 
     // Browser notification
@@ -295,26 +270,9 @@ export default function DriverDashboard() {
 
   const toggleOnline = async () => {
     const newState = !isOnline
-    // Pre-load and unlock audio on Go Online tap (mobile browsers require user gesture)
+    // Unlock audio on Go Online tap (user gesture required for mobile)
     if (newState) {
-      try {
-        if (!alertAudioRef.current) {
-          alertAudioRef.current = new Audio('/alert.wav')
-          alertAudioRef.current.loop = true
-        }
-        // Play silently to unlock audio on mobile, then pause
-        alertAudioRef.current.volume = 0.01
-        await alertAudioRef.current.play().catch(() => {})
-        setTimeout(() => {
-          if (alertAudioRef.current) {
-            alertAudioRef.current.pause()
-            alertAudioRef.current.currentTime = 0
-            alertAudioRef.current.volume = 1.0
-          }
-        }, 100)
-      } catch {
-        // Audio not available
-      }
+      import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio('/order-alert.wav'))
     }
     // When going online, get GPS first so driver isn't at (0,0)
     if (newState && navigator.geolocation) {
@@ -350,10 +308,6 @@ export default function DriverDashboard() {
       setOffer(null)
       // Stop alert sound if playing
       import('@/lib/alert-sound').then(({ stopUrgentAlert }) => stopUrgentAlert()).catch(() => {})
-      if (alertAudioRef.current) {
-        alertAudioRef.current.pause()
-        alertAudioRef.current.currentTime = 0
-      }
     }
   }
 
@@ -362,10 +316,6 @@ export default function DriverDashboard() {
     setResponding(true)
     // Stop alert sound
     import('@/lib/alert-sound').then(({ stopUrgentAlert }) => stopUrgentAlert()).catch(() => {})
-    if (alertAudioRef.current) {
-      alertAudioRef.current.pause()
-      alertAudioRef.current.currentTime = 0
-    }
     const res = await fetch('/api/driver/offer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
