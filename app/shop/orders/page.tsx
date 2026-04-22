@@ -72,8 +72,30 @@ export default function ShopOrders() {
     return () => clearInterval(interval)
   }, [expandedId, orders])
 
+  // Pre-load audio on first user interaction to bypass autoplay policy
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
+    const unlockAudio = () => {
+      if (!alertAudioRef.current) {
+        alertAudioRef.current = new Audio('/order-alert.wav')
+        alertAudioRef.current.loop = true
+      }
+      // Silent play+pause to unlock audio context
+      alertAudioRef.current.volume = 0
+      alertAudioRef.current.play().then(() => {
+        alertAudioRef.current!.pause()
+        alertAudioRef.current!.currentTime = 0
+        alertAudioRef.current!.volume = 1.0
+      }).catch(() => {})
+      document.removeEventListener('click', unlockAudio)
+      document.removeEventListener('touchstart', unlockAudio)
+    }
+    document.addEventListener('click', unlockAudio)
+    document.addEventListener('touchstart', unlockAudio)
+    return () => {
+      document.removeEventListener('click', unlockAudio)
+      document.removeEventListener('touchstart', unlockAudio)
+    }
   }, [])
 
   // Sound is ON by default. Just play/stop the audio element directly.
