@@ -23,6 +23,14 @@ export default function AdminShops() {
   const [toggling, setToggling] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const [newShop, setNewShop] = useState({
+    name: '', address: '', city: '', state: 'TX', zip: '', phone: '',
+    description: '', delivery_fee: '3.99', min_order: '10', tax_rate: '8.25',
+    service_fee_pct: '15', lat: '', lng: '',
+  })
 
   useEffect(() => {
     fetch('/api/admin/shops')
@@ -62,6 +70,47 @@ export default function AdminShops() {
     setSaving(null)
   }
 
+  const handleCreateShop = async () => {
+    if (!newShop.name.trim() || !newShop.address.trim() || !newShop.city.trim() || !newShop.zip.trim()) {
+      setCreateError('Name, address, city, and ZIP are required')
+      return
+    }
+    setCreating(true)
+    setCreateError('')
+    try {
+      const res = await fetch('/api/admin/shops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newShop.name.trim(),
+          address: newShop.address.trim(),
+          city: newShop.city.trim(),
+          state: newShop.state.trim(),
+          zip: newShop.zip.trim(),
+          phone: newShop.phone.trim(),
+          description: newShop.description.trim(),
+          delivery_fee: parseFloat(newShop.delivery_fee) || 3.99,
+          min_order: parseFloat(newShop.min_order) || 10,
+          tax_rate: parseFloat(newShop.tax_rate) || 8.25,
+          service_fee_pct: parseFloat(newShop.service_fee_pct) || 15,
+          lat: newShop.lat ? parseFloat(newShop.lat) : null,
+          lng: newShop.lng ? parseFloat(newShop.lng) : null,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setShops(prev => [{ ...data.shop, owner: null }, ...prev])
+        setShowCreate(false)
+        setNewShop({ name: '', address: '', city: '', state: 'TX', zip: '', phone: '', description: '', delivery_fee: '3.99', min_order: '10', tax_rate: '8.25', service_fee_pct: '15', lat: '', lng: '' })
+      } else {
+        setCreateError(data.error || 'Failed to create shop')
+      }
+    } catch {
+      setCreateError('Failed to create shop')
+    }
+    setCreating(false)
+  }
+
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading shops...</div>
 
   const filteredShops = shops.filter(s => {
@@ -70,21 +119,114 @@ export default function AdminShops() {
     return s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q) || (s.owner?.name || '').toLowerCase().includes(q)
   })
 
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }
+
   return (
     <div>
-      <input
-        type="text"
-        placeholder="Search shops by name, city, or owner..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        style={{
-          width: '100%', padding: '10px 14px', borderRadius: 10,
-          border: '1.5px solid #ddd', fontSize: 14, outline: 'none',
-          marginBottom: 16, boxSizing: 'border-box',
-        }}
-        onFocus={e => e.currentTarget.style.borderColor = '#6366F1'}
-        onBlur={e => e.currentTarget.style.borderColor = '#ddd'}
-      />
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+        <input
+          type="text"
+          placeholder="Search shops by name, city, or owner..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            flex: 1, padding: '10px 14px', borderRadius: 10,
+            border: '1.5px solid #ddd', fontSize: 14, outline: 'none',
+          }}
+          onFocus={e => e.currentTarget.style.borderColor = '#6366F1'}
+          onBlur={e => e.currentTarget.style.borderColor = '#ddd'}
+        />
+        <button
+          onClick={() => setShowCreate(true)}
+          style={{
+            padding: '10px 20px', borderRadius: 10, border: 'none',
+            background: '#6366F1', color: '#fff', fontSize: 14, fontWeight: 700,
+            cursor: 'pointer', whiteSpace: 'nowrap',
+          }}
+        >
+          + Add Shop
+        </button>
+      </div>
+
+      {/* Create Shop Modal */}
+      {showCreate && (
+        <div onClick={() => setShowCreate(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 28, maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Add New Shop</h3>
+            {createError && <div style={{ background: '#FEE2E2', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#DC2626', fontSize: 14 }}>{createError}</div>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Shop Name *</label>
+                <input style={inputStyle} placeholder="e.g. Happy Donuts" value={newShop.name} onChange={e => setNewShop(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Address *</label>
+                <input style={inputStyle} placeholder="123 Main St" value={newShop.address} onChange={e => setNewShop(p => ({ ...p, address: e.target.value }))} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px', gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>City *</label>
+                  <input style={inputStyle} placeholder="Tyler" value={newShop.city} onChange={e => setNewShop(p => ({ ...p, city: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>State</label>
+                  <input style={inputStyle} placeholder="TX" value={newShop.state} onChange={e => setNewShop(p => ({ ...p, state: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>ZIP *</label>
+                  <input style={inputStyle} placeholder="75703" value={newShop.zip} onChange={e => setNewShop(p => ({ ...p, zip: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Phone</label>
+                <input style={inputStyle} placeholder="(903) 555-1234" value={newShop.phone} onChange={e => setNewShop(p => ({ ...p, phone: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Description</label>
+                <input style={inputStyle} placeholder="Fresh donuts made daily" value={newShop.description} onChange={e => setNewShop(p => ({ ...p, description: e.target.value }))} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Latitude</label>
+                  <input style={inputStyle} placeholder="32.3513" value={newShop.lat} onChange={e => setNewShop(p => ({ ...p, lat: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Longitude</label>
+                  <input style={inputStyle} placeholder="-95.3011" value={newShop.lng} onChange={e => setNewShop(p => ({ ...p, lng: e.target.value }))} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Delivery Fee</label>
+                  <input style={inputStyle} type="number" step="0.50" value={newShop.delivery_fee} onChange={e => setNewShop(p => ({ ...p, delivery_fee: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Min Order</label>
+                  <input style={inputStyle} type="number" step="1" value={newShop.min_order} onChange={e => setNewShop(p => ({ ...p, min_order: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Tax %</label>
+                  <input style={inputStyle} type="number" step="0.25" value={newShop.tax_rate} onChange={e => setNewShop(p => ({ ...p, tax_rate: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Fee %</label>
+                  <input style={inputStyle} type="number" step="0.5" value={newShop.service_fee_pct} onChange={e => setNewShop(p => ({ ...p, service_fee_pct: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={handleCreateShop} disabled={creating}
+                style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: creating ? '#ccc' : '#6366F1', color: '#fff', fontSize: 15, fontWeight: 700, cursor: creating ? 'not-allowed' : 'pointer' }}>
+                {creating ? 'Creating...' : 'Create Shop'}
+              </button>
+              <button onClick={() => { setShowCreate(false); setCreateError('') }}
+                style={{ padding: '12px 20px', borderRadius: 8, border: '1px solid #D1D5DB', background: '#fff', fontSize: 14, cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
