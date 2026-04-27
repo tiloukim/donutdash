@@ -57,6 +57,22 @@ export default function Footer() {
           <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', lineHeight: 1.5, marginTop: '0.5rem', maxWidth: '320px', margin: '0.5rem auto 0' }}>
             Delicious donuts delivered fast to your door. Fresh from your favorite local shops.
           </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginTop: '1rem', flexWrap: 'wrap' }}>
+            <a
+              href="https://apps.apple.com/us/app/donutdash-donut-delivery/id6762573707"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                alt="Download on the App Store"
+                style={{ height: '40px' }}
+              />
+            </a>
+            <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem' }}>
+              Android coming soon
+            </span>
+          </div>
         </div>
 
         {/* Links grid */}

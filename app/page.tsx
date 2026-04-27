@@ -1017,6 +1017,25 @@ export default function HomePage() {
                   {addressError}
                 </p>
               )}
+
+              {/* App Download */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                <a
+                  href="https://apps.apple.com/us/app/donutdash-donut-delivery/id6762573707"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'inline-block' }}
+                >
+                  <img
+                    src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                    alt="Download on the App Store"
+                    style={{ height: '44px' }}
+                  />
+                </a>
+                <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem' }}>
+                  Android coming soon
+                </span>
+              </div>
             </div>
 
             {/* Right: Banner Image */}
