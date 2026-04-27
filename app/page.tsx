@@ -154,6 +154,13 @@ export default function HomePage() {
   const [addressError, setAddressError] = useState<string | null>(null)
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported'>('idle')
+  const [isInApp, setIsInApp] = useState(false)
+
+  useEffect(() => {
+    // Detect if running inside native app WebView
+    const w = window as any
+    setIsInApp(!!(w.ReactNativeWebView || navigator.userAgent.includes('DonutDash') || (window as any).webkit?.messageHandlers?.ReactNativeWebView))
+  }, [])
 
   const requestGps = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -494,23 +501,25 @@ export default function HomePage() {
               {addressError}
             </p>
           )}
-          {/* App Download */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-            <a
-              href="https://apps.apple.com/us/app/donutdash-donut-delivery/id6762573707"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <img
-                src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
-                alt="Download on the App Store"
-                style={{ height: '36px' }}
-              />
-            </a>
-            <span style={{ color: '#999', fontSize: '0.75rem' }}>
-              Android coming soon
-            </span>
-          </div>
+          {/* App Download — hide when inside native app */}
+          {!isInApp && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+              <a
+                href="https://apps.apple.com/us/app/donutdash-donut-delivery/id6762573707"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img
+                  src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                  alt="Download on the App Store"
+                  style={{ height: '36px' }}
+                />
+              </a>
+              <span style={{ color: '#999', fontSize: '0.75rem' }}>
+                Android coming soon
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Search bar with item search dropdown */}
@@ -1035,24 +1044,26 @@ export default function HomePage() {
                 </p>
               )}
 
-              {/* App Download */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '1.5rem', flexWrap: 'wrap' }}>
-                <a
-                  href="https://apps.apple.com/us/app/donutdash-donut-delivery/id6762573707"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: 'inline-block' }}
-                >
-                  <img
-                    src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
-                    alt="Download on the App Store"
-                    style={{ height: '44px' }}
-                  />
-                </a>
-                <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem' }}>
-                  Android coming soon
-                </span>
-              </div>
+              {/* App Download — hide when inside native app */}
+              {!isInApp && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                  <a
+                    href="https://apps.apple.com/us/app/donutdash-donut-delivery/id6762573707"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'inline-block' }}
+                  >
+                    <img
+                      src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                      alt="Download on the App Store"
+                      style={{ height: '44px' }}
+                    />
+                  </a>
+                  <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem' }}>
+                    Android coming soon
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Right: Banner Image */}
