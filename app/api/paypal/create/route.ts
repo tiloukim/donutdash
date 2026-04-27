@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { createPayPalOrder } from '@/lib/paypal'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from '@/lib/constants'
-import { getSurgeMultiplier } from '@/lib/surge'
-import { haversineDistance } from '@/lib/osrm'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
 import { isShopOpen } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendSMS, buildOrderEmailHtml } from '@/lib/sms'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -71,13 +69,8 @@ export async function POST(request: NextRequest) {
       }
     } catch {}
 
-    let distanceMiles = 2
-    if (deliveryLat && deliveryLng && shop?.lat && shop?.lng) {
-      distanceMiles = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
-    }
-    const surge = await getSurgeMultiplier()
-    const baseDeliveryFee = DELIVERY_FEE_BASE + distanceMiles * DELIVERY_FEE_PER_MILE
-    const deliveryFee = Math.round(baseDeliveryFee * surge.multiplier * 100) / 100
+    // Use shop's flat delivery fee (or platform default)
+    const deliveryFee = shop?.delivery_fee ?? DEFAULT_DELIVERY_FEE
 
     const subtotal = items.reduce(
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity, 0

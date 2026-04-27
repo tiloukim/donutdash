@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
 import { sendEmail, sendSMS } from './sms'
-import { MAX_DRIVER_DISTANCE_MILES, BASE_DELIVERY_PAY, PER_MILE_PAY, OFFER_TIMEOUT_SECONDS, DELIVERY_FEE_BASE, DELIVERY_FEE_PER_MILE } from './constants'
+import { MAX_DRIVER_DISTANCE_MILES, BASE_DELIVERY_PAY, PER_MILE_PAY, OFFER_TIMEOUT_SECONDS, DEFAULT_DELIVERY_FEE } from './constants'
 
 export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = [], shopId?: string) {
   const svc = createServiceClient()
@@ -198,9 +198,8 @@ export function calculateDriverEarnings(distanceMiles: number, tip: number = 0):
   return Math.round(earnings * 100) / 100
 }
 
-export function calculateDeliveryFee(distanceMiles: number): number {
-  // Customer delivery fee: base + per mile
-  return Math.round((DELIVERY_FEE_BASE + distanceMiles * DELIVERY_FEE_PER_MILE) * 100) / 100
+export function calculateDeliveryFee(): number {
+  return DEFAULT_DELIVERY_FEE
 }
 
 // Admin profit per delivery = delivery fee + service fee - driver pay (excluding tip)
@@ -209,7 +208,7 @@ export function calculateAdminProfit(distanceMiles: number, serviceFee: number):
   driverPay: number
   adminProfit: number
 } {
-  const deliveryFee = calculateDeliveryFee(distanceMiles)
+  const deliveryFee = DEFAULT_DELIVERY_FEE
   const driverPay = calculateDriverEarnings(distanceMiles, 0) // exclude tip
   const adminProfit = deliveryFee + serviceFee - driverPay
   return { deliveryFee, driverPay, adminProfit: Math.round(adminProfit * 100) / 100 }
