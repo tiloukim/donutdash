@@ -229,16 +229,6 @@ img {
     right: 1rem;
   }
 
-  .footer-grid {
-    grid-template-columns: 1fr !important;
-    text-align: center !important;
-  }
-
-  .footer-grid > div {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
 }
 
 @media (max-width: 480px) {

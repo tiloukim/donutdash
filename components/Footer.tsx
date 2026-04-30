@@ -45,7 +45,7 @@ export default function Footer() {
         }
         @media (min-width: 768px) {
           .footer-grid {
-            grid-template-columns: repeat(${isCustomer ? 3 : 4}, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 2rem 3rem;
           }
         }
@@ -102,15 +102,18 @@ export default function Footer() {
             </div>
           </div>
 
-          {!isCustomer && (
-            <div>
-              <h4 style={headingStyle}>For Business</h4>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <Link href="/shop" style={linkStyle}>Become a Partner</Link>
-                <Link href="/driver" style={linkStyle}>Drive with Us</Link>
-              </div>
+          <div>
+            <h4 style={headingStyle}>For Business</h4>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Link href="/shop" style={linkStyle}>
+                Become a Partner
+                <span style={{ display: 'block', fontSize: '0.7rem', opacity: 0.65, lineHeight: 1.2 }}>
+                  Donut shop owners
+                </span>
+              </Link>
+              <Link href="/driver" style={linkStyle}>Drive with Us</Link>
             </div>
-          )}
+          </div>
 
           <div>
             <h4 style={headingStyle}>Support</h4>
