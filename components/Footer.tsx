@@ -105,13 +105,8 @@ export default function Footer() {
           <div>
             <h4 style={headingStyle}>For Business</h4>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Link href="/shop" style={linkStyle}>
-                Become a Partner
-                <span style={{ display: 'block', fontSize: '0.7rem', opacity: 0.65, lineHeight: 1.2 }}>
-                  Donut shop owners
-                </span>
-              </Link>
-              <Link href="/driver" style={linkStyle}>Drive with Us</Link>
+              <Link href="/shop" style={linkStyle}>List Your Donut Shop with Us</Link>
+              <Link href="/driver" style={linkStyle}>Be a DonutDash Driver</Link>
             </div>
           </div>
 
