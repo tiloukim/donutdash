@@ -45,6 +45,13 @@ export default function Footer() {
           font-size: 0.78rem;
           text-decoration: none;
           line-height: 1.7;
+          padding-left: 0.85rem;
+          text-indent: -0.85rem;
+          display: block;
+        }
+        .dd-footer-link::before {
+          content: '• ';
+          color: rgba(255,255,255,0.35);
         }
         .dd-footer-grid {
           display: grid;
@@ -69,6 +76,11 @@ export default function Footer() {
           .dd-footer-link {
             font-size: 0.85rem;
             line-height: 1.8;
+            padding-left: 0;
+            text-indent: 0;
+          }
+          .dd-footer-link::before {
+            content: none;
           }
           .dd-footer-grid {
             gap: 2rem 3rem;
