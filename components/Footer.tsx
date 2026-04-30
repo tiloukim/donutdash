@@ -3,21 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-const linkStyle: React.CSSProperties = {
-  color: 'rgba(255,255,255,0.6)',
-  fontSize: '0.85rem',
-  textDecoration: 'none',
-  transition: 'color 0.2s',
-  lineHeight: 1.8,
-}
-
-const headingStyle: React.CSSProperties = {
-  fontWeight: 700,
-  marginBottom: '0.5rem',
-  fontSize: '0.9rem',
-  letterSpacing: '0.02em',
-}
-
 function getRole(): string {
   if (typeof document === 'undefined') return 'customer'
   const match = document.cookie.match(/(?:^|;\s*)dd_role=([^;]*)/)
@@ -35,17 +20,57 @@ export default function Footer() {
   }, [])
 
   return (
-    <footer style={{ background: '#1A1A2E', color: 'white', padding: '2.5rem 1.5rem 1.5rem' }}>
+    <footer className="dd-footer">
       <style>{`
-        .footer-grid {
+        .dd-footer {
+          background: #1A1A2E;
+          color: white;
+          padding: 1.75rem 1rem 1rem;
+        }
+        .dd-footer-logo {
+          height: 56px;
+        }
+        .dd-footer-tagline {
+          font-size: 0.75rem;
+          margin-top: 0.5rem;
+        }
+        .dd-footer-heading {
+          font-weight: 700;
+          margin-bottom: 0.4rem;
+          font-size: 0.8rem;
+          letter-spacing: 0.02em;
+        }
+        .dd-footer-link {
+          color: rgba(255,255,255,0.6);
+          font-size: 0.78rem;
+          text-decoration: none;
+          line-height: 1.7;
+        }
+        .dd-footer-grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 1.5rem 2rem;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 1rem;
           text-align: left;
         }
         @media (min-width: 768px) {
-          .footer-grid {
-            grid-template-columns: repeat(4, 1fr);
+          .dd-footer {
+            padding: 2.5rem 1.5rem 1.5rem;
+          }
+          .dd-footer-logo {
+            height: 80px;
+          }
+          .dd-footer-tagline {
+            font-size: 0.8rem;
+          }
+          .dd-footer-heading {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+          }
+          .dd-footer-link {
+            font-size: 0.85rem;
+            line-height: 1.8;
+          }
+          .dd-footer-grid {
             gap: 2rem 3rem;
           }
         }
@@ -53,15 +78,15 @@ export default function Footer() {
 
       <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
           <Link href="/">
-            <img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: '80px', width: 'auto', filter: 'brightness(1.1)', display: 'block', margin: '0 auto' }} />
+            <img src="/DonutDashfooterlogo.png" alt="DonutDash" className="dd-footer-logo" style={{ width: 'auto', filter: 'brightness(1.1)', display: 'block', margin: '0 auto' }} />
           </Link>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', lineHeight: 1.5, marginTop: '0.5rem', maxWidth: '320px', margin: '0.5rem auto 0' }}>
-            Delicious donuts delivered fast to your door. Fresh from your favorite local shops.
+          <p className="dd-footer-tagline" style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 1.4, maxWidth: '320px', margin: '0.5rem auto 0' }}>
+            Delicious donuts delivered fast to your door.
           </p>
           {!isInApp && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginTop: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '0.75rem', flexWrap: 'wrap' }}>
               <a
                 href="https://apps.apple.com/us/app/donutdash-donut-delivery/id6762573707"
                 target="_blank"
@@ -70,62 +95,53 @@ export default function Footer() {
                 <img
                   src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
                   alt="Download on the App Store"
-                  style={{ height: '40px' }}
+                  style={{ height: '34px' }}
                 />
               </a>
-              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem' }}>
+              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem' }}>
                 Android coming soon
               </span>
             </div>
           )}
         </div>
 
-        {/* Links grid */}
-        <div className="footer-grid">
+        {/* Links grid — 3 columns */}
+        <div className="dd-footer-grid">
           <div>
-            <h4 style={headingStyle}>Explore</h4>
+            <h4 className="dd-footer-heading">Browse</h4>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Link href="/shops" style={linkStyle}>Browse Shops</Link>
-              <Link href="/orders" style={linkStyle}>My Orders</Link>
-              <Link href="/cart" style={linkStyle}>Cart</Link>
-            </div>
-          </div>
-
-          <div>
-            <h4 style={headingStyle}>Company</h4>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Link href="/about" style={linkStyle}>About Us</Link>
-              <Link href="/terms" style={linkStyle}>Terms of Service</Link>
-              <Link href="/privacy" style={linkStyle}>Privacy Policy</Link>
-              {!isCustomer && <Link href="/contractor-agreement" style={linkStyle}>Contractor Agreement</Link>}
-              <Link href="/sms-consent" style={linkStyle}>SMS Consent</Link>
-            </div>
-          </div>
-
-          <div>
-            <h4 style={headingStyle}>For Business</h4>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Link href="/shop" style={linkStyle}>List Your Donut Shop with Us</Link>
-              <Link href="/driver" style={linkStyle}>Be a DonutDash Driver</Link>
-            </div>
-          </div>
-
-          <div>
-            <h4 style={headingStyle}>Support</h4>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Link href="/support" style={linkStyle}>Customer Help</Link>
+              <Link href="/shops" className="dd-footer-link">Browse Shops</Link>
+              <Link href="/orders" className="dd-footer-link">My Orders</Link>
+              <Link href="/cart" className="dd-footer-link">Cart</Link>
+              <Link href="/support" className="dd-footer-link">Customer Help</Link>
               {!isCustomer && (
                 <>
-                  <Link href="/support/shops" style={linkStyle}>Shop Support</Link>
-                  <Link href="/support/drivers" style={linkStyle}>Driver Support</Link>
+                  <Link href="/support/shops" className="dd-footer-link">Shop Support</Link>
+                  <Link href="/support/drivers" className="dd-footer-link">Driver Support</Link>
                 </>
               )}
             </div>
-            <h4 style={{ ...headingStyle, marginTop: '1rem' }}>Follow Us</h4>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <a href="https://www.facebook.com/profile.php?id=61575586874091" target="_blank" rel="noopener noreferrer" style={linkStyle}>
+          </div>
+
+          <div>
+            <h4 className="dd-footer-heading">Company</h4>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Link href="/about" className="dd-footer-link">About Us</Link>
+              <Link href="/terms" className="dd-footer-link">Terms</Link>
+              <Link href="/privacy" className="dd-footer-link">Privacy</Link>
+              <Link href="/sms-consent" className="dd-footer-link">SMS Consent</Link>
+              {!isCustomer && <Link href="/contractor-agreement" className="dd-footer-link">Contractor Agreement</Link>}
+              <a href="https://www.facebook.com/profile.php?id=61575586874091" target="_blank" rel="noopener noreferrer" className="dd-footer-link">
                 Facebook
               </a>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="dd-footer-heading">For Business</h4>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Link href="/shop" className="dd-footer-link">List Your Donut Shop with Us</Link>
+              <Link href="/driver" className="dd-footer-link">Be a DonutDash Driver</Link>
             </div>
           </div>
         </div>
