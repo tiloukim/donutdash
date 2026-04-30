@@ -201,7 +201,13 @@ export async function POST(request: NextRequest) {
       promo_code: promo_code || '',
       promo_discount: promoDiscount.toString(),
       scheduled_for: scheduled_for || '',
-      items_json: JSON.stringify(items),
+      items_json: JSON.stringify(items.map((i: any) => ({
+        menu_item_id: i.menu_item_id,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+        special_instructions: i.special_instructions || null,
+      }))),
     }
 
     // Create Stripe Checkout Session with connected account destination

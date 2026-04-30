@@ -104,13 +104,22 @@ export async function POST(request: NextRequest) {
 
       // Insert order items
       if (items.length > 0) {
+        const menuItemIds = items.map((i: any) => i.menu_item_id).filter(Boolean)
+        const { data: menuItems } = await svc
+          .from('dd_menu_items')
+          .select('id, image_url')
+          .in('id', menuItemIds)
+        const imageById = new Map<string, string | null>(
+          (menuItems || []).map((m: any) => [m.id, m.image_url])
+        )
+
         const orderItems = items.map((item: any) => ({
           order_id: order.id,
           menu_item_id: item.menu_item_id,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
-          image_url: item.image_url || null,
+          image_url: imageById.get(item.menu_item_id) || null,
           special_instructions: item.special_instructions || null,
         }))
 
