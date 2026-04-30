@@ -798,7 +798,7 @@ export default function HomePage() {
           {loading ? (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
               gap: '12px',
             }}>
               {[1, 2, 3, 4].map(i => (
@@ -813,7 +813,7 @@ export default function HomePage() {
           ) : mobileDisplayShops.length > 0 ? (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
               gap: '12px',
             }}>
               {mobileDisplayShops.map(shop => (
