@@ -89,18 +89,15 @@ export default function ShopOrders() {
     const res = await fetch(url)
     if (res.ok) {
       const data = await res.json()
-      if (!isFirstLoadRef.current) {
-        const newPending = data.filter((o: any) => o.status === 'pending' && !knownOrderIdsRef.current.has(o.id))
-        if (newPending.length > 0) {
-          playAlert()
-          if ('Notification' in window && Notification.permission === 'granted') {
-            newPending.forEach((o: any) => {
-              new Notification('New Order!', { body: `Order #${o.id.slice(0, 8)} - $${o.subtotal?.toFixed(2)}`, icon: '/logo.png', tag: `order-${o.id}`, requireInteraction: true })
-            })
-          }
+      const newPending = data.filter((o: any) => o.status === 'pending' && !knownOrderIdsRef.current.has(o.id))
+      if (newPending.length > 0) {
+        playAlert()
+        if ('Notification' in window && Notification.permission === 'granted') {
+          newPending.forEach((o: any) => {
+            new Notification('New Order!', { body: `Order #${o.id.slice(0, 8)} - $${o.subtotal?.toFixed(2)}`, icon: '/logo.png', tag: `order-${o.id}`, requireInteraction: true })
+          })
         }
       }
-      isFirstLoadRef.current = false
       knownOrderIdsRef.current = new Set(data.map((o: any) => o.id))
       setOrders(data)
     }

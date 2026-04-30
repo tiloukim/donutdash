@@ -308,7 +308,7 @@ function GlobalOrderAlert() {
     if (navigator.vibrate) navigator.vibrate(0)
   }, [])
 
-  // Fetch pending orders, alert on new ones
+  // Fetch pending orders, alert on any unseen ones (including on first load)
   const refreshPending = useCallback(async (silent = false) => {
     try {
       const res = await fetch('/api/shop/orders?status=pending')
@@ -316,7 +316,7 @@ function GlobalOrderAlert() {
       const data = await res.json()
       const pending = data.filter((o: any) => o.status === 'pending')
 
-      if (!firstLoadRef.current && !silent) {
+      if (!silent) {
         const newOrders = pending.filter((o: any) => !knownIdsRef.current.has(o.id))
         if (newOrders.length > 0) {
           playSound()
@@ -330,7 +330,6 @@ function GlobalOrderAlert() {
           }
         }
       }
-      firstLoadRef.current = false
       knownIdsRef.current = new Set(pending.map((o: any) => o.id))
       setPendingOrders(pending)
       if (pending.length === 0) stopSound()
