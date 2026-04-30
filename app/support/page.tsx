@@ -2,7 +2,6 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import ContactForm from '@/components/ContactForm'
 
@@ -93,7 +92,6 @@ export default async function CustomerSupportPage() {
         </div>
       </main>
 
-      <div className="desktop-only"><Footer /></div>
       <MobileBottomNav />
     </div>
   )

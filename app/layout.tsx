@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from 'next'
 import { DM_Sans, Playfair_Display } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { CartProvider } from '@/lib/cart-context'
+import ConditionalFooter from '@/components/ConditionalFooter'
 import CookieConsent from '@/components/CookieConsent'
 import InstallPrompt from '@/components/InstallPrompt'
 import PageTracker from '@/components/PageTracker'
@@ -146,7 +147,10 @@ export default function RootLayout({
       </head>
       <body className={`${dmSans.variable} ${playfair.variable} antialiased`}>
         <AuthProvider>
-          <CartProvider>{children}</CartProvider>
+          <CartProvider>
+            {children}
+            <ConditionalFooter />
+          </CartProvider>
           <PageTracker />
         </AuthProvider>
         <InstallPrompt />

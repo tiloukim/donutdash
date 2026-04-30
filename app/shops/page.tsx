@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'rea
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import ShopCard from '@/components/ShopCard'
 import { useAuth } from '@/lib/auth-context'
@@ -597,7 +596,6 @@ function ShopsPageInner() {
 
       {/* Footer: desktop only */}
       <div className="desktop-only">
-        <Footer />
       </div>
 
       {/* Mobile Bottom Nav */}

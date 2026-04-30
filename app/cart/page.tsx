@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import { useCart } from '@/lib/cart-context'
 import { useAuth } from '@/lib/auth-context'
@@ -81,7 +80,6 @@ export default function CartPage() {
         </main>
 
         <div className="desktop-only">
-          <Footer />
         </div>
         <MobileBottomNav />
       </div>
@@ -497,7 +495,6 @@ export default function CartPage() {
 
       {/* Desktop Footer */}
       <div className="desktop-only">
-        <Footer />
       </div>
 
       {/* Mobile Bottom Nav */}

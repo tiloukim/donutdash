@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import ContactForm from '@/components/ContactForm'
 
@@ -100,7 +99,6 @@ export default function DriverSupportPage() {
         </div>
       </main>
 
-      <div className="desktop-only"><Footer /></div>
       <MobileBottomNav />
     </div>
   )

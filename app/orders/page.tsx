@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import OrderStatusBadge from '@/components/OrderStatusBadge'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
@@ -362,7 +361,6 @@ export default function OrdersPage() {
             </Link>
           </div>
         </main>
-        <Footer />
       </div>
     )
   }
@@ -409,7 +407,6 @@ export default function OrdersPage() {
         </div>
       </main>
 
-      <Footer />
     </div>
   )
 }

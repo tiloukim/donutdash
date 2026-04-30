@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import type { MenuItem } from '@/lib/types'
@@ -512,7 +511,6 @@ export default function GroupOrderPage() {
         </div>
       </main>
 
-      <Footer />
     </div>
   )
 }

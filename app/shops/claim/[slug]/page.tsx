@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import DonutIcon from '@/components/DonutIcon'
 import { useAuth } from '@/lib/auth-context'
@@ -646,7 +645,6 @@ export default function ClaimShopPage() {
         }
       `}</style>
 
-      <div className="desktop-only"><Footer /></div>
       <MobileBottomNav />
     </div>
   )

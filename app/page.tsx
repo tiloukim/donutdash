@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import ShopCard from '@/components/ShopCard'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import { useAuth } from '@/lib/auth-context'
@@ -1326,7 +1325,6 @@ export default function HomePage() {
 
       {/* Footer: hidden on mobile */}
       <div className="desktop-only">
-        <Footer />
       </div>
 
       {/* Mobile Bottom Nav */}

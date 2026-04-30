@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 
 export const metadata: Metadata = {
   title: 'Donut Delivery in Tyler, TX | DonutDash',
@@ -166,7 +165,6 @@ export default function DonutDeliveryTylerTX() {
           </Link>
         </div>
       </main>
-      <Footer />
     </>
   )
 }
