@@ -8,6 +8,7 @@ import RoleAuthForm from '@/components/RoleAuthForm'
 import { ShopLangProvider, useShopLang } from '@/lib/shop-lang-context'
 import type { TranslationKey } from '@/lib/shop-i18n'
 import { useRealtime } from '@/lib/use-realtime'
+import { playUrgentAlert, stopUrgentAlert, unlockAudio } from '@/lib/alert-sound'
 
 const NAV_ITEMS: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: '/shop', labelKey: 'nav.dashboard', icon: '📊' },
@@ -257,55 +258,18 @@ function GlobalOrderAlert() {
   const [adjustedItems, setAdjustedItems] = useState<Record<string, Record<number, number>>>({})
   const knownIdsRef = useRef<Set<string>>(new Set())
   const firstLoadRef = useRef(true)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const vibrateRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const audioUnlockedRef = useRef(false)
-
-  // Pre-unlock audio on first user interaction (required by Chrome/Safari autoplay policy)
+  // Try to unlock audio on mount + on any user interaction
   useEffect(() => {
-    const unlock = () => {
-      if (audioUnlockedRef.current) return
-      const audio = new Audio('/order-alert.wav')
-      audio.loop = true
-      audio.volume = 0.01
-      audio.play().then(() => {
-        audio.pause()
-        audio.currentTime = 0
-        audio.volume = 1.0
-        audioRef.current = audio
-        audioUnlockedRef.current = true
-      }).catch(() => {})
-    }
-    // Try immediately (navigating here counts as a gesture in some browsers)
-    unlock()
-    // Also on any interaction
-    const events = ['click', 'touchstart', 'keydown', 'pointerdown']
-    events.forEach(e => document.addEventListener(e, unlock, { passive: true }))
-    return () => { events.forEach(e => document.removeEventListener(e, unlock)) }
+    unlockAudio('/order-alert.wav')
   }, [])
 
   const playSound = useCallback(() => {
-    try {
-      if (!audioRef.current) {
-        audioRef.current = new Audio('/order-alert.wav')
-        audioRef.current.loop = true
-      }
-      audioRef.current.volume = 1.0
-      audioRef.current.currentTime = 0
-      audioRef.current.play().catch(() => {})
-    } catch {}
-    // Continuous vibration
-    if (navigator.vibrate) {
-      navigator.vibrate([400, 200, 400, 200, 400])
-      vibrateRef.current = setInterval(() => navigator.vibrate([400, 200, 400, 200, 400]), 2000)
-    }
+    playUrgentAlert('/order-alert.wav')
   }, [])
 
   const stopSound = useCallback(() => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0 }
-    if (vibrateRef.current) { clearInterval(vibrateRef.current); vibrateRef.current = null }
-    if (navigator.vibrate) navigator.vibrate(0)
+    stopUrgentAlert()
   }, [])
 
   // Fetch pending orders, alert on any unseen ones (including on first load)
