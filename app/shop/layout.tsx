@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 import { ShopLangProvider, useShopLang } from '@/lib/shop-lang-context'
 import type { TranslationKey } from '@/lib/shop-i18n'
+import { useRealtime } from '@/lib/use-realtime'
 
 const NAV_ITEMS: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: '/shop', labelKey: 'nav.dashboard', icon: '📊' },
@@ -50,6 +51,7 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [shopName, setShopName] = useState<string>('')
+  const [shopId, setShopId] = useState<string | null>(null)
   const [hasShop, setHasShop] = useState(true)
 
   useEffect(() => {
@@ -64,7 +66,10 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
         }
         return r.json()
       })
-      .then(data => { if (data?.name) { setShopName(data.name); setHasShop(true) } })
+      .then(data => {
+        if (data?.name) { setShopName(data.name); setHasShop(true) }
+        if (data?.id) setShopId(data.id)
+      })
       .catch(() => {})
   }, [user, role, router])
 
@@ -303,42 +308,63 @@ function GlobalOrderAlert() {
     if (navigator.vibrate) navigator.vibrate(0)
   }, [])
 
-  // Poll for pending orders every 8 seconds
-  useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await fetch('/api/shop/orders?status=pending')
-        if (!res.ok) return
-        const data = await res.json()
-        const pending = data.filter((o: any) => o.status === 'pending')
+  // Fetch pending orders, alert on new ones
+  const refreshPending = useCallback(async (silent = false) => {
+    try {
+      const res = await fetch('/api/shop/orders?status=pending')
+      if (!res.ok) return
+      const data = await res.json()
+      const pending = data.filter((o: any) => o.status === 'pending')
 
-        if (!firstLoadRef.current) {
-          const newOrders = pending.filter((o: any) => !knownIdsRef.current.has(o.id))
-          if (newOrders.length > 0) {
-            playSound()
-            // Browser notification
-            if ('Notification' in window && Notification.permission === 'granted') {
-              newOrders.forEach((o: any) => {
-                new Notification('New Order!', {
-                  body: `Order #${o.id.slice(0, 8)} — $${o.subtotal?.toFixed(2)}`,
-                  icon: '/logo.png', tag: `order-${o.id}`, requireInteraction: true,
-                })
+      if (!firstLoadRef.current && !silent) {
+        const newOrders = pending.filter((o: any) => !knownIdsRef.current.has(o.id))
+        if (newOrders.length > 0) {
+          playSound()
+          if ('Notification' in window && Notification.permission === 'granted') {
+            newOrders.forEach((o: any) => {
+              new Notification('New Order!', {
+                body: `Order #${o.id.slice(0, 8)} — $${o.subtotal?.toFixed(2)}`,
+                icon: '/logo.png', tag: `order-${o.id}`, requireInteraction: true,
               })
-            }
+            })
           }
         }
-        firstLoadRef.current = false
-        knownIdsRef.current = new Set(pending.map((o: any) => o.id))
-        setPendingOrders(pending)
-
-        // Stop sound if no more pending
-        if (pending.length === 0) stopSound()
-      } catch {}
-    }
-    check()
-    const i = setInterval(check, 8000)
-    return () => { clearInterval(i); stopSound() }
+      }
+      firstLoadRef.current = false
+      knownIdsRef.current = new Set(pending.map((o: any) => o.id))
+      setPendingOrders(pending)
+      if (pending.length === 0) stopSound()
+    } catch {}
   }, [playSound, stopSound])
+
+  // Realtime subscription — instant detection, works in background tabs
+  useRealtime({
+    table: 'dd_orders',
+    filter: shopId ? `shop_id=eq.${shopId}` : undefined,
+    event: 'INSERT',
+    enabled: !!shopId,
+    onData: () => { refreshPending() },
+  })
+
+  // Polling fallback (every 30s) — covers realtime outages and Chrome tab freezing
+  useEffect(() => {
+    refreshPending()
+    const i = setInterval(() => refreshPending(), 30000)
+    return () => { clearInterval(i); stopSound() }
+  }, [refreshPending, stopSound])
+
+  // Catch-up alert: when tab regains focus, replay sound if orders are pending
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible' && knownIdsRef.current.size > 0) {
+        refreshPending(true).then(() => {
+          if (knownIdsRef.current.size > 0) playSound()
+        })
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [refreshPending, playSound])
 
   // Request notification permission
   useEffect(() => {
