@@ -590,6 +590,33 @@ export default function SignupPage() {
           </button>
         </form>
 
+        {role === 'driver' && !isApp && (
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1rem',
+            borderRadius: '12px',
+            background: '#F8F8FA',
+            border: '1px solid #eee',
+            textAlign: 'center',
+          }}>
+            <p style={{ fontSize: '0.85rem', color: '#666', margin: '0 0 0.5rem' }}>
+              Prefer the mobile app? Download DonutDash Driver
+            </p>
+            <a
+              href="https://apps.apple.com/us/app/donutdash-driver/id6762642387"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-block' }}
+            >
+              <img
+                src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                alt="Download DonutDash Driver on the App Store"
+                style={{ height: '40px' }}
+              />
+            </a>
+          </div>
+        )}
+
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem', color: '#666' }}>
           Already have an account?{' '}
           <Link href="/login" style={{ color: '#FF1493', fontWeight: 600 }}>

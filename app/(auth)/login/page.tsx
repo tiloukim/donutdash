@@ -252,6 +252,31 @@ export default function LoginPage() {
             Sign Up
           </Link>
         </p>
+
+        {!isApp && (
+          <div style={{
+            marginTop: '1.25rem',
+            paddingTop: '1.25rem',
+            borderTop: '1px solid #eee',
+            textAlign: 'center',
+          }}>
+            <p style={{ fontSize: '0.8rem', color: '#888', margin: '0 0 0.5rem' }}>
+              Driver? Get the DonutDash Driver app
+            </p>
+            <a
+              href="https://apps.apple.com/us/app/donutdash-driver/id6762642387"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-block' }}
+            >
+              <img
+                src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                alt="Download DonutDash Driver on the App Store"
+                style={{ height: '36px' }}
+              />
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )
