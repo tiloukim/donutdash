@@ -52,7 +52,6 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [shopName, setShopName] = useState<string>('')
-  const [shopId, setShopId] = useState<string | null>(null)
   const [hasShop, setHasShop] = useState(true)
 
   useEffect(() => {
@@ -69,7 +68,6 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
       })
       .then(data => {
         if (data?.name) { setShopName(data.name); setHasShop(true) }
-        if (data?.id) setShopId(data.id)
       })
       .catch(() => {})
   }, [user, role, router])
@@ -256,12 +254,21 @@ function GlobalOrderAlert() {
   const [rejectReason, setRejectReason] = useState('Out of stock')
   const [adjustingId, setAdjustingId] = useState<string | null>(null)
   const [adjustedItems, setAdjustedItems] = useState<Record<string, Record<number, number>>>({})
+  const [shopId, setShopId] = useState<string | null>(null)
   const knownIdsRef = useRef<Set<string>>(new Set())
   const firstLoadRef = useRef(true)
 
   // Try to unlock audio on mount + on any user interaction
   useEffect(() => {
     unlockAudio('/order-alert.wav')
+  }, [])
+
+  // Fetch shop id for realtime filter
+  useEffect(() => {
+    fetch('/api/shop/settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.id) setShopId(data.id) })
+      .catch(() => {})
   }, [])
 
   const playSound = useCallback(() => {
