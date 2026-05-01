@@ -3,12 +3,13 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
 import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
+import { getStripe } from '@/lib/stripe'
 
 // Valid shop-side status transitions
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['preparing'],
-  preparing: ['ready_for_pickup'],
+  confirmed: ['preparing', 'cancelled'],
+  preparing: ['ready_for_pickup', 'cancelled'],
 }
 
 export async function GET(req: Request) {
@@ -158,6 +159,28 @@ export async function PATCH(req: NextRequest) {
       if (info) {
         const html = buildOrderEmailHtml(order_id, info.headline, info.message)
         sendOrderEmail(customer.email, info.subject, html).catch(() => {})
+      }
+    }
+  }
+
+  // When shop cancels an accepted order, refund the customer + cancel delivery
+  if (status === 'cancelled' && (order.status === 'confirmed' || order.status === 'preparing')) {
+    // Cancel any active delivery (driver may still be assigned)
+    await svc.from('dd_deliveries')
+      .update({ status: 'cancelled' })
+      .eq('order_id', order_id)
+      .neq('status', 'delivered')
+
+    // Refund customer if they paid via Stripe
+    if (order.payment_method === 'stripe' && order.payment_id) {
+      try {
+        const stripe = getStripe()
+        await stripe.refunds.create({
+          payment_intent: order.payment_id,
+          reason: 'requested_by_customer',
+        })
+      } catch (e) {
+        console.error('Stripe refund failed for cancelled order', order_id, e)
       }
     }
   }

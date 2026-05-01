@@ -473,17 +473,47 @@ export default function ShopOrders() {
                               </button>
                             )}
                           </>}
-                          {o.status === 'confirmed' && (
-                            <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'preparing') }} disabled={updating === o.id}
-                              style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                              {updating === o.id ? '...' : '🍩 Start Preparing'}
-                            </button>
-                          )}
-                          {o.status === 'preparing' && (
-                            <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'ready_for_pickup') }} disabled={updating === o.id}
-                              style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                              {updating === o.id ? '...' : '✓ Ready for Pickup'}
-                            </button>
+                          {(o.status === 'confirmed' || o.status === 'preparing') && (
+                            rejectingOrder === o.id ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>
+                                  Cancelling will refund the customer{o.payment_method === 'stripe' ? ' via Stripe' : ''}.
+                                </div>
+                                <select value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                                  style={{ padding: '10px', borderRadius: 8, fontSize: 13, border: '1px solid #FCA5A5' }}>
+                                  {REJECTION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'cancelled', rejectReason) }} disabled={updating === o.id}
+                                    style={{ flex: 1, padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#DC2626', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                                    {updating === o.id ? '...' : 'Confirm Cancel'}
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); setRejectingOrder(null) }}
+                                    style={{ padding: '10px 14px', borderRadius: 8, fontSize: 13, background: '#F3F4F6', color: '#666', border: 'none', cursor: 'pointer' }}>
+                                    Back
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                {o.status === 'confirmed' && (
+                                  <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'preparing') }} disabled={updating === o.id}
+                                    style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                                    {updating === o.id ? '...' : '🍩 Start Preparing'}
+                                  </button>
+                                )}
+                                {o.status === 'preparing' && (
+                                  <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'ready_for_pickup') }} disabled={updating === o.id}
+                                    style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                                    {updating === o.id ? '...' : '✓ Ready for Pickup'}
+                                  </button>
+                                )}
+                                <button onClick={(e) => { e.stopPropagation(); setRejectingOrder(o.id); setRejectReason('Out of stock') }}
+                                  style={{ width: '100%', padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FCA5A5', cursor: 'pointer' }}>
+                                  ✕ Cancel Order
+                                </button>
+                              </>
+                            )
                           )}
                           {o.status === 'cancelled' && o.cancellation_reason && (
                             <div style={{ fontSize: 13, color: '#DC2626', fontStyle: 'italic', textAlign: 'center' }}>Rejected: {o.cancellation_reason}</div>
