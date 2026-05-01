@@ -10,6 +10,7 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['preparing', 'cancelled'],
   preparing: ['ready_for_pickup', 'cancelled'],
+  ready_for_pickup: ['cancelled'],
 }
 
 export async function GET(req: Request) {
@@ -164,7 +165,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   // When shop cancels an accepted order, refund the customer + cancel delivery
-  if (status === 'cancelled' && (order.status === 'confirmed' || order.status === 'preparing')) {
+  if (status === 'cancelled' && (order.status === 'confirmed' || order.status === 'preparing' || order.status === 'ready_for_pickup')) {
     // Cancel any active delivery (driver may still be assigned)
     await svc.from('dd_deliveries')
       .update({ status: 'cancelled' })
