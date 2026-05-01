@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getStripe, PLATFORM_FEE_RATE } from '@/lib/stripe'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES } from '@/lib/constants'
+import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -74,6 +75,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'This shop has not connected Stripe payments yet.' }, { status: 400 })
     }
 
+    if (shop.lat == null || shop.lng == null) {
+      return NextResponse.json({ error: 'This shop has not set their location yet. Please contact the shop owner.' }, { status: 400 })
+    }
+
     // Check if shop has paused orders
     if (shop.paused) {
       if (shop.pause_until && new Date(shop.pause_until) <= new Date()) {
@@ -102,6 +107,13 @@ export async function POST(request: NextRequest) {
       }
     } catch {
       // Geocoding failed — continue without coordinates
+    }
+
+    if (deliveryLat != null && deliveryLng != null) {
+      const dist = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
+      if (dist > MAX_DELIVERY_MILES) {
+        return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
+      }
     }
 
     // Use shop's flat delivery fee (or platform default)

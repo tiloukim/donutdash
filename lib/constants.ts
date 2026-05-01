@@ -55,6 +55,7 @@ export const DELIVERY_STATUS_LABELS: Record<string, string> = {
 // Delivery logistics
 export const OFFER_TIMEOUT_SECONDS = 45
 export const MAX_DRIVER_DISTANCE_MILES = 10
+export const MAX_DELIVERY_MILES = 25     // Max shop-to-customer distance accepted at checkout
 export const BASE_DELIVERY_PAY = 3.00   // Flat base per delivery
 export const PER_MILE_PAY = 0.55        // Per mile rate
 export const DRIVER_LOCATION_UPDATE_INTERVAL = 10000
