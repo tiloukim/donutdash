@@ -443,7 +443,7 @@ export default function ShopSettings() {
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Stripe Payments</h3>
         <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>
-          Connect your Stripe account to receive customer payments directly. DonutDash takes a 15% platform fee automatically.
+          Connect your Stripe account to receive customer payments directly. DonutDash takes a 20% commission on the food subtotal — you keep 80% of food sales. Tax, delivery fee, service fee, and tip are handled by DonutDash separately and are not part of your payout.
         </p>
 
         {stripeStatus?.onboarding_complete ? (
