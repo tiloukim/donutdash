@@ -395,8 +395,8 @@ export default function ShopSettings() {
 
       {/* Bank Account for Payouts */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Bank Account (for Weekly Payouts)</h3>
-        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>Your shop earnings (85% of sales) will be deposited weekly to this account.</p>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Bank Account (legacy — use Stripe instead)</h3>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>You don&apos;t need to fill this in if you&apos;ve completed Stripe onboarding above — Stripe handles your weekly payouts to the bank account you connected during KYC. You keep 80% of food sales after our 20% commission.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label style={labelStyle}>Account Holder Name</label>
