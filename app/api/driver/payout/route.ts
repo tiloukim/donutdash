@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     const tip = (d.order as any)?.tip || 0
     const distanceMiles = d.distance_miles || 2
     const storedEarnings = d.driver_earnings || 4.00
-    const calculatedEarnings = basePay + (distanceMiles * 0.75) + tip
+    const calculatedEarnings = basePay + (distanceMiles * 2 * 0.75) + tip
     return sum + Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
   }, 0)
 

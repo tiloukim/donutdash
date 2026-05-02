@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -119,16 +119,19 @@ export async function POST(request: NextRequest) {
     // Use shop's flat delivery fee (or platform default)
     const deliveryFee = shop.delivery_fee ?? DEFAULT_DELIVERY_FEE
 
-    // Calculate totals
     const subtotal = items.reduce(
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
       0
     )
-    const tax = Math.round(subtotal * shopTaxRate * 100) / 100
     const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
+    const smallOrderFee = subtotal < MIN_ORDER_AMOUNT ? SMALL_ORDER_FEE : 0
+    // Texas Comptroller Rule 3.293: separately-stated delivery and service fees
+    // on prepared-food sales are part of the taxable sale price. Tip is not.
+    const taxableBasis = subtotal + deliveryFee + serviceFee + smallOrderFee
+    const tax = Math.round(taxableBasis * shopTaxRate * 100) / 100
     const tipAmount = tip || 0
     const promoDiscount = promo_discount && promo_discount > 0 ? Math.round(promo_discount * 100) / 100 : 0
-    const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100
+    const total = Math.round((subtotal + tax + deliveryFee + serviceFee + smallOrderFee + tipAmount - promoDiscount) * 100) / 100
 
     // Stripe destination charges transfer (total - application_fee_amount) to the
     // connected (shop) account. We want the shop to net exactly:
@@ -190,6 +193,17 @@ export async function POST(request: NextRequest) {
       quantity: 1,
     })
 
+    if (smallOrderFee > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: { name: 'Small Order Fee' },
+          unit_amount: Math.round(smallOrderFee * 100),
+        },
+        quantity: 1,
+      })
+    }
+
     // Add tip
     if (tipAmount > 0) {
       lineItems.push({
@@ -228,6 +242,7 @@ export async function POST(request: NextRequest) {
       tax: tax.toString(),
       delivery_fee: deliveryFee.toString(),
       service_fee: serviceFee.toString(),
+      small_order_fee: smallOrderFee.toString(),
       tip: tipAmount.toString(),
       total: total.toString(),
       delivery_address: delivery_address.slice(0, 250),

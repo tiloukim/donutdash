@@ -6,10 +6,16 @@ import { MAX_DRIVER_DISTANCE_MILES, BASE_DELIVERY_PAY, PER_MILE_PAY, OFFER_TIMEO
 export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = [], shopId?: string) {
   const svc = createServiceClient()
 
+  // 2 min matches the offline-stale-drivers cron threshold — drivers whose
+  // last ping is older than this are treated as offline even if is_online=true,
+  // so a force-quit / lost-network app doesn't keep getting offers.
+  const staleCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+
   const { data: onlineDrivers } = await svc
     .from('dd_driver_locations')
     .select('driver_id, lat, lng')
     .eq('is_online', true)
+    .gte('updated_at', staleCutoff)
 
   console.log('[DRIVER FIND] Online drivers:', onlineDrivers?.length || 0, onlineDrivers?.map(d => ({ id: d.driver_id, lat: d.lat, lng: d.lng })))
 
@@ -193,8 +199,10 @@ export async function assignNextDriver(deliveryId: string) {
 }
 
 export function calculateDriverEarnings(distanceMiles: number, tip: number = 0): number {
-  // Base pay + per mile + tip (no per-minute to keep it simple and predictable)
-  const earnings = BASE_DELIVERY_PAY + (distanceMiles * PER_MILE_PAY) + tip
+  // distanceMiles is one-way (shop → customer) from haversineDistance.
+  // Spec pays per mile of round-trip distance, so multiply by 2.
+  const roundTripMiles = distanceMiles * 2
+  const earnings = BASE_DELIVERY_PAY + (roundTripMiles * PER_MILE_PAY) + tip
   return Math.round(earnings * 100) / 100
 }
 

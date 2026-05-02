@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       const tax = parseFloat(meta.tax) || 0
       const deliveryFee = parseFloat(meta.delivery_fee) || 0
       const serviceFee = parseFloat(meta.service_fee) || 0
+      const smallOrderFee = parseFloat(meta.small_order_fee) || 0
       const tipAmount = parseFloat(meta.tip) || 0
       const total = parseFloat(meta.total) || 0
       const deliveryAddress = meta.delivery_address || ''
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
           tax,
           delivery_fee: deliveryFee,
           service_fee: serviceFee,
+          small_order_fee: smallOrderFee,
           tip: tipAmount,
           total,
           payment_method: 'stripe',

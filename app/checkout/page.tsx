@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { useCart } from '@/lib/cart-context'
 import { useAuth } from '@/lib/auth-context'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams()
@@ -70,7 +70,10 @@ export default function CheckoutPage() {
 
   const deliveryFee = shopFees.delivery_fee
   const serviceFee = Math.round(total * (shopFees.service_fee_pct / 100) * 100) / 100
-  const tax = Math.round(total * (shopFees.tax_rate / 100) * 100) / 100
+  const smallOrderFee = total < MIN_ORDER_AMOUNT ? SMALL_ORDER_FEE : 0
+  // TX Comptroller Rule 3.293: separately-stated delivery + service fees on
+  // prepared-food sales are part of the taxable base. Tip is excluded.
+  const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * (shopFees.tax_rate / 100) * 100) / 100
   const tip = tipParam
 
   // Calculate promo discount
@@ -88,7 +91,7 @@ export default function CheckoutPage() {
     }
   }
 
-  const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + tip - promoDiscount) * 100) / 100
+  const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + smallOrderFee + tip - promoDiscount) * 100) / 100
 
   const handleApplyPromo = async () => {
     if (!promoInput.trim()) {
@@ -615,6 +618,12 @@ export default function CheckoutPage() {
                 <span style={{ color: '#666' }}>Service Fee</span>
                 <span>${serviceFee.toFixed(2)}</span>
               </div>
+              {smallOrderFee > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                  <span style={{ color: '#666' }}>Small Order Fee <span style={{ fontSize: '0.7rem', color: '#aaa' }}>(under ${MIN_ORDER_AMOUNT})</span></span>
+                  <span>${smallOrderFee.toFixed(2)}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
                 <span style={{ color: '#666' }}>Tip</span>
                 <span>${tip.toFixed(2)}</span>

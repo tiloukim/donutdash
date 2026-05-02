@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       const tip = (del.order as any)?.tip || 0
       const distanceMiles = del.distance_miles || 2
       const storedEarnings = del.driver_earnings || 4.00
-      const calculatedEarnings = basePay + (distanceMiles * 0.75) + tip
+      const calculatedEarnings = basePay + (distanceMiles * 2 * 0.75) + tip
       const earnings = Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
 
       const existing = driverEarnings.get(del.driver_id) || { amount: 0, deliveries: 0, basePay: 0, tips: 0 }

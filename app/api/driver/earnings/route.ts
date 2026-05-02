@@ -26,7 +26,7 @@ export async function GET() {
     const tip = (d.order as any)?.tip || 0
     const distanceMiles = d.distance_miles || 2
     const storedEarnings = d.driver_earnings || 4.00
-    const calculatedEarnings = basePay + (distanceMiles * 0.75) + tip
+    const calculatedEarnings = basePay + (distanceMiles * 2 * 0.75) + tip
     // Use the higher of stored vs calculated (in case stored was the $4 fallback)
     const actualEarnings = Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
     return { ...d, driver_earnings: actualEarnings }
