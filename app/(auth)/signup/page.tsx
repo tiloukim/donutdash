@@ -134,7 +134,9 @@ export default function SignupPage() {
 
     try {
       if (isApp) {
-        // Use server-side API to bypass captcha for mobile app
+        // Use server-side API to bypass captcha for mobile app.
+        // app-signup creates the user via the admin API and returns a session
+        // (issued through admin.generateLink), so no follow-up sign-in is needed.
         const res = await fetch('/api/auth/app-signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -145,23 +147,14 @@ export default function SignupPage() {
           setError(result.error || 'Signup failed')
           return
         }
-        // Auto sign in via server API (bypasses captcha)
-        const loginRes = await fetch('/api/auth/app-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        })
-        const loginResult = await loginRes.json()
-        if (!loginRes.ok) {
-          setError(loginResult.error || 'Login failed after signup')
+        if (!result.session?.access_token || !result.session?.refresh_token) {
+          setError('Signup succeeded but session was not issued')
           return
         }
-        if (loginResult.session) {
-          await supabase.auth.setSession({
-            access_token: loginResult.session.access_token,
-            refresh_token: loginResult.session.refresh_token,
-          })
-        }
+        await supabase.auth.setSession({
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token,
+        })
         await refreshUser()
         router.push('/')
         return
