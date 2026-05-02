@@ -13,12 +13,16 @@ export default function Turnstile({ onToken }: { onToken: (token: string) => voi
   useEffect(() => {
     if (!siteKey || rendered.current) return
 
-    // Define global callback
     ;(window as any).__onTurnstileCallback = (token: string) => {
       callbackRef.current(token)
     }
+    ;(window as any).__onTurnstileExpired = () => {
+      callbackRef.current('')
+    }
+    ;(window as any).__onTurnstileError = () => {
+      callbackRef.current('')
+    }
 
-    // Load script
     const existing = document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]')
     if (!existing) {
       const script = document.createElement('script')
@@ -27,22 +31,26 @@ export default function Turnstile({ onToken }: { onToken: (token: string) => voi
       document.head.appendChild(script)
     }
 
-    // Render widget via data attributes
     if (ref.current && !rendered.current) {
       ref.current.innerHTML = ''
       const widget = document.createElement('div')
       widget.className = 'cf-turnstile'
       widget.dataset.sitekey = siteKey
       widget.dataset.callback = '__onTurnstileCallback'
+      widget.dataset.expiredCallback = '__onTurnstileExpired'
+      widget.dataset.errorCallback = '__onTurnstileError'
+      widget.dataset.refreshExpired = 'auto'
       widget.dataset.theme = 'light'
       ref.current.appendChild(widget)
       rendered.current = true
 
-      // If script already loaded, re-render
       if ((window as any).turnstile) {
         ;(window as any).turnstile.render(widget, {
           sitekey: siteKey,
           callback: (token: string) => callbackRef.current(token),
+          'expired-callback': () => callbackRef.current(''),
+          'error-callback': () => callbackRef.current(''),
+          'refresh-expired': 'auto',
           theme: 'light',
         })
       }

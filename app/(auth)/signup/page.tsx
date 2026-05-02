@@ -182,7 +182,14 @@ export default function SignupPage() {
       })
 
       if (signUpError) {
-        setError(signUpError.message)
+        const msg = signUpError.message || ''
+        if (msg.toLowerCase().includes('captcha')) {
+          setCaptchaToken('')
+          ;(window as unknown as { turnstile?: { reset: () => void } }).turnstile?.reset()
+          setError('Verification expired. Please complete the CAPTCHA again and resubmit.')
+        } else {
+          setError(msg)
+        }
         return
       }
 
