@@ -28,7 +28,7 @@ export default function CheckoutPage() {
   const [scheduledTime, setScheduledTime] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'square' | 'paypal'>('stripe')
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe')
   const [shopHasStripe, setShopHasStripe] = useState<boolean | null>(null)
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
 
@@ -58,13 +58,11 @@ export default function CheckoutPage() {
             tax_rate: s.tax_rate || 0,
           })
         }
-        // Check if shop has Stripe connected
         if (s && s.stripe_onboarding_complete) {
           setShopHasStripe(true)
           setPaymentMethod('stripe')
         } else {
           setShopHasStripe(false)
-          setPaymentMethod('square')
         }
       })
       .catch(() => {})
@@ -238,24 +236,14 @@ export default function CheckoutPage() {
       scheduled_for: scheduledFor,
     }
 
+    if (!shopHasStripe) {
+      setError('This shop has not finished setting up payments yet. Please try again later or contact support.')
+      setSubmitting(false)
+      return
+    }
+
     try {
-      if (paymentMethod === 'stripe') {
-        // Stripe Checkout (primary — connected accounts)
-        const res = await fetch('/api/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setError(data.error || 'Failed to create Stripe checkout session.')
-          return
-        }
-        if (data.url) {
-          window.location.href = data.url
-        }
-      } else if (paymentMethod === 'paypal') {
-        // PayPal checkout (fallback)
+      if (paymentMethod === 'paypal') {
         const res = await fetch('/api/paypal/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -270,15 +258,14 @@ export default function CheckoutPage() {
           window.location.href = data.approveUrl
         }
       } else {
-        // Square checkout (fallback)
-        const res = await fetch('/api/checkout', {
+        const res = await fetch('/api/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderPayload),
         })
         const data = await res.json()
         if (!res.ok) {
-          setError(data.error || 'Failed to create checkout session.')
+          setError(data.error || 'Failed to create Stripe checkout session.')
           return
         }
         if (data.url) {

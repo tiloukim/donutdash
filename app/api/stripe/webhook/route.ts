@@ -63,11 +63,40 @@ export async function POST(request: NextRequest) {
       const promoDiscount = parseFloat(meta.promo_discount) || 0
       const scheduledFor = meta.scheduled_for || null
 
-      let items: any[] = []
+      // items_json is the compact tuple format from /api/stripe/checkout:
+      //   [[menu_item_id, qty, price_cents, instructions], ...]
+      // Names + image_urls are looked up from dd_menu_items below.
+      let items: Array<{
+        menu_item_id: string
+        quantity: number
+        price: number
+        name: string
+        image_url: string | null
+        special_instructions: string | null
+      }> = []
       try {
-        items = JSON.parse(meta.items_json || '[]')
-      } catch {
-        console.error('Failed to parse items_json from Stripe metadata')
+        const compact: Array<[string, number, number, string]> = JSON.parse(meta.items_json || '[]')
+        const ids = compact.map(([id]) => id).filter(Boolean)
+        const { data: menuRows } = await svc
+          .from('dd_menu_items')
+          .select('id, name, image_url, price')
+          .in('id', ids)
+        const menuById = new Map<string, { name: string; image_url: string | null; price: number }>(
+          (menuRows || []).map((m: any) => [m.id, { name: m.name, image_url: m.image_url, price: Number(m.price) }])
+        )
+        items = compact.map(([id, qty, priceCents, instr]) => {
+          const m = menuById.get(id)
+          return {
+            menu_item_id: id,
+            quantity: qty,
+            price: priceCents / 100,
+            name: m?.name || 'Item',
+            image_url: m?.image_url || null,
+            special_instructions: instr || null,
+          }
+        })
+      } catch (e) {
+        console.error('Failed to parse items_json from Stripe metadata', e)
       }
 
       // Create order in dd_orders
@@ -102,25 +131,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: orderError.message }, { status: 500 })
       }
 
-      // Insert order items
       if (items.length > 0) {
-        const menuItemIds = items.map((i: any) => i.menu_item_id).filter(Boolean)
-        const { data: menuItems } = await svc
-          .from('dd_menu_items')
-          .select('id, image_url')
-          .in('id', menuItemIds)
-        const imageById = new Map<string, string | null>(
-          (menuItems || []).map((m: any) => [m.id, m.image_url])
-        )
-
-        const orderItems = items.map((item: any) => ({
+        const orderItems = items.map(item => ({
           order_id: order.id,
           menu_item_id: item.menu_item_id,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
-          image_url: imageById.get(item.menu_item_id) || null,
-          special_instructions: item.special_instructions || null,
+          image_url: item.image_url,
+          special_instructions: item.special_instructions,
         }))
 
         const { error: itemsError } = await svc

@@ -9,5 +9,3 @@ export function getStripe(): Stripe {
   return stripeInstance
 }
 
-/** Platform fee rate: 15% of food subtotal */
-export const PLATFORM_FEE_RATE = 0.15

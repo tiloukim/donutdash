@@ -22,12 +22,11 @@ export async function GET() {
 
   // Compute correct earnings: base_pay + distance bonus + tip
   const all = (deliveries || []).map(d => {
-    const basePay = d.base_pay || 3.00
+    const basePay = d.base_pay || 2.50
     const tip = (d.order as any)?.tip || 0
     const distanceMiles = d.distance_miles || 2
-    // If driver_earnings was set to default $4, recalculate
     const storedEarnings = d.driver_earnings || 4.00
-    const calculatedEarnings = basePay + (distanceMiles * 0.55) + tip
+    const calculatedEarnings = basePay + (distanceMiles * 0.75) + tip
     // Use the higher of stored vs calculated (in case stored was the $4 fallback)
     const actualEarnings = Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
     return { ...d, driver_earnings: actualEarnings }

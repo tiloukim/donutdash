@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { getStripe, PLATFORM_FEE_RATE } from '@/lib/stripe'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES } from '@/lib/constants'
+import { getStripe } from '@/lib/stripe'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -130,9 +130,18 @@ export async function POST(request: NextRequest) {
     const promoDiscount = promo_discount && promo_discount > 0 ? Math.round(promo_discount * 100) / 100 : 0
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100
 
-    // Platform fee: 15% of the food subtotal (in cents)
-    const platformFeeCents = Math.round(subtotal * PLATFORM_FEE_RATE * 100)
+    // Stripe destination charges transfer (total - application_fee_amount) to the
+    // connected (shop) account. We want the shop to net exactly:
+    //   subtotal × (1 - SHOP_COMMISSION_RATE)   — food revenue minus our commission.
+    // Tax, delivery fee, service fee, and tip stay on the platform balance:
+    //   - tax is held in the segregated escrow and remitted to the Texas Comptroller
+    //   - tip is paid out to the driver in the weekly payout batch (100% pass-through)
+    //   - delivery fee + service fee + commission fund driver base/mileage and platform ops
+    // Stripe processing fees are deducted from the platform balance, so the shop's
+    // payout is unaffected by them (platform absorbs Stripe fees per spec §5).
+    const shopPayoutCents = Math.round(subtotal * (1 - SHOP_COMMISSION_RATE) * 100)
     const totalCents = Math.round(total * 100)
+    const applicationFeeCents = totalCents - shopPayoutCents
 
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'https://donutdash.app'
     const stripe = getStripe()
@@ -193,33 +202,43 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Build metadata to reconstruct the order in the webhook
+    // Stripe metadata caps each value at 500 chars. Pack items as a tuple array
+    // [menu_item_id, qty, price_cents, instructions_or_empty] to maximize density —
+    // names and image_urls are looked up from dd_menu_items in the webhook.
+    const itemsCompact = items.map((i: any) => [
+      i.menu_item_id,
+      i.quantity,
+      Math.round(Number(i.price) * 100),
+      (i.special_instructions || '').slice(0, 60),
+    ])
+    const itemsJson = JSON.stringify(itemsCompact)
+    if (itemsJson.length > 480) {
+      return NextResponse.json(
+        { error: 'Order has too many items or instructions for one checkout. Please split into a smaller order.' },
+        { status: 400 },
+      )
+    }
+
     const metadata: Record<string, string> = {
       shop_id: shopId,
       customer_id: ddUser.id,
-      customer_email: ddUser.email || '',
-      customer_name: ddUser.name || '',
+      customer_email: (ddUser.email || '').slice(0, 200),
+      customer_name: (ddUser.name || '').slice(0, 100),
       subtotal: subtotal.toString(),
       tax: tax.toString(),
       delivery_fee: deliveryFee.toString(),
       service_fee: serviceFee.toString(),
       tip: tipAmount.toString(),
       total: total.toString(),
-      delivery_address,
-      delivery_city: delivery_city || '',
+      delivery_address: delivery_address.slice(0, 250),
+      delivery_city: (delivery_city || '').slice(0, 100),
       delivery_lat: deliveryLat?.toString() || '',
       delivery_lng: deliveryLng?.toString() || '',
-      delivery_instructions: delivery_instructions || '',
-      promo_code: promo_code || '',
+      delivery_instructions: (delivery_instructions || '').slice(0, 300),
+      promo_code: (promo_code || '').slice(0, 50),
       promo_discount: promoDiscount.toString(),
       scheduled_for: scheduled_for || '',
-      items_json: JSON.stringify(items.map((i: any) => ({
-        menu_item_id: i.menu_item_id,
-        name: i.name,
-        price: i.price,
-        quantity: i.quantity,
-        special_instructions: i.special_instructions || null,
-      }))),
+      items_json: itemsJson,
     }
 
     // Create Stripe Checkout Session with connected account destination
@@ -227,7 +246,7 @@ export async function POST(request: NextRequest) {
       mode: 'payment',
       line_items: lineItems,
       payment_intent_data: {
-        application_fee_amount: platformFeeCents,
+        application_fee_amount: applicationFeeCents,
         transfer_data: {
           destination: shop.stripe_account_id,
         },
