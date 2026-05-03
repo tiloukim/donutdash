@@ -26,14 +26,15 @@ export default function CartPage() {
       .catch(() => {})
   }, [shopId])
 
-  // Tip amounts based on percentages of subtotal
+  // Fixed tip amounts work better than percentages for low-AOV donut orders.
+  // 100% pass-through to driver.
   const tipOptions = [
-    { label: '10%', amount: Math.round(total * 0.10 * 100) / 100 },
-    { label: '15%', amount: Math.round(total * 0.15 * 100) / 100 },
-    { label: '20%', amount: Math.round(total * 0.20 * 100) / 100 },
+    { amount: 2, popular: false },
+    { amount: 3, popular: true },
+    { amount: 5, popular: false },
   ]
 
-  const [selectedTipIndex, setSelectedTipIndex] = useState<number>(1) // default 15%
+  const [selectedTipIndex, setSelectedTipIndex] = useState<number>(1) // default $3
   const [customTip, setCustomTip] = useState('')
   const [showCustomTip, setShowCustomTip] = useState(false)
 
@@ -304,59 +305,67 @@ export default function CartPage() {
                 Your driver works hard to deliver your donuts fresh &amp; fast. Tips make a real difference!
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
               {tipOptions.map((opt, idx) => {
                 const isSelected = !showCustomTip && selectedTipIndex === idx
                 return (
-                  <button
-                    key={idx}
-                    onClick={() => { setSelectedTipIndex(idx); setShowCustomTip(false) }}
-                    style={{
-                      flex: 1,
-                      padding: '10px 4px',
-                      borderRadius: '24px',
-                      border: isSelected ? '2px solid #FF8C00' : '1.5px solid #e0e0e0',
-                      background: isSelected ? '#FFF8F0' : 'white',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <div style={{
-                      fontWeight: 700, fontSize: '0.85rem',
-                      color: isSelected ? '#FF8C00' : '#1A1A2E',
-                    }}>
-                      ${opt.amount.toFixed(2)}
-                    </div>
-                    <div style={{
-                      fontSize: '0.7rem', color: isSelected ? '#FF8C00' : '#999',
-                      marginTop: '1px',
-                    }}>
-                      {opt.label}
-                    </div>
-                  </button>
+                  <div key={idx} style={{ flex: 1, position: 'relative' }}>
+                    {opt.popular && (
+                      <div style={{
+                        position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
+                        background: '#FF8C00', color: 'white',
+                        fontSize: '0.65rem', fontWeight: 700,
+                        padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                      }}>
+                        ★ Most popular
+                      </div>
+                    )}
+                    <button
+                      onClick={() => { setSelectedTipIndex(idx); setShowCustomTip(false) }}
+                      style={{
+                        width: '100%',
+                        padding: '14px 4px',
+                        borderRadius: '24px',
+                        border: isSelected ? '2px solid #FF8C00' : '1.5px solid #e0e0e0',
+                        background: isSelected ? '#FFF8F0' : 'white',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{
+                        fontWeight: 800, fontSize: '1.05rem',
+                        color: isSelected ? '#FF8C00' : '#1A1A2E',
+                      }}>
+                        ${opt.amount.toFixed(0)}
+                      </div>
+                    </button>
+                  </div>
                 )
               })}
-              <button
-                onClick={() => setShowCustomTip(true)}
-                style={{
-                  flex: 1,
-                  padding: '10px 4px',
-                  borderRadius: '24px',
-                  border: showCustomTip ? '2px solid #FF8C00' : '1.5px solid #e0e0e0',
-                  background: showCustomTip ? '#FFF8F0' : 'white',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <div style={{
-                  fontWeight: 700, fontSize: '0.85rem',
-                  color: showCustomTip ? '#FF8C00' : '#1A1A2E',
-                }}>
-                  Other
-                </div>
-              </button>
+              <div style={{ flex: 1 }}>
+                <button
+                  onClick={() => setShowCustomTip(true)}
+                  style={{
+                    width: '100%',
+                    padding: '14px 4px',
+                    borderRadius: '24px',
+                    border: showCustomTip ? '2px solid #FF8C00' : '1.5px solid #e0e0e0',
+                    background: showCustomTip ? '#FFF8F0' : 'white',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{
+                    fontWeight: 700, fontSize: '0.9rem',
+                    color: showCustomTip ? '#FF8C00' : '#1A1A2E',
+                  }}>
+                    Other
+                  </div>
+                </button>
+              </div>
             </div>
             {showCustomTip && (
               <div style={{
