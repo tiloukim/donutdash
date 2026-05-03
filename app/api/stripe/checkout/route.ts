@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT, BASE_DELIVERY_RADIUS_MILES, PER_EXTRA_MILE_FEE } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -109,15 +109,22 @@ export async function POST(request: NextRequest) {
       // Geocoding failed — continue without coordinates
     }
 
+    let distMiles: number | null = null
     if (deliveryLat != null && deliveryLng != null) {
-      const dist = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
-      if (dist > MAX_DELIVERY_MILES) {
-        return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
+      distMiles = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
+      if (distMiles > MAX_DELIVERY_MILES) {
+        return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${distMiles.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
       }
     }
 
-    // Use shop's flat delivery fee (or platform default)
-    const deliveryFee = shop.delivery_fee ?? DEFAULT_DELIVERY_FEE
+    // Distance-based delivery fee: base covers the first BASE_DELIVERY_RADIUS_MILES;
+    // every mile beyond adds PER_EXTRA_MILE_FEE ($1.50), which exactly matches the
+    // per-mile growth of driver round-trip pay (2 × PER_MILE_PAY) — keeps margin
+    // constant across all distances. If geocoding failed, we charge only the base
+    // (rare; we accept that as the trade-off for not blocking checkout).
+    const baseDeliveryFee = shop.delivery_fee ?? DEFAULT_DELIVERY_FEE
+    const extraMiles = distMiles != null ? Math.max(0, distMiles - BASE_DELIVERY_RADIUS_MILES) : 0
+    const deliveryFee = Math.round((baseDeliveryFee + extraMiles * PER_EXTRA_MILE_FEE) * 100) / 100
 
     const subtotal = items.reduce(
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
