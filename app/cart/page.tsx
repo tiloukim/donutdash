@@ -1,18 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import { useCart } from '@/lib/cart-context'
 import { useAuth } from '@/lib/auth-context'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
 
 export default function CartPage() {
   const router = useRouter()
-  const { items, total, count, updateQty, removeItem, clearCart, shopName } = useCart()
+  const { items, total, count, updateQty, removeItem, clearCart, shopName, shopId } = useCart()
   const { user } = useAuth()
+  const [shopMinOrder, setShopMinOrder] = useState<number>(0)
+
+  useEffect(() => {
+    if (!shopId) return
+    fetch(`/api/shops/${shopId}`)
+      .then(r => r.json())
+      .then(data => {
+        const s = data?.shop || data
+        if (s && typeof s.min_order === 'number') setShopMinOrder(s.min_order)
+      })
+      .catch(() => {})
+  }, [shopId])
 
   // Tip amounts based on percentages of subtotal
   const tipOptions = [
@@ -31,7 +43,7 @@ export default function CartPage() {
     ? (parseFloat(customTip) || 0)
     : (tipOptions[selectedTipIndex]?.amount ?? 0)
   const grandTotal = total + deliveryFee + serviceFee + tip
-  const meetsMinimum = total >= MIN_ORDER_AMOUNT
+  const meetsMinimum = total >= shopMinOrder
 
   // Empty cart state
   if (count === 0) {
@@ -417,7 +429,7 @@ export default function CartPage() {
               display: 'flex', alignItems: 'center', gap: '8px',
             }}>
               <span>⚠️</span>
-              <span>Minimum order is ${MIN_ORDER_AMOUNT.toFixed(2)}. Add ${(MIN_ORDER_AMOUNT - total).toFixed(2)} more.</span>
+              <span>Minimum order is ${shopMinOrder.toFixed(2)}. Add ${(shopMinOrder - total).toFixed(2)} more.</span>
             </div>
           )}
 
