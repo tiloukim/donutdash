@@ -7,13 +7,16 @@ import Navbar from '@/components/Navbar'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import { useCart } from '@/lib/cart-context'
 import { useAuth } from '@/lib/auth-context'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
 
 export default function CartPage() {
   const router = useRouter()
   const { items, total, count, updateQty, removeItem, clearCart, shopName, shopId } = useCart()
   const { user } = useAuth()
   const [shopMinOrder, setShopMinOrder] = useState<number>(0)
+  const [shopTaxRate, setShopTaxRate] = useState<number>(0)
+  const [shopDeliveryFee, setShopDeliveryFee] = useState<number>(DEFAULT_DELIVERY_FEE)
+  const [shopServiceFeeRate, setShopServiceFeeRate] = useState<number>(SERVICE_FEE_RATE * 100)
 
   useEffect(() => {
     if (!shopId) return
@@ -21,7 +24,11 @@ export default function CartPage() {
       .then(r => r.json())
       .then(data => {
         const s = data?.shop || data
-        if (s && typeof s.min_order === 'number') setShopMinOrder(s.min_order)
+        if (!s) return
+        if (typeof s.min_order === 'number') setShopMinOrder(s.min_order)
+        if (typeof s.tax_rate === 'number') setShopTaxRate(s.tax_rate)
+        if (typeof s.delivery_fee === 'number') setShopDeliveryFee(s.delivery_fee)
+        if (typeof s.service_fee_pct === 'number') setShopServiceFeeRate(s.service_fee_pct)
       })
       .catch(() => {})
   }, [shopId])
@@ -38,12 +45,18 @@ export default function CartPage() {
   const [customTip, setCustomTip] = useState('')
   const [showCustomTip, setShowCustomTip] = useState(false)
 
-  const deliveryFee = count > 0 ? DEFAULT_DELIVERY_FEE : 0
-  const serviceFee = total * SERVICE_FEE_RATE
+  // Cart shows the BASE delivery fee. Final fee may be higher if delivery
+  // address is beyond 1 mile (computed server-side at checkout).
+  const deliveryFee = count > 0 ? shopDeliveryFee : 0
+  const serviceFee = Math.round(total * (shopServiceFeeRate / 100) * 100) / 100
+  const smallOrderFee = count > 0 && total < MIN_ORDER_AMOUNT ? SMALL_ORDER_FEE : 0
   const tip = showCustomTip
     ? (parseFloat(customTip) || 0)
     : (tipOptions[selectedTipIndex]?.amount ?? 0)
-  const grandTotal = total + deliveryFee + serviceFee + tip
+  // Tax basis matches the API: subtotal + delivery + service + small order fee.
+  // Tip is excluded.
+  const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * (shopTaxRate / 100) * 100) / 100
+  const grandTotal = Math.round((total + deliveryFee + serviceFee + smallOrderFee + tax + tip) * 100) / 100
   const meetsMinimum = total >= shopMinOrder
 
   // Empty cart state
@@ -413,6 +426,18 @@ export default function CartPage() {
                 <span style={{ color: '#666' }}>Service Fee</span>
                 <span style={{ fontWeight: 500, color: '#333' }}>${serviceFee.toFixed(2)}</span>
               </div>
+              {smallOrderFee > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                  <span style={{ color: '#666' }}>Small Order Fee <span style={{ fontSize: '0.7rem', color: '#aaa' }}>(under ${MIN_ORDER_AMOUNT})</span></span>
+                  <span style={{ fontWeight: 500, color: '#333' }}>${smallOrderFee.toFixed(2)}</span>
+                </div>
+              )}
+              {tax > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                  <span style={{ color: '#666' }}>Sales Tax</span>
+                  <span style={{ fontWeight: 500, color: '#333' }}>${tax.toFixed(2)}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                 <span style={{ color: '#666' }}>Tip</span>
                 <span style={{ fontWeight: 500, color: '#333' }}>${tip.toFixed(2)}</span>
