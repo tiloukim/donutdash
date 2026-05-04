@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { SHOP_COMMISSION_RATE } from '@/lib/constants'
 
 interface EarningsData {
   today: { sales: number; earnings: number; orderCount: number }
@@ -224,7 +225,7 @@ export default function EarningsPage() {
         textAlign: 'center', padding: '16px 20px', marginTop: 16,
         fontSize: 12, color: '#999', lineHeight: 1.5,
       }}>
-        DonutDash fee is 15% of each order&apos;s subtotal. This covers payment processing, customer support, and the platform.
+        DonutDash fee is {(SHOP_COMMISSION_RATE * 100).toFixed(0)}% of each order&apos;s subtotal. This covers payment processing, customer support, and the platform.
       </div>
     </div>
   )

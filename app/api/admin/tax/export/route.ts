@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
       ['  Tips Collected (Pass-through)', totalTips.toFixed(2)],
       [],
       ['PLATFORM INCOME'],
-      ['Shop Commissions Earned (15%)', shopCommissions.toFixed(2)],
+      [`Shop Commissions Earned (${(SHOP_COMMISSION_RATE * 100).toFixed(0)}%)`, shopCommissions.toFixed(2)],
       ['Service Fees Earned', totalServiceFees.toFixed(2)],
       ['Delivery Fees Earned', totalDeliveryFees.toFixed(2)],
       ['Total Platform Income', (shopCommissions + totalServiceFees + totalDeliveryFees).toFixed(2)],
@@ -187,7 +187,7 @@ export async function GET(req: NextRequest) {
 
   // === Shop Payment Summary ===
   if (type === 'shop_payments') {
-    const rows = [['Shop Name', 'Owner', 'Email', 'Total Sales', 'Commission (15%)', 'Owed to Shop', 'Orders', 'Bank Holder', 'Routing (last 4)', 'Account (last 4)']]
+    const rows = [['Shop Name', 'Owner', 'Email', 'Total Sales', `Commission (${(SHOP_COMMISSION_RATE * 100).toFixed(0)}%)`, 'Owed to Shop', 'Orders', 'Bank Holder', 'Routing (last 4)', 'Account (last 4)']]
     const shopMap = new Map<string, { subtotal: number; orders: number }>()
     for (const order of orders) {
       const existing = shopMap.get(order.shop_id) || { subtotal: 0, orders: 0 }

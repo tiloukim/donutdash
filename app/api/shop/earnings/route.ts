@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-
-const COMMISSION_RATE = 0.15
+import { SHOP_COMMISSION_RATE } from '@/lib/constants'
 
 export async function GET() {
   const supabase = await createClient()
@@ -67,7 +66,7 @@ export async function GET() {
   // Recent orders (last 30, with item count)
   const recentOrders = allOrders.slice(0, 30).map(o => {
     const subtotal = Number(o.subtotal || 0)
-    const fee = Math.round(subtotal * COMMISSION_RATE * 100) / 100
+    const fee = Math.round(subtotal * SHOP_COMMISSION_RATE * 100) / 100
     const earnings = Math.round((subtotal - fee) * 100) / 100
     return {
       id: o.id,
@@ -89,7 +88,7 @@ export async function GET() {
     const wEndStr = wEnd.toISOString()
     const weekOrdersFiltered = allOrders.filter(o => o.created_at >= wStartStr && o.created_at < wEndStr)
     const total = sumSubtotals(weekOrdersFiltered)
-    const earnings = Math.round(total * (1 - COMMISSION_RATE) * 100) / 100
+    const earnings = Math.round(total * (1 - SHOP_COMMISSION_RATE) * 100) / 100
     const label = `${wStart.getMonth() + 1}/${wStart.getDate()}`
     weeklyTotals.push({ weekLabel: label, total: Math.round(total * 100) / 100, earnings })
   }
@@ -99,22 +98,22 @@ export async function GET() {
     ['confirmed', 'preparing', 'ready_for_pickup', 'delivered', 'completed'].includes(o.status)
   )
   const pendingPayoutTotal = sumSubtotals(pendingPayoutOrders)
-  const nextPayout = Math.round(pendingPayoutTotal * (1 - COMMISSION_RATE) * 100) / 100
+  const nextPayout = Math.round(pendingPayoutTotal * (1 - SHOP_COMMISSION_RATE) * 100) / 100
 
   return NextResponse.json({
     today: {
       sales: Math.round(todaySales * 100) / 100,
-      earnings: Math.round(todaySales * (1 - COMMISSION_RATE) * 100) / 100,
+      earnings: Math.round(todaySales * (1 - SHOP_COMMISSION_RATE) * 100) / 100,
       orderCount: todayOrders.length,
     },
     thisWeek: {
       sales: Math.round(weekSales * 100) / 100,
-      earnings: Math.round(weekSales * (1 - COMMISSION_RATE) * 100) / 100,
+      earnings: Math.round(weekSales * (1 - SHOP_COMMISSION_RATE) * 100) / 100,
       orderCount: weekOrders.length,
     },
     thisMonth: {
       sales: Math.round(monthSales * 100) / 100,
-      earnings: Math.round(monthSales * (1 - COMMISSION_RATE) * 100) / 100,
+      earnings: Math.round(monthSales * (1 - SHOP_COMMISSION_RATE) * 100) / 100,
       orderCount: monthOrders.length,
     },
     nextPayout,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { SHOP_COMMISSION_RATE } from '@/lib/constants'
 
 interface PayoutBatch {
   id: string
@@ -239,7 +240,7 @@ export default function PayoutsPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid #F3F4F6' }}>
-                        {['Shop', 'Orders', 'Sales', 'Commission (15%)', 'Owed'].map(h => (
+                        {['Shop', 'Orders', 'Sales', `Commission (${(SHOP_COMMISSION_RATE * 100).toFixed(0)}%)`, 'Owed'].map(h => (
                           <th key={h} style={thStyle}>{h}</th>
                         ))}
                       </tr>
