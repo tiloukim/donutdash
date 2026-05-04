@@ -31,6 +31,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe')
   const [shopHasStripe, setShopHasStripe] = useState<boolean | null>(null)
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
+  const [feesExpanded, setFeesExpanded] = useState(false)
 
   // Promo code state
   const [promoInput, setPromoInput] = useState('')
@@ -604,26 +605,57 @@ export default function CheckoutPage() {
                 <span style={{ color: '#666' }}>Subtotal</span>
                 <span>${total.toFixed(2)}</span>
               </div>
-              {tax > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-                  <span style={{ color: '#666' }}>Tax ({shopFees.tax_rate}%)</span>
-                  <span>${tax.toFixed(2)}</span>
-                </div>
-              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
                 <span style={{ color: '#666' }}>Delivery Fee <span style={{ fontSize: '0.7rem', color: '#aaa' }}>(base — +$1.50/mi after 1 mi)</span></span>
                 <span>${deliveryFee.toFixed(2)}*</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-                <span style={{ color: '#666' }}>Service Fee</span>
-                <span>${serviceFee.toFixed(2)}</span>
+              <div style={{ marginBottom: '0.35rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setFeesExpanded(v => !v)}
+                  style={{
+                    width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    fontSize: '0.9rem', fontFamily: 'inherit',
+                  }}
+                  aria-expanded={feesExpanded}
+                >
+                  <span style={{ color: '#666', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    Fees &amp; Estimated Tax
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 14, height: 14, borderRadius: '50%', border: '1px solid #bbb',
+                      fontSize: '0.65rem', color: '#888', lineHeight: 1,
+                    }}>{feesExpanded ? '−' : 'i'}</span>
+                  </span>
+                  <span>${(serviceFee + smallOrderFee + tax).toFixed(2)}</span>
+                </button>
+                {feesExpanded && (
+                  <div style={{ marginTop: 6, paddingLeft: 12, borderLeft: '2px solid #f0f0f0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#888' }}>
+                        <span>Service Fee</span>
+                        <span>${serviceFee.toFixed(2)}</span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: 2, lineHeight: 1.4 }}>
+                        Helps cover platform costs — payment processing, customer support, and app operations.
+                      </div>
+                    </div>
+                    {smallOrderFee > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#888' }}>
+                        <span>Small Order Fee <span style={{ fontSize: '0.7rem', color: '#aaa' }}>(under ${MIN_ORDER_AMOUNT})</span></span>
+                        <span>${smallOrderFee.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {tax > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#888' }}>
+                        <span>Sales Tax ({shopFees.tax_rate}%)</span>
+                        <span>${tax.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {smallOrderFee > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-                  <span style={{ color: '#666' }}>Small Order Fee <span style={{ fontSize: '0.7rem', color: '#aaa' }}>(under ${MIN_ORDER_AMOUNT})</span></span>
-                  <span>${smallOrderFee.toFixed(2)}</span>
-                </div>
-              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
                 <span style={{ color: '#666' }}>Tip</span>
                 <span>${tip.toFixed(2)}</span>

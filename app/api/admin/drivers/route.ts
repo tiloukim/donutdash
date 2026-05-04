@@ -52,15 +52,26 @@ export async function GET() {
       locationMap[loc.driver_id] = { is_online: loc.is_online, lat: loc.lat, lng: loc.lng, updated_at: loc.updated_at }
     }
 
-    const driversWithStats = (drivers || []).map(driver => ({
-      ...driver,
-      deliveryCount: statsMap[driver.id]?.deliveryCount || 0,
-      totalEarnings: statsMap[driver.id]?.totalEarnings || 0,
-      is_online: locationMap[driver.id]?.is_online || false,
-      lat: locationMap[driver.id]?.lat || null,
-      lng: locationMap[driver.id]?.lng || null,
-      last_seen: locationMap[driver.id]?.updated_at || null,
-    }))
+    // Treat is_online as false if the last ping is older than the staleness window —
+    // protects the UI/assigner from rows the offline-stale-drivers cron hasn't cleaned up yet.
+    const STALE_MS = 2 * 60 * 1000
+    const now = Date.now()
+    const isFresh = (updatedAt: string | undefined) =>
+      !!updatedAt && now - new Date(updatedAt).getTime() < STALE_MS
+
+    const driversWithStats = (drivers || []).map(driver => {
+      const loc = locationMap[driver.id]
+      const effectivelyOnline = !!loc?.is_online && isFresh(loc?.updated_at)
+      return {
+        ...driver,
+        deliveryCount: statsMap[driver.id]?.deliveryCount || 0,
+        totalEarnings: statsMap[driver.id]?.totalEarnings || 0,
+        is_online: effectivelyOnline,
+        lat: loc?.lat ?? null,
+        lng: loc?.lng ?? null,
+        last_seen: loc?.updated_at || null,
+      }
+    })
 
     return NextResponse.json({ drivers: driversWithStats })
   } catch {
