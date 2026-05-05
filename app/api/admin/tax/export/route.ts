@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE, BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY, SHOP_COMMISSION_RATE, resolveCommissionRate } from '@/lib/constants'
+
+// Single-source recompute of stored driver_earnings — trust the stored value, only
+// recompute (with current constants, one-way mileage) when missing.
+function deliveryEarnings(d: any): number {
+  const stored = Number(d.driver_earnings) || 0
+  if (stored > 0) return stored
+  const basePay = Number(d.base_pay) || BASE_DELIVERY_PAY
+  const tip = Number((d.order as any)?.tip) || 0
+  const distanceMiles = Number(d.distance_miles) || 0
+  return Math.round((basePay + distanceMiles * PER_MILE_PAY + tip) * 100) / 100
+}
+
+const sumCommissions = (orders: any[]) =>
+  orders.reduce((s, o) => s + Number(o.subtotal || 0) * resolveCommissionRate(o), 0)
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +41,7 @@ export async function GET(req: NextRequest) {
       .gte('delivered_at', yearStart)
       .lt('delivered_at', yearEnd),
     svc.from('dd_orders')
-      .select('id, total, subtotal, delivery_fee, service_fee, tip, status, created_at, shop_id')
+      .select('id, total, subtotal, delivery_fee, service_fee, tip, status, created_at, shop_id, commission_pct')
       .neq('status', 'cancelled')
       .gte('created_at', yearStart)
       .lt('created_at', yearEnd),
@@ -50,16 +64,8 @@ export async function GET(req: NextRequest) {
   const shops = shopsRes.data || []
   const shopOwners = shopOwnersRes.data || []
 
-  const calcDriverEarnings = (driverId: string) => {
-    return deliveries.filter(d => d.driver_id === driverId).reduce((sum, d) => {
-      const stored = Number(d.driver_earnings) || 0
-      if (stored > 0) return sum + stored
-      const basePay = Number(d.base_pay) || BASE_DELIVERY_PAY
-      const tip = Number((d.order as any)?.tip) || 0
-      const distanceMiles = Number(d.distance_miles) || 0
-      return sum + Math.round((basePay + distanceMiles * PER_MILE_PAY + tip) * 100) / 100
-    }, 0)
-  }
+  const calcDriverEarnings = (driverId: string) =>
+    deliveries.filter(d => d.driver_id === driverId).reduce((sum, d) => sum + deliveryEarnings(d), 0)
 
   // === 1099-NEC Summary ===
   if (type === '1099') {
@@ -92,14 +98,11 @@ export async function GET(req: NextRequest) {
 
       const rev = qOrders.reduce((s, o) => s + Number(o.total || 0), 0)
       const subtotal = qOrders.reduce((s, o) => s + Number(o.subtotal || 0), 0)
-      const comm = subtotal * SHOP_COMMISSION_RATE
+      const comm = sumCommissions(qOrders)
       const sf = qOrders.reduce((s, o) => s + Number(o.service_fee || 0), 0)
       const df = qOrders.reduce((s, o) => s + Number(o.delivery_fee || 0), 0)
       const tips = qOrders.reduce((s, o) => s + Number(o.tip || 0), 0)
-      const dp = qDeliveries.reduce((s, d) => {
-        const bp = d.base_pay || 3.00; const t = (d.order as any)?.tip || 0; const dm = d.distance_miles || 2
-        return s + Math.max(d.driver_earnings || 4, Math.round((bp + dm * 0.55 + t) * 100) / 100)
-      }, 0)
+      const dp = qDeliveries.reduce((s, d) => s + deliveryEarnings(d), 0)
       const net = comm + sf + df - dp
 
       totalRev += rev; totalComm += comm; totalSF += sf; totalDF += df; totalDP += dp; totalTips += tips; totalNet += net; totalOrders += qOrders.length
@@ -121,12 +124,9 @@ export async function GET(req: NextRequest) {
     const totalServiceFees = orders.reduce((s, o) => s + Number(o.service_fee || 0), 0)
     const totalDeliveryFees = orders.reduce((s, o) => s + Number(o.delivery_fee || 0), 0)
     const totalTips = orders.reduce((s, o) => s + Number(o.tip || 0), 0)
-    const shopCommissions = totalSubtotal * SHOP_COMMISSION_RATE
+    const shopCommissions = sumCommissions(orders)
     const shopPayouts = totalSubtotal - shopCommissions
-    const driverPayouts = deliveries.reduce((s, d) => {
-      const bp = d.base_pay || 3.00; const t = (d.order as any)?.tip || 0; const dm = d.distance_miles || 2
-      return s + Math.max(d.driver_earnings || 4, Math.round((bp + dm * 0.55 + t) * 100) / 100)
-    }, 0)
+    const driverPayouts = deliveries.reduce((s, d) => s + deliveryEarnings(d), 0)
 
     const rows = [
       ['DonutDash Annual Profit & Loss Statement'],
@@ -141,14 +141,14 @@ export async function GET(req: NextRequest) {
       ['  Tips Collected (Pass-through)', totalTips.toFixed(2)],
       [],
       ['PLATFORM INCOME'],
-      [`Shop Commissions Earned (${(SHOP_COMMISSION_RATE * 100).toFixed(0)}%)`, shopCommissions.toFixed(2)],
+      [`Shop Commissions Earned (default ${(SHOP_COMMISSION_RATE * 100).toFixed(0)}%, per-shop overrides applied)`, shopCommissions.toFixed(2)],
       ['Service Fees Earned', totalServiceFees.toFixed(2)],
       ['Delivery Fees Earned', totalDeliveryFees.toFixed(2)],
       ['Total Platform Income', (shopCommissions + totalServiceFees + totalDeliveryFees).toFixed(2)],
       [],
       ['EXPENSES'],
       ['Driver Payouts', driverPayouts.toFixed(2)],
-      ['Shop Payouts (85% of subtotals)', shopPayouts.toFixed(2)],
+      ['Shop Payouts (subtotals minus commission)', shopPayouts.toFixed(2)],
       ['Tips Passed to Drivers', totalTips.toFixed(2)],
       [],
       ['NET TAXABLE INCOME', (shopCommissions + totalServiceFees + totalDeliveryFees - driverPayouts).toFixed(2)],
@@ -187,18 +187,19 @@ export async function GET(req: NextRequest) {
 
   // === Shop Payment Summary ===
   if (type === 'shop_payments') {
-    const rows = [['Shop Name', 'Owner', 'Email', 'Total Sales', `Commission (${(SHOP_COMMISSION_RATE * 100).toFixed(0)}%)`, 'Owed to Shop', 'Orders', 'Bank Holder', 'Routing (last 4)', 'Account (last 4)']]
-    const shopMap = new Map<string, { subtotal: number; orders: number }>()
+    const rows = [['Shop Name', 'Owner', 'Email', 'Total Sales', 'Commission', 'Owed to Shop', 'Orders', 'Bank Holder', 'Routing (last 4)', 'Account (last 4)']]
+    const shopMap = new Map<string, { subtotal: number; orders: number; commission: number }>()
     for (const order of orders) {
-      const existing = shopMap.get(order.shop_id) || { subtotal: 0, orders: 0 }
+      const existing = shopMap.get(order.shop_id) || { subtotal: 0, orders: 0, commission: 0 }
       existing.subtotal += Number(order.subtotal || 0)
+      existing.commission += Number(order.subtotal || 0) * resolveCommissionRate(order)
       existing.orders += 1
       shopMap.set(order.shop_id, existing)
     }
     for (const [shopId, data] of shopMap.entries()) {
       const shop = shops.find(s => s.id === shopId)
       const owner = shopOwners.find(o => o.id === shop?.owner_id)
-      const comm = data.subtotal * SHOP_COMMISSION_RATE
+      const comm = data.commission
       rows.push([
         shop?.name || 'Unknown',
         owner?.name || '',
@@ -226,15 +227,11 @@ export async function GET(req: NextRequest) {
       const mDeliveries = deliveries.filter(d => { const dt = new Date(d.delivered_at); return dt >= mStart && dt < mEnd })
 
       const rev = mOrders.reduce((s, o) => s + Number(o.total || 0), 0)
-      const sub = mOrders.reduce((s, o) => s + Number(o.subtotal || 0), 0)
-      const comm = sub * SHOP_COMMISSION_RATE
+      const comm = sumCommissions(mOrders)
       const sf = mOrders.reduce((s, o) => s + Number(o.service_fee || 0), 0)
       const df = mOrders.reduce((s, o) => s + Number(o.delivery_fee || 0), 0)
       const tips = mOrders.reduce((s, o) => s + Number(o.tip || 0), 0)
-      const dp = mDeliveries.reduce((s, d) => {
-        const bp = d.base_pay || 3.00; const t = (d.order as any)?.tip || 0; const dm = d.distance_miles || 2
-        return s + Math.max(d.driver_earnings || 4, Math.round((bp + dm * 0.55 + t) * 100) / 100)
-      }, 0)
+      const dp = mDeliveries.reduce((s, d) => s + deliveryEarnings(d), 0)
 
       rows.push([`${months[m]} ${year}`, rev.toFixed(2), comm.toFixed(2), sf.toFixed(2), df.toFixed(2), dp.toFixed(2), tips.toFixed(2), (comm + sf + df - dp).toFixed(2), String(mOrders.length)])
     }

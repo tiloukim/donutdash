@@ -225,7 +225,7 @@ export default function EarningsPage() {
         textAlign: 'center', padding: '16px 20px', marginTop: 16,
         fontSize: 12, color: '#999', lineHeight: 1.5,
       }}>
-        DonutDash fee is {(SHOP_COMMISSION_RATE * 100).toFixed(0)}% of each order&apos;s subtotal. This covers payment processing, customer support, and the platform.
+        DonutDash fee is taken from each order&apos;s subtotal at the rate on your merchant agreement (default {(SHOP_COMMISSION_RATE * 100).toFixed(0)}%). This covers payment processing, customer support, and the platform.
       </div>
     </div>
   )

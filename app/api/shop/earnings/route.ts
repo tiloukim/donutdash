@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { resolveCommissionRate } from '@/lib/constants'
 
 export async function GET() {
   const supabase = await createClient()
@@ -37,7 +37,7 @@ export async function GET() {
   // Fetch all non-cancelled orders from last 30 days in one query
   const { data: orders, error } = await svc
     .from('dd_orders')
-    .select('id, created_at, status, subtotal, total, dd_order_items(id)')
+    .select('id, created_at, status, subtotal, total, commission_pct, dd_order_items(id)')
     .eq('shop_id', shop.id)
     .neq('status', 'cancelled')
     .gte('created_at', thirtyDaysAgo)
@@ -47,9 +47,13 @@ export async function GET() {
 
   const allOrders = orders || []
 
-  // Helper
+  // Helpers
   const sumSubtotals = (list: typeof allOrders) =>
     list.reduce((sum, o) => sum + Number(o.subtotal || 0), 0)
+  // Per-order earnings = subtotal × (1 - that order's commission rate). Summing
+  // these respects historical rates frozen on each order.
+  const sumEarnings = (list: typeof allOrders) =>
+    list.reduce((sum, o) => sum + Number(o.subtotal || 0) * (1 - resolveCommissionRate(o)), 0)
 
   // Today
   const todayOrders = allOrders.filter(o => o.created_at >= todayStart)
@@ -66,7 +70,8 @@ export async function GET() {
   // Recent orders (last 30, with item count)
   const recentOrders = allOrders.slice(0, 30).map(o => {
     const subtotal = Number(o.subtotal || 0)
-    const fee = Math.round(subtotal * SHOP_COMMISSION_RATE * 100) / 100
+    const rate = resolveCommissionRate(o)
+    const fee = Math.round(subtotal * rate * 100) / 100
     const earnings = Math.round((subtotal - fee) * 100) / 100
     return {
       id: o.id,
@@ -75,6 +80,7 @@ export async function GET() {
       subtotal,
       fee,
       earnings,
+      commission_pct: Math.round(rate * 10000) / 100,
       item_count: Array.isArray(o.dd_order_items) ? o.dd_order_items.length : 0,
     }
   })
@@ -88,7 +94,7 @@ export async function GET() {
     const wEndStr = wEnd.toISOString()
     const weekOrdersFiltered = allOrders.filter(o => o.created_at >= wStartStr && o.created_at < wEndStr)
     const total = sumSubtotals(weekOrdersFiltered)
-    const earnings = Math.round(total * (1 - SHOP_COMMISSION_RATE) * 100) / 100
+    const earnings = Math.round(sumEarnings(weekOrdersFiltered) * 100) / 100
     const label = `${wStart.getMonth() + 1}/${wStart.getDate()}`
     weeklyTotals.push({ weekLabel: label, total: Math.round(total * 100) / 100, earnings })
   }
@@ -97,23 +103,22 @@ export async function GET() {
   const pendingPayoutOrders = allOrders.filter(o =>
     ['confirmed', 'preparing', 'ready_for_pickup', 'delivered', 'completed'].includes(o.status)
   )
-  const pendingPayoutTotal = sumSubtotals(pendingPayoutOrders)
-  const nextPayout = Math.round(pendingPayoutTotal * (1 - SHOP_COMMISSION_RATE) * 100) / 100
+  const nextPayout = Math.round(sumEarnings(pendingPayoutOrders) * 100) / 100
 
   return NextResponse.json({
     today: {
       sales: Math.round(todaySales * 100) / 100,
-      earnings: Math.round(todaySales * (1 - SHOP_COMMISSION_RATE) * 100) / 100,
+      earnings: Math.round(sumEarnings(todayOrders) * 100) / 100,
       orderCount: todayOrders.length,
     },
     thisWeek: {
       sales: Math.round(weekSales * 100) / 100,
-      earnings: Math.round(weekSales * (1 - SHOP_COMMISSION_RATE) * 100) / 100,
+      earnings: Math.round(sumEarnings(weekOrders) * 100) / 100,
       orderCount: weekOrders.length,
     },
     thisMonth: {
       sales: Math.round(monthSales * 100) / 100,
-      earnings: Math.round(monthSales * (1 - SHOP_COMMISSION_RATE) * 100) / 100,
+      earnings: Math.round(sumEarnings(monthOrders) * 100) / 100,
       orderCount: monthOrders.length,
     },
     nextPayout,

@@ -1,6 +1,18 @@
 export const SERVICE_FEE_RATE = 0.10
 
 export const SHOP_COMMISSION_RATE = 0.20
+// Bounds for per-shop commission rate (admin can grant lower rates as exceptions).
+export const MIN_COMMISSION_RATE = 0.15
+export const MAX_COMMISSION_RATE = 0.30
+
+// Resolve the commission rate (as a fraction, e.g. 0.20) for an order or shop.
+// Order takes precedence (snapshot at checkout time), then current shop rate,
+// then the system-wide default. Accepts numbers as percent (20 → 0.20).
+export function resolveCommissionRate(input: { commission_pct?: number | null } | null | undefined): number {
+  const pct = input?.commission_pct
+  if (pct == null) return SHOP_COMMISSION_RATE
+  return Number(pct) / 100
+}
 
 export const DEFAULT_DELIVERY_FEE = 3.99
 

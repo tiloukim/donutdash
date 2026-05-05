@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       const deliveryFee = parseFloat(meta.delivery_fee) || 0
       const serviceFee = parseFloat(meta.service_fee) || 0
       const smallOrderFee = parseFloat(meta.small_order_fee) || 0
+      const commissionPct = meta.commission_pct ? parseFloat(meta.commission_pct) : null
       const tipAmount = parseFloat(meta.tip) || 0
       const total = parseFloat(meta.total) || 0
       const deliveryAddress = meta.delivery_address || ''
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
           delivery_fee: deliveryFee,
           service_fee: serviceFee,
           small_order_fee: smallOrderFee,
+          commission_pct: commissionPct,
           tip: tipAmount,
           total,
           payment_method: 'stripe',

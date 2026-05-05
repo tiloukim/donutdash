@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { resolveCommissionRate, SHOP_COMMISSION_RATE } from '@/lib/constants'
 
 export async function GET() {
   const supabase = await createClient()
@@ -11,8 +11,10 @@ export async function GET() {
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+  const { data: shop } = await svc.from('dd_shops').select('id, commission_pct').eq('owner_id', ddUser.id).single()
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
+
+  const shopCommissionPct = shop.commission_pct ?? SHOP_COMMISSION_RATE * 100
 
   // Date boundaries
   const now = new Date()
@@ -26,7 +28,7 @@ export async function GET() {
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const { data: allOrders } = await svc.from('dd_orders').select('id, total, status, created_at').eq('shop_id', shop.id)
+  const { data: allOrders } = await svc.from('dd_orders').select('id, total, subtotal, status, created_at, commission_pct').eq('shop_id', shop.id)
   const orders = allOrders || []
 
   // Filter non-cancelled orders for revenue calculations
@@ -34,12 +36,15 @@ export async function GET() {
 
   function calcPeriod(filtered: typeof orders) {
     const active = filtered.filter(o => o.status !== 'cancelled')
-    const totalSales = active.reduce((s, o) => s + o.total, 0)
+    const totalSales = active.reduce((s, o) => s + Number(o.total || 0), 0)
+    // Commission applies to food subtotal only, at each order's frozen rate.
+    const commission = active.reduce((s, o) => s + Number(o.subtotal || 0) * resolveCommissionRate(o), 0)
+    const subtotalSum = active.reduce((s, o) => s + Number(o.subtotal || 0), 0)
     return {
       orderCount: filtered.length,
       totalSales,
-      commission: totalSales * SHOP_COMMISSION_RATE,
-      shopEarnings: totalSales * (1 - SHOP_COMMISSION_RATE),
+      commission,
+      shopEarnings: subtotalSum - commission,
     }
   }
 
@@ -52,6 +57,7 @@ export async function GET() {
   const { data: recentOrders } = await svc.from('dd_orders').select('*, dd_order_items(*), customer:dd_users!customer_id(name, email)').eq('shop_id', shop.id).order('created_at', { ascending: false }).limit(10)
 
   return NextResponse.json({
+    commissionPct: shopCommissionPct,
     // Legacy fields for backwards compat
     todayOrders: todayOrders.length,
     todayRevenue: todayOrders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0),

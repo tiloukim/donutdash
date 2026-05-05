@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE, BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       .gte('delivered_at', yearStart)
       .lt('delivered_at', yearEnd),
     svc.from('dd_orders')
-      .select('id, total, subtotal, delivery_fee, service_fee, tip, status, created_at, shop_id')
+      .select('id, total, subtotal, delivery_fee, service_fee, tip, status, created_at, shop_id, commission_pct')
       .neq('status', 'cancelled')
       .gte('created_at', yearStart)
       .lt('created_at', yearEnd),
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
   const totalDeliveryFees = orders.reduce((sum, o) => sum + (o.delivery_fee || 0), 0)
   const totalServiceFees = orders.reduce((sum, o) => sum + (o.service_fee || 0), 0)
   const totalTips = orders.reduce((sum, o) => sum + (o.tip || 0), 0)
-  const shopCommissions = Math.round(totalSubtotal * SHOP_COMMISSION_RATE * 100) / 100
+  const shopCommissions = Math.round(orders.reduce((sum, o) => sum + Number(o.subtotal || 0) * resolveCommissionRate(o), 0) * 100) / 100
   const totalDriverEarnings = driverSummaries.reduce((sum, d) => sum + d.totalEarnings, 0)
 
   // Platform taxable income = commissions + service fees + delivery fees - driver payouts
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
     const qSubtotal = qOrders.reduce((sum, o) => sum + (o.subtotal || 0), 0)
     const qServiceFees = qOrders.reduce((sum, o) => sum + (o.service_fee || 0), 0)
     const qDeliveryFees = qOrders.reduce((sum, o) => sum + (o.delivery_fee || 0), 0)
-    const qCommissions = Math.round(qSubtotal * SHOP_COMMISSION_RATE * 100) / 100
+    const qCommissions = Math.round(qOrders.reduce((sum, o) => sum + Number(o.subtotal || 0) * resolveCommissionRate(o), 0) * 100) / 100
 
     const qDeliveries = deliveries.filter(d => {
       const dt = new Date(d.delivered_at)
@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
   const shopSummaries = shops.map((shop: any) => {
     const shopOrders = orders.filter((o: any) => o.shop_id === shop.id)
     const totalSubtotalShop = shopOrders.reduce((sum: number, o: any) => sum + Number(o.subtotal || 0), 0)
-    const commission = Math.round(totalSubtotalShop * SHOP_COMMISSION_RATE * 100) / 100
+    const commission = Math.round(shopOrders.reduce((sum: number, o: any) => sum + Number(o.subtotal || 0) * resolveCommissionRate(o), 0) * 100) / 100
     const shopEarnings = Math.round((totalSubtotalShop - commission) * 100) / 100
     const owner = shop.owner as any
     const w9 = shopW9Docs.find((d: any) => d.shop_id === shop.id)

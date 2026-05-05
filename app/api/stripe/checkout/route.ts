@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const svc = createServiceClient()
     const { data: shop } = await svc
       .from('dd_shops')
-      .select('name, service_fee_pct, delivery_fee, min_order, tax_rate, lat, lng, owner_id, paused, pause_reason, pause_until, stripe_account_id, stripe_onboarding_complete')
+      .select('name, service_fee_pct, commission_pct, delivery_fee, min_order, tax_rate, lat, lng, owner_id, paused, pause_reason, pause_until, stripe_account_id, stripe_onboarding_complete')
       .eq('id', shopId)
       .single()
 
@@ -89,6 +89,8 @@ export async function POST(request: NextRequest) {
     }
 
     const shopFeeRate = shop.service_fee_pct / 100 || SERVICE_FEE_RATE
+    const shopCommissionRate = shop.commission_pct != null ? Number(shop.commission_pct) / 100 : SHOP_COMMISSION_RATE
+    const shopCommissionPct = Math.round(shopCommissionRate * 10000) / 100   // snapshot for the order row
     const shopTaxRate = shop.tax_rate ? shop.tax_rate / 100 : 0
 
     // Geocode delivery address
@@ -142,14 +144,14 @@ export async function POST(request: NextRequest) {
 
     // Stripe destination charges transfer (total - application_fee_amount) to the
     // connected (shop) account. We want the shop to net exactly:
-    //   subtotal × (1 - SHOP_COMMISSION_RATE)   — food revenue minus our commission.
+    //   subtotal × (1 - shopCommissionRate)   — food revenue minus our commission.
     // Tax, delivery fee, service fee, and tip stay on the platform balance:
     //   - tax is held in the segregated escrow and remitted to the Texas Comptroller
     //   - tip is paid out to the driver in the weekly payout batch (100% pass-through)
     //   - delivery fee + service fee + commission fund driver base/mileage and platform ops
     // Stripe processing fees are deducted from the platform balance, so the shop's
     // payout is unaffected by them (platform absorbs Stripe fees per spec §5).
-    const shopPayoutCents = Math.round(subtotal * (1 - SHOP_COMMISSION_RATE) * 100)
+    const shopPayoutCents = Math.round(subtotal * (1 - shopCommissionRate) * 100)
     const totalCents = Math.round(total * 100)
     const applicationFeeCents = totalCents - shopPayoutCents
 
@@ -250,6 +252,7 @@ export async function POST(request: NextRequest) {
       delivery_fee: deliveryFee.toString(),
       service_fee: serviceFee.toString(),
       small_order_fee: smallOrderFee.toString(),
+      commission_pct: shopCommissionPct.toString(),
       tip: tipAmount.toString(),
       total: total.toString(),
       delivery_address: delivery_address.slice(0, 250),

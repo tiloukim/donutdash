@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE, BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch delivered orders for this week
     const { data: orders } = await svc.from('dd_orders')
-      .select('id, subtotal, shop_id, tip, status')
+      .select('id, subtotal, shop_id, tip, status, commission_pct')
       .eq('status', 'delivered')
       .gte('created_at', weekStart.toISOString())
       .lte('created_at', weekEnd.toISOString())
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     for (const order of orders || []) {
       const shopId = order.shop_id
       const subtotal = Number(order.subtotal || 0)
-      const commission = subtotal * SHOP_COMMISSION_RATE
+      const commission = subtotal * resolveCommissionRate(order)
       const payout = subtotal - commission
 
       const existing = shopEarnings.get(shopId) || { amount: 0, orders: 0, subtotal: 0, commission: 0 }

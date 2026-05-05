@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ORDER_STATUS_LABELS, SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { ORDER_STATUS_LABELS, resolveCommissionRate } from '@/lib/constants'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -27,6 +27,7 @@ interface OrderRow {
   delivery_fee: number
   service_fee: number
   small_order_fee: number
+  commission_pct: number | null
   tax: number
   tip: number
   total: number
@@ -203,7 +204,7 @@ export default function AdminOrders() {
 
   const totalRevenue = orders.reduce((s, o) => s + (o.total || 0), 0)
   const serviceFees = orders.reduce((s, o) => s + (o.service_fee || 0), 0)
-  const shopCommissions = orders.reduce((s, o) => s + ((o.subtotal || 0) * SHOP_COMMISSION_RATE), 0)
+  const shopCommissions = orders.reduce((s, o) => s + ((o.subtotal || 0) * resolveCommissionRate(o)), 0)
   const driverPayouts = orders.reduce((s, o) => {
     const d = Array.isArray(o.delivery) ? o.delivery[0] : o.delivery
     return s + (d?.driver_earnings || 0)
@@ -226,7 +227,7 @@ export default function AdminOrders() {
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
         <SummaryCard label="Total Revenue" value={fmt(totalRevenue)} sub={`${orders.length} orders`} />
         <SummaryCard label="Net Admin Profit" value={fmt(totalAdminProfit)} sub="After driver payouts" />
-        <SummaryCard label="Shop Commissions" value={fmt(shopCommissions)} sub={`${(SHOP_COMMISSION_RATE * 100).toFixed(0)}% of subtotals`} />
+        <SummaryCard label="Shop Commissions" value={fmt(shopCommissions)} sub="Per-shop rates applied" />
         <SummaryCard label="Service Fees" value={fmt(serviceFees)} sub="From customers" />
         <SummaryCard label="Delivery Fees" value={fmt(deliveryFees)} sub="From customers" />
         <SummaryCard label="Driver Payouts" value={fmt(driverPayouts)} sub="Paid to drivers" />
@@ -301,7 +302,7 @@ export default function AdminOrders() {
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#6B7280' }}>{order.shop?.name || '-'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</td>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#059669', fontWeight: 700 }}>
-                        ${(((order.subtotal || 0) * SHOP_COMMISSION_RATE) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) + (order.tip || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}
+                        ${(((order.subtotal || 0) * resolveCommissionRate(order)) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) + (order.tip || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
@@ -361,7 +362,7 @@ export default function AdminOrders() {
                               </div>
                               <div style={{ fontSize: 13, lineHeight: 2 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Subtotal</span><span>${(order.subtotal || 0).toFixed(2)}</span></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Commission</span><span style={{ color: '#6366F1' }}>${((order.subtotal || 0) * SHOP_COMMISSION_RATE).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Commission ({(resolveCommissionRate(order) * 100).toFixed(1)}%)</span><span style={{ color: '#6366F1' }}>${((order.subtotal || 0) * resolveCommissionRate(order)).toFixed(2)}</span></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Delivery Fee</span><span>${(order.delivery_fee || 0).toFixed(2)}</span></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Service Fee</span><span>${(order.service_fee || 0).toFixed(2)}</span></div>
                                 {(order.small_order_fee || 0) > 0 && (
@@ -373,7 +374,7 @@ export default function AdminOrders() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Tip</span><span>${(order.tip || 0).toFixed(2)}</span></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Driver Pay</span><span style={{ color: '#DC2626' }}>-${(delivery?.driver_earnings || 0).toFixed(2)}</span></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E5E7EB', paddingTop: 4, marginTop: 4 }}><span style={{ fontWeight: 700 }}>Total</span><span style={{ fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</span></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700, color: '#059669' }}>Admin Profit</span><span style={{ fontWeight: 700, color: '#059669' }}>${(((order.subtotal || 0) * SHOP_COMMISSION_RATE) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) + (order.tip || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700, color: '#059669' }}>Admin Profit</span><span style={{ fontWeight: 700, color: '#059669' }}>${(((order.subtotal || 0) * resolveCommissionRate(order)) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) + (order.tip || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}</span></div>
                               </div>
                             </div>
 

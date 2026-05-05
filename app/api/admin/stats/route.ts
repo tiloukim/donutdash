@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { resolveCommissionRate } from '@/lib/constants'
 
 export async function GET() {
   try {
@@ -14,7 +14,7 @@ export async function GET() {
 
     // Fetch all stats in parallel
     const [ordersRes, deliveriesRes, shopsRes, driversRes, usersRes] = await Promise.all([
-      svc.from('dd_orders').select('id, total, subtotal, delivery_fee, service_fee, tip, status'),
+      svc.from('dd_orders').select('id, total, subtotal, delivery_fee, service_fee, tip, status, commission_pct'),
       svc.from('dd_deliveries').select('id, driver_earnings, status'),
       svc.from('dd_shops').select('id, is_active'),
       svc.from('dd_users').select('id').eq('role', 'driver').eq('is_active', true),
@@ -36,8 +36,9 @@ export async function GET() {
     const totalServiceFees = validOrders.reduce((sum, o) => sum + (o.service_fee || 0), 0)
     const totalTips = validOrders.reduce((sum, o) => sum + (o.tip || 0), 0)
 
-    // Commission earned from shops (percentage of food subtotals)
-    const shopCommissions = Math.round(totalSubtotal * SHOP_COMMISSION_RATE * 100) / 100
+    // Commission earned from shops — uses each order's snapshotted rate so historical
+    // orders keep the rate that was active when they were placed.
+    const shopCommissions = Math.round(validOrders.reduce((sum, o) => sum + Number(o.subtotal || 0) * resolveCommissionRate(o), 0) * 100) / 100
 
     // Driver payouts from completed/active deliveries (not cancelled)
     const driverPayouts = deliveries

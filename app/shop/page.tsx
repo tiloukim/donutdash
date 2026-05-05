@@ -17,6 +17,7 @@ type StatsData = {
   allTime: PeriodStats
   pendingOrders: number
   recentOrders: any[]
+  commissionPct?: number
 }
 
 const PERIODS = [
@@ -58,11 +59,13 @@ export default function ShopDashboard() {
   )
 
   const period = stats[activePeriod]
+  const commissionPct = stats.commissionPct ?? SHOP_COMMISSION_RATE * 100
+  const earningsPct = 100 - commissionPct
 
   const cards = [
     { label: 'Total Sales', value: `$${period.totalSales.toFixed(2)}`, color: '#FF1493', icon: '💰' },
-    { label: `Your Earnings (${((1 - SHOP_COMMISSION_RATE) * 100).toFixed(0)}%)`, value: `$${period.shopEarnings.toFixed(2)}`, color: '#10B981', icon: '✅' },
-    { label: `Commission Paid (${(SHOP_COMMISSION_RATE * 100).toFixed(0)}%)`, value: `$${period.commission.toFixed(2)}`, color: '#FF8C00', icon: '🏷️' },
+    { label: `Your Earnings (${earningsPct.toFixed(earningsPct % 1 === 0 ? 0 : 1)}%)`, value: `$${period.shopEarnings.toFixed(2)}`, color: '#10B981', icon: '✅' },
+    { label: `Commission Paid (${commissionPct.toFixed(commissionPct % 1 === 0 ? 0 : 1)}%)`, value: `$${period.commission.toFixed(2)}`, color: '#FF8C00', icon: '🏷️' },
     { label: 'Orders', value: period.orderCount, color: '#6366F1', icon: '📦' },
   ]
 
@@ -201,7 +204,7 @@ export default function ShopDashboard() {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>${((o.subtotal || o.total) * (1 - SHOP_COMMISSION_RATE)).toFixed(2)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>${((o.subtotal || o.total) * (1 - (Number(o.commission_pct ?? commissionPct) / 100))).toFixed(2)}</div>
                   <div style={{ fontSize: 10, color: '#888' }}>${(o.subtotal || o.total).toFixed(2)} total</div>
                 </div>
               </div>

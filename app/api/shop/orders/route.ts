@@ -4,7 +4,7 @@ import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assign
 import { haversineDistance } from '@/lib/osrm'
 import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { getStripe } from '@/lib/stripe'
-import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { resolveCommissionRate } from '@/lib/constants'
 
 // Valid shop-side status transitions
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -39,7 +39,8 @@ export async function GET(req: Request) {
   // Only return shop-relevant fields — hide delivery fee, service fee, tips from shop owner
   return NextResponse.json((data || []).map(o => {
     const subtotal = Number(o.subtotal || 0)
-    const commission = Math.round(subtotal * SHOP_COMMISSION_RATE * 100) / 100
+    const rate = resolveCommissionRate(o)
+    const commission = Math.round(subtotal * rate * 100) / 100
     const shopEarnings = Math.round((subtotal - commission) * 100) / 100
     return {
       id: o.id,

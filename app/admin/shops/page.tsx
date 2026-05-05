@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { SHOP_COMMISSION_RATE, MIN_COMMISSION_RATE, MAX_COMMISSION_RATE, SERVICE_FEE_RATE } from '@/lib/constants'
 
 interface Shop {
   id: string
@@ -9,6 +10,7 @@ interface Shop {
   is_active: boolean
   rating: number
   review_count: number
+  commission_pct: number
   service_fee_pct: number
   delivery_fee: number
   min_order: number
@@ -29,7 +31,9 @@ export default function AdminShops() {
   const [newShop, setNewShop] = useState({
     name: '', address: '', city: '', state: 'TX', zip: '', phone: '',
     description: '', delivery_fee: '3.99', min_order: '10', tax_rate: '8.25',
-    service_fee_pct: '15', lat: '', lng: '',
+    service_fee_pct: String(SERVICE_FEE_RATE * 100),
+    commission_pct: String(SHOP_COMMISSION_RATE * 100),
+    lat: '', lng: '',
   })
 
   useEffect(() => {
@@ -92,7 +96,8 @@ export default function AdminShops() {
           delivery_fee: parseFloat(newShop.delivery_fee) || 3.99,
           min_order: parseFloat(newShop.min_order) || 10,
           tax_rate: parseFloat(newShop.tax_rate) || 8.25,
-          service_fee_pct: parseFloat(newShop.service_fee_pct) || 15,
+          service_fee_pct: parseFloat(newShop.service_fee_pct) || SERVICE_FEE_RATE * 100,
+          commission_pct: parseFloat(newShop.commission_pct) || SHOP_COMMISSION_RATE * 100,
           lat: newShop.lat ? parseFloat(newShop.lat) : null,
           lng: newShop.lng ? parseFloat(newShop.lng) : null,
         }),
@@ -101,7 +106,7 @@ export default function AdminShops() {
       if (res.ok) {
         setShops(prev => [{ ...data.shop, owner: null }, ...prev])
         setShowCreate(false)
-        setNewShop({ name: '', address: '', city: '', state: 'TX', zip: '', phone: '', description: '', delivery_fee: '3.99', min_order: '10', tax_rate: '8.25', service_fee_pct: '15', lat: '', lng: '' })
+        setNewShop({ name: '', address: '', city: '', state: 'TX', zip: '', phone: '', description: '', delivery_fee: '3.99', min_order: '10', tax_rate: '8.25', service_fee_pct: String(SERVICE_FEE_RATE * 100), commission_pct: String(SHOP_COMMISSION_RATE * 100), lat: '', lng: '' })
       } else {
         setCreateError(data.error || 'Failed to create shop')
       }
@@ -209,8 +214,12 @@ export default function AdminShops() {
                   <input style={inputStyle} type="number" step="0.25" value={newShop.tax_rate} onChange={e => setNewShop(p => ({ ...p, tax_rate: e.target.value }))} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Fee %</label>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Service Fee %</label>
                   <input style={inputStyle} type="number" step="0.5" value={newShop.service_fee_pct} onChange={e => setNewShop(p => ({ ...p, service_fee_pct: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Commission %</label>
+                  <input style={inputStyle} type="number" step="0.5" min={MIN_COMMISSION_RATE * 100} max={MAX_COMMISSION_RATE * 100} value={newShop.commission_pct} onChange={e => setNewShop(p => ({ ...p, commission_pct: e.target.value }))} />
                 </div>
               </div>
             </div>
@@ -232,7 +241,7 @@ export default function AdminShops() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['Shop', 'Owner', 'City', 'Commission %', 'Tax Rate %', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions'].map(h => (
+                {['Shop', 'Owner', 'City', 'Commission %', 'Service Fee %', 'Tax Rate %', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                 ))}
               </tr>
@@ -243,6 +252,14 @@ export default function AdminShops() {
                   <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>{shop.name}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{shop.owner?.name || '-'}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{shop.city}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <input type="number" step="0.5" min={MIN_COMMISSION_RATE * 100} max={MAX_COMMISSION_RATE * 100} value={shop.commission_pct ?? SHOP_COMMISSION_RATE * 100}
+                      onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, commission_pct: parseFloat(e.target.value) || 0 } : s))}
+                      onBlur={e => updateShopField(shop.id, 'commission_pct', parseFloat(e.target.value) || 0)}
+                      title={`Allowed range: ${MIN_COMMISSION_RATE * 100}% – ${MAX_COMMISSION_RATE * 100}%`}
+                      style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
+                    />%
+                  </td>
                   <td style={{ padding: '12px 16px' }}>
                     <input type="number" step="0.5" min="0" max="50" value={shop.service_fee_pct}
                       onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, service_fee_pct: parseFloat(e.target.value) || 0 } : s))}

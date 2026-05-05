@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { MIN_COMMISSION_RATE, MAX_COMMISSION_RATE, SHOP_COMMISSION_RATE } from '@/lib/constants'
+
+const MIN_COMMISSION_PCT = MIN_COMMISSION_RATE * 100
+const MAX_COMMISSION_PCT = MAX_COMMISSION_RATE * 100
+const DEFAULT_COMMISSION_PCT = SHOP_COMMISSION_RATE * 100
 
 export async function GET() {
   try {
@@ -35,10 +40,15 @@ export async function POST(request: NextRequest) {
     if (!ddUser || (ddUser.role !== 'admin' && ddUser.role !== 'manager')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await request.json()
-    const { name, address, city, state, zip, phone, description, delivery_fee, min_order, tax_rate, service_fee_pct, lat, lng } = body
+    const { name, address, city, state, zip, phone, description, delivery_fee, min_order, tax_rate, service_fee_pct, commission_pct, lat, lng } = body
 
     if (!name?.trim() || !address?.trim() || !city?.trim() || !zip?.trim()) {
       return NextResponse.json({ error: 'Name, address, city, and ZIP are required' }, { status: 400 })
+    }
+
+    const commissionPct = commission_pct == null ? DEFAULT_COMMISSION_PCT : Number(commission_pct)
+    if (!Number.isFinite(commissionPct) || commissionPct < MIN_COMMISSION_PCT || commissionPct > MAX_COMMISSION_PCT) {
+      return NextResponse.json({ error: `Commission must be between ${MIN_COMMISSION_PCT}% and ${MAX_COMMISSION_PCT}%` }, { status: 400 })
     }
 
     // Generate slug from name
@@ -59,7 +69,8 @@ export async function POST(request: NextRequest) {
       delivery_fee: delivery_fee ?? 3.99,
       min_order: min_order ?? 10,
       tax_rate: tax_rate ?? 8.25,
-      service_fee_pct: service_fee_pct ?? 15,
+      service_fee_pct: service_fee_pct ?? 10,
+      commission_pct: commissionPct,
       lat: lat || null,
       lng: lng || null,
       owner_id: ddUser.id,
@@ -95,6 +106,13 @@ export async function PATCH(request: NextRequest) {
     if ('delivery_fee' in fields) allowed.delivery_fee = fields.delivery_fee
     if ('min_order' in fields) allowed.min_order = fields.min_order
     if ('tax_rate' in fields) allowed.tax_rate = fields.tax_rate
+    if ('commission_pct' in fields) {
+      const pct = Number(fields.commission_pct)
+      if (!Number.isFinite(pct) || pct < MIN_COMMISSION_PCT || pct > MAX_COMMISSION_PCT) {
+        return NextResponse.json({ error: `Commission must be between ${MIN_COMMISSION_PCT}% and ${MAX_COMMISSION_PCT}%` }, { status: 400 })
+      }
+      allowed.commission_pct = pct
+    }
 
     const { data: shop, error } = await svc
       .from('dd_shops')

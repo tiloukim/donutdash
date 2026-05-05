@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { resolveCommissionRate } from '@/lib/constants'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   // Get all completed orders for this shop in the given year
   const { data: orders } = await svc.from('dd_orders')
-    .select('id, total, status, created_at')
+    .select('id, total, subtotal, status, created_at, commission_pct')
     .eq('shop_id', shop.id)
     .eq('status', 'delivered')
     .gte('created_at', `${year}-01-01`)
@@ -30,17 +30,16 @@ export async function GET(req: NextRequest) {
   // Monthly breakdown
   const monthly: number[] = Array(12).fill(0)
   let grossAmount = 0
+  let platformFees = 0
   let transactionCount = 0
 
   for (const o of allOrders) {
     const m = new Date(o.created_at).getMonth()
     monthly[m] += o.total
     grossAmount += o.total
+    platformFees += Number(o.subtotal || 0) * resolveCommissionRate(o)
     transactionCount++
   }
-
-  // Platform fees (commission)
-  const platformFees = grossAmount * SHOP_COMMISSION_RATE
 
   return NextResponse.json({
     year,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE, BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate } from '@/lib/constants'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch delivered orders with shop info
   let ordersQuery = svc.from('dd_orders')
-    .select('id, subtotal, delivery_fee, service_fee, tip, total, shop_id, created_at, shop:dd_shops!shop_id(id, name)')
+    .select('id, subtotal, delivery_fee, service_fee, tip, total, commission_pct, shop_id, created_at, shop:dd_shops!shop_id(id, name)')
     .eq('status', 'delivered')
   if (startDate) ordersQuery = ordersQuery.gte('created_at', startDate)
   const { data: orders } = await ordersQuery
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     const existing = shopMap.get(shopId) || { name: shopName, orders: 0, subtotal: 0, commission: 0, payout: 0 }
     existing.orders += 1
     existing.subtotal += Number(order.subtotal || 0)
-    const commission = Number(order.subtotal || 0) * SHOP_COMMISSION_RATE
+    const commission = Number(order.subtotal || 0) * resolveCommissionRate(order)
     existing.commission += commission
     existing.payout += Number(order.subtotal || 0) - commission
     shopMap.set(shopId, existing)
