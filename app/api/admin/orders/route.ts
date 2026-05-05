@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
 
 export async function GET() {
   try {
@@ -25,21 +26,21 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // Recalculate driver earnings if stored as 0 or null
+    // Trust the stored driver_earnings — that's what the weekly payout cron will actually pay.
+    // Only fall back to a recompute if the stored value is missing/zero (legacy or in-flight rows).
     const enrichedOrders = (orders || []).map(order => {
-      let delivery = Array.isArray(order.delivery) ? (order.delivery as any)?.[0] : (order.delivery as any)
+      const delivery = Array.isArray(order.delivery) ? (order.delivery as any)?.[0] : (order.delivery as any)
       const tip = order.tip || 0
 
       if (delivery) {
-        const basePay = delivery.base_pay || 3.00
-        const dist = delivery.distance_miles || 2
-        const calculated = Math.round((basePay + dist * 0.55 + tip) * 100) / 100
-        const stored = delivery.driver_earnings || 0
-        delivery.driver_earnings = Math.max(stored, calculated)
+        const stored = Number(delivery.driver_earnings) || 0
+        if (stored > 0) return order
+        // No stored value — recompute from current constants and stored distance.
+        const dist = Number(delivery.distance_miles) || 0
+        delivery.driver_earnings = Math.round((BASE_DELIVERY_PAY + dist * 2 * PER_MILE_PAY + tip) * 100) / 100
       } else if (order.status !== 'cancelled' && order.status !== 'pending') {
-        // No delivery record — estimate driver pay for display
-        const dist = 2 // default estimate
-        const estimated = Math.round((3.00 + dist * 0.55 + tip) * 100) / 100
+        // No delivery row yet — show an estimate so the table still renders a number.
+        const estimated = Math.round((BASE_DELIVERY_PAY + tip) * 100) / 100
         ;(order as any).delivery = [{ driver_earnings: estimated, driver_id: null, status: 'estimated', driver: null }]
       }
       return order

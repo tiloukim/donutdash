@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { BASE_DELIVERY_PAY } from '@/lib/constants'
 
 interface PayoutRequest {
   id: string
@@ -99,9 +100,9 @@ export default function DriverEarnings() {
   }
 
   const getBreakdown = (d: any) => {
-    const basePay = d.base_pay ?? 3.00
+    const basePay = d.base_pay ?? BASE_DELIVERY_PAY
     const tip = d.order?.tip ?? 0
-    const total = d.driver_earnings ?? 4.00
+    const total = d.driver_earnings ?? 0
     const distanceBonus = Math.max(0, total - basePay - tip)
     return { basePay, tip, distanceBonus, total }
   }

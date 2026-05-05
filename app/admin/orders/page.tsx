@@ -26,6 +26,8 @@ interface OrderRow {
   subtotal: number
   delivery_fee: number
   service_fee: number
+  small_order_fee: number
+  tax: number
   tip: number
   total: number
   delivery_address: string
@@ -207,8 +209,11 @@ export default function AdminOrders() {
     return s + (d?.driver_earnings || 0)
   }, 0)
   const deliveryFees = orders.reduce((s, o) => s + (o.delivery_fee || 0), 0)
+  const smallOrderFees = orders.reduce((s, o) => s + (o.small_order_fee || 0), 0)
   const tipsCollected = orders.reduce((s, o) => s + (o.tip || 0), 0)
-  const totalAdminProfit = serviceFees + shopCommissions + deliveryFees - driverPayouts
+  // Platform keeps: commission + service fee + delivery fee + small order fee, minus driver pay.
+  // Tax is held in escrow for TX (not platform income); tip passes through to driver.
+  const totalAdminProfit = serviceFees + shopCommissions + deliveryFees + smallOrderFees - driverPayouts
 
   const fmt = (n: number) => '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
@@ -293,7 +298,7 @@ export default function AdminOrders() {
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#6B7280' }}>{order.shop?.name || '-'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</td>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#059669', fontWeight: 700 }}>
-                        ${(((order.subtotal || 0) * SHOP_COMMISSION_RATE) + (order.service_fee || 0) + (order.delivery_fee || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}
+                        ${(((order.subtotal || 0) * SHOP_COMMISSION_RATE) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
@@ -356,10 +361,16 @@ export default function AdminOrders() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Commission</span><span style={{ color: '#6366F1' }}>${((order.subtotal || 0) * SHOP_COMMISSION_RATE).toFixed(2)}</span></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Delivery Fee</span><span>${(order.delivery_fee || 0).toFixed(2)}</span></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Service Fee</span><span>${(order.service_fee || 0).toFixed(2)}</span></div>
+                                {(order.small_order_fee || 0) > 0 && (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Small Order Fee</span><span>${(order.small_order_fee || 0).toFixed(2)}</span></div>
+                                )}
+                                {(order.tax || 0) > 0 && (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Sales Tax</span><span>${(order.tax || 0).toFixed(2)}</span></div>
+                                )}
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Tip</span><span>${(order.tip || 0).toFixed(2)}</span></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Driver Pay</span><span style={{ color: '#DC2626' }}>-${(delivery?.driver_earnings || 0).toFixed(2)}</span></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E5E7EB', paddingTop: 4, marginTop: 4 }}><span style={{ fontWeight: 700 }}>Total</span><span style={{ fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</span></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700, color: '#059669' }}>Admin Profit</span><span style={{ fontWeight: 700, color: '#059669' }}>${(((order.subtotal || 0) * SHOP_COMMISSION_RATE) + (order.service_fee || 0) + (order.delivery_fee || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700, color: '#059669' }}>Admin Profit</span><span style={{ fontWeight: 700, color: '#059669' }}>${(((order.subtotal || 0) * SHOP_COMMISSION_RATE) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}</span></div>
                               </div>
                             </div>
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
 
 export async function GET() {
   const supabase = await createClient()
@@ -20,16 +21,15 @@ export async function GET() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString()
 
-  // Compute correct earnings: base_pay + distance bonus + tip
+  // Trust the stored driver_earnings — that's the figure the weekly payout cron will pay.
+  // Only recompute when stored is missing/zero (so the UI always agrees with what hits the bank).
   const all = (deliveries || []).map(d => {
-    const basePay = d.base_pay || 2.50
-    const tip = (d.order as any)?.tip || 0
-    const distanceMiles = d.distance_miles || 2
-    const storedEarnings = d.driver_earnings || 4.00
-    const calculatedEarnings = basePay + (distanceMiles * 2 * 0.75) + tip
-    // Use the higher of stored vs calculated (in case stored was the $4 fallback)
-    const actualEarnings = Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
-    return { ...d, driver_earnings: actualEarnings }
+    const stored = Number(d.driver_earnings) || 0
+    if (stored > 0) return d
+    const tip = Number((d.order as any)?.tip) || 0
+    const distanceMiles = Number(d.distance_miles) || 0
+    const recomputed = Math.round((BASE_DELIVERY_PAY + distanceMiles * 2 * PER_MILE_PAY + tip) * 100) / 100
+    return { ...d, driver_earnings: recomputed }
   })
 
   const today = all.filter(d => d.delivered_at && d.delivered_at >= todayStart).reduce((sum, d) => sum + d.driver_earnings, 0)
