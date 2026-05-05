@@ -37,7 +37,7 @@ export default async function TeamCard({ params }: { params: Promise<{ slug: str
             is a transparent PNG with the running-donut mascot + wordmark + tagline
             all baked in, so we don't need any extra text here. */}
         <div style={{
-          background: 'linear-gradient(135deg, #FFF0F5 0%, #FFE8D6 100%)',
+          background: 'linear-gradient(135deg, #1F1F23 0%, #3A332A 50%, #C9A961 100%)',
           padding: '24px 24px 56px', textAlign: 'center',
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
