@@ -33,16 +33,18 @@ export default async function TeamCard({ params }: { params: Promise<{ slug: str
         maxWidth: 400, width: '100%',
         boxShadow: '0 12px 48px rgba(255, 20, 147, 0.12), 0 4px 16px rgba(0,0,0,0.06)',
       }}>
-        {/* Header — logo only. Avatar will overlap below; no tagline to collide with. */}
+        {/* Header — full-color logo on a soft cream/pink wash. The footer logo
+            is a transparent PNG with the running-donut mascot + wordmark + tagline
+            all baked in, so we don't need any extra text here. */}
         <div style={{
-          background: 'linear-gradient(135deg, #FF1493 0%, #FF69B4 50%, #FF8C00 100%)',
-          padding: '28px 24px 56px', textAlign: 'center',
+          background: 'linear-gradient(135deg, #FFF0F5 0%, #FFE8D6 100%)',
+          padding: '24px 24px 56px', textAlign: 'center',
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="DonutDash" style={{ height: 52, width: 'auto', filter: 'brightness(10)' }} />
+          <img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: 64, width: 'auto', maxWidth: '90%' }} />
         </div>
 
-        {/* Profile — avatar straddles the gradient/white boundary cleanly. */}
+        {/* Profile — avatar straddles the header/white boundary cleanly. */}
         <div style={{ padding: '0 28px 0', textAlign: 'center', marginTop: -56 }}>
           <div style={{
             width: 112, height: 112, borderRadius: '50%', margin: '0 auto 14px',
@@ -58,8 +60,7 @@ export default async function TeamCard({ params }: { params: Promise<{ slug: str
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E', marginBottom: 4 }}>{m.name}</h1>
           <p style={{ fontSize: 14, color: '#FF1493', fontWeight: 600, marginBottom: 4 }}>{m.title}</p>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 8 }}>{m.location}</p>
-          <p style={{ fontSize: 11, color: '#aaa', fontWeight: 500, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 20 }}>Fresh Donuts Delivered Fast</p>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>{m.location}</p>
         </div>
 
         {/* Contact */}
