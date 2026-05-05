@@ -184,7 +184,7 @@ export async function POST(req: Request) {
       const required = driverReferral.deliveries_required || 10
 
       if (newCount >= required) {
-        // Complete — credit both drivers $20
+        // Complete — credit both drivers the amount stored on the referral row
         await svc.from('dd_referrals').update({ status: 'completed', deliveries_completed: newCount, completed_at: new Date().toISOString() }).eq('id', driverReferral.id)
 
         const { data: referrer } = await svc.from('dd_users').select('referral_credit').eq('id', driverReferral.referrer_id).single()

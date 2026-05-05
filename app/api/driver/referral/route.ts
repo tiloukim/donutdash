@@ -39,7 +39,12 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   const driverCompleted = (driverReferrals || []).filter(r => r.status === 'completed').length
-  const driverEarned = driverCompleted * 20
+  // Sum each completed referral's actual stored credit so historical $20 referrals
+  // keep their amount; new ones at $50 add up correctly without retroactively bumping
+  // anyone's earnings.
+  const driverEarned = (driverReferrals || [])
+    .filter(r => r.status === 'completed')
+    .reduce((sum, r) => sum + Number(r.referrer_credit || 0), 0)
 
   return NextResponse.json({
     referral_code: referralCode,
@@ -79,7 +84,7 @@ export async function POST(req: NextRequest) {
   if (!referrer) return NextResponse.json({ error: 'Invalid referral code' }, { status: 404 })
   if (referrer.id === ddUser.id) return NextResponse.json({ error: 'Cannot use your own code' }, { status: 400 })
 
-  const CREDIT = 20.00
+  const CREDIT = 50.00
 
   // Create pending referral — completed after first delivery
   await svc.from('dd_referrals').insert({
@@ -92,5 +97,5 @@ export async function POST(req: NextRequest) {
 
   await svc.from('dd_users').update({ referred_by: referrer.id }).eq('id', ddUser.id)
 
-  return NextResponse.json({ success: true, message: 'Referral code applied! Both of you get $20 after your first delivery.' })
+  return NextResponse.json({ success: true, message: `Referral code applied! Both of you get $${CREDIT.toFixed(0)} after your first delivery.` })
 }

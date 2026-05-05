@@ -91,7 +91,7 @@ export default function DriverReferralPage() {
       {/* Apply a referral code */}
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #FFE8D6', padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px 0' }}>Have a Referral Code?</h2>
-        <p style={{ fontSize: 13, color: '#888', margin: '0 0 12px 0' }}>Enter a code from another driver to earn $20 each after your first 10 deliveries.</p>
+        <p style={{ fontSize: 13, color: '#888', margin: '0 0 12px 0' }}>Enter a code from another driver to earn $50 each after your first 10 deliveries.</p>
         <div style={{ display: 'flex', gap: 8 }}>
           <input value={applyCode} onChange={e => setApplyCode(e.target.value)} placeholder="Enter code"
             style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' }} />
@@ -109,8 +109,8 @@ export default function DriverReferralPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <span style={{ fontSize: 28 }}>🚗</span>
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Refer a Driver — $20 Each</h2>
-            <p style={{ fontSize: 12, color: '#888', margin: '2px 0 0 0' }}>Both earn $20 after the new driver completes 10 deliveries</p>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Refer a Driver — $50 Each</h2>
+            <p style={{ fontSize: 12, color: '#888', margin: '2px 0 0 0' }}>Both earn $50 after the new driver completes 10 deliveries</p>
           </div>
         </div>
         {referral?.driver_referrals?.length > 0 ? (
@@ -128,7 +128,7 @@ export default function DriverReferralPage() {
                 background: r.status === 'completed' ? '#D1FAE5' : '#FEF3C7',
                 color: r.status === 'completed' ? '#065F46' : '#92400E',
               }}>
-                {r.status === 'completed' ? '$20 Earned!' : 'In Progress'}
+                {r.status === 'completed' ? `$${Number(r.referrer_credit || 0).toFixed(0)} Earned!` : 'In Progress'}
               </span>
             </div>
           ))
