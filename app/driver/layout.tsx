@@ -46,9 +46,9 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
         .driver-header { background: #fff; border-bottom: 1px solid #FFE8D6; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
         .driver-header h1 { font-size: 18px; font-weight: 700; color: #1A1A2E; margin: 0; }
         .driver-content { padding: 16px; }
-        .driver-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #2D1B00; display: flex; justify-content: space-around; padding: 8px 0; padding-bottom: max(8px, env(safe-area-inset-bottom)); z-index: 50; border-top: 1px solid rgba(255,255,255,0.1); }
-        .driver-bottom-nav a { display: flex; flex-direction: column; align-items: center; gap: 2px; text-decoration: none; font-size: 10px; font-weight: 600; padding: 4px 12px; border-radius: 8px; }
-        .driver-bottom-nav a span.icon { font-size: 33px; }
+        .driver-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #2D1B00; display: flex; justify-content: space-around; padding: 6px 0; padding-bottom: max(6px, env(safe-area-inset-bottom)); z-index: 50; border-top: 1px solid rgba(255,255,255,0.1); }
+        .driver-bottom-nav a { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; text-decoration: none; font-size: 9px; font-weight: 600; padding: 4px 2px; border-radius: 8px; text-align: center; line-height: 1.1; }
+        .driver-bottom-nav a span.icon { font-size: 22px; line-height: 1; }
         .driver-bottom-nav a.active { color: #FF8C00; }
         .driver-bottom-nav a:not(.active) { color: #D4A574; }
 
