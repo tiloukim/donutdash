@@ -14,11 +14,13 @@ interface TeamMember {
   photo_url: string | null
   is_active: boolean
   display_order: number
+  upload_token: string | null
 }
 
 const EMPTY: Omit<TeamMember, 'id'> = {
   slug: '', name: '', title: '', phone: '', email: '',
   location: 'Tyler, Texas', photo_url: null, is_active: true, display_order: 0,
+  upload_token: null,
 }
 
 export default function AdminTeamPage() {
@@ -82,6 +84,30 @@ export default function AdminTeamPage() {
   const handleDelete = async (m: TeamMember) => {
     if (!confirm(`Delete ${m.name}'s card? This cannot be undone.`)) return
     const res = await fetch(`/api/admin/team?id=${m.id}`, { method: 'DELETE' })
+    if (res.ok) await load()
+  }
+
+  const copyUploadLink = async (m: TeamMember) => {
+    if (!m.upload_token) {
+      alert('No upload token yet — try refreshing or run the team-upload-token SQL migration.')
+      return
+    }
+    const url = `${window.location.origin}/card/${m.slug}/upload?t=${m.upload_token}`
+    try {
+      await navigator.clipboard.writeText(url)
+      alert(`Copied! Send to ${m.name}:\n\n${url}`)
+    } catch {
+      prompt('Copy this upload link and send it to ' + m.name, url)
+    }
+  }
+
+  const regenerateToken = async (m: TeamMember) => {
+    if (!confirm(`Regenerate ${m.name}'s upload link? The old link will stop working.`)) return
+    const res = await fetch('/api/admin/team', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: m.id, regenerate_token: true }),
+    })
     if (res.ok) await load()
   }
 
@@ -149,8 +175,10 @@ export default function AdminTeamPage() {
                       color: m.is_active ? '#065F46' : '#991B1B',
                     }}>{m.is_active ? 'Active' : 'Hidden'}</span>
                   </td>
-                  <td style={{ padding: '10px 14px', display: 'flex', gap: 6 }}>
+                  <td style={{ padding: '10px 14px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button onClick={() => openEdit(m)} style={smallBtnStyle}>Edit</button>
+                    <button onClick={() => copyUploadLink(m)} style={{ ...smallBtnStyle, color: '#6366F1', borderColor: '#C7D2FE' }} title="Copy a self-service link the employee can use to update their own photo">📷 Upload Link</button>
+                    <button onClick={() => regenerateToken(m)} style={{ ...smallBtnStyle, color: '#6B7280' }} title="Revoke the old upload link and generate a new one">↻</button>
                     <button onClick={() => handleDelete(m)} style={{ ...smallBtnStyle, color: '#DC2626' }}>Delete</button>
                   </td>
                 </tr>

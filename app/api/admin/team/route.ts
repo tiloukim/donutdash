@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import crypto from 'crypto'
+
+function makeUploadToken(): string {
+  return crypto.randomBytes(16).toString('hex')
+}
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -50,6 +55,7 @@ export async function POST(req: NextRequest) {
       photo_url: photo_url || null,
       display_order: typeof display_order === 'number' ? display_order : 0,
       is_active: true,
+      upload_token: makeUploadToken(),
     })
     .select()
     .single()
@@ -74,6 +80,8 @@ export async function PATCH(req: NextRequest) {
     if (!s) return NextResponse.json({ error: 'Slug cannot be empty' }, { status: 400 })
     allowed.slug = s
   }
+  // Regenerating the upload token revokes any old self-service link.
+  if (fields.regenerate_token === true) allowed.upload_token = makeUploadToken()
   if (Object.keys(allowed).length === 0) return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
 
   const { data, error } = await auth.svc.from('dd_team_members').update(allowed).eq('id', id).select().single()
