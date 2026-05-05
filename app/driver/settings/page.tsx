@@ -488,22 +488,25 @@ export default function DriverSettings() {
               formData.append('type', 'avatar')
               const res = await fetch('/api/upload', { method: 'POST', body: formData })
               const data = await res.json()
-              if (res.ok && data.url) {
-                // Persist immediately so the photo isn't lost if the user navigates away
-                // before clicking "Save Settings."
-                const persistRes = await fetch('/api/driver/settings', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ name: profile.name, phone: profile.phone, avatar_url: data.url }),
-                })
-                if (persistRes.ok) {
-                  setProfile((p: any) => ({ ...p, avatar_url: data.url }))
-                }
-              } else {
-                alert(data.error || 'Photo upload failed')
+              if (!res.ok || !data.url) {
+                alert(data.error || `Upload failed (${res.status})`)
+                setUploadingPhoto(false)
+                return
               }
-            } catch {
-              alert('Photo upload failed')
+              // Show the new photo immediately — don't wait for the persist round-trip.
+              setProfile((p: any) => ({ ...p, avatar_url: data.url }))
+              // Persist (avatar-only payload, so name/phone won't get nullified).
+              const persistRes = await fetch('/api/driver/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ avatar_url: data.url }),
+              })
+              if (!persistRes.ok) {
+                const err = await persistRes.json().catch(() => ({}))
+                alert(err.error || `Photo uploaded but couldn't be saved to your profile (${persistRes.status})`)
+              }
+            } catch (e: any) {
+              alert(`Photo upload failed: ${e?.message || 'unknown error'}`)
             }
             setUploadingPhoto(false)
           }}

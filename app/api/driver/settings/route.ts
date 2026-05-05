@@ -27,15 +27,18 @@ export async function PUT(req: Request) {
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { name, phone, avatar_url } = await req.json()
+  const body = await req.json()
+
+  // Only update fields that were explicitly sent. Sending undefined or missing
+  // fields used to nullify them on the row — broke avatar-only saves where the
+  // client didn't echo back name/phone.
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (Object.prototype.hasOwnProperty.call(body, 'name') && typeof body.name === 'string') updates.name = body.name
+  if (Object.prototype.hasOwnProperty.call(body, 'phone') && typeof body.phone === 'string') updates.phone = body.phone
+  if (Object.prototype.hasOwnProperty.call(body, 'avatar_url')) updates.avatar_url = body.avatar_url || null
 
   const { data, error } = await svc.from('dd_users')
-    .update({
-      name,
-      phone,
-      avatar_url: avatar_url || null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updates)
     .eq('id', ddUser.id)
     .select()
     .single()
