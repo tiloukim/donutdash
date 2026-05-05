@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { SHOP_COMMISSION_RATE, BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -63,14 +63,15 @@ export async function GET(req: NextRequest) {
     const driver = del.driver as any
     const existing = driverMap.get(driverId) || { name: driver?.name || 'Unknown', phone: driver?.phone || '', email: driver?.email || '', deliveries: 0, earnings: 0, tips: 0, basePay: 0 }
     existing.deliveries += 1
-    // Match driver earnings calculation: max of stored vs calculated
-    const basePay = Number(del.base_pay || 3.00)
+    // Trust stored earnings; only recompute when missing (one-way + current constants).
     const order = (orders || []).find(o => o.id === del.order_id)
     const tip = Number(order?.tip || 0)
-    const distanceMiles = del.distance_miles || 2
-    const storedEarnings = Number(del.driver_earnings || 4.00)
-    const calculatedEarnings = basePay + (distanceMiles * 0.55) + tip
-    const actualEarnings = Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
+    const stored = Number(del.driver_earnings) || 0
+    const basePay = Number(del.base_pay) || BASE_DELIVERY_PAY
+    const distanceMiles = Number(del.distance_miles) || 0
+    const actualEarnings = stored > 0
+      ? stored
+      : Math.round((basePay + distanceMiles * PER_MILE_PAY + tip) * 100) / 100
     existing.earnings += actualEarnings
     existing.basePay += basePay
     existing.tips += tip

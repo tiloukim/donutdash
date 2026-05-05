@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { SHOP_COMMISSION_RATE, BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
 import { notifyAdmins } from '@/lib/sms'
 
 export const dynamic = 'force-dynamic'
@@ -71,12 +71,17 @@ export async function GET(req: NextRequest) {
     const driverEarnings = new Map<string, { amount: number; deliveries: number; basePay: number; tips: number }>()
     for (const del of deliveries || []) {
       if (!del.driver_id) continue
-      const basePay = del.base_pay || 2.50
-      const tip = (del.order as any)?.tip || 0
-      const distanceMiles = del.distance_miles || 2
-      const storedEarnings = del.driver_earnings || 4.00
-      const calculatedEarnings = basePay + (distanceMiles * 2 * 0.75) + tip
-      const earnings = Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
+      // Trust the stored driver_earnings (set at offer time) — that's the
+      // figure the driver was promised. Only fall back to a recompute when
+      // the row has no stored value, and use one-way distance + current
+      // constants when we do.
+      const stored = Number(del.driver_earnings) || 0
+      const tip = Number((del.order as any)?.tip) || 0
+      const basePay = Number(del.base_pay) || BASE_DELIVERY_PAY
+      const distanceMiles = Number(del.distance_miles) || 0
+      const earnings = stored > 0
+        ? stored
+        : Math.round((basePay + distanceMiles * PER_MILE_PAY + tip) * 100) / 100
 
       const existing = driverEarnings.get(del.driver_id) || { amount: 0, deliveries: 0, basePay: 0, tips: 0 }
       existing.amount += earnings

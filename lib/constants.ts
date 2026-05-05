@@ -63,7 +63,7 @@ export const DELIVERY_STATUS_LABELS: Record<string, string> = {
 export const OFFER_TIMEOUT_SECONDS = 45
 export const MAX_DRIVER_DISTANCE_MILES = 10
 export const MAX_DELIVERY_MILES = 3
-export const BASE_DELIVERY_PAY = 2.50
+export const BASE_DELIVERY_PAY = 3.00
 export const PER_MILE_PAY = 0.75
 export const DRIVER_LOCATION_UPDATE_INTERVAL = 10000
 

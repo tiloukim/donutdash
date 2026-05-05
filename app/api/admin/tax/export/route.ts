@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { SHOP_COMMISSION_RATE, BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,12 +52,12 @@ export async function GET(req: NextRequest) {
 
   const calcDriverEarnings = (driverId: string) => {
     return deliveries.filter(d => d.driver_id === driverId).reduce((sum, d) => {
-      const basePay = d.base_pay || 3.00
-      const tip = (d.order as any)?.tip || 0
-      const distanceMiles = d.distance_miles || 2
-      const stored = d.driver_earnings || 4.00
-      const calc = basePay + (distanceMiles * 0.55) + tip
-      return sum + Math.max(stored, Math.round(calc * 100) / 100)
+      const stored = Number(d.driver_earnings) || 0
+      if (stored > 0) return sum + stored
+      const basePay = Number(d.base_pay) || BASE_DELIVERY_PAY
+      const tip = Number((d.order as any)?.tip) || 0
+      const distanceMiles = Number(d.distance_miles) || 0
+      return sum + Math.round((basePay + distanceMiles * PER_MILE_PAY + tip) * 100) / 100
     }, 0)
   }
 

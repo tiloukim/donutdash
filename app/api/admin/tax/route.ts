@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { SHOP_COMMISSION_RATE, BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,12 +57,12 @@ export async function GET(req: NextRequest) {
   const driverSummaries = drivers.map(driver => {
     const driverDeliveries = deliveries.filter(d => d.driver_id === driver.id)
     const totalEarnings = driverDeliveries.reduce((sum, d) => {
-      const basePay = d.base_pay || 3.00
-      const tip = (d.order as any)?.tip || 0
-      const distanceMiles = d.distance_miles || 2
-      const storedEarnings = d.driver_earnings || 4.00
-      const calculatedEarnings = basePay + (distanceMiles * 0.55) + tip
-      return sum + Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
+      const stored = Number(d.driver_earnings) || 0
+      if (stored > 0) return sum + stored
+      const basePay = Number(d.base_pay) || BASE_DELIVERY_PAY
+      const tip = Number((d.order as any)?.tip) || 0
+      const distanceMiles = Number(d.distance_miles) || 0
+      return sum + Math.round((basePay + distanceMiles * PER_MILE_PAY + tip) * 100) / 100
     }, 0)
 
     const totalPaid = payouts
@@ -127,12 +127,12 @@ export async function GET(req: NextRequest) {
       return dt >= qStart && dt < qEnd
     })
     const qDriverPay = qDeliveries.reduce((sum, d) => {
-      const basePay = d.base_pay || 3.00
-      const tip = (d.order as any)?.tip || 0
-      const distanceMiles = d.distance_miles || 2
-      const storedEarnings = d.driver_earnings || 4.00
-      const calculatedEarnings = basePay + (distanceMiles * 0.55) + tip
-      return sum + Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
+      const stored = Number(d.driver_earnings) || 0
+      if (stored > 0) return sum + stored
+      const basePay = Number(d.base_pay) || BASE_DELIVERY_PAY
+      const tip = Number((d.order as any)?.tip) || 0
+      const distanceMiles = Number(d.distance_miles) || 0
+      return sum + Math.round((basePay + distanceMiles * PER_MILE_PAY + tip) * 100) / 100
     }, 0)
 
     return {

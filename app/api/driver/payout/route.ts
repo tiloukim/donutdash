@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
 
 // GET — fetch driver's payout requests
 export async function GET() {
@@ -51,12 +52,12 @@ export async function POST(req: NextRequest) {
     .eq('status', 'delivered')
 
   const allTimeEarnings = (deliveries || []).reduce((sum, d) => {
-    const basePay = d.base_pay || 2.50
-    const tip = (d.order as any)?.tip || 0
-    const distanceMiles = d.distance_miles || 2
-    const storedEarnings = d.driver_earnings || 4.00
-    const calculatedEarnings = basePay + (distanceMiles * 2 * 0.75) + tip
-    return sum + Math.max(storedEarnings, Math.round(calculatedEarnings * 100) / 100)
+    const stored = Number(d.driver_earnings) || 0
+    if (stored > 0) return sum + stored
+    const basePay = Number(d.base_pay) || BASE_DELIVERY_PAY
+    const tip = Number((d.order as any)?.tip) || 0
+    const distanceMiles = Number(d.distance_miles) || 0
+    return sum + Math.round((basePay + distanceMiles * PER_MILE_PAY + tip) * 100) / 100
   }, 0)
 
   const { data: existingPayouts } = await svc.from('dd_payout_requests')
