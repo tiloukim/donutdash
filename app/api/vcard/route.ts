@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTeamMember, formatPhone, team } from '@/lib/team'
+import { getTeamMember, formatPhone } from '@/lib/team'
 
 export async function GET(req: NextRequest) {
-  const slug = req.nextUrl.searchParams.get('slug') || 'tony'
-  const m = getTeamMember(slug) || team[0]
+  const slug = req.nextUrl.searchParams.get('slug') || 'Tilou'
+  const m = await getTeamMember(slug)
   if (!m) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const nameParts = m.name.split(' ')

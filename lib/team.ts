@@ -1,36 +1,39 @@
-// Team members for digital business cards
-// Add new team members here — card available at /card/[slug]
+// Team members for digital business cards.
+// Source of truth is the dd_team_members table — admin manages entries at
+// /admin/team. The card page lives at /card/[slug].
+
+import { createServiceClient } from '@/lib/supabase/server'
 
 export interface TeamMember {
+  id?: string
   slug: string
   name: string
   title: string
   phone: string
   email: string
   location: string
+  photo_url?: string | null
+  is_active?: boolean
+  display_order?: number
 }
 
-export const team: TeamMember[] = [
-  {
-    slug: 'Tilou',
-    name: 'Tilou Kim',
-    title: 'Founder',
-    phone: '9033455599',
-    email: 'Donutdash903@gmail.com',
-    location: 'Tyler, Texas',
-  },
-  {
-    slug: 'saray',
-    name: 'Saray Tem',
-    title: 'Operations Manager',
-    phone: '6264919094',
-    email: 'Saraytem@donutdash.app',
-    location: 'Tyler, Texas',
-  },
-]
+export async function getTeamMember(slug: string): Promise<TeamMember | null> {
+  const svc = createServiceClient()
+  const { data } = await svc
+    .from('dd_team_members')
+    .select('*')
+    .ilike('slug', slug)
+    .eq('is_active', true)
+    .maybeSingle()
+  return data as TeamMember | null
+}
 
-export function getTeamMember(slug: string): TeamMember | undefined {
-  return team.find(m => m.slug.toLowerCase() === slug.toLowerCase())
+export async function getAllTeamMembers(opts: { activeOnly?: boolean } = {}): Promise<TeamMember[]> {
+  const svc = createServiceClient()
+  let q = svc.from('dd_team_members').select('*').order('display_order').order('created_at')
+  if (opts.activeOnly) q = q.eq('is_active', true)
+  const { data } = await q
+  return (data || []) as TeamMember[]
 }
 
 export function formatPhone(phone: string): string {

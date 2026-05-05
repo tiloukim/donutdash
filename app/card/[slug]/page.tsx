@@ -1,13 +1,11 @@
 import { notFound } from 'next/navigation'
-import { team, getTeamMember, formatPhone } from '@/lib/team'
+import { getTeamMember, formatPhone } from '@/lib/team'
 
-export function generateStaticParams() {
-  return team.map(m => ({ slug: m.slug }))
-}
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const member = getTeamMember(slug)
+  const member = await getTeamMember(slug)
   if (!member) return { title: 'Not Found' }
   return {
     title: `${member.name} — DonutDash`,
@@ -17,7 +15,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function TeamCard({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const m = getTeamMember(slug)
+  const m = await getTeamMember(slug)
   if (!m) notFound()
 
   const phoneFormatted = formatPhone(m.phone)
@@ -47,7 +45,19 @@ export default async function TeamCard({ params }: { params: Promise<{ slug: str
         </div>
 
         {/* Profile */}
-        <div style={{ padding: '24px 28px 0', textAlign: 'center' }}>
+        <div style={{ padding: '0 28px 0', textAlign: 'center', marginTop: -52 }}>
+          <div style={{
+            width: 104, height: 104, borderRadius: '50%', margin: '0 auto 12px',
+            background: m.photo_url
+              ? `url(${m.photo_url}) center/cover`
+              : 'linear-gradient(135deg, #FF1493 0%, #FF8C00 100%)',
+            border: '4px solid #fff',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 38, fontWeight: 800,
+          }}>
+            {!m.photo_url && m.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()}
+          </div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E', marginBottom: 4 }}>{m.name}</h1>
           <p style={{ fontSize: 14, color: '#FF1493', fontWeight: 600, marginBottom: 4 }}>{m.title}</p>
           <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>{m.location}</p>
