@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { ORDER_STATUS_LABELS, resolveCommissionRate } from '@/lib/constants'
+import DriverAvatar from '@/components/DriverAvatar'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -17,7 +18,7 @@ interface DeliveryInfo {
   driver_id: string | null
   status: string
   delivery_photo_url: string | null
-  driver: { name: string } | null
+  driver: { name: string; avatar_url?: string | null } | null
 }
 
 interface OrderRow {
@@ -388,8 +389,11 @@ export default function AdminOrders() {
                                   <span style={{ color: '#6B7280' }}>Address: </span>
                                   <span style={{ fontWeight: 500 }}>{order.delivery_address || '-'}</span>
                                 </div>
-                                <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <span style={{ color: '#6B7280' }}>Driver: </span>
+                                  {delivery?.driver?.name && (
+                                    <DriverAvatar name={delivery.driver.name} url={delivery.driver.avatar_url} size={28} />
+                                  )}
                                   <span style={{ fontWeight: 500 }}>{delivery?.driver?.name || 'Not assigned'}</span>
                                 </div>
                                 <div>

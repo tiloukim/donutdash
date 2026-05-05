@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useRealtime } from '@/lib/use-realtime'
+import DriverAvatar from '@/components/DriverAvatar'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -23,7 +24,7 @@ const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
 
 interface TrackingData {
   delivery_status: string
-  driver: { name: string }
+  driver: { name: string; avatar_url?: string | null }
   location: { lat: number; lng: number; heading?: number | null }
 }
 
@@ -397,7 +398,7 @@ export default function ShopOrders() {
                         {isTrackable && tracking && (
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#FFE4EF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🚗</div>
+                              <DriverAvatar name={tracking.driver?.name} url={tracking.driver?.avatar_url} size={40} />
                               <div>
                                 <div style={{ fontWeight: 700, fontSize: 14 }}>{tracking.driver?.name || 'Driver'}</div>
                                 <div style={{ fontSize: 12, color: '#FF1493', fontWeight: 600, textTransform: 'capitalize' }}>

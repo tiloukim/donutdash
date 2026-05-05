@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, use, useCallback } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import ChatBox from '@/components/ChatBox'
+import DriverAvatar from '@/components/DriverAvatar'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -622,13 +623,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           border: '1px solid #FFE8D6', marginBottom: 20,
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: '50%', background: '#FF8C00',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 20, fontWeight: 700,
-          }}>
-            {tracking.driver.name?.[0] || '?'}
-          </div>
+          <DriverAvatar name={tracking.driver.name} url={tracking.driver.avatar_url} size={48} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{tracking.driver.name}</div>
             <div style={{ fontSize: 12, color: '#888' }}>Your delivery driver</div>

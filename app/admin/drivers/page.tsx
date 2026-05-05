@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
+import DriverAvatar from '@/components/DriverAvatar'
 
 const DriversMap = dynamic(() => import('@/components/DriversMap'), { ssr: false })
 
@@ -10,6 +11,7 @@ interface Driver {
   name: string
   email: string
   phone: string | null
+  avatar_url: string | null
   is_active: boolean
   is_online: boolean
   lat: number | null
@@ -130,8 +132,8 @@ export default function AdminDrivers() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['Driver', 'Email', 'Phone', 'Deliveries', 'Earnings', 'Online', 'Location', 'Last GPS', 'Account', 'Joined'].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
+                {['', 'Driver', 'Email', 'Phone', 'Deliveries', 'Earnings', 'Online', 'Location', 'Last GPS', 'Account', 'Joined'].map((h, i) => (
+                  <th key={h || `col-${i}`} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -142,6 +144,9 @@ export default function AdminDrivers() {
                 return d.name.toLowerCase().includes(q) || d.email.toLowerCase().includes(q) || (d.phone || '').toLowerCase().includes(q)
               }).map(driver => (
                 <tr key={driver.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                  <td style={{ padding: '8px 16px' }}>
+                    <DriverAvatar name={driver.name} url={driver.avatar_url} size={36} />
+                  </td>
                   <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>{driver.name}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{driver.email}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{driver.phone || '-'}</td>
@@ -185,7 +190,7 @@ export default function AdminDrivers() {
                 </tr>
               ))}
               {drivers.length === 0 && (
-                <tr><td colSpan={10} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No drivers found</td></tr>
+                <tr><td colSpan={11} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No drivers found</td></tr>
               )}
             </tbody>
           </table>
@@ -201,3 +206,4 @@ export default function AdminDrivers() {
     </div>
   )
 }
+

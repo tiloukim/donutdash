@@ -64,6 +64,7 @@ export async function GET() {
       const effectivelyOnline = !!loc?.is_online && isFresh(loc?.updated_at)
       return {
         ...driver,
+        avatar_url: driver.avatar_url || null,
         deliveryCount: statsMap[driver.id]?.deliveryCount || 0,
         totalEarnings: statsMap[driver.id]?.totalEarnings || 0,
         is_online: effectivelyOnline,
