@@ -37,7 +37,7 @@ export async function GET() {
         if (stored > 0) return order
         // No stored value — recompute from current constants and stored distance.
         const dist = Number(delivery.distance_miles) || 0
-        delivery.driver_earnings = Math.round((BASE_DELIVERY_PAY + dist * 2 * PER_MILE_PAY + tip) * 100) / 100
+        delivery.driver_earnings = Math.round((BASE_DELIVERY_PAY + dist * PER_MILE_PAY + tip) * 100) / 100
       } else if (order.status !== 'cancelled' && order.status !== 'pending') {
         // No delivery row yet — show an estimate so the table still renders a number.
         const estimated = Math.round((BASE_DELIVERY_PAY + tip) * 100) / 100

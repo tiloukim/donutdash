@@ -200,9 +200,8 @@ export async function assignNextDriver(deliveryId: string) {
 
 export function calculateDriverEarnings(distanceMiles: number, tip: number = 0): number {
   // distanceMiles is one-way (shop → customer) from haversineDistance.
-  // Spec pays per mile of round-trip distance, so multiply by 2.
-  const roundTripMiles = distanceMiles * 2
-  const earnings = BASE_DELIVERY_PAY + (roundTripMiles * PER_MILE_PAY) + tip
+  // Driver is paid per mile of one-way distance only.
+  const earnings = BASE_DELIVERY_PAY + (distanceMiles * PER_MILE_PAY) + tip
   return Math.round(earnings * 100) / 100
 }
 

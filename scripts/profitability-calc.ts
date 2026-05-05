@@ -38,6 +38,7 @@ const STRIPE_CONNECT_FIXED = 0.25
 const OPS_PER_ORDER      = arg('ops', 0.50)                         // SaaS/infra/support amortized
 
 function driverPay(distanceMi: number, tip: number): number {
+  // Driver paid one-way only.
   return BASE_DELIVERY_PAY + distanceMi * PER_MILE_PAY + tip
 }
 

@@ -28,7 +28,7 @@ export async function GET() {
     if (stored > 0) return d
     const tip = Number((d.order as any)?.tip) || 0
     const distanceMiles = Number(d.distance_miles) || 0
-    const recomputed = Math.round((BASE_DELIVERY_PAY + distanceMiles * 2 * PER_MILE_PAY + tip) * 100) / 100
+    const recomputed = Math.round((BASE_DELIVERY_PAY + distanceMiles * PER_MILE_PAY + tip) * 100) / 100
     return { ...d, driver_earnings: recomputed }
   })
 

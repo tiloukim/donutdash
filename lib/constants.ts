@@ -6,8 +6,8 @@ export const DEFAULT_DELIVERY_FEE = 3.99
 
 // Distance-based pricing: shops charge a base fee that covers the first
 // BASE_DELIVERY_RADIUS_MILES of driving, then PER_EXTRA_MILE_FEE per mile after.
-// PER_EXTRA_MILE_FEE = $1.50 = exactly the per-mile cost of driver round-trip pay
-// (2 × PER_MILE_PAY), so margin stays constant across all delivery distances.
+// Driver is paid per mile of one-way distance (PER_MILE_PAY); the gap between
+// PER_EXTRA_MILE_FEE and PER_MILE_PAY is platform margin on each extra mile.
 export const BASE_DELIVERY_RADIUS_MILES = 1
 export const PER_EXTRA_MILE_FEE = 1.50
 
