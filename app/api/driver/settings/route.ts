@@ -32,10 +32,16 @@ export async function PUT(req: Request) {
   // Only update fields that were explicitly sent. Sending undefined or missing
   // fields used to nullify them on the row — broke avatar-only saves where the
   // client didn't echo back name/phone.
-  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  // (No updated_at — dd_users doesn't have that column, and writing it was the
+  // root cause of "doesn't save"; supabase-js raises a schema-cache error.)
+  const updates: Record<string, unknown> = {}
   if (Object.prototype.hasOwnProperty.call(body, 'name') && typeof body.name === 'string') updates.name = body.name
   if (Object.prototype.hasOwnProperty.call(body, 'phone') && typeof body.phone === 'string') updates.phone = body.phone
   if (Object.prototype.hasOwnProperty.call(body, 'avatar_url')) updates.avatar_url = body.avatar_url || null
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ name: ddUser.name, phone: ddUser.phone, email: ddUser.email, avatar_url: ddUser.avatar_url || '' })
+  }
 
   const { data, error } = await svc.from('dd_users')
     .update(updates)
