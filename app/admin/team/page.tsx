@@ -129,15 +129,70 @@ export default function AdminTeamPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <style>{`
+        .team-page-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .team-desktop { display: block; }
+        .team-mobile { display: none; }
+        @media (max-width: 768px) {
+          .team-desktop { display: none; }
+          .team-mobile { display: block; }
+          .team-page-header h1 { font-size: 20px; }
+          .team-page-header .add-btn { width: 100%; padding: 10px; }
+        }
+      `}</style>
+
+      <div className="team-page-header">
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E', margin: 0 }}>Team Cards</h1>
           <p style={{ fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>Digital business cards live at <code style={codeStyle}>donutdash.app/card/[slug]</code></p>
         </div>
-        <button onClick={openCreate} style={primaryBtnStyle}>+ Add Member</button>
+        <button onClick={openCreate} className="add-btn" style={primaryBtnStyle}>+ Add Member</button>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+      {/* Mobile: stacked cards */}
+      <div className="team-mobile" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {members.map(m => (
+          <div key={m.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 14 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10 }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: m.photo_url ? `url(${m.photo_url}) center/cover` : 'linear-gradient(135deg, #FF1493, #FF8C00)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontSize: 16, fontWeight: 700, flexShrink: 0,
+              }}>
+                {!m.photo_url && m.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1A2E' }}>{m.name}</div>
+                <div style={{ fontSize: 13, color: '#6B7280' }}>{m.title}</div>
+              </div>
+              <span style={{
+                fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                background: m.is_active ? '#D1FAE5' : '#FEE2E2',
+                color: m.is_active ? '#065F46' : '#991B1B', flexShrink: 0,
+              }}>{m.is_active ? 'Active' : 'Hidden'}</span>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{m.phone}</div>
+            <a href={`/card/${m.slug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#6366F1', textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>
+              /card/{m.slug} ↗
+            </a>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <button onClick={() => openEdit(m)} style={{ ...smallBtnStyle, flex: '1 1 auto' }}>Edit</button>
+              <button onClick={() => copyUploadLink(m)} style={{ ...smallBtnStyle, color: '#6366F1', borderColor: '#C7D2FE', flex: '1 1 auto' }}>📷 Upload Link</button>
+              <button onClick={() => regenerateToken(m)} style={{ ...smallBtnStyle, color: '#6B7280' }} title="Regenerate upload link">↻</button>
+              <button onClick={() => handleDelete(m)} style={{ ...smallBtnStyle, color: '#DC2626' }}>Delete</button>
+            </div>
+          </div>
+        ))}
+        {members.length === 0 && (
+          <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF', background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB' }}>
+            No team members yet — tap <strong>Add Member</strong> to create the first card.
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="team-desktop" style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
