@@ -39,11 +39,29 @@ export default function AdminDriverDocuments() {
   const [actionDoc, setActionDoc] = useState<string | null>(null)
   const [adminNotes, setAdminNotes] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [expandedDrivers, setExpandedDrivers] = useState<Set<string>>(new Set())
+
+  const toggleDriver = (id: string) =>
+    setExpandedDrivers(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const fetchDocs = () => {
     fetch('/api/admin/driver-documents')
       .then(r => r.json())
-      .then(d => setDocuments(d.documents || []))
+      .then(d => {
+        const docs: DriverDocument[] = d.documents || []
+        setDocuments(docs)
+        // Auto-expand drivers that have any pending or rejected docs — those need
+        // admin attention. Approved drivers stay collapsed for a clean view.
+        const needsAttention = new Set(
+          docs.filter(doc => doc.status === 'pending' || doc.status === 'rejected').map(doc => doc.driver_id)
+        )
+        setExpandedDrivers(prev => new Set([...prev, ...needsAttention]))
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }
@@ -140,8 +158,8 @@ export default function AdminDriverDocuments() {
         </div>
       </div>
 
-      {/* Filter */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      {/* Filter + expand controls */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         {['all', 'pending', 'approved', 'rejected'].map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
             padding: '6px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
@@ -151,6 +169,20 @@ export default function AdminDriverDocuments() {
             {f.charAt(0).toUpperCase() + f.slice(1)}{f === 'pending' && pendingCount > 0 ? ` (${pendingCount})` : ''}
           </button>
         ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => setExpandedDrivers(new Set(Array.from(driverMap.keys())))}
+            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#fff', fontSize: 12, fontWeight: 600, color: '#6B7280', cursor: 'pointer' }}
+          >
+            Expand all
+          </button>
+          <button
+            onClick={() => setExpandedDrivers(new Set())}
+            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#fff', fontSize: 12, fontWeight: 600, color: '#6B7280', cursor: 'pointer' }}
+          >
+            Collapse all
+          </button>
+        </div>
       </div>
 
       {/* Documents grouped by driver */}
@@ -159,24 +191,39 @@ export default function AdminDriverDocuments() {
           No documents found
         </div>
       ) : (
-        Array.from(driverMap.entries()).map(([driverId, { driver, docs }]) => (
+        Array.from(driverMap.entries()).map(([driverId, { driver, docs }]) => {
+          const isExpanded = expandedDrivers.has(driverId)
+          const approvedCount = docs.filter(d => d.status === 'approved').length
+          const driverStatus = driverStatuses[driverId]
+          return (
           <div key={driverId} style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', marginBottom: 16, overflow: 'hidden' }}>
-            {/* Driver header */}
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid #E5E7EB', background: '#FAFAFA', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <span style={{ fontWeight: 700, fontSize: 15 }}>{driver.name}</span>
-                <span style={{ fontSize: 13, color: '#6B7280', marginLeft: 12 }}>{driver.email}</span>
-                {driver.phone && <span style={{ fontSize: 13, color: '#6B7280', marginLeft: 12 }}>{driver.phone}</span>}
+            {/* Driver header — clickable to expand/collapse */}
+            <div
+              onClick={() => toggleDriver(driverId)}
+              style={{
+                padding: '14px 20px',
+                borderBottom: isExpanded ? '1px solid #E5E7EB' : 'none',
+                background: '#FAFAFA',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#FAFAFA')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14, color: '#9CA3AF', width: 14, transition: 'transform 0.15s', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                <span style={{ fontWeight: 800, fontSize: 19, color: '#6366F1', letterSpacing: 0.2 }}>{driver.name}</span>
+                <span style={{ fontSize: 13, color: '#6B7280' }}>{driver.email}</span>
+                {driver.phone && <span style={{ fontSize: 13, color: '#6B7280' }}>{driver.phone}</span>}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 12, color: '#6B7280' }}>
-                  {docs.filter(d => d.status === 'approved').length}/7 approved
-                </span>
-                {driverStatuses[driverId] === 'approved' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} onClick={e => e.stopPropagation()}>
+                <span style={{ fontSize: 12, color: '#6B7280' }}>{approvedCount}/7 approved</span>
+                {driverStatus === 'approved' ? (
                   <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: '#D1FAE5', color: '#065F46' }}>
                     Driver Approved
                   </span>
-                ) : driverStatuses[driverId] === 'pending_approval' ? (
+                ) : driverStatus === 'pending_approval' ? (
                   <button
                     onClick={() => approveDriver(driverId)}
                     disabled={processing}
@@ -192,8 +239,8 @@ export default function AdminDriverDocuments() {
               </div>
             </div>
 
-            {/* Documents */}
-            {docs.map(doc => (
+            {/* Documents — only render when expanded */}
+            {isExpanded && docs.map(doc => (
               <div key={doc.id} style={{ padding: '14px 20px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -262,7 +309,8 @@ export default function AdminDriverDocuments() {
               </div>
             ))}
           </div>
-        ))
+          )
+        })
       )}
     </div>
   )
