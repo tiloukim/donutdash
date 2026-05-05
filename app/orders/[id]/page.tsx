@@ -623,7 +623,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           border: '1px solid #FFE8D6', marginBottom: 20,
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
-          <DriverAvatar name={tracking.driver.name} url={tracking.driver.avatar_url} size={48} />
+          <DriverAvatar name={tracking.driver.name} url={tracking.driver.avatar_url} selfieUrl={tracking.driver.selfie_url} size={48} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{tracking.driver.name}</div>
             <div style={{ fontSize: 12, color: '#888' }}>Your delivery driver</div>

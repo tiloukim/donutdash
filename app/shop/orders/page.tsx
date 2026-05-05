@@ -24,7 +24,7 @@ const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
 
 interface TrackingData {
   delivery_status: string
-  driver: { name: string; avatar_url?: string | null }
+  driver: { name: string; avatar_url?: string | null; selfie_url?: string | null }
   location: { lat: number; lng: number; heading?: number | null }
 }
 
@@ -398,7 +398,7 @@ export default function ShopOrders() {
                         {isTrackable && tracking && (
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                              <DriverAvatar name={tracking.driver?.name} url={tracking.driver?.avatar_url} size={40} />
+                              <DriverAvatar name={tracking.driver?.name} url={tracking.driver?.avatar_url} selfieUrl={tracking.driver?.selfie_url} size={40} />
                               <div>
                                 <div style={{ fontWeight: 700, fontSize: 14 }}>{tracking.driver?.name || 'Driver'}</div>
                                 <div style={{ fontSize: 12, color: '#FF1493', fontWeight: 600, textTransform: 'capitalize' }}>

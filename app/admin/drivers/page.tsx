@@ -12,6 +12,7 @@ interface Driver {
   email: string
   phone: string | null
   avatar_url: string | null
+  selfie_url: string | null
   is_active: boolean
   is_online: boolean
   lat: number | null
@@ -145,7 +146,7 @@ export default function AdminDrivers() {
               }).map(driver => (
                 <tr key={driver.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
                   <td style={{ padding: '8px 16px' }}>
-                    <DriverAvatar name={driver.name} url={driver.avatar_url} size={36} />
+                    <DriverAvatar name={driver.name} url={driver.avatar_url} selfieUrl={driver.selfie_url} size={36} />
                   </td>
                   <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>{driver.name}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{driver.email}</td>

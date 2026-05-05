@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import SelfieCaptureModal from '@/components/SelfieCaptureModal'
+import { compressImage } from '@/lib/compress-image'
 
 interface DriverDocument {
   id: string
@@ -130,6 +131,30 @@ export default function DriverDocuments() {
         })
         setSuccess('Selfie verification uploaded! (3 angles: center, left, right)')
         setTimeout(() => setSuccess(''), 4000)
+
+        // Also use the center pose (photos[0]) as the driver's profile avatar so
+        // it shows up on customer tracking, shop orders, and admin views right away.
+        // We only set it if the driver doesn't already have a custom avatar — never
+        // overwrite a photo they uploaded themselves via /driver/settings.
+        ;(async () => {
+          try {
+            const meRes = await fetch('/api/driver/settings').then(r => r.ok ? r.json() : null)
+            if (meRes && !meRes.avatar_url && photos[0]) {
+              const avatarForm = new FormData()
+              avatarForm.append('file', photos[0])
+              avatarForm.append('type', 'avatar')
+              const upRes = await fetch('/api/upload', { method: 'POST', body: avatarForm })
+              const upData = await upRes.json()
+              if (upRes.ok && upData.url) {
+                await fetch('/api/driver/settings', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ avatar_url: upData.url }),
+                })
+              }
+            }
+          } catch { /* non-blocking — selfie verification still succeeded */ }
+        })()
       } else {
         setError(data.error || 'Upload failed')
       }
@@ -144,12 +169,16 @@ export default function DriverDocuments() {
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !uploadDocType) return
+    const original = e.target.files?.[0]
+    if (!original || !uploadDocType) return
 
     setUploading(uploadDocType)
     setError('')
     setSuccess('')
+
+    // Compress images before upload — high-res phone photos can OOM mobile
+    // browsers (10–25MB PNG/JPEG). PDFs and small files pass through.
+    const file = await compressImage(original, 2000, 0.85)
 
     const formData = new FormData()
     formData.append('file', file)

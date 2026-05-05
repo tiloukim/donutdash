@@ -33,34 +33,33 @@ export default async function TeamCard({ params }: { params: Promise<{ slug: str
         maxWidth: 400, width: '100%',
         boxShadow: '0 12px 48px rgba(255, 20, 147, 0.12), 0 4px 16px rgba(0,0,0,0.06)',
       }}>
-        {/* Header */}
+        {/* Header — logo only. Avatar will overlap below; no tagline to collide with. */}
         <div style={{
           background: 'linear-gradient(135deg, #FF1493 0%, #FF69B4 50%, #FF8C00 100%)',
-          padding: '32px 24px 28px', textAlign: 'center',
+          padding: '28px 24px 56px', textAlign: 'center',
         }}>
-          <img src="/logo.png" alt="DonutDash" style={{ height: 56, width: 'auto', filter: 'brightness(10)', marginBottom: 8 }} />
-          <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500, letterSpacing: 1 }}>
-            FRESH DONUTS DELIVERED FAST
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="DonutDash" style={{ height: 52, width: 'auto', filter: 'brightness(10)' }} />
         </div>
 
-        {/* Profile */}
-        <div style={{ padding: '0 28px 0', textAlign: 'center', marginTop: -52 }}>
+        {/* Profile — avatar straddles the gradient/white boundary cleanly. */}
+        <div style={{ padding: '0 28px 0', textAlign: 'center', marginTop: -56 }}>
           <div style={{
-            width: 104, height: 104, borderRadius: '50%', margin: '0 auto 12px',
+            width: 112, height: 112, borderRadius: '50%', margin: '0 auto 14px',
             background: m.photo_url
               ? `url(${m.photo_url}) center/cover`
               : 'linear-gradient(135deg, #FF1493 0%, #FF8C00 100%)',
-            border: '4px solid #fff',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+            border: '5px solid #fff',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.14)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 38, fontWeight: 800,
+            color: '#fff', fontSize: 40, fontWeight: 800,
           }}>
             {!m.photo_url && m.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E', marginBottom: 4 }}>{m.name}</h1>
           <p style={{ fontSize: 14, color: '#FF1493', fontWeight: 600, marginBottom: 4 }}>{m.title}</p>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>{m.location}</p>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 8 }}>{m.location}</p>
+          <p style={{ fontSize: 11, color: '#aaa', fontWeight: 500, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 20 }}>Fresh Donuts Delivered Fast</p>
         </div>
 
         {/* Contact */}

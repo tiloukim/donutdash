@@ -102,9 +102,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ orde
     .eq('id', delivery.driver_id)
     .single()
 
+  // Fallback: if the driver has no custom avatar, surface the latest approved
+  // verification selfie so the customer/shop sees a face instead of an initial.
+  let selfieUrl: string | null = null
+  if (driver && !driver.avatar_url) {
+    const { data: selfie } = await svc
+      .from('dd_driver_documents')
+      .select('file_url')
+      .eq('driver_id', delivery.driver_id)
+      .eq('doc_type', 'selfie')
+      .eq('status', 'approved')
+      .order('uploaded_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    selfieUrl = selfie?.file_url || null
+  }
+
   return NextResponse.json({
     delivery_status: delivery.status,
-    driver: driver ? { name: driver.name, avatar_url: driver.avatar_url } : null,
+    driver: driver ? { name: driver.name, avatar_url: driver.avatar_url, selfie_url: selfieUrl } : null,
     location: location || null,
     route_polyline: delivery.route_polyline,
     estimated_duration_min: delivery.estimated_duration_min,

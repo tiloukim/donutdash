@@ -52,6 +52,21 @@ export async function GET() {
       locationMap[loc.driver_id] = { is_online: loc.is_online, lat: loc.lat, lng: loc.lng, updated_at: loc.updated_at }
     }
 
+    // Latest approved selfie per driver — used as a fallback avatar for drivers who
+    // haven't uploaded a custom profile photo yet. Sorted desc so the first row per
+    // driver_id is the most recent.
+    const { data: selfies } = await svc
+      .from('dd_driver_documents')
+      .select('driver_id, file_url, uploaded_at')
+      .eq('doc_type', 'selfie')
+      .eq('status', 'approved')
+      .in('driver_id', driverIds.length > 0 ? driverIds : ['__none__'])
+      .order('uploaded_at', { ascending: false })
+    const selfieMap: Record<string, string> = {}
+    for (const s of selfies || []) {
+      if (!selfieMap[s.driver_id] && s.file_url) selfieMap[s.driver_id] = s.file_url
+    }
+
     // Treat is_online as false if the last ping is older than the staleness window —
     // protects the UI/assigner from rows the offline-stale-drivers cron hasn't cleaned up yet.
     const STALE_MS = 2 * 60 * 1000
@@ -65,6 +80,7 @@ export async function GET() {
       return {
         ...driver,
         avatar_url: driver.avatar_url || null,
+        selfie_url: selfieMap[driver.id] || null,
         deliveryCount: statsMap[driver.id]?.deliveryCount || 0,
         totalEarnings: statsMap[driver.id]?.totalEarnings || 0,
         is_online: effectivelyOnline,
