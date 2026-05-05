@@ -8,13 +8,18 @@ export async function POST(request: NextRequest) {
 
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('role').eq('auth_id', user.id).single()
-  if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  if (!ddUser) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null
+  const type = (formData.get('type') as string | null) || 'image'
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+
+  // Avatars can be uploaded by any authenticated user (drivers, customers,
+  // shop owners). Menu images / other generic uploads remain shop_owner+admin only.
+  if (type !== 'avatar' && ddUser.role !== 'shop_owner' && ddUser.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const maxSize = 5 * 1024 * 1024 // 5MB
   if (file.size > maxSize) return NextResponse.json({ error: 'File too large (max 5MB)' }, { status: 400 })
@@ -23,7 +28,8 @@ export async function POST(request: NextRequest) {
   if (!allowed.includes(file.type)) return NextResponse.json({ error: 'Invalid file type' }, { status: 400 })
 
   const ext = file.name.split('.').pop() || 'jpg'
-  const fileName = `menu/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  const prefix = type === 'avatar' ? 'avatars' : 'menu'
+  const fileName = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
   const buffer = Buffer.from(await file.arrayBuffer())
 

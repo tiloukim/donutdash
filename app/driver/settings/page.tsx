@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import AvatarCropper from '@/components/AvatarCropper'
 
 export default function DriverSettings() {
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [bankInfo, setBankInfo] = useState<any>({
     bank_account_holder: '', bank_routing_number: '', bank_account_number: '',
     payout_method: 'ach', paypal_email: '', venmo_handle: '', cashapp_handle: '',
@@ -159,23 +161,12 @@ export default function DriverSettings() {
             <input
               ref={photoInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
               style={{ display: 'none' }}
-              onChange={async (e) => {
+              onChange={(e) => {
                 const file = e.target.files?.[0]
-                if (!file) return
-                setUploadingPhoto(true)
-                const formData = new FormData()
-                formData.append('file', file)
-                formData.append('type', 'image')
-                try {
-                  const res = await fetch('/api/upload', { method: 'POST', body: formData })
-                  const data = await res.json()
-                  if (res.ok && data.url) {
-                    setProfile((p: any) => ({ ...p, avatar_url: data.url }))
-                  }
-                } catch {}
-                setUploadingPhoto(false)
+                if (file) setPendingFile(file)
+                // Reset input so picking the same file twice still triggers onChange.
                 if (photoInputRef.current) photoInputRef.current.value = ''
               }}
             />
@@ -482,6 +473,42 @@ export default function DriverSettings() {
           Delete My Account
         </a>
       </div>
+
+      {/* Cropper modal — opens whenever the user picks a file */}
+      {pendingFile && (
+        <AvatarCropper
+          file={pendingFile}
+          onCancel={() => setPendingFile(null)}
+          onCrop={async (blob) => {
+            setPendingFile(null)
+            setUploadingPhoto(true)
+            try {
+              const formData = new FormData()
+              formData.append('file', new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
+              formData.append('type', 'avatar')
+              const res = await fetch('/api/upload', { method: 'POST', body: formData })
+              const data = await res.json()
+              if (res.ok && data.url) {
+                // Persist immediately so the photo isn't lost if the user navigates away
+                // before clicking "Save Settings."
+                const persistRes = await fetch('/api/driver/settings', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name: profile.name, phone: profile.phone, avatar_url: data.url }),
+                })
+                if (persistRes.ok) {
+                  setProfile((p: any) => ({ ...p, avatar_url: data.url }))
+                }
+              } else {
+                alert(data.error || 'Photo upload failed')
+              }
+            } catch {
+              alert('Photo upload failed')
+            }
+            setUploadingPhoto(false)
+          }}
+        />
+      )}
     </div>
   )
 }
