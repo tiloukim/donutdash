@@ -210,12 +210,6 @@ export default function ShopDetailPage() {
           fontSize: '0.9rem', color: '#666',
         }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            🚗 ${shop.delivery_fee.toFixed(2)} delivery
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            💰 ${shop.min_order.toFixed(2)} min order
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             🕐 20-35 min
           </span>
         </div>

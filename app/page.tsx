@@ -891,8 +891,6 @@ export default function HomePage() {
                           flexWrap: 'wrap',
                         }}>
                           <span>20-35 min</span>
-                          <span style={{ color: '#ddd' }}>|</span>
-                          <span>${shop.delivery_fee.toFixed(2)}</span>
                           {shop.distance_miles != null && (
                             <>
                               <span style={{ color: '#ddd' }}>|</span>
