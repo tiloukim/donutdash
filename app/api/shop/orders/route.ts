@@ -177,9 +177,14 @@ export async function PATCH(req: NextRequest) {
     if (order.payment_method === 'stripe' && order.payment_id) {
       try {
         const stripe = getStripe()
+        // reverse_transfer: true reverses the destination-charge transfer
+        // that originally went to the shop's connected account. Without it,
+        // the shop keeps their cut while the customer gets a full refund —
+        // the platform would absorb the difference (~subtotal × 80%).
         await stripe.refunds.create({
           payment_intent: order.payment_id,
           reason: 'requested_by_customer',
+          reverse_transfer: true,
         })
       } catch (e) {
         console.error('Stripe refund failed for cancelled order', order_id, e)
