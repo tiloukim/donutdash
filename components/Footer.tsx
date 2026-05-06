@@ -152,8 +152,12 @@ export default function Footer() {
           <div>
             <h4 className="dd-footer-heading">For Business</h4>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Link href="/shop" className="dd-footer-link">List Your Donut Shop with Us</Link>
-              <Link href="/driver" className="dd-footer-link">Be a DonutDash Driver</Link>
+              {/* Prospective shop owners / drivers should land on the signup
+                  form with the right role preselected — NOT on the gated
+                  /shop or /driver dashboards (those redirect to a sign-in
+                  wall for non-shop_owner / non-driver visitors). */}
+              <Link href="/signup?role=shop_owner" className="dd-footer-link">List Your Donut Shop with Us</Link>
+              <Link href="/signup?role=driver" className="dd-footer-link">Be a DonutDash Driver</Link>
             </div>
           </div>
         </div>
