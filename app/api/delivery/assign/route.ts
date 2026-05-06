@@ -41,8 +41,11 @@ export async function POST(req: NextRequest) {
     const shopLng = order.shop?.lng || 0
     const dropLat = order.delivery_lat || 0
     const dropLng = order.delivery_lng || 0
+    // No coordinate fallback. /api/stripe/checkout requires successful geocoding
+    // before an order is created, so missing coords here means data corruption
+    // or a non-Stripe path; pay base only rather than invent mileage.
     const dist = (shopLat && shopLng && dropLat && dropLng)
-      ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 2
+      ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 0
 
     if (dist > MAX_DELIVERY_MILES) {
       console.error('[DELIVERY ASSIGN] Distance exceeds maximum:', { order_id, dist, shopLat, shopLng, dropLat, dropLng })

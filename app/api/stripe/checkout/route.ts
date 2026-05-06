@@ -93,7 +93,12 @@ export async function POST(request: NextRequest) {
     const shopCommissionPct = Math.round(shopCommissionRate * 10000) / 100   // snapshot for the order row
     const shopTaxRate = shop.tax_rate ? shop.tax_rate / 100 : 0
 
-    // Geocode delivery address
+    // Geocode delivery address. We REQUIRE this to succeed so that:
+    //   1. The distance-based delivery fee charges the customer correctly
+    //      (otherwise rural / partial addresses silently fall back to base fee).
+    //   2. The 3-mile delivery radius check actually fires.
+    //   3. Driver pay later in the pipeline has real coordinates instead of
+    //      hitting the `: 0` fallback for unknown distance.
     let deliveryLat: number | null = null
     let deliveryLng: number | null = null
     try {
@@ -108,24 +113,26 @@ export async function POST(request: NextRequest) {
         deliveryLng = parseFloat(geoData[0].lon)
       }
     } catch {
-      // Geocoding failed — continue without coordinates
+      // Falls through to the missing-coords check below.
     }
 
-    let distMiles: number | null = null
-    if (deliveryLat != null && deliveryLng != null) {
-      distMiles = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
-      if (distMiles > MAX_DELIVERY_MILES) {
-        return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${distMiles.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
-      }
+    if (deliveryLat == null || deliveryLng == null) {
+      return NextResponse.json(
+        { error: 'We could not verify this delivery address. Please double-check the street and city, or try a more specific address.' },
+        { status: 400 },
+      )
+    }
+
+    const distMiles = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
+    if (distMiles > MAX_DELIVERY_MILES) {
+      return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${distMiles.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
     }
 
     // Distance-based delivery fee: base covers the first BASE_DELIVERY_RADIUS_MILES;
-    // every mile beyond adds PER_EXTRA_MILE_FEE ($1.50), which exactly matches the
-    // per-mile growth of driver round-trip pay (2 × PER_MILE_PAY) — keeps margin
-    // constant across all distances. If geocoding failed, we charge only the base
-    // (rare; we accept that as the trade-off for not blocking checkout).
+    // every mile beyond adds PER_EXTRA_MILE_FEE ($1.50). Customer charge and
+    // driver pay both derive from the same distMiles, so they stay aligned.
     const baseDeliveryFee = shop.delivery_fee ?? DEFAULT_DELIVERY_FEE
-    const extraMiles = distMiles != null ? Math.max(0, distMiles - BASE_DELIVERY_RADIUS_MILES) : 0
+    const extraMiles = Math.max(0, distMiles - BASE_DELIVERY_RADIUS_MILES)
     const deliveryFee = Math.round((baseDeliveryFee + extraMiles * PER_EXTRA_MILE_FEE) * 100) / 100
 
     const subtotal = items.reduce(

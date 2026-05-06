@@ -204,8 +204,10 @@ export async function PATCH(req: NextRequest) {
         const shopLng = shop.lng || 0
         const dropLat = updated.delivery_lat || 0
         const dropLng = updated.delivery_lng || 0
+        // No coordinate fallback — pay base only when coords are missing rather
+        // than invent a 2-mile default that overpays vs the customer's charge.
         const dist = (shopLat && shopLng && dropLat && dropLng)
-          ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 2
+          ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 0
         const earnings = calculateDriverEarnings(dist, updated.tip || 0)
 
         const { data: delivery } = await svc

@@ -163,10 +163,12 @@ export async function POST(req: NextRequest) {
   const dropLat = offer.delivery?.dropoff_lat
   const dropLng = offer.delivery?.dropoff_lng
   const tip = offer.delivery?.order?.tip || 0
-  let dist = offer.delivery?.distance_miles || 2 // default 2 miles
-  if (shopLat && shopLng && dropLat && dropLng) {
-    dist = haversineDistance(shopLat, shopLng, dropLat, dropLng)
-  }
+  // Prefer live recompute; fall back to the saved distance_miles on the
+  // delivery record, then 0 (base pay only) — never invent a 2-mile default.
+  let dist = (shopLat && shopLng && dropLat && dropLng)
+    ? haversineDistance(shopLat, shopLng, dropLat, dropLng)
+    : (offer.delivery?.distance_miles || 0)
+  if (!Number.isFinite(dist) || dist < 0) dist = 0
   const earnings = calculateDriverEarnings(dist, tip)
 
   // Update offer
