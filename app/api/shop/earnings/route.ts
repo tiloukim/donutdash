@@ -37,7 +37,7 @@ export async function GET() {
   // Fetch all non-cancelled orders from last 30 days in one query
   const { data: orders, error } = await svc
     .from('dd_orders')
-    .select('id, created_at, status, subtotal, total, commission_pct, dd_order_items(id)')
+    .select('id, created_at, status, subtotal, total, commission_pct, refund_amount, dd_order_items(id)')
     .eq('shop_id', shop.id)
     .neq('status', 'cancelled')
     .gte('created_at', thirtyDaysAgo)
@@ -47,13 +47,26 @@ export async function GET() {
 
   const allOrders = orders || []
 
+  // Effective subtotal after partial refunds (disputes, etc.). The refund is
+  // applied proportionally — if the customer was refunded R out of total T,
+  // we treat the shop's effective subtotal as subtotal × (1 - R/T). This
+  // mirrors the refund being shared across all line items.
+  const effectiveSubtotal = (o: { subtotal: number | null; total: number | null; refund_amount?: number | null }) => {
+    const subtotal = Number(o.subtotal || 0)
+    const total = Number(o.total || 0)
+    const refund = Number(o.refund_amount || 0)
+    if (refund <= 0 || total <= 0) return subtotal
+    const refundRatio = Math.min(refund / total, 1)
+    return Math.max(0, subtotal * (1 - refundRatio))
+  }
+
   // Helpers
   const sumSubtotals = (list: typeof allOrders) =>
-    list.reduce((sum, o) => sum + Number(o.subtotal || 0), 0)
-  // Per-order earnings = subtotal × (1 - that order's commission rate). Summing
-  // these respects historical rates frozen on each order.
+    list.reduce((sum, o) => sum + effectiveSubtotal(o), 0)
+  // Per-order earnings = effective subtotal × (1 - that order's commission rate).
+  // Summing these respects historical rates frozen on each order.
   const sumEarnings = (list: typeof allOrders) =>
-    list.reduce((sum, o) => sum + Number(o.subtotal || 0) * (1 - resolveCommissionRate(o)), 0)
+    list.reduce((sum, o) => sum + effectiveSubtotal(o) * (1 - resolveCommissionRate(o)), 0)
 
   // Today
   const todayOrders = allOrders.filter(o => o.created_at >= todayStart)
@@ -70,14 +83,17 @@ export async function GET() {
   // Recent orders (last 30, with item count)
   const recentOrders = allOrders.slice(0, 30).map(o => {
     const subtotal = Number(o.subtotal || 0)
+    const refund = Number(o.refund_amount || 0)
+    const effSub = effectiveSubtotal(o)
     const rate = resolveCommissionRate(o)
-    const fee = Math.round(subtotal * rate * 100) / 100
-    const earnings = Math.round((subtotal - fee) * 100) / 100
+    const fee = Math.round(effSub * rate * 100) / 100
+    const earnings = Math.round((effSub - fee) * 100) / 100
     return {
       id: o.id,
       created_at: o.created_at,
       status: o.status,
       subtotal,
+      refund_amount: refund,
       fee,
       earnings,
       commission_pct: Math.round(rate * 10000) / 100,

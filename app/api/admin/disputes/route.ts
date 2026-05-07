@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { refundSquareOrder } from '@/lib/square-refund'
 
 export async function GET() {
   try {
@@ -49,6 +50,46 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid status. Must be approved, rejected, or refunded.' }, { status: 400 })
     }
 
+    let refundResult: { success: boolean; error?: string } | null = null
+
+    if (status === 'refunded') {
+      const { data: existing } = await svc
+        .from('dd_disputes')
+        .select('order_id, refund_amount, order:dd_orders!order_id(payment_method, total, refund_amount)')
+        .eq('id', dispute_id)
+        .single()
+
+      const orderRaw = existing?.order as unknown
+      const order = (Array.isArray(orderRaw) ? orderRaw[0] : orderRaw) as
+        | { payment_method: string | null; total: number; refund_amount: number | null }
+        | undefined
+      if (existing?.order_id && order?.payment_method === 'square') {
+        const requested = Number(existing.refund_amount) || 0
+        const orderTotal = Number(order.total) || 0
+        const alreadyRefunded = Number(order.refund_amount) || 0
+        const refundable = Math.max(0, orderTotal - alreadyRefunded)
+        const amount = Math.min(requested, refundable)
+        if (amount > 0) {
+          refundResult = await refundSquareOrder({
+            orderId: existing.order_id,
+            amountCents: Math.round(amount * 100),
+            reason: 'Dispute resolved — refund issued',
+            idempotencyKey: `refund-dispute-${dispute_id}`,
+          })
+          if (refundResult.success) {
+            await svc.from('dd_orders').update({
+              refund_amount: alreadyRefunded + amount,
+            }).eq('id', existing.order_id)
+          } else {
+            console.error('Square refund failed for dispute', dispute_id, refundResult.error)
+            return NextResponse.json({
+              error: `Refund failed: ${refundResult.error}. Dispute not updated — fix the payment in Square then retry.`,
+            }, { status: 502 })
+          }
+        }
+      }
+    }
+
     const { data: dispute, error } = await svc
       .from('dd_disputes')
       .update({
@@ -63,7 +104,7 @@ export async function PATCH(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    return NextResponse.json({ success: true, dispute })
+    return NextResponse.json({ success: true, dispute, refund: refundResult })
   } catch (err) {
     console.error('[ADMIN DISPUTES] PATCH error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

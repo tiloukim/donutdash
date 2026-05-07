@@ -3,7 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
 import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
-import { getStripe } from '@/lib/stripe'
+import { refundSquareOrder } from '@/lib/square-refund'
 import { resolveCommissionRate } from '@/lib/constants'
 
 // Valid shop-side status transitions
@@ -173,21 +173,25 @@ export async function PATCH(req: NextRequest) {
       .eq('order_id', order_id)
       .neq('status', 'delivered')
 
-    // Refund customer if they paid via Stripe
-    if (order.payment_method === 'stripe' && order.payment_id) {
-      try {
-        const stripe = getStripe()
-        // reverse_transfer: true reverses the destination-charge transfer
-        // that originally went to the shop's connected account. Without it,
-        // the shop keeps their cut while the customer gets a full refund —
-        // the platform would absorb the difference (~subtotal × 80%).
-        await stripe.refunds.create({
-          payment_intent: order.payment_id,
-          reason: 'requested_by_customer',
-          reverse_transfer: true,
-        })
-      } catch (e) {
-        console.error('Stripe refund failed for cancelled order', order_id, e)
+    // Refund the customer. Customer payments run through Square (single
+    // platform location), so the platform absorbs the gross refund and
+    // claws back from the shop's next payout via accounting.
+    if (order.payment_method === 'square') {
+      const refundCents = Math.round(Number(order.total) * 100)
+      const result = await refundSquareOrder({
+        orderId: order_id,
+        amountCents: refundCents,
+        reason: cancellation_reason
+          ? `Order cancelled by shop: ${cancellation_reason}`
+          : 'Order cancelled by shop',
+        idempotencyKey: `refund-shop-cancel-${order_id}`,
+      })
+      if (result.success) {
+        await svc.from('dd_orders').update({
+          refund_amount: Number(order.total),
+        }).eq('id', order_id)
+      } else {
+        console.error('Square refund failed for cancelled order', order_id, result.error)
       }
     }
   }

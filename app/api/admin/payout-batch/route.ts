@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch delivered orders for this week
     const { data: orders } = await svc.from('dd_orders')
-      .select('id, subtotal, shop_id, tip, status, commission_pct')
+      .select('id, subtotal, total, refund_amount, shop_id, tip, status, commission_pct')
       .eq('status', 'delivered')
       .gte('created_at', weekStart.toISOString())
       .lte('created_at', weekEnd.toISOString())
@@ -107,19 +107,25 @@ export async function POST(req: NextRequest) {
       driverEarnings.set(del.driver_id, existing)
     }
 
-    // Calculate shop payouts
-    const shopEarnings = new Map<string, { amount: number; orders: number; subtotal: number; commission: number }>()
+    // Calculate shop payouts. Partial refunds (disputes) reduce the effective
+    // subtotal proportionally so the shop's clawback matches the refund ratio.
+    const shopEarnings = new Map<string, { amount: number; orders: number; subtotal: number; commission: number; refunded: number }>()
     for (const order of orders || []) {
       const shopId = order.shop_id
       const subtotal = Number(order.subtotal || 0)
-      const commission = subtotal * resolveCommissionRate(order)
-      const payout = subtotal - commission
+      const total = Number(order.total || 0)
+      const refund = Number(order.refund_amount || 0)
+      const refundRatio = refund > 0 && total > 0 ? Math.min(refund / total, 1) : 0
+      const effectiveSubtotal = Math.max(0, subtotal * (1 - refundRatio))
+      const commission = effectiveSubtotal * resolveCommissionRate(order)
+      const payout = effectiveSubtotal - commission
 
-      const existing = shopEarnings.get(shopId) || { amount: 0, orders: 0, subtotal: 0, commission: 0 }
+      const existing = shopEarnings.get(shopId) || { amount: 0, orders: 0, subtotal: 0, commission: 0, refunded: 0 }
       existing.amount += payout
       existing.orders += 1
-      existing.subtotal += subtotal
+      existing.subtotal += effectiveSubtotal
       existing.commission += commission
+      existing.refunded += subtotal - effectiveSubtotal
       shopEarnings.set(shopId, existing)
     }
 
@@ -170,7 +176,7 @@ export async function POST(req: NextRequest) {
         user_type: 'shop_owner',
         shop_id: shopId,
         amount: Math.round(data.amount * 100) / 100,
-        earnings_breakdown: { orders: data.orders, subtotal: data.subtotal, commission: data.commission },
+        earnings_breakdown: { orders: data.orders, subtotal: data.subtotal, commission: data.commission, refunded: data.refunded },
         bank_info: ownerUser ? {
           holder: ownerUser.bank_account_holder,
           routing: ownerUser.bank_routing_number,
