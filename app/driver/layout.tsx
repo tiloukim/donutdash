@@ -5,12 +5,13 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
+import PendingReferralApplier from '@/components/PendingReferralApplier'
 
 const NAV_ITEMS = [
   { href: '/driver', label: 'Home', icon: '📍' },
   { href: '/driver/active', label: 'Active', icon: '🚗' },
   { href: '/driver/earnings', label: 'Earnings', icon: '💵' },
-  { href: '/driver/referral', label: 'Refer a Shop', icon: '💰' },
+  { href: '/driver/referral', label: 'Refer & Earn', icon: '💰' },
   { href: '/driver/documents', label: 'Documents', icon: '📄' },
   { href: '/driver/settings', label: 'Settings', icon: '⚙️' },
 ]
@@ -42,15 +43,30 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
       <style>{`
         .driver-layout { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
         .driver-sidebar { display: none; }
-        .driver-main { flex: 1; background: #FFFAF5; padding-bottom: 72px; }
-        .driver-header { background: #fff; border-bottom: 1px solid #FFE8D6; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
-        .driver-header h1 { font-size: 18px; font-weight: 700; color: #1A1A2E; margin: 0; }
-        .driver-content { padding: 16px; }
+        .driver-main { flex: 1; background: #FFFAF5; padding-bottom: 72px; min-width: 0; }
+        .driver-header { background: #fff; border-bottom: 1px solid #FFE8D6; padding: 14px 16px; padding-top: max(14px, env(safe-area-inset-top)); display: flex; justify-content: space-between; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 40; }
+        .driver-header h1 { font-size: 18px; font-weight: 700; color: #1A1A2E; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .driver-header > div:last-child { flex-shrink: 0; }
+        .driver-content { padding: 16px; max-width: 100%; overflow-wrap: anywhere; }
+        /* Allow flex children with text to shrink instead of forcing the parent wider */
+        .driver-content [style*="display: flex"], .driver-content [style*="display:flex"] { min-width: 0; }
+        .driver-content [style*="display: flex"] > *, .driver-content [style*="display:flex"] > * { min-width: 0; }
+        .driver-content img, .driver-content video { max-width: 100%; height: auto; }
         .driver-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #2D1B00; display: flex; justify-content: space-around; padding: 6px 0; padding-bottom: max(6px, env(safe-area-inset-bottom)); z-index: 50; border-top: 1px solid rgba(255,255,255,0.1); }
         .driver-bottom-nav a { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; text-decoration: none; font-size: 9px; font-weight: 600; padding: 4px 2px; border-radius: 8px; text-align: center; line-height: 1.1; }
         .driver-bottom-nav a span.icon { font-size: 22px; line-height: 1; }
         .driver-bottom-nav a.active { color: #FF8C00; }
         .driver-bottom-nav a:not(.active) { color: #D4A574; }
+
+        /* Narrow phones (iPhone SE/mini, ≤390 CSS px) — extra-tight spacing */
+        @media (max-width: 390px) {
+          .driver-content { padding: 12px; }
+          .driver-header { padding: 12px; }
+          .driver-header h1 { font-size: 16px; }
+          .driver-header-name { display: none; }
+          .driver-bottom-nav a { font-size: 8px; }
+          .driver-bottom-nav a span.icon { font-size: 20px; }
+        }
 
         @media (min-width: 768px) {
           .driver-layout { flex-direction: row; }
@@ -98,7 +114,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
           <header className="driver-header">
             <h1>{NAV_ITEMS.find(n => n.href === pathname)?.label || 'Driver'}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 13, color: '#666' }}>{user.name}</span>
+              <span className="driver-header-name" style={{ fontSize: 13, color: '#666', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</span>
               <button
                 onClick={() => signOut('/driver')}
                 className="driver-signout-btn"
@@ -122,6 +138,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
         </nav>
       </div>
     <GlobalDriverAlert />
+    <PendingReferralApplier kind="driver" />
     </>
   )
 }

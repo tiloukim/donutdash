@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
@@ -41,6 +41,20 @@ export default function RoleAuthForm({
   const [captchaToken, setCaptchaToken] = useState(isApp ? 'app-bypass' : '')
   const [smsConsent, setSmsConsent] = useState(false)
   const [showConfirmEmail, setShowConfirmEmail] = useState(false)
+
+  // Referral code: from ?ref= URL param OR from localStorage if /r/<code> set it earlier.
+  // Persisted in localStorage so it survives signup → email confirm → callback redirect.
+  const [referralCode, setReferralCode] = useState('')
+  useEffect(() => {
+    const fromUrl = searchParams.get('ref')?.trim().toUpperCase() || ''
+    let stored = ''
+    try { stored = localStorage.getItem('dd_ref')?.trim().toUpperCase() || '' } catch {}
+    const code = fromUrl || stored
+    if (code) {
+      setReferralCode(code)
+      try { localStorage.setItem('dd_ref', code) } catch {}
+    }
+  }, [searchParams])
 
   // Phone verification state (drivers and shop owners)
   const isDriver = role === 'driver' || role === 'shop_owner'
@@ -160,6 +174,7 @@ export default function RoleAuthForm({
               name,
               phone: phone || null,
               role,
+              referral_code: referralCode || null,
             },
             captchaToken,
             emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -308,6 +323,25 @@ export default function RoleAuthForm({
             color: '#721C24',
           }}>
             {error}
+          </div>
+        )}
+
+        {referralCode && mode === 'signup' && (
+          <div style={{
+            background: '#FFF8F0',
+            border: '1px dashed #FFD9A8',
+            borderRadius: '10px',
+            padding: '0.75rem 1rem',
+            marginBottom: '1rem',
+            fontSize: '0.85rem',
+            color: '#92400E',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+          }}>
+            <span>🎉 Referral applied — both of you earn after onboarding</span>
+            <span style={{ fontWeight: 800, color: '#FF8C00', letterSpacing: 1 }}>{referralCode}</span>
           </div>
         )}
 

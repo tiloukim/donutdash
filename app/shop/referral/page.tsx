@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import ShareReferralCard from '@/components/ShareReferralCard'
 
 export default function ShopReferralPage() {
   const [referral, setReferral] = useState<any>(null)
@@ -52,6 +53,9 @@ export default function ShopReferralPage() {
           </button>
         </div>
       </div>
+
+      {/* Share link / QR code */}
+      <ShareReferralCard code={code} accent="#FF1493" audience="shops" />
 
       {/* How it Works */}
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #FFE4EF', padding: 24, marginBottom: 24 }}>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
+import PendingReferralApplier from '@/components/PendingReferralApplier'
 import { ShopLangProvider, useShopLang } from '@/lib/shop-lang-context'
 import type { TranslationKey } from '@/lib/shop-i18n'
 import { useRealtime } from '@/lib/use-realtime'
@@ -208,26 +209,30 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main style={{ flex: 1, marginLeft: 220, background: '#FFF5F8', minHeight: '100vh' }} className="shop-main">
-        <header style={{ background: '#fff', borderBottom: '1px solid #FFE4EF', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <main style={{ flex: 1, marginLeft: 220, background: '#FFF5F8', minHeight: '100vh', minWidth: 0 }} className="shop-main">
+        <header style={{ background: '#fff', borderBottom: '1px solid #FFE4EF', padding: '16px 24px', paddingTop: 'max(16px, env(safe-area-inset-top))', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }} className="shop-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, padding: 4 }}
+              style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, padding: 4, flexShrink: 0 }}
               className="shop-hamburger"
             >
               ☰
             </button>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1A1A2E' }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1A1A2E', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="shop-header-title">
               {(() => { const nav = [...NAV_ITEMS, ...FINANCE_NAV, ...SUPPLY_NAV, ...COMMUNITY_NAV].find(n => n.href === pathname); return nav ? t(nav.labelKey) : t('nav.dashboard') })()}
             </h1>
           </div>
-          <span style={{ fontSize: 14, color: '#666' }}>{user.name}</span>
+          <span style={{ fontSize: 14, color: '#666', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} className="shop-header-name">{user.name}</span>
         </header>
         <div style={{ padding: '16px 12px' }} className="shop-content">{children}</div>
       </main>
 
       <style>{`
+        .shop-content { max-width: 100%; overflow-wrap: anywhere; }
+        .shop-content [style*="display: flex"], .shop-content [style*="display:flex"] { min-width: 0; }
+        .shop-content [style*="display: flex"] > *, .shop-content [style*="display:flex"] > * { min-width: 0; }
+        .shop-content img, .shop-content video { max-width: 100%; height: auto; }
         @media (min-width: 769px) {
           .shop-content { padding: 24px !important; }
         }
@@ -237,9 +242,16 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
           .shop-main { margin-left: 0 !important; }
           .shop-hamburger { display: block !important; }
         }
+        @media (max-width: 390px) {
+          .shop-header { padding: 12px !important; }
+          .shop-header-title { font-size: 17px !important; }
+          .shop-header-name { display: none !important; }
+          .shop-content { padding: 12px 10px !important; }
+        }
       `}</style>
     </div>
     <GlobalOrderAlert />
+    <PendingReferralApplier kind="shop" />
     </>
   )
 }
