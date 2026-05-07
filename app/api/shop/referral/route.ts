@@ -78,6 +78,17 @@ export async function POST(req: NextRequest) {
   // Get the new shop
   const { data: newShop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
 
+  // Referral codes are signup-time only. Once the shop has any orders,
+  // signup is "complete" and codes can no longer be applied retroactively.
+  if (newShop?.id) {
+    const { count: orderCount } = await svc.from('dd_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('shop_id', newShop.id)
+    if ((orderCount || 0) > 0) {
+      return NextResponse.json({ error: 'Referral codes can only be applied during signup' }, { status: 400 })
+    }
+  }
+
   // Check if it's a driver referral code (DRV prefix) or shop referral code (SHOP prefix)
   const { data: referrerByUserCode } = await svc.from('dd_users')
     .select('id, role')

@@ -31,6 +31,7 @@ export default function PendingReferralApplier({ kind }: { kind: 'driver' | 'sho
           'already used a referral',
           'Invalid referral code',
           'Cannot use your own',
+          'only be applied during signup',
         ]
         if (ok || (body?.error && clearableErrors.some(e => String(body.error).includes(e)))) {
           try { localStorage.removeItem('dd_ref') } catch {}

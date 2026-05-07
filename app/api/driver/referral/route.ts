@@ -75,6 +75,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'You have already used a referral code' }, { status: 400 })
   }
 
+  // Referral codes are signup-time only. Once a driver has any delivery
+  // (assigned, picked up, or delivered), they're considered "active" and
+  // can no longer have a referral applied — prevents back-dated gaming.
+  const { count: deliveryCount } = await svc.from('dd_deliveries')
+    .select('id', { count: 'exact', head: true })
+    .eq('driver_id', ddUser.id)
+  if ((deliveryCount || 0) > 0) {
+    return NextResponse.json({ error: 'Referral codes can only be applied during signup' }, { status: 400 })
+  }
+
   // Find referrer driver by code
   const { data: referrer } = await svc.from('dd_users')
     .select('id, role')

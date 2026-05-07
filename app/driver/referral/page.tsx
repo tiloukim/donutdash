@@ -7,10 +7,6 @@ export default function DriverReferralPage() {
   const [referral, setReferral] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
-  const [applyCode, setApplyCode] = useState('')
-  const [applying, setApplying] = useState(false)
-  const [applyMsg, setApplyMsg] = useState('')
-  const [applyError, setApplyError] = useState('')
 
   useEffect(() => {
     fetch('/api/driver/referral')
@@ -19,26 +15,6 @@ export default function DriverReferralPage() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
-
-  const handleApplyCode = async () => {
-    if (!applyCode.trim()) return
-    setApplying(true); setApplyMsg(''); setApplyError('')
-    try {
-      const res = await fetch('/api/driver/referral', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ referral_code: applyCode.trim() }),
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setApplyMsg(data.message || 'Referral applied!')
-        setApplyCode('')
-      } else {
-        setApplyError(data.error || 'Failed to apply')
-      }
-    } catch { setApplyError('Failed to apply') }
-    finally { setApplying(false) }
-  }
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Loading...</div>
 
@@ -91,22 +67,6 @@ export default function DriverReferralPage() {
 
       {/* Share link / QR code */}
       <ShareReferralCard code={code} accent="#FF8C00" audience="drivers" />
-
-      {/* Apply a referral code */}
-      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #FFE8D6', padding: 20, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px 0' }}>Have a Referral Code?</h2>
-        <p style={{ fontSize: 13, color: '#888', margin: '0 0 12px 0' }}>Enter a code from another driver to earn $50 each after your first 10 deliveries.</p>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input value={applyCode} onChange={e => setApplyCode(e.target.value)} placeholder="Enter code"
-            style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' }} />
-          <button onClick={handleApplyCode} disabled={applying}
-            style={{ padding: '10px 20px', borderRadius: 8, border: 'none', background: '#FF8C00', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-            {applying ? '...' : 'Apply'}
-          </button>
-        </div>
-        {applyMsg && <div style={{ marginTop: 8, fontSize: 13, color: '#10B981' }}>{applyMsg}</div>}
-        {applyError && <div style={{ marginTop: 8, fontSize: 13, color: '#DC2626' }}>{applyError}</div>}
-      </div>
 
       {/* Driver-to-Driver Referral */}
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #FFE8D6', padding: 20, marginBottom: 20 }}>
