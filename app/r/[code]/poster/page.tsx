@@ -96,10 +96,17 @@ export default async function ReferralPoster({
         }
       `}</style>
 
-      <div className="poster-print-toolbar">
-        <a href="javascript:window.print()" className="primary">🖨 Print Poster</a>
-        <a href={url}>Back</a>
-      </div>
+      {/*
+        React blocks javascript: URLs in JSX as a security measure, so we inject
+        the toolbar via dangerouslySetInnerHTML — the browser handles onclick
+        as a plain HTML attribute, no React hydration required.
+      */}
+      <div
+        className="poster-print-toolbar"
+        dangerouslySetInnerHTML={{
+          __html: `<button class="primary" onclick="window.print()" type="button">🖨 Print Poster</button><a href="${url}">Back</a>`,
+        }}
+      />
 
       <div className="poster-page">
         <div className="poster">
