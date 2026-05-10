@@ -78,3 +78,37 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const svc = createServiceClient()
+    const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
+    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    const { id } = await request.json()
+    if (!id) return NextResponse.json({ error: 'Missing user id' }, { status: 400 })
+
+    const { data: targetUser } = await svc.from('dd_users').select('*').eq('id', id).single()
+    if (!targetUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+    if (targetUser.auth_id === user.id) {
+      return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 })
+    }
+
+    const { error: dbErr } = await svc.from('dd_users').delete().eq('id', id)
+    if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
+
+    if (targetUser.auth_id) {
+      const { error: authErr } = await svc.auth.admin.deleteUser(targetUser.auth_id)
+      if (authErr) return NextResponse.json({ error: 'User row deleted but auth deletion failed: ' + authErr.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

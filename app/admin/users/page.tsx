@@ -49,6 +49,27 @@ export default function AdminUsers() {
     setUpdating(null)
   }
 
+  const deleteUser = async (u: UserRow) => {
+    if (!confirm(`Delete ${u.name} (${u.email})? This permanently removes the account and cannot be undone.`)) return
+    setUpdating(u.id)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: u.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setUsers(prev => prev.filter(x => x.id !== u.id))
+      } else {
+        alert(data.error || 'Failed to delete user')
+      }
+    } catch {
+      alert('Failed to delete user')
+    }
+    setUpdating(null)
+  }
+
   const openEdit = (u: UserRow) => {
     setEditing(u)
     setEditForm({ name: u.name, email: u.email, phone: u.phone || '', new_password: '' })
@@ -170,6 +191,17 @@ export default function AdminUsers() {
                       }}
                     >
                       {u.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => deleteUser(u)}
+                      disabled={updating === u.id}
+                      style={{
+                        padding: '6px 14px', borderRadius: 6, border: '1px solid #FCA5A5',
+                        background: '#fff', color: '#B91C1C',
+                        cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                      }}
+                    >
+                      Delete
                     </button>
                   </td>
                 </tr>
