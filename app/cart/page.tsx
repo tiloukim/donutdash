@@ -45,15 +45,19 @@ export default function CartPage() {
   const [customTip, setCustomTip] = useState('')
   const [showCustomTip, setShowCustomTip] = useState(false)
   const [feesExpanded, setFeesExpanded] = useState(false)
+  const [fulfillmentType, setFulfillmentType] = useState<'delivery' | 'pickup'>('delivery')
+  const isPickup = fulfillmentType === 'pickup'
 
   // Cart shows the BASE delivery fee. Final fee may be higher if delivery
-  // address is beyond 1 mile (computed server-side at checkout).
-  const deliveryFee = count > 0 ? shopDeliveryFee : 0
+  // address is beyond 1 mile (computed server-side at checkout). Pickup is free.
+  const deliveryFee = isPickup ? 0 : (count > 0 ? shopDeliveryFee : 0)
   const serviceFee = Math.round(total * (shopServiceFeeRate / 100) * 100) / 100
   const smallOrderFee = count > 0 && total < MIN_ORDER_AMOUNT ? SMALL_ORDER_FEE : 0
-  const tip = showCustomTip
-    ? (parseFloat(customTip) || 0)
-    : (tipOptions[selectedTipIndex]?.amount ?? 0)
+  const tip = isPickup
+    ? 0
+    : showCustomTip
+      ? (parseFloat(customTip) || 0)
+      : (tipOptions[selectedTipIndex]?.amount ?? 0)
   // Tax basis matches the API: subtotal + delivery + service + small order fee.
   // Tip is excluded.
   const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * (shopTaxRate / 100) * 100) / 100
@@ -204,10 +208,52 @@ export default function CartPage() {
               </div>
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1A1A2E' }}>{shopName}</div>
-                <div style={{ fontSize: '0.75rem', color: '#999' }}>Delivery 25-35 min</div>
+                <div style={{ fontSize: '0.75rem', color: '#999' }}>{isPickup ? 'Pickup at shop' : 'Delivery 25-35 min'}</div>
               </div>
             </div>
           )}
+
+          {/* Delivery / Pickup toggle */}
+          <div style={{
+            margin: '12px 16px 0',
+            padding: '12px',
+            background: 'white',
+            borderRadius: '12px',
+            border: '1px solid #f0f0f0',
+            display: 'flex',
+            gap: '8px',
+          }}>
+            <button
+              type="button"
+              onClick={() => setFulfillmentType('delivery')}
+              style={{
+                flex: 1, padding: '12px',
+                borderRadius: '10px',
+                border: !isPickup ? '2px solid #FF1493' : '1px solid #e5e7eb',
+                background: !isPickup ? '#FFF0F7' : 'white',
+                color: !isPickup ? '#FF1493' : '#666',
+                fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              🚗 Delivery
+            </button>
+            <button
+              type="button"
+              onClick={() => setFulfillmentType('pickup')}
+              style={{
+                flex: 1, padding: '12px',
+                borderRadius: '10px',
+                border: isPickup ? '2px solid #FF1493' : '1px solid #e5e7eb',
+                background: isPickup ? '#FFF0F7' : 'white',
+                color: isPickup ? '#FF1493' : '#666',
+                fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              🏪 Pickup
+            </button>
+          </div>
 
           {/* Cart Items */}
           <div style={{
@@ -297,8 +343,8 @@ export default function CartPage() {
             ))}
           </div>
 
-          {/* Tip Selector */}
-          <div style={{
+          {/* Tip Selector — hidden for pickup orders (no driver) */}
+          {!isPickup && <div style={{
             margin: '12px 16px 0',
             background: 'white',
             borderRadius: '12px',
@@ -401,7 +447,7 @@ export default function CartPage() {
                 />
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Order Summary */}
           <div style={{
@@ -419,10 +465,12 @@ export default function CartPage() {
                 <span style={{ color: '#666' }}>Subtotal</span>
                 <span style={{ fontWeight: 500, color: '#333' }}>${total.toFixed(2)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                <span style={{ color: '#666' }}>Delivery Fee</span>
-                <span style={{ fontWeight: 500, color: '#333' }}>${deliveryFee.toFixed(2)}</span>
-              </div>
+              {!isPickup && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                  <span style={{ color: '#666' }}>Delivery Fee</span>
+                  <span style={{ fontWeight: 500, color: '#333' }}>${deliveryFee.toFixed(2)}</span>
+                </div>
+              )}
               <div>
                 <button
                   type="button"
@@ -470,10 +518,12 @@ export default function CartPage() {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                <span style={{ color: '#666' }}>Tip</span>
-                <span style={{ fontWeight: 500, color: '#333' }}>${tip.toFixed(2)}</span>
-              </div>
+              {!isPickup && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                  <span style={{ color: '#666' }}>Tip</span>
+                  <span style={{ fontWeight: 500, color: '#333' }}>${tip.toFixed(2)}</span>
+                </div>
+              )}
               <div style={{
                 display: 'flex', justifyContent: 'space-between',
                 borderTop: '1px solid #f0f0f0', paddingTop: '12px', marginTop: '4px',
@@ -508,7 +558,8 @@ export default function CartPage() {
                   return
                 }
                 if (meetsMinimum) {
-                  router.push(`/checkout?tip=${tip}`)
+                  const params = new URLSearchParams({ tip: String(tip), fulfillment: fulfillmentType })
+                  router.push(`/checkout?${params.toString()}`)
                 }
               }}
               disabled={!meetsMinimum}

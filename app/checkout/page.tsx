@@ -11,6 +11,7 @@ import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SMALL_ORDER_FEE, MIN_ORDER_AMOU
 export default function CheckoutPage() {
   const searchParams = useSearchParams()
   const tipParam = parseFloat(searchParams.get('tip') || '3')
+  const fulfillmentParam: 'delivery' | 'pickup' = searchParams.get('fulfillment') === 'pickup' ? 'pickup' : 'delivery'
   const { items, total, count, shopId, shopName } = useCart()
   const { user } = useAuth()
 
@@ -33,7 +34,7 @@ export default function CheckoutPage() {
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
   const [shopAddress, setShopAddress] = useState<{ address: string; city: string; state: string; zip: string } | null>(null)
   const [feesExpanded, setFeesExpanded] = useState(false)
-  const [fulfillmentType, setFulfillmentType] = useState<'delivery' | 'pickup'>('delivery')
+  const [fulfillmentType, setFulfillmentType] = useState<'delivery' | 'pickup'>(fulfillmentParam)
   const isPickup = fulfillmentType === 'pickup'
 
   useEffect(() => {
