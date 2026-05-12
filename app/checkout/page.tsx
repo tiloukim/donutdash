@@ -31,7 +31,10 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe')
   const [shopHasStripe, setShopHasStripe] = useState<boolean | null>(null)
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
+  const [shopAddress, setShopAddress] = useState<{ address: string; city: string; state: string; zip: string } | null>(null)
   const [feesExpanded, setFeesExpanded] = useState(false)
+  const [fulfillmentType, setFulfillmentType] = useState<'delivery' | 'pickup'>('delivery')
+  const isPickup = fulfillmentType === 'pickup'
 
   useEffect(() => {
     if (!shopId) return
@@ -46,6 +49,14 @@ export default function CheckoutPage() {
             tax_rate: s.tax_rate || 0,
           })
         }
+        if (s && s.address) {
+          setShopAddress({
+            address: s.address || '',
+            city: s.city || '',
+            state: s.state || '',
+            zip: s.zip || '',
+          })
+        }
         if (s && s.stripe_onboarding_complete) {
           setShopHasStripe(true)
           setPaymentMethod('stripe')
@@ -56,13 +67,13 @@ export default function CheckoutPage() {
       .catch(() => {})
   }, [shopId])
 
-  const deliveryFee = shopFees.delivery_fee
+  const deliveryFee = isPickup ? 0 : shopFees.delivery_fee
   const serviceFee = Math.round(total * (shopFees.service_fee_pct / 100) * 100) / 100
   const smallOrderFee = total < MIN_ORDER_AMOUNT ? SMALL_ORDER_FEE : 0
   // TX Comptroller Rule 3.293: separately-stated delivery + service fees on
   // prepared-food sales are part of the taxable base. Tip is excluded.
   const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * (shopFees.tax_rate / 100) * 100) / 100
-  const tip = tipParam
+  const tip = isPickup ? 0 : tipParam
 
   const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + smallOrderFee + tip) * 100) / 100
 
@@ -131,17 +142,19 @@ export default function CheckoutPage() {
   }
 
   const handlePlaceOrder = async () => {
-    if (!address.trim()) {
-      setError('Please enter a delivery address.')
-      return
-    }
-    if (!city.trim()) {
-      setError('Please enter a city.')
-      return
-    }
-    if (!zip.trim()) {
-      setError('Please enter a ZIP code.')
-      return
+    if (!isPickup) {
+      if (!address.trim()) {
+        setError('Please enter a delivery address.')
+        return
+      }
+      if (!city.trim()) {
+        setError('Please enter a city.')
+        return
+      }
+      if (!zip.trim()) {
+        setError('Please enter a ZIP code.')
+        return
+      }
     }
 
     setSubmitting(true)
@@ -149,6 +162,7 @@ export default function CheckoutPage() {
 
     const orderPayload = {
       shopId,
+      fulfillment_type: fulfillmentType,
       items: items.map(i => ({
         menu_item_id: i.id.split('::')[0],
         name: i.name,
@@ -157,9 +171,13 @@ export default function CheckoutPage() {
         image_url: i.image_url,
         special_instructions: i.special_instructions,
       })),
-      delivery_address: [address, apt && `Apt ${apt}`, building && `Bldg ${building}`, floor && `Floor ${floor}`].filter(Boolean).join(', '),
-      delivery_city: city,
-      delivery_instructions: [gateCode && `Gate code: ${gateCode}`, instructions].filter(Boolean).join('. ') || null,
+      delivery_address: isPickup
+        ? null
+        : [address, apt && `Apt ${apt}`, building && `Bldg ${building}`, floor && `Floor ${floor}`].filter(Boolean).join(', '),
+      delivery_city: isPickup ? null : city,
+      delivery_instructions: isPickup
+        ? null
+        : ([gateCode && `Gate code: ${gateCode}`, instructions].filter(Boolean).join('. ') || null),
       tip,
       promo_code: null,
       promo_discount: 0,
@@ -219,8 +237,63 @@ export default function CheckoutPage() {
             Checkout
           </h1>
 
-          {/* Delivery Address */}
+          {/* Fulfillment toggle */}
           <div style={{
+            background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
+            padding: '1.5rem', marginBottom: '1.5rem',
+          }}>
+            <h3 style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '1rem', color: '#1A1A2E' }}>
+              How would you like your order?
+            </h3>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setFulfillmentType('delivery')}
+                style={{
+                  flex: 1, padding: '0.85rem 1rem', borderRadius: '10px',
+                  border: !isPickup ? '2px solid #FF1493' : '1px solid #ddd',
+                  background: !isPickup ? '#FFF0F7' : 'white',
+                  color: !isPickup ? '#FF1493' : '#333',
+                  fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                🚗 Delivery
+              </button>
+              <button
+                type="button"
+                onClick={() => setFulfillmentType('pickup')}
+                style={{
+                  flex: 1, padding: '0.85rem 1rem', borderRadius: '10px',
+                  border: isPickup ? '2px solid #FF1493' : '1px solid #ddd',
+                  background: isPickup ? '#FFF0F7' : 'white',
+                  color: isPickup ? '#FF1493' : '#333',
+                  fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                🏪 Pickup
+              </button>
+            </div>
+            {isPickup && shopAddress && (
+              <div style={{
+                marginTop: '1rem', padding: '0.85rem 1rem', borderRadius: '10px',
+                background: '#FFF8F0', border: '1px solid #FFE8D6', fontSize: '0.9rem', color: '#444',
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 4, color: '#1A1A2E' }}>
+                  Pick up at {shopName || 'the shop'}
+                </div>
+                <div>{shopAddress.address}</div>
+                <div>{[shopAddress.city, shopAddress.state, shopAddress.zip].filter(Boolean).join(', ')}</div>
+                <div style={{ marginTop: 6, color: '#888', fontSize: '0.82rem' }}>
+                  No delivery fee. The shop will let you know when it&apos;s ready.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Delivery Address — only shown for delivery orders */}
+          {!isPickup && <div style={{
             background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
             padding: '1.5rem', marginBottom: '1.5rem',
           }}>
@@ -342,18 +415,18 @@ export default function CheckoutPage() {
                 onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
               />
             </div>
-          </div>
+          </div>}
 
           {/* Promo Code section removed — promotions disabled platform-wide
               until Stripe-coupon-based discounting is wired up. */}
 
-          {/* Delivery Time */}
+          {/* When */}
           <div style={{
             background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
             padding: '1.5rem', marginBottom: '1.5rem',
           }}>
             <h3 style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '1rem', color: '#1A1A2E' }}>
-              Delivery Time
+              {isPickup ? 'Pickup Time' : 'Delivery Time'}
             </h3>
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: deliveryTiming === 'scheduled' ? '1rem' : 0 }}>
               <button
@@ -460,10 +533,12 @@ export default function CheckoutPage() {
                 <span style={{ color: '#666' }}>Subtotal</span>
                 <span>${total.toFixed(2)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-                <span style={{ color: '#666' }}>Delivery Fee <span style={{ fontSize: '0.7rem', color: '#aaa' }}>(base — +$1.50/mi after 1 mi)</span></span>
-                <span>${deliveryFee.toFixed(2)}*</span>
-              </div>
+              {!isPickup && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                  <span style={{ color: '#666' }}>Delivery Fee <span style={{ fontSize: '0.7rem', color: '#aaa' }}>(base — +$1.50/mi after 1 mi)</span></span>
+                  <span>${deliveryFee.toFixed(2)}*</span>
+                </div>
+              )}
               <div style={{ marginBottom: '0.35rem' }}>
                 <button
                   type="button"
@@ -511,10 +586,12 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-                <span style={{ color: '#666' }}>Tip</span>
-                <span>${tip.toFixed(2)}</span>
-              </div>
+              {!isPickup && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                  <span style={{ color: '#666' }}>Tip</span>
+                  <span>${tip.toFixed(2)}</span>
+                </div>
+              )}
               <div style={{
                 display: 'flex', justifyContent: 'space-between',
                 borderTop: '1px solid #f0f0f0', paddingTop: '0.75rem', marginTop: '0.5rem',
@@ -527,9 +604,11 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          <p style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: '1rem', marginTop: '-0.5rem' }}>
-            *Delivery fee is calculated based on distance from shop to your address. Final amount determined at order placement.
-          </p>
+          {!isPickup && (
+            <p style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: '1rem', marginTop: '-0.5rem' }}>
+              *Delivery fee is calculated based on distance from shop to your address. Final amount determined at order placement.
+            </p>
+          )}
 
           {/* Payment method — auto-selected, no selector shown */}
 

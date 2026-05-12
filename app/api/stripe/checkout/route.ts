@@ -49,10 +49,17 @@ export async function POST(request: NextRequest) {
       promo_code,
       promo_discount,
       scheduled_for,
+      fulfillment_type,
     } = body
 
-    if (!shopId || !items || items.length === 0 || !delivery_address) {
+    const fulfillmentType: 'delivery' | 'pickup' = fulfillment_type === 'pickup' ? 'pickup' : 'delivery'
+    const isPickup = fulfillmentType === 'pickup'
+
+    if (!shopId || !items || items.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+    if (!isPickup && !delivery_address) {
+      return NextResponse.json({ error: 'Missing delivery address' }, { status: 400 })
     }
 
     // Check if shop is currently open (skip for scheduled orders)
@@ -93,47 +100,52 @@ export async function POST(request: NextRequest) {
     const shopCommissionPct = Math.round(shopCommissionRate * 10000) / 100   // snapshot for the order row
     const shopTaxRate = shop.tax_rate ? shop.tax_rate / 100 : 0
 
-    // Geocode delivery address. We REQUIRE this to succeed so that:
-    //   1. The distance-based delivery fee charges the customer correctly
-    //      (otherwise rural / partial addresses silently fall back to base fee).
-    //   2. The 3-mile delivery radius check actually fires.
-    //   3. Driver pay later in the pipeline has real coordinates instead of
-    //      hitting the `: 0` fallback for unknown distance.
+    // Pickup orders skip geocoding, distance checks, and delivery fees.
     let deliveryLat: number | null = null
     let deliveryLng: number | null = null
-    try {
-      const fullAddress = `${delivery_address}, ${delivery_city || ''}`
-      const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
-        { headers: { 'User-Agent': 'DonutDash/1.0' } }
-      )
-      const geoData = await geoRes.json()
-      if (geoData?.[0]) {
-        deliveryLat = parseFloat(geoData[0].lat)
-        deliveryLng = parseFloat(geoData[0].lon)
+    let deliveryFee = 0
+
+    if (!isPickup) {
+      // Geocode delivery address. We REQUIRE this to succeed so that:
+      //   1. The distance-based delivery fee charges the customer correctly
+      //      (otherwise rural / partial addresses silently fall back to base fee).
+      //   2. The 3-mile delivery radius check actually fires.
+      //   3. Driver pay later in the pipeline has real coordinates instead of
+      //      hitting the `: 0` fallback for unknown distance.
+      try {
+        const fullAddress = `${delivery_address}, ${delivery_city || ''}`
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
+          { headers: { 'User-Agent': 'DonutDash/1.0' } }
+        )
+        const geoData = await geoRes.json()
+        if (geoData?.[0]) {
+          deliveryLat = parseFloat(geoData[0].lat)
+          deliveryLng = parseFloat(geoData[0].lon)
+        }
+      } catch {
+        // Falls through to the missing-coords check below.
       }
-    } catch {
-      // Falls through to the missing-coords check below.
-    }
 
-    if (deliveryLat == null || deliveryLng == null) {
-      return NextResponse.json(
-        { error: 'We could not verify this delivery address. Please double-check the street and city, or try a more specific address.' },
-        { status: 400 },
-      )
-    }
+      if (deliveryLat == null || deliveryLng == null) {
+        return NextResponse.json(
+          { error: 'We could not verify this delivery address. Please double-check the street and city, or try a more specific address.' },
+          { status: 400 },
+        )
+      }
 
-    const distMiles = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
-    if (distMiles > MAX_DELIVERY_MILES) {
-      return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${distMiles.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
-    }
+      const distMiles = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
+      if (distMiles > MAX_DELIVERY_MILES) {
+        return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${distMiles.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
+      }
 
-    // Distance-based delivery fee: base covers the first BASE_DELIVERY_RADIUS_MILES;
-    // every mile beyond adds PER_EXTRA_MILE_FEE ($1.50). Customer charge and
-    // driver pay both derive from the same distMiles, so they stay aligned.
-    const baseDeliveryFee = shop.delivery_fee ?? DEFAULT_DELIVERY_FEE
-    const extraMiles = Math.max(0, distMiles - BASE_DELIVERY_RADIUS_MILES)
-    const deliveryFee = Math.round((baseDeliveryFee + extraMiles * PER_EXTRA_MILE_FEE) * 100) / 100
+      // Distance-based delivery fee: base covers the first BASE_DELIVERY_RADIUS_MILES;
+      // every mile beyond adds PER_EXTRA_MILE_FEE ($1.50). Customer charge and
+      // driver pay both derive from the same distMiles, so they stay aligned.
+      const baseDeliveryFee = shop.delivery_fee ?? DEFAULT_DELIVERY_FEE
+      const extraMiles = Math.max(0, distMiles - BASE_DELIVERY_RADIUS_MILES)
+      deliveryFee = Math.round((baseDeliveryFee + extraMiles * PER_EXTRA_MILE_FEE) * 100) / 100
+    }
 
     const subtotal = items.reduce(
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
@@ -145,7 +157,8 @@ export async function POST(request: NextRequest) {
     // on prepared-food sales are part of the taxable sale price. Tip is not.
     const taxableBasis = subtotal + deliveryFee + serviceFee + smallOrderFee
     const tax = Math.round(taxableBasis * shopTaxRate * 100) / 100
-    const tipAmount = tip || 0
+    // Pickup orders have no driver, so tips are forced to $0.
+    const tipAmount = isPickup ? 0 : (tip || 0)
     const promoDiscount = promo_discount && promo_discount > 0 ? Math.round(promo_discount * 100) / 100 : 0
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + smallOrderFee + tipAmount - promoDiscount) * 100) / 100
 
@@ -189,15 +202,17 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Add delivery fee
-    lineItems.push({
-      price_data: {
-        currency: 'usd',
-        product_data: { name: 'Delivery Fee' },
-        unit_amount: Math.round(deliveryFee * 100),
-      },
-      quantity: 1,
-    })
+    // Add delivery fee (skipped for pickup orders)
+    if (!isPickup && deliveryFee > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: { name: 'Delivery Fee' },
+          unit_amount: Math.round(deliveryFee * 100),
+        },
+        quantity: 1,
+      })
+    }
 
     // Add service fee
     lineItems.push({
@@ -262,11 +277,12 @@ export async function POST(request: NextRequest) {
       commission_pct: shopCommissionPct.toString(),
       tip: tipAmount.toString(),
       total: total.toString(),
-      delivery_address: delivery_address.slice(0, 250),
-      delivery_city: (delivery_city || '').slice(0, 100),
-      delivery_lat: deliveryLat?.toString() || '',
-      delivery_lng: deliveryLng?.toString() || '',
-      delivery_instructions: (delivery_instructions || '').slice(0, 300),
+      fulfillment_type: fulfillmentType,
+      delivery_address: isPickup ? '' : (delivery_address || '').slice(0, 250),
+      delivery_city: isPickup ? '' : (delivery_city || '').slice(0, 100),
+      delivery_lat: isPickup ? '' : (deliveryLat?.toString() || ''),
+      delivery_lng: isPickup ? '' : (deliveryLng?.toString() || ''),
+      delivery_instructions: isPickup ? '' : (delivery_instructions || '').slice(0, 300),
       promo_code: (promo_code || '').slice(0, 50),
       promo_discount: promoDiscount.toString(),
       scheduled_for: scheduled_for || '',

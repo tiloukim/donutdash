@@ -23,10 +23,17 @@ export async function POST(request: NextRequest) {
     const {
       shopId, items, delivery_address, delivery_city,
       delivery_instructions, tip, promo_code, promo_discount, scheduled_for,
+      fulfillment_type,
     } = body
 
-    if (!shopId || !items || items.length === 0 || !delivery_address) {
+    const fulfillmentType: 'delivery' | 'pickup' = fulfillment_type === 'pickup' ? 'pickup' : 'delivery'
+    const isPickup = fulfillmentType === 'pickup'
+
+    if (!shopId || !items || items.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+    if (!isPickup && !delivery_address) {
+      return NextResponse.json({ error: 'Missing delivery address' }, { status: 400 })
     }
 
     // Check shop open
@@ -53,31 +60,33 @@ export async function POST(request: NextRequest) {
     const shopFeeRate = shop ? shop.service_fee_pct / 100 : SERVICE_FEE_RATE
     const shopTaxRate = shop?.tax_rate ? shop.tax_rate / 100 : 0
 
-    // Geocode
+    // Geocode (skipped for pickup orders)
     let deliveryLat: number | null = null
     let deliveryLng: number | null = null
-    try {
-      const fullAddress = `${delivery_address}, ${delivery_city || ''}`
-      const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
-        { headers: { 'User-Agent': 'DonutDash/1.0' } }
-      )
-      const geoData = await geoRes.json()
-      if (geoData?.[0]) {
-        deliveryLat = parseFloat(geoData[0].lat)
-        deliveryLng = parseFloat(geoData[0].lon)
-      }
-    } catch {}
+    if (!isPickup) {
+      try {
+        const fullAddress = `${delivery_address}, ${delivery_city || ''}`
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
+          { headers: { 'User-Agent': 'DonutDash/1.0' } }
+        )
+        const geoData = await geoRes.json()
+        if (geoData?.[0]) {
+          deliveryLat = parseFloat(geoData[0].lat)
+          deliveryLng = parseFloat(geoData[0].lon)
+        }
+      } catch {}
+    }
 
-    // Use shop's flat delivery fee (or platform default)
-    const deliveryFee = shop?.delivery_fee ?? DEFAULT_DELIVERY_FEE
+    // Use shop's flat delivery fee (or platform default); pickup orders are free.
+    const deliveryFee = isPickup ? 0 : (shop?.delivery_fee ?? DEFAULT_DELIVERY_FEE)
 
     const subtotal = items.reduce(
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity, 0
     )
     const tax = Math.round(subtotal * shopTaxRate * 100) / 100
     const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
-    const tipAmount = tip || 0
+    const tipAmount = isPickup ? 0 : (tip || 0)
     const promoDiscountAmt = promo_discount && promo_discount > 0 ? Math.round(promo_discount * 100) / 100 : 0
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscountAmt) * 100) / 100
 
@@ -88,17 +97,18 @@ export async function POST(request: NextRequest) {
         customer_id: ddUser.id,
         shop_id: shopId,
         status: 'pending',
+        fulfillment_type: fulfillmentType,
         subtotal, tax,
         delivery_fee: deliveryFee,
         service_fee: serviceFee,
         tip: tipAmount,
         total,
         payment_method: 'paypal',
-        delivery_address,
-        delivery_city: delivery_city || '',
-        delivery_lat: deliveryLat,
-        delivery_lng: deliveryLng,
-        delivery_instructions: delivery_instructions || null,
+        delivery_address: isPickup ? null : delivery_address,
+        delivery_city: isPickup ? null : (delivery_city || ''),
+        delivery_lat: isPickup ? null : deliveryLat,
+        delivery_lng: isPickup ? null : deliveryLng,
+        delivery_instructions: isPickup ? null : (delivery_instructions || null),
         promo_code: promo_code || null,
         promo_discount: promoDiscountAmt || 0,
         scheduled_for: scheduled_for || null,

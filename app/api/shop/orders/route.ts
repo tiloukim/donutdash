@@ -11,7 +11,9 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['preparing', 'cancelled'],
   preparing: ['ready_for_pickup', 'cancelled'],
-  ready_for_pickup: ['cancelled'],
+  // 'picked_up' from this endpoint is only valid when fulfillment_type='pickup'
+  // (delivery orders get marked picked_up by the driver app instead).
+  ready_for_pickup: ['cancelled', 'picked_up'],
 }
 
 export async function GET(req: Request) {
@@ -45,6 +47,7 @@ export async function GET(req: Request) {
     return {
       id: o.id,
       status: o.status,
+      fulfillment_type: o.fulfillment_type || 'delivery',
       subtotal,
       commission,
       shop_earnings: shopEarnings,
@@ -105,6 +108,15 @@ export async function PATCH(req: NextRequest) {
     )
   }
 
+  // Shops can only mark picked_up on pickup orders — for delivery orders that
+  // transition is driven by the driver app's GPS-confirmed pickup.
+  if (status === 'picked_up' && order.fulfillment_type !== 'pickup') {
+    return NextResponse.json(
+      { error: 'Only pickup orders can be marked picked_up from the shop dashboard.' },
+      { status: 400 }
+    )
+  }
+
   // Build update payload
   const updateData: Record<string, unknown> = {
     status,
@@ -148,7 +160,14 @@ export async function PATCH(req: NextRequest) {
         ready_for_pickup: {
           subject: `Order Ready - DonutDash #${order_id.slice(0, 8).toUpperCase()}`,
           headline: 'Your Order is Ready!',
-          message: 'Your order is ready for pickup! A driver is on the way to pick it up and deliver it to you.',
+          message: order.fulfillment_type === 'pickup'
+            ? `Your order is ready! Head to ${sName} to pick it up.`
+            : 'Your order is ready for pickup! A driver is on the way to pick it up and deliver it to you.',
+        },
+        picked_up: {
+          subject: `Order Complete - DonutDash #${order_id.slice(0, 8).toUpperCase()}`,
+          headline: 'Order Picked Up — Enjoy!',
+          message: `Thanks for picking up your order from ${sName}. Hope you enjoy it!`,
         },
         cancelled: {
           subject: `Order Cancelled - DonutDash #${order_id.slice(0, 8).toUpperCase()}`,

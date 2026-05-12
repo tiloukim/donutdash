@@ -56,11 +56,13 @@ export async function POST(request: NextRequest) {
       const commissionPct = meta.commission_pct ? parseFloat(meta.commission_pct) : null
       const tipAmount = parseFloat(meta.tip) || 0
       const total = parseFloat(meta.total) || 0
-      const deliveryAddress = meta.delivery_address || ''
-      const deliveryCity = meta.delivery_city || ''
-      const deliveryLat = meta.delivery_lat ? parseFloat(meta.delivery_lat) : null
-      const deliveryLng = meta.delivery_lng ? parseFloat(meta.delivery_lng) : null
-      const deliveryInstructions = meta.delivery_instructions || null
+      const fulfillmentType: 'delivery' | 'pickup' = meta.fulfillment_type === 'pickup' ? 'pickup' : 'delivery'
+      const isPickup = fulfillmentType === 'pickup'
+      const deliveryAddress = isPickup ? null : (meta.delivery_address || '')
+      const deliveryCity = isPickup ? null : (meta.delivery_city || '')
+      const deliveryLat = isPickup ? null : (meta.delivery_lat ? parseFloat(meta.delivery_lat) : null)
+      const deliveryLng = isPickup ? null : (meta.delivery_lng ? parseFloat(meta.delivery_lng) : null)
+      const deliveryInstructions = isPickup ? null : (meta.delivery_instructions || null)
       const promoCode = meta.promo_code || null
       const promoDiscount = parseFloat(meta.promo_discount) || 0
       const scheduledFor = meta.scheduled_for || null
@@ -108,6 +110,7 @@ export async function POST(request: NextRequest) {
           customer_id: customerId,
           shop_id: shopId,
           status: 'pending',
+          fulfillment_type: fulfillmentType,
           subtotal,
           tax,
           delivery_fee: deliveryFee,
@@ -211,7 +214,8 @@ export async function POST(request: NextRequest) {
       const itemCount = items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0)
 
       // Notify admins (fire and forget)
-      const smsMsg = `New DonutDash Order!\n$${total.toFixed(2)} - ${itemCount} item${itemCount > 1 ? 's' : ''} from ${shopName}\nDelivery: ${deliveryAddress}\nOrder #${order.id.slice(0, 8)}\nPaid via Stripe`
+      const fulfillmentLine = isPickup ? `Pickup at ${shopName}` : `Delivery: ${deliveryAddress}`
+      const smsMsg = `New DonutDash Order!\n$${total.toFixed(2)} - ${itemCount} item${itemCount > 1 ? 's' : ''} from ${shopName}\n${fulfillmentLine}\nOrder #${order.id.slice(0, 8)}\nPaid via Stripe`
       const emailHtml = `
         <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
           <h2 style="color:#FF8C00;margin-bottom:4px;">New DonutDash Order!</h2>
@@ -221,9 +225,11 @@ export async function POST(request: NextRequest) {
             <div style="font-size:14px;color:#666;margin-top:4px;">${itemCount} item${itemCount > 1 ? 's' : ''} from <strong>${shopName}</strong></div>
           </div>
           <div style="font-size:14px;line-height:1.8;color:#333;">
-            <div><strong>Delivery:</strong> ${deliveryAddress}</div>
+            ${isPickup
+              ? `<div><strong>Fulfillment:</strong> Pickup at ${shopName}</div>`
+              : `<div><strong>Delivery:</strong> ${deliveryAddress}</div>`}
             <div><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</div>
-            <div><strong>Delivery Fee:</strong> $${deliveryFee.toFixed(2)}</div>
+            ${!isPickup ? `<div><strong>Delivery Fee:</strong> $${deliveryFee.toFixed(2)}</div>` : ''}
             <div><strong>Service Fee:</strong> $${serviceFee.toFixed(2)}</div>
             ${tipAmount > 0 ? `<div><strong>Tip:</strong> $${tipAmount.toFixed(2)}</div>` : ''}
           </div>
@@ -250,7 +256,9 @@ export async function POST(request: NextRequest) {
                   <div style="font-size:14px;color:#666;margin-top:4px;">${itemCount} item${itemCount > 1 ? 's' : ''}</div>
                 </div>
                 <div style="font-size:14px;line-height:1.8;color:#333;">
-                  <div><strong>Delivery:</strong> ${deliveryAddress}</div>
+                  ${isPickup
+                    ? `<div><strong>Fulfillment:</strong> Customer pickup</div>`
+                    : `<div><strong>Delivery:</strong> ${deliveryAddress}</div>`}
                   ${meta.customer_name ? `<div><strong>Customer:</strong> ${meta.customer_name}</div>` : ''}
                 </div>
                 <a href="https://donutdash.app/shop/orders" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF8C00;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">View &amp; Accept</a>
@@ -274,14 +282,18 @@ export async function POST(request: NextRequest) {
             <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#333;">
               <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
               <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>$${tax.toFixed(2)}</span></div>
-              <div style="display:flex;justify-content:space-between;"><span>Delivery Fee</span><span>$${deliveryFee.toFixed(2)}</span></div>
+              ${!isPickup ? `<div style="display:flex;justify-content:space-between;"><span>Delivery Fee</span><span>$${deliveryFee.toFixed(2)}</span></div>` : ''}
               <div style="display:flex;justify-content:space-between;"><span>Service Fee</span><span>$${serviceFee.toFixed(2)}</span></div>
               ${tipAmount > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Tip</span><span>$${tipAmount.toFixed(2)}</span></div>` : ''}
               ${promoDiscount > 0 ? `<div style="display:flex;justify-content:space-between;color:#10B981;"><span>Promo Discount</span><span>-$${promoDiscount.toFixed(2)}</span></div>` : ''}
               <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1px solid #FFE8D6;padding-top:8px;margin-top:8px;"><span>Total</span><span>$${total.toFixed(2)}</span></div>
             </div>
           </div>
-          <p style="font-size:13px;color:#666;margin:8px 0 0 0;"><strong>Delivery to:</strong> ${deliveryAddress}</p>
+          <p style="font-size:13px;color:#666;margin:8px 0 0 0;">
+            ${isPickup
+              ? `<strong>Pickup at:</strong> ${shopName}`
+              : `<strong>Delivery to:</strong> ${deliveryAddress}`}
+          </p>
         `
         const confirmHtml = buildOrderEmailHtml(
           order.id,

@@ -325,6 +325,11 @@ export default function ShopOrders() {
                       <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: statusStyle.bg, color: statusStyle.color }}>
                         {o.status.replace(/_/g, ' ')}
                       </span>
+                      {o.fulfillment_type === 'pickup' && (
+                        <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: '#FEF3C7', color: '#92400E' }}>
+                          🏪 PICKUP
+                        </span>
+                      )}
                       {o.scheduled_for && (
                         <span style={{ fontSize: 11, color: '#FF8C00', fontWeight: 600 }}>
                           Scheduled: {new Date(o.scheduled_for).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
@@ -412,18 +417,26 @@ export default function ShopOrders() {
                           </div>
                         )}
 
-                        {isTrackable && !tracking && (
+                        {isTrackable && !tracking && o.fulfillment_type !== 'pickup' && (
                           <div style={{ padding: 16, textAlign: 'center', color: '#888', fontSize: 13, background: '#FFF0F5', borderRadius: 8 }}>
                             Waiting for driver...
                           </div>
                         )}
 
-                        {/* Delivery address */}
-                        <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
-                          <div style={{ fontWeight: 600, color: '#1A1A2E', marginBottom: 2 }}>Delivery</div>
-                          {o.delivery_address}
-                          {o.delivery_instructions && <div style={{ color: '#FF8C00', marginTop: 4 }}>📝 {o.delivery_instructions}</div>}
-                        </div>
+                        {/* Fulfillment info — pickup or delivery */}
+                        {o.fulfillment_type === 'pickup' ? (
+                          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6, padding: '10px 12px', background: '#FFFBEB', borderRadius: 8, border: '1px solid #FDE68A' }}>
+                            <div style={{ fontWeight: 700, color: '#92400E', marginBottom: 4 }}>🏪 Customer pickup</div>
+                            <div>The customer will come to the shop to pick this up.</div>
+                            {o.customer?.phone && <div style={{ marginTop: 4 }}>Phone: <a href={`tel:${o.customer.phone}`} style={{ color: '#FF1493', textDecoration: 'none' }}>{o.customer.phone}</a></div>}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+                            <div style={{ fontWeight: 600, color: '#1A1A2E', marginBottom: 2 }}>Delivery</div>
+                            {o.delivery_address}
+                            {o.delivery_instructions && <div style={{ color: '#FF8C00', marginTop: 4 }}>📝 {o.delivery_instructions}</div>}
+                          </div>
+                        )}
 
                         {/* Delivery Proof Photo */}
                         {o.status === 'delivered' && o.delivery_photo_url && (
@@ -478,7 +491,7 @@ export default function ShopOrders() {
                             rejectingOrder === o.id ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>
-                                  Cancelling will refund the customer{o.payment_method === 'stripe' ? ' via Stripe' : ''}{o.status === 'ready_for_pickup' ? ' and release the assigned driver' : ''}.
+                                  Cancelling will refund the customer{o.payment_method === 'stripe' ? ' via Stripe' : ''}{o.status === 'ready_for_pickup' && o.fulfillment_type !== 'pickup' ? ' and release the assigned driver' : ''}.
                                 </div>
                                 <select value={rejectReason} onChange={e => setRejectReason(e.target.value)}
                                   style={{ padding: '10px', borderRadius: 8, fontSize: 13, border: '1px solid #FCA5A5' }}>
@@ -507,6 +520,12 @@ export default function ShopOrders() {
                                   <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'ready_for_pickup') }} disabled={updating === o.id}
                                     style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer' }}>
                                     {updating === o.id ? '...' : '✓ Ready for Pickup'}
+                                  </button>
+                                )}
+                                {o.status === 'ready_for_pickup' && o.fulfillment_type === 'pickup' && (
+                                  <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'picked_up') }} disabled={updating === o.id}
+                                    style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                                    {updating === o.id ? '...' : '✓ Mark as Picked Up'}
                                   </button>
                                 )}
                                 <button onClick={(e) => { e.stopPropagation(); setRejectingOrder(o.id); setRejectReason('Out of stock') }}

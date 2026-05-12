@@ -357,11 +357,12 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
   )
 
   const statusInfo = STATUS_LABELS[order.status] || STATUS_LABELS.pending
+  const isPickup = order.fulfillment_type === 'pickup'
   const shopLat = order.shop?.lat
   const shopLng = order.shop?.lng
-  // Customer sees driver map only from picked_up onwards
+  // Customer sees driver map only from picked_up onwards, and never on pickup orders
   const trackableForCustomer = ['picked_up', 'delivering']
-  const hasMap = tracking?.location && shopLat && shopLng && trackableForCustomer.includes(order.status)
+  const hasMap = !isPickup && tracking?.location && shopLat && shopLng && trackableForCustomer.includes(order.status)
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: '20px 16px', minHeight: '100vh' }}>
@@ -560,7 +561,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           border: '1px solid #FFE8D6', marginBottom: 20,
         }}>
           {(() => {
-            const steps = [
+            const deliverySteps = [
               { key: 'pending', label: 'Order Placed', icon: '📋' },
               { key: 'confirmed', label: 'Shop Confirmed', icon: '✓' },
               { key: 'preparing', label: 'Preparing', icon: '👨‍🍳' },
@@ -569,6 +570,14 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
               { key: 'delivering', label: 'On the Way', icon: '🚗' },
               { key: 'delivered', label: 'Delivered', icon: '✅' },
             ]
+            const pickupSteps = [
+              { key: 'pending', label: 'Order Placed', icon: '📋' },
+              { key: 'confirmed', label: 'Shop Confirmed', icon: '✓' },
+              { key: 'preparing', label: 'Preparing', icon: '👨‍🍳' },
+              { key: 'ready_for_pickup', label: 'Ready', icon: '📦' },
+              { key: 'picked_up', label: 'Picked Up', icon: '✅' },
+            ]
+            const steps = isPickup ? pickupSteps : deliverySteps
             const statusOrder = steps.map(s => s.key)
             const currentIdx = statusOrder.indexOf(order.status)
             return (
@@ -616,8 +625,8 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {/* Driver Info */}
-      {tracking?.driver && (
+      {/* Driver Info — only for delivery orders */}
+      {!isPickup && tracking?.driver && (
         <div style={{
           background: '#fff', borderRadius: 12, padding: 16,
           border: '1px solid #FFE8D6', marginBottom: 20,
@@ -627,6 +636,30 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{tracking.driver.name}</div>
             <div style={{ fontSize: 12, color: '#888' }}>Your delivery driver</div>
+          </div>
+        </div>
+      )}
+
+      {/* Pickup info card — for pickup orders */}
+      {isPickup && order.shop && (
+        <div style={{
+          background: '#FFFBEB', borderRadius: 12, padding: 16,
+          border: '1px solid #FDE68A', marginBottom: 20,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', letterSpacing: 0.5, marginBottom: 6 }}>🏪 PICKUP AT</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1A2E', marginBottom: 4 }}>{order.shop.name}</div>
+          {order.shop.address && (
+            <div style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>
+              {order.shop.address}
+              {order.shop.city ? <><br />{order.shop.city}</> : null}
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: '#92400E', marginTop: 8, fontWeight: 600 }}>
+            {order.status === 'ready_for_pickup'
+              ? 'Your order is ready — come grab it!'
+              : order.status === 'picked_up'
+                ? 'Enjoy your order!'
+                : 'We\'ll let you know when it\'s ready.'}
           </div>
         </div>
       )}
