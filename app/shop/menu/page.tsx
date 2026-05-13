@@ -212,7 +212,16 @@ export default function ShopMenu() {
     setShowForm(true)
   }
 
-  const [loadingTemplate, setLoadingTemplate] = useState(false)
+  type TemplateOption = { id: string; name: string; description: string; item_count: number }
+  const [templates, setTemplates] = useState<TemplateOption[]>([])
+  const [loadingTemplate, setLoadingTemplate] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/shop/menu/template')
+      .then(r => r.json())
+      .then(data => { if (data?.templates) setTemplates(data.templates) })
+      .catch(() => {})
+  }, [])
 
   // Bulk price update
   type BulkChange = { id: string; name: string; category: string; old_price: number; new_price: number }
@@ -260,11 +269,15 @@ export default function ShopMenu() {
     }
   }
 
-  const loadTemplate = async () => {
-    if (!confirm('Load the starter menu template? This will add ~25 common donut shop items (donuts, coffee, breakfast, drinks) that you can customize.')) return
-    setLoadingTemplate(true)
+  const loadTemplate = async (templateId: string, templateName: string, itemCount: number) => {
+    if (!confirm(`Load "${templateName}"? This will add ${itemCount} items (price $0, hidden by default) that you can customize.`)) return
+    setLoadingTemplate(templateId)
     try {
-      const res = await fetch('/api/shop/menu/template', { method: 'POST' })
+      const res = await fetch('/api/shop/menu/template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template_id: templateId }),
+      })
       if (res.ok) {
         fetchItems()
       } else {
@@ -274,7 +287,7 @@ export default function ShopMenu() {
     } catch {
       alert('Failed to load template')
     }
-    setLoadingTemplate(false)
+    setLoadingTemplate(null)
   }
 
   const filtered = filter === 'all' ? items : items.filter(i => i.category === filter)
@@ -285,21 +298,38 @@ export default function ShopMenu() {
   return (
     <div>
       {items.length === 0 && !showForm && (
-        <div style={{ textAlign: 'center', padding: '40px 20px', background: '#FFF0F5', borderRadius: 16, marginBottom: 24, border: '2px dashed #FFD6E8' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>&#127849;</div>
-          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#333' }}>{t('menu.emptyTitle')}</h3>
-          <p style={{ fontSize: 14, color: '#888', marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>
-            {t('menu.emptyDesc')}
-          </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button
-              onClick={loadTemplate}
-              disabled={loadingTemplate}
-              style={{ padding: '10px 28px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: loadingTemplate ? '#ccc' : '#FF1493', color: '#fff', border: 'none', cursor: loadingTemplate ? 'not-allowed' : 'pointer' }}
-            >
-              {loadingTemplate ? t('common.loading') : t('menu.loadStarter')}
-            </button>
-            <button onClick={openAdd} style={{ padding: '10px 28px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: '#fff', color: '#FF1493', border: '2px solid #FF1493', cursor: 'pointer' }}>
+        <div style={{ padding: '32px 20px', background: '#FFF0F5', borderRadius: 16, marginBottom: 24, border: '2px dashed #FFD6E8' }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>&#127849;</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#333' }}>{t('menu.emptyTitle')}</h3>
+            <p style={{ fontSize: 14, color: '#888', maxWidth: 460, margin: '0 auto' }}>
+              Pick a starter template below — items load with $0 prices that you can customize. Or start from scratch.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginBottom: 16 }}>
+            {templates.map(tmpl => (
+              <div key={tmpl.id} style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #FFD6E8', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: '#1A1A2E' }}>{tmpl.name}</div>
+                <div style={{ fontSize: 12, color: '#888', lineHeight: 1.5, flex: 1 }}>{tmpl.description}</div>
+                <div style={{ fontSize: 11, color: '#FF1493', fontWeight: 700 }}>{tmpl.item_count} items</div>
+                <button
+                  onClick={() => loadTemplate(tmpl.id, tmpl.name, tmpl.item_count)}
+                  disabled={loadingTemplate !== null}
+                  style={{
+                    marginTop: 4, padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                    background: loadingTemplate === tmpl.id ? '#ccc' : '#FF1493',
+                    color: '#fff', border: 'none', cursor: loadingTemplate ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {loadingTemplate === tmpl.id ? t('common.loading') : `Use ${tmpl.name}`}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ textAlign: 'center' }}>
+            <button onClick={openAdd} style={{ padding: '10px 28px', borderRadius: 10, fontSize: 13, fontWeight: 700, background: '#fff', color: '#FF1493', border: '2px solid #FF1493', cursor: 'pointer' }}>
               {t('menu.fromScratch')}
             </button>
           </div>

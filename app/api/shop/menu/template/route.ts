@@ -1,8 +1,20 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { menuTemplate } from '@/lib/menu-template'
+import { MENU_TEMPLATES, getTemplate } from '@/lib/menu-template'
 
-export async function POST() {
+// Public list of available templates (no auth required to read).
+export async function GET() {
+  return NextResponse.json({
+    templates: MENU_TEMPLATES.map(t => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      item_count: t.items.length,
+    })),
+  })
+}
+
+export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -16,14 +28,26 @@ export async function POST() {
   const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
 
-  // Check if shop already has menu items
+  // Resolve the requested template. Default to the first one (classic) for
+  // older clients that POST with no body.
+  let templateId = MENU_TEMPLATES[0].id
+  try {
+    const body = await req.json()
+    if (body?.template_id && typeof body.template_id === 'string') templateId = body.template_id
+  } catch { /* empty body — use default */ }
+
+  const template = getTemplate(templateId)
+  if (!template) {
+    return NextResponse.json({ error: `Unknown template: ${templateId}` }, { status: 400 })
+  }
+
+  // Refuse to load onto a non-empty menu — protects against accidental overwrite.
   const { count } = await svc.from('dd_menu_items').select('id', { count: 'exact', head: true }).eq('shop_id', shop.id)
   if (count && count > 0) {
     return NextResponse.json({ error: 'Your menu already has items. Delete existing items first or add items manually.' }, { status: 400 })
   }
 
-  // Insert all template items — price 0, shop owner must set their own prices
-  const items = menuTemplate.map(item => ({
+  const items = template.items.map(item => ({
     shop_id: shop.id,
     name: item.name,
     description: item.description,
@@ -43,5 +67,5 @@ export async function POST() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, count: items.length })
+  return NextResponse.json({ success: true, template_id: template.id, count: items.length })
 }
