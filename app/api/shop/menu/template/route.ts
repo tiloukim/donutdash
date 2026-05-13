@@ -72,19 +72,32 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const items = template.items.map(item => ({
-    shop_id: shop.id,
-    name: item.name,
-    description: item.description,
-    price: 0,
-    category: item.category,
-    is_available: false,
-    is_featured: item.is_featured,
-    sort_order: item.sort_order,
-    variants: item.variants
-      ? item.variants.map(v => ({ name: v.name, options: v.options.map(o => ({ name: o, price: 0 })) }))
-      : null,
-  }))
+  // Pull stored admin-uploaded images for this template's items
+  const { data: imageRows } = await svc
+    .from('dd_menu_template_images')
+    .select('item_name, image_url')
+    .eq('template_id', template.id)
+  const imageMap = new Map<string, string>()
+  for (const row of imageRows || []) imageMap.set(row.item_name, row.image_url)
+
+  const items = template.items.map(item => {
+    const imgUrl = imageMap.get(item.name) || null
+    return {
+      shop_id: shop.id,
+      name: item.name,
+      description: item.description,
+      price: 0,
+      category: item.category,
+      is_available: false,
+      is_featured: item.is_featured,
+      sort_order: item.sort_order,
+      image_url: imgUrl,
+      images: imgUrl ? [imgUrl] : null,
+      variants: item.variants
+        ? item.variants.map(v => ({ name: v.name, options: v.options.map(o => ({ name: o, price: 0 })) }))
+        : null,
+    }
+  })
 
   const { error } = await svc.from('dd_menu_items').insert(items)
   if (error) {
