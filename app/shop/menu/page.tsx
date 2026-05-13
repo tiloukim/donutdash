@@ -214,6 +214,52 @@ export default function ShopMenu() {
 
   const [loadingTemplate, setLoadingTemplate] = useState(false)
 
+  // Bulk price update
+  type BulkChange = { id: string; name: string; category: string; old_price: number; new_price: number }
+  const [showBulk, setShowBulk] = useState(false)
+  const [bulkMode, setBulkMode] = useState<'flat' | 'percent'>('percent')
+  const [bulkValue, setBulkValue] = useState('')
+  const [bulkCategory, setBulkCategory] = useState<string>('all')
+  const [bulkPreview, setBulkPreview] = useState<BulkChange[] | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkError, setBulkError] = useState('')
+
+  const resetBulk = () => {
+    setShowBulk(false)
+    setBulkPreview(null)
+    setBulkValue('')
+    setBulkCategory('all')
+    setBulkMode('percent')
+    setBulkError('')
+  }
+
+  const runBulk = async (preview: boolean) => {
+    const value = parseFloat(bulkValue)
+    if (!Number.isFinite(value)) { setBulkError('Enter a number'); return }
+    setBulkBusy(true)
+    setBulkError('')
+    try {
+      const res = await fetch('/api/shop/menu/bulk-price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: bulkMode, value, category: bulkCategory, preview }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setBulkError(data.error || 'Failed'); return }
+      if (preview) {
+        setBulkPreview(data.changes || [])
+      } else {
+        await fetchItems()
+        resetBulk()
+        alert(`Updated ${data.updated} item${data.updated === 1 ? '' : 's'}.`)
+      }
+    } catch {
+      setBulkError('Network error')
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
   const loadTemplate = async () => {
     if (!confirm('Load the starter menu template? This will add ~25 common donut shop items (donuts, coffee, breakfast, drinks) that you can customize.')) return
     setLoadingTemplate(true)
@@ -269,8 +315,81 @@ export default function ShopMenu() {
             }}>{c}</button>
           ))}
         </div>
-        <button onClick={openAdd} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{t('menu.addItem')}</button>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button onClick={() => setShowBulk(true)} style={{ padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#fff', color: '#FF1493', border: '1px solid #FF1493', cursor: 'pointer', whiteSpace: 'nowrap' }}>💲 Bulk Price</button>
+          <button onClick={openAdd} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>{t('menu.addItem')}</button>
+        </div>
       </div>
+
+      {showBulk && (
+        <div onClick={resetBulk} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 520, maxHeight: '85vh', overflow: 'auto' }}>
+            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>Bulk Price Update</h3>
+            <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Apply a flat price or a percent change to multiple items at once.</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Mode</label>
+                <select value={bulkMode} onChange={e => { setBulkMode(e.target.value as 'flat' | 'percent'); setBulkPreview(null) }} style={inputStyle}>
+                  <option value="percent">Percent change (+/-)</option>
+                  <option value="flat">Set flat price</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Category</label>
+                <select value={bulkCategory} onChange={e => { setBulkCategory(e.target.value); setBulkPreview(null) }} style={inputStyle}>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c === 'all' ? 'All categories' : c}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>
+                {bulkMode === 'flat' ? 'New price (USD)' : 'Percent change (e.g. 10 = +10%, -5 = -5%)'}
+              </label>
+              <input
+                type="number"
+                step={bulkMode === 'flat' ? '0.01' : '0.5'}
+                value={bulkValue}
+                onChange={e => { setBulkValue(e.target.value); setBulkPreview(null) }}
+                placeholder={bulkMode === 'flat' ? '2.50' : '10'}
+                style={inputStyle}
+              />
+            </div>
+
+            {bulkError && (
+              <div style={{ background: '#FEE2E2', color: '#991B1B', padding: '8px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>{bulkError}</div>
+            )}
+
+            {bulkPreview && (
+              <div style={{ border: '1px solid #FFE4EF', borderRadius: 10, padding: 12, marginBottom: 12, background: '#FFF8FB' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
+                  {bulkPreview.length === 0 ? 'No prices would change.' : `${bulkPreview.length} item${bulkPreview.length === 1 ? '' : 's'} will change:`}
+                </div>
+                {bulkPreview.length > 0 && (
+                  <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                    {bulkPreview.map(c => (
+                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #FFE4EF', fontSize: 13 }}>
+                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                        <span style={{ color: '#888', flexShrink: 0 }}>${c.old_price.toFixed(2)} → <strong style={{ color: '#FF1493' }}>${c.new_price.toFixed(2)}</strong></span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={resetBulk} disabled={bulkBusy} style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#333', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              {!bulkPreview ? (
+                <button onClick={() => runBulk(true)} disabled={bulkBusy || !bulkValue} style={{ padding: '10px 18px', borderRadius: 8, border: 'none', background: bulkBusy || !bulkValue ? '#ccc' : '#6366F1', color: '#fff', fontWeight: 700, fontSize: 13, cursor: bulkBusy || !bulkValue ? 'not-allowed' : 'pointer' }}>{bulkBusy ? '...' : 'Preview'}</button>
+              ) : (
+                <button onClick={() => runBulk(false)} disabled={bulkBusy || bulkPreview.length === 0} style={{ padding: '10px 18px', borderRadius: 8, border: 'none', background: bulkBusy || bulkPreview.length === 0 ? '#ccc' : '#FF1493', color: '#fff', fontWeight: 700, fontSize: 13, cursor: bulkBusy || bulkPreview.length === 0 ? 'not-allowed' : 'pointer' }}>{bulkBusy ? '...' : `Apply to ${bulkPreview.length}`}</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div style={{ background: '#fff', borderRadius: 12, padding: '16px 12px', border: '1px solid #FFE4EF', marginBottom: 16 }}>
