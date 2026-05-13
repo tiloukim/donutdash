@@ -28,23 +28,48 @@ export async function POST(req: NextRequest) {
   const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
 
-  // Resolve the requested template. Default to the first one (classic) for
-  // older clients that POST with no body.
   let templateId = MENU_TEMPLATES[0].id
+  let replace = false
   try {
     const body = await req.json()
     if (body?.template_id && typeof body.template_id === 'string') templateId = body.template_id
-  } catch { /* empty body — use default */ }
+    if (body?.replace === true) replace = true
+  } catch { /* empty body — use defaults */ }
 
   const template = getTemplate(templateId)
   if (!template) {
     return NextResponse.json({ error: `Unknown template: ${templateId}` }, { status: 400 })
   }
 
-  // Refuse to load onto a non-empty menu — protects against accidental overwrite.
-  const { count } = await svc.from('dd_menu_items').select('id', { count: 'exact', head: true }).eq('shop_id', shop.id)
-  if (count && count > 0) {
-    return NextResponse.json({ error: 'Your menu already has items. Delete existing items first or add items manually.' }, { status: 400 })
+  // If menu has items, require an explicit `replace: true` to overwrite.
+  const { data: existing } = await svc.from('dd_menu_items').select('id, name').eq('shop_id', shop.id)
+  const existingCount = existing?.length || 0
+
+  if (existingCount > 0 && !replace) {
+    return NextResponse.json(
+      { error: 'Menu already has items. Pass replace=true to overwrite.', existing_count: existingCount },
+      { status: 409 },
+    )
+  }
+
+  // Wipe existing items if replacing. Some items may have FK references
+  // (past orders) — those can't be hard-deleted, so we soft-delete them
+  // by renaming + hiding so they don't clash with the new template.
+  let softDeleted = 0
+  let hardDeleted = 0
+  if (replace && existing && existing.length > 0) {
+    for (const item of existing) {
+      const { error: delErr } = await svc.from('dd_menu_items').delete().eq('id', item.id).eq('shop_id', shop.id)
+      if (delErr) {
+        const renamed = item.name?.startsWith('[ARCHIVED]') ? item.name : `[ARCHIVED] ${item.name}`
+        const { error: updErr } = await svc.from('dd_menu_items')
+          .update({ is_available: false, is_featured: false, name: renamed })
+          .eq('id', item.id).eq('shop_id', shop.id)
+        if (!updErr) softDeleted++
+      } else {
+        hardDeleted++
+      }
+    }
   }
 
   const items = template.items.map(item => ({
@@ -67,5 +92,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, template_id: template.id, count: items.length })
+  return NextResponse.json({
+    success: true,
+    template_id: template.id,
+    count: items.length,
+    ...(replace ? { hard_deleted: hardDeleted, soft_deleted: softDeleted } : {}),
+  })
 }

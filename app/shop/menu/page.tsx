@@ -269,17 +269,25 @@ export default function ShopMenu() {
     }
   }
 
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+
   const loadTemplate = async (templateId: string, templateName: string, itemCount: number) => {
-    if (!confirm(`Load "${templateName}"? This will add ${itemCount} items (price $0, hidden by default) that you can customize.`)) return
+    const isReplacing = items.length > 0
+    const message = isReplacing
+      ? `⚠️ Switching to "${templateName}" will REPLACE your entire menu.\n\n• All ${items.length} current items will be deleted (items with past orders are archived, not removed)\n• Custom prices and photos you've added will be lost\n• ${itemCount} new items will load with $0 price, hidden\n\nThis cannot be undone. Continue?`
+      : `Load "${templateName}"? This will add ${itemCount} items (price $0, hidden by default) that you can customize.`
+    if (!confirm(message)) return
+
     setLoadingTemplate(templateId)
     try {
       const res = await fetch('/api/shop/menu/template', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ template_id: templateId }),
+        body: JSON.stringify({ template_id: templateId, replace: isReplacing }),
       })
       if (res.ok) {
-        fetchItems()
+        await fetchItems()
+        setShowTemplatePicker(false)
       } else {
         const data = await res.json()
         alert(data.error || 'Failed to load template')
@@ -345,11 +353,48 @@ export default function ShopMenu() {
             }}>{c}</button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+          {templates.length > 0 && items.length > 0 && (
+            <button onClick={() => setShowTemplatePicker(true)} style={{ padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#fff', color: '#6366F1', border: '1px solid #6366F1', cursor: 'pointer', whiteSpace: 'nowrap' }}>🔄 Switch Template</button>
+          )}
           <button onClick={() => setShowBulk(true)} style={{ padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#fff', color: '#FF1493', border: '1px solid #FF1493', cursor: 'pointer', whiteSpace: 'nowrap' }}>💲 Bulk Price</button>
           <button onClick={openAdd} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>{t('menu.addItem')}</button>
         </div>
       </div>
+
+      {showTemplatePicker && (
+        <div onClick={() => setShowTemplatePicker(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 640, maxHeight: '85vh', overflow: 'auto' }}>
+            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>Switch Menu Template</h3>
+            <div style={{ background: '#FEF3C7', color: '#92400E', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>
+              ⚠️ Switching will <strong>replace your entire menu</strong>. Items with past orders are archived (not deleted); everything else is removed. Custom prices and photos are lost.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+              {templates.map(tmpl => (
+                <div key={tmpl.id} style={{ background: '#FFF8FB', borderRadius: 12, padding: 16, border: '1px solid #FFD6E8', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: '#1A1A2E' }}>{tmpl.name}</div>
+                  <div style={{ fontSize: 12, color: '#888', lineHeight: 1.5, flex: 1 }}>{tmpl.description}</div>
+                  <div style={{ fontSize: 11, color: '#FF1493', fontWeight: 700 }}>{tmpl.item_count} items</div>
+                  <button
+                    onClick={() => loadTemplate(tmpl.id, tmpl.name, tmpl.item_count)}
+                    disabled={loadingTemplate !== null}
+                    style={{
+                      marginTop: 4, padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                      background: loadingTemplate === tmpl.id ? '#ccc' : '#6366F1',
+                      color: '#fff', border: 'none', cursor: loadingTemplate ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {loadingTemplate === tmpl.id ? t('common.loading') : `Switch to ${tmpl.name}`}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, textAlign: 'right' }}>
+              <button onClick={() => setShowTemplatePicker(false)} style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#333', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showBulk && (
         <div onClick={resetBulk} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
