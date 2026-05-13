@@ -225,7 +225,7 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
           <span style={{ fontSize: 14, color: '#666', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} className="shop-header-name">{user.name}</span>
         </header>
-        <div style={{ padding: '16px 12px' }} className="shop-content">{children}</div>
+        <div style={{ padding: '16px 12px' }} className="shop-content"><div className="shop-content-inner">{children}</div></div>
       </main>
 
       <style>{`
@@ -233,8 +233,10 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
         .shop-content [style*="display: flex"], .shop-content [style*="display:flex"] { min-width: 0; }
         .shop-content [style*="display: flex"] > *, .shop-content [style*="display:flex"] > * { min-width: 0; }
         .shop-content img, .shop-content video { max-width: 100%; height: auto; }
+        .shop-content-inner { max-width: 1200px; margin: 0 auto; }
         @media (min-width: 769px) {
           .shop-content { padding: 24px !important; }
+          .shop-stats-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 16px !important; }
         }
         @media (max-width: 768px) {
           .shop-sidebar-desktop { display: none !important; }

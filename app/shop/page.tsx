@@ -151,8 +151,8 @@ export default function ShopDashboard() {
         ))}
       </div>
 
-      {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 20 }}>
+      {/* Stat Cards — 2 cols on mobile, 4 cols on desktop via .shop-stats-grid */}
+      <div className="shop-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 20 }}>
         {cards.map(c => (
           <div key={c.label} style={{ background: '#fff', borderRadius: 10, padding: '14px 12px', border: '1px solid #FFE4EF' }}>
             <div style={{ fontSize: 22, marginBottom: 4 }}>{c.icon}</div>
