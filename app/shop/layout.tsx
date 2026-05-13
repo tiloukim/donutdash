@@ -234,11 +234,13 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
         .shop-content [style*="display: flex"] > *, .shop-content [style*="display:flex"] > * { min-width: 0; }
         .shop-content img, .shop-content video { max-width: 100%; height: auto; }
         .shop-content-inner { max-width: 1200px; margin: 0 auto; }
-        @media (min-width: 769px) {
+        /* Stat cards auto-fit: as many as fit (min 160px wide), wraps automatically */
+        .shop-stats-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important; gap: 12px !important; }
+        @media (min-width: 1025px) {
           .shop-content { padding: 24px !important; }
-          .shop-stats-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 16px !important; }
         }
-        @media (max-width: 768px) {
+        /* Use mobile/hamburger layout up to 1024px (tablets in portrait + landscape) */
+        @media (max-width: 1024px) {
           .shop-sidebar-desktop { display: none !important; }
           .shop-sidebar-mobile { display: flex !important; }
           .shop-main { margin-left: 0 !important; }
