@@ -271,25 +271,49 @@ export default function ShopMenu() {
 
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
 
+  const callTemplateApi = async (templateId: string, replace: boolean, restoreMode?: 'restore' | 'fresh') => {
+    return fetch('/api/shop/menu/template', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id: templateId, replace, ...(restoreMode ? { restore_mode: restoreMode } : {}) }),
+    })
+  }
+
   const loadTemplate = async (templateId: string, templateName: string, itemCount: number) => {
     const isReplacing = items.length > 0
-    const message = isReplacing
-      ? `⚠️ Switching to "${templateName}" will REPLACE your entire menu.\n\n• All ${items.length} current items will be deleted (items with past orders are archived, not removed)\n• Custom prices and photos you've added will be lost\n• ${itemCount} new items will load with $0 price, hidden\n\nThis cannot be undone. Continue?`
+    const intro = isReplacing
+      ? `⚠️ Switching to "${templateName}" will replace your current menu.\n\nYour current menu will be saved as a snapshot you can restore later by switching back. Continue?`
       : `Load "${templateName}"? This will add ${itemCount} items (price $0, hidden by default) that you can customize.`
-    if (!confirm(message)) return
+    if (!confirm(intro)) return
 
     setLoadingTemplate(templateId)
     try {
-      const res = await fetch('/api/shop/menu/template', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ template_id: templateId, replace: isReplacing }),
-      })
+      let res = await callTemplateApi(templateId, isReplacing)
+
+      // If a saved snapshot for the target template exists, the API returns
+      // 409 with snapshot info; ask the user which to do then retry.
+      if (res.status === 409) {
+        const data = await res.clone().json()
+        if (data?.snapshot_available) {
+          const savedDate = data.saved_at ? new Date(data.saved_at).toLocaleDateString() : ''
+          const restore = confirm(
+            `You have a saved version of "${templateName}" from ${savedDate} (${data.item_count} items).\n\n` +
+            `Click OK to RESTORE your previous setup.\n` +
+            `Click Cancel to start FRESH from the template.`
+          )
+          res = await callTemplateApi(templateId, isReplacing, restore ? 'restore' : 'fresh')
+        }
+      }
+
       if (res.ok) {
+        const data = await res.json()
         await fetchItems()
         setShowTemplatePicker(false)
+        if (data.restored) {
+          alert(`Restored your previous "${templateName}" setup (${data.count} items).`)
+        }
       } else {
-        const data = await res.json()
+        const data = await res.json().catch(() => ({}))
         alert(data.error || 'Failed to load template')
       }
     } catch {
