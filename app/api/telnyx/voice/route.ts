@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getIvrSettings, IvrSettings } from '@/lib/ivr-settings'
 
-const FORWARD_NUMBER = process.env.IVR_FORWARD_NUMBER || '+19033455599'
-const BUSINESS_HOURS_START = 7   // 7 AM CT
-const BUSINESS_HOURS_END = 17   // 5 PM CT
-
-function isBusinessHours(): boolean {
+function isBusinessHours(settings: IvrSettings): boolean {
   const now = new Date()
-  // Convert to Central Time
   const ct = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }))
   const hour = ct.getHours()
-  return hour >= BUSINESS_HOURS_START && hour < BUSINESS_HOURS_END
+  return hour >= settings.business_hours_start && hour < settings.business_hours_end
+}
+
+function formatHour(h: number): string {
+  if (h === 0) return '12 AM'
+  if (h < 12) return `${h} AM`
+  if (h === 12) return '12 PM'
+  return `${h - 12} PM`
 }
 
 function texml(content: string) {
@@ -22,12 +25,15 @@ function texml(content: string) {
 // Connect the caller to the live forward number. Plays a department-specific
 // greeting, dials FORWARD_NUMBER, and rolls into voicemail if no one answers
 // or the office is closed.
-function dialExtension(connectingMessage: string, closedMessage: string) {
-  if (!isBusinessHours()) {
+async function dialExtension(connectingMessage: string, closedMessage: string) {
+  const settings = await getIvrSettings()
+  const hoursLine = `Our support hours are ${formatHour(settings.business_hours_start)} to ${formatHour(settings.business_hours_end)} Central Time, 7 days a week.`
+
+  if (!isBusinessHours(settings)) {
     return texml(`
       <Say voice="Azure.en-US-JennyNeural" language="en-US">
         ${closedMessage}
-        Our support hours are 7 AM to 5 PM Central Time, 7 days a week.
+        ${hoursLine}
         Please leave a message after the beep. When you're done, press the pound key to send.
       </Say>
       <Record
@@ -47,8 +53,8 @@ function dialExtension(connectingMessage: string, closedMessage: string) {
     <Say voice="Azure.en-US-JennyNeural" language="en-US">
       ${connectingMessage} This call may be recorded for quality purposes.
     </Say>
-    <Dial callerId="+14309990168" timeout="20">
-      <Number>${FORWARD_NUMBER}</Number>
+    <Dial callerId="+14309990168" timeout="${settings.dial_timeout_seconds}">
+      <Number>${settings.forward_number}</Number>
     </Dial>
     <Say voice="Azure.en-US-JennyNeural" language="en-US">
       We're sorry, no one is available to take your call right now.
@@ -77,15 +83,16 @@ export async function POST(req: NextRequest) {
 
   // If digits were pressed, handle menu selection
   if (digits) {
-    return handleMenuSelection(digits.toString())
+    return await handleMenuSelection(digits.toString())
   }
 
   // Main menu
-  return mainMenu()
+  return await mainMenu()
 }
 
-function mainMenu() {
-  const open = isBusinessHours()
+async function mainMenu() {
+  const settings = await getIvrSettings()
+  const open = isBusinessHours(settings)
   const V = 'Azure.en-US-JennyNeural'
 
   // Split into multiple short <Say> blocks. Single very-long Say payloads
@@ -117,7 +124,7 @@ function mainMenu() {
   )
 }
 
-function handleMenuSelection(digit: string) {
+async function handleMenuSelection(digit: string) {
   switch (digit) {
     case '1':
       // Order status — self-service lookup, no extension forwarding
@@ -162,7 +169,7 @@ function handleMenuSelection(digit: string) {
 
     case '9':
       // Return to main menu
-      return mainMenu()
+      return await mainMenu()
 
     default:
       return texml(`
@@ -173,5 +180,5 @@ function handleMenuSelection(digit: string) {
 }
 
 export async function GET() {
-  return mainMenu()
+  return await mainMenu()
 }
