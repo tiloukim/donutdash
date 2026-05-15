@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getIvrSettings, IvrSettings } from '@/lib/ivr-settings'
+import { getIvrSettings, IvrSettings, forwardFor } from '@/lib/ivr-settings'
 
 function isBusinessHours(settings: IvrSettings): boolean {
   const now = new Date()
@@ -25,9 +25,14 @@ function texml(content: string) {
 // Connect the caller to the live forward number. Plays a department-specific
 // greeting, dials FORWARD_NUMBER, and rolls into voicemail if no one answers
 // or the office is closed.
-async function dialExtension(connectingMessage: string, closedMessage: string) {
+async function dialExtension(
+  digit: '0' | '2' | '3' | '4',
+  connectingMessage: string,
+  closedMessage: string,
+) {
   const settings = await getIvrSettings()
   const hoursLine = `Our support hours are ${formatHour(settings.business_hours_start)} to ${formatHour(settings.business_hours_end)} Central Time, 7 days a week.`
+  const number = forwardFor(settings, digit)
 
   if (!isBusinessHours(settings)) {
     return texml(`
@@ -54,7 +59,7 @@ async function dialExtension(connectingMessage: string, closedMessage: string) {
       ${connectingMessage} This call may be recorded for quality purposes.
     </Say>
     <Dial callerId="+14309990168" timeout="${settings.dial_timeout_seconds}">
-      <Number>${settings.forward_number}</Number>
+      <Number>${number}</Number>
     </Dial>
     <Say voice="Azure.en-US-JennyNeural" language="en-US">
       We're sorry, no one is available to take your call right now.
@@ -140,29 +145,29 @@ async function handleMenuSelection(digit: string) {
       `)
 
     case '2':
-      // Customer support → dial extension
       return dialExtension(
+        '2',
         'Connecting you to customer support, please hold.',
         'You\'ve reached customer support, but our office is currently closed.',
       )
 
     case '3':
-      // Driver support → dial extension
       return dialExtension(
+        '3',
         'Connecting you to driver support, please hold.',
         'You\'ve reached driver support, but our office is currently closed.',
       )
 
     case '4':
-      // Shop partnership → dial extension
       return dialExtension(
+        '4',
         'Connecting you to shop partnerships, please hold.',
         'You\'ve reached shop partnerships, but our office is currently closed.',
       )
 
     case '0':
-      // General representative → dial extension
       return dialExtension(
+        '0',
         'Please hold while we connect you to a representative.',
         'Our office is currently closed.',
       )

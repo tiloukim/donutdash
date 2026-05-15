@@ -4,11 +4,22 @@ import { useEffect, useState } from 'react'
 
 type Settings = {
   forward_number: string
+  forward_number_0: string | null
+  forward_number_2: string | null
+  forward_number_3: string | null
+  forward_number_4: string | null
   business_hours_start: number
   business_hours_end: number
   dial_timeout_seconds: number
   updated_at?: string
 }
+
+const EXTENSIONS: { digit: '0' | '2' | '3' | '4'; label: string; description: string }[] = [
+  { digit: '0', label: 'Press 0 — General Representative', description: 'Caller asks for any rep' },
+  { digit: '2', label: 'Press 2 — Customer Support', description: 'Order help, refunds, account issues' },
+  { digit: '3', label: 'Press 3 — Driver Support', description: 'Drivers needing help with deliveries' },
+  { digit: '4', label: 'Press 4 — Shop Partnership', description: 'Donut shops wanting to join DonutDash' },
+]
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i).map(h => ({
   value: h,
@@ -74,7 +85,7 @@ export default function AdminIVR() {
 
       <div style={{ background: '#fff', borderRadius: 12, padding: 24, border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div>
-          <label style={labelStyle}>Forward Number</label>
+          <label style={labelStyle}>Default Forward Number</label>
           <input
             style={inputStyle}
             value={settings.forward_number}
@@ -82,7 +93,30 @@ export default function AdminIVR() {
             placeholder="+19033455599"
           />
           <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
-            Where extensions 0/2/3/4 ring during business hours. Accepts 10-digit (9033455599) or E.164 (+19033455599).
+            Rings here if a specific menu option below is left blank. Accepts 10-digit (9033455599) or E.164 (+19033455599).
+          </div>
+        </div>
+
+        <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 14 }}>
+          <div style={{ ...labelStyle, marginBottom: 10 }}>Per-Option Extensions</div>
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 12 }}>
+            Leave blank to use the default forward number above. Press 1 stays as automated order status (self-service).
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {EXTENSIONS.map(ext => (
+              <div key={ext.digit} style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 12, alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>{ext.label}</div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF' }}>{ext.description}</div>
+                </div>
+                <input
+                  style={inputStyle}
+                  value={(settings[`forward_number_${ext.digit}` as keyof Settings] as string | null) || ''}
+                  onChange={e => setSettings({ ...settings, [`forward_number_${ext.digit}`]: e.target.value })}
+                  placeholder={`Use default (${settings.forward_number})`}
+                />
+              </div>
+            ))}
           </div>
         </div>
 

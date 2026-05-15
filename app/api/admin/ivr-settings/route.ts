@@ -40,6 +40,21 @@ export async function PUT(req: NextRequest) {
     if (!normalized) return NextResponse.json({ error: 'Invalid phone number — use 10-digit or E.164 format' }, { status: 400 })
     updates.forward_number = normalized
   }
+  // Per-option overrides — empty string clears the override; otherwise normalize.
+  for (const digit of ['0', '2', '3', '4'] as const) {
+    const key = `forward_number_${digit}`
+    const raw = (body as Record<string, unknown>)[key]
+    if (raw !== undefined) {
+      const s = String(raw).trim()
+      if (s === '') {
+        updates[key] = null
+      } else {
+        const normalized = normalizePhone(s)
+        if (!normalized) return NextResponse.json({ error: `Invalid number for option ${digit}` }, { status: 400 })
+        updates[key] = normalized
+      }
+    }
+  }
   if (body.business_hours_start !== undefined) {
     const n = parseInt(String(body.business_hours_start), 10)
     if (Number.isNaN(n) || n < 0 || n > 23) return NextResponse.json({ error: 'business_hours_start must be 0-23' }, { status: 400 })
