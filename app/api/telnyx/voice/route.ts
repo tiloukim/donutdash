@@ -39,7 +39,7 @@ function dialExtension(connectingMessage: string, closedMessage: string) {
     <Say voice="Azure.en-US-JennyNeural" language="en-US">
       ${connectingMessage} This call may be recorded for quality purposes.
     </Say>
-    <Dial callerId="+14309990168" timeout="15">
+    <Dial callerId="+14309990168" timeout="20">
       <Number>${FORWARD_NUMBER}</Number>
     </Dial>
     <Say voice="Azure.en-US-JennyNeural" language="en-US">
