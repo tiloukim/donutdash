@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { invalidateIvrCache } from '@/lib/ivr-settings'
+import { invalidateIvrCache, TTS_VOICE_OPTIONS } from '@/lib/ivr-settings'
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -69,6 +69,20 @@ export async function PUT(req: NextRequest) {
     const n = parseInt(String(body.dial_timeout_seconds), 10)
     if (Number.isNaN(n) || n < 5 || n > 60) return NextResponse.json({ error: 'dial_timeout_seconds must be 5-60' }, { status: 400 })
     updates.dial_timeout_seconds = n
+  }
+  if (body.tts_voice !== undefined) {
+    const v = String(body.tts_voice).trim()
+    const allowed = TTS_VOICE_OPTIONS.map(o => o.value as string)
+    if (!allowed.includes(v)) return NextResponse.json({ error: 'Unsupported voice' }, { status: 400 })
+    updates.tts_voice = v
+  }
+  for (const field of ['greeting', 'option_label_0', 'option_label_2', 'option_label_3', 'option_label_4', 'voicemail_prompt'] as const) {
+    const raw = (body as Record<string, unknown>)[field]
+    if (raw !== undefined) {
+      const s = String(raw).trim()
+      if (s.length > 500) return NextResponse.json({ error: `${field} must be 500 chars or fewer` }, { status: 400 })
+      updates[field] = s === '' ? null : s
+    }
   }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 })

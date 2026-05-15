@@ -11,8 +11,28 @@ type Settings = {
   business_hours_start: number
   business_hours_end: number
   dial_timeout_seconds: number
+  tts_voice: string
+  greeting: string
+  option_label_0: string
+  option_label_2: string
+  option_label_3: string
+  option_label_4: string
+  voicemail_prompt: string
   updated_at?: string
 }
+
+const VOICES = [
+  { value: 'Azure.en-US-JennyNeural', label: 'Jenny (Warm female, default)' },
+  { value: 'Azure.en-US-AriaNeural', label: 'Aria (Professional female)' },
+  { value: 'Azure.en-US-SaraNeural', label: 'Sara (Cheerful female)' },
+  { value: 'Azure.en-US-DavisNeural', label: 'Davis (Warm male)' },
+  { value: 'Azure.en-US-GuyNeural', label: 'Guy (Clear male)' },
+  { value: 'Azure.en-US-TonyNeural', label: 'Tony (Friendly male)' },
+  { value: 'Azure.en-US-ChristopherNeural', label: 'Christopher (Professional male)' },
+  { value: 'Polly.Joanna', label: 'Joanna (Polly, professional female)' },
+  { value: 'Polly.Matthew', label: 'Matthew (Polly, professional male)' },
+  { value: 'alice', label: 'Alice (Basic Telnyx default — robotic)' },
+]
 
 const EXTENSIONS: { digit: '0' | '2' | '3' | '4'; label: string; description: string }[] = [
   { digit: '0', label: 'Press 0 — General Representative', description: 'Caller asks for any rep' },
@@ -159,6 +179,68 @@ export default function AdminIVR() {
           <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
             How long the forward number rings before going to voicemail. 5-60 seconds. Keep under your carrier&apos;s voicemail trigger (usually ~22s) so DonutDash voicemail catches the call.
           </div>
+        </div>
+
+        <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 14 }}>
+          <div style={{ ...labelStyle, marginBottom: 10 }}>Voice & Words</div>
+
+          <label style={labelStyle}>Voice</label>
+          <select
+            style={inputStyle}
+            value={settings.tts_voice}
+            onChange={e => setSettings({ ...settings, tts_voice: e.target.value })}
+          >
+            {VOICES.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+          </select>
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, marginBottom: 14 }}>
+            Used for every spoken line in the IVR. Test by calling +1 430-999-0168.
+          </div>
+
+          <label style={labelStyle}>Greeting</label>
+          <textarea
+            style={{ ...inputStyle, minHeight: 60, fontFamily: 'inherit' }}
+            value={settings.greeting}
+            onChange={e => setSettings({ ...settings, greeting: e.target.value })}
+            placeholder="Thank you for calling DonutDash, delicious donuts delivered fast!"
+          />
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, marginBottom: 14 }}>
+            First line callers hear before the menu.
+          </div>
+
+          <label style={labelStyle}>Voicemail Prompt</label>
+          <textarea
+            style={{ ...inputStyle, minHeight: 60, fontFamily: 'inherit' }}
+            value={settings.voicemail_prompt}
+            onChange={e => setSettings({ ...settings, voicemail_prompt: e.target.value })}
+            placeholder="Please leave a message after the beep. When you're done, press the pound key to send."
+          />
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, marginBottom: 14 }}>
+            Spoken just before the recording starts (when no rep answers or office is closed).
+          </div>
+
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Menu Option Labels</div>
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 10 }}>
+            Each label fills into "For {'{label}'}, press N." Keep short.
+          </div>
+          {[
+            { digit: '0', desc: 'Spoken as "To speak with {label}, press 0."' },
+            { digit: '2', desc: 'Spoken as "For {label}, press 2."' },
+            { digit: '3', desc: 'Spoken as "For {label}, press 3."' },
+            { digit: '4', desc: 'Spoken as "To {label}, press 4."' },
+          ].map(o => {
+            const key = `option_label_${o.digit}` as keyof Settings
+            return (
+              <div key={o.digit} style={{ marginBottom: 10 }}>
+                <label style={{ ...labelStyle, marginBottom: 4 }}>Press {o.digit}</label>
+                <input
+                  style={inputStyle}
+                  value={(settings[key] as string) || ''}
+                  onChange={e => setSettings({ ...settings, [key]: e.target.value })}
+                />
+                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{o.desc}</div>
+              </div>
+            )
+          })}
         </div>
 
         {error && (
