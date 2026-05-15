@@ -19,6 +19,38 @@ function texml(content: string) {
   )
 }
 
+// Connect the caller to the live forward number. Plays a department-specific
+// greeting, dials FORWARD_NUMBER, and rolls into voicemail if no one answers
+// or the office is closed.
+function dialExtension(connectingMessage: string, closedMessage: string) {
+  if (!isBusinessHours()) {
+    return texml(`
+      <Say voice="Azure.en-US-JennyNeural" language="en-US">
+        ${closedMessage}
+        Our support hours are 7 AM to 9 PM Central Time, 7 days a week.
+        Please leave a message after the beep, or email us at support at donut dash dot app.
+      </Say>
+      <Record maxLength="120" action="https://donutdash.app/api/telnyx/voice/voicemail" method="POST"/>
+      <Hangup/>
+    `)
+  }
+
+  return texml(`
+    <Say voice="Azure.en-US-JennyNeural" language="en-US">
+      ${connectingMessage} This call may be recorded for quality purposes.
+    </Say>
+    <Dial callerId="+14309990168" timeout="30">
+      <Number>${FORWARD_NUMBER}</Number>
+    </Dial>
+    <Say voice="Azure.en-US-JennyNeural" language="en-US">
+      We're sorry, no one is available to take your call right now.
+      Please leave a message after the beep, or email us at support at donut dash dot app.
+    </Say>
+    <Record maxLength="120" action="https://donutdash.app/api/telnyx/voice/voicemail" method="POST"/>
+    <Hangup/>
+  `)
+}
+
 // Main IVR handler — Telnyx sends POST when a call comes in
 export async function POST(req: NextRequest) {
   const body = await req.formData().catch(() => null)
@@ -26,7 +58,6 @@ export async function POST(req: NextRequest) {
 
   // Check for digit press (DTMF)
   const digits = params.Digits || params.digits || ''
-  const callStatus = params.CallStatus || params.call_status || ''
 
   // If digits were pressed, handle menu selection
   if (digits) {
@@ -44,12 +75,12 @@ function mainMenu() {
     <Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="1" timeout="8">
       <Say voice="Azure.en-US-JennyNeural" language="en-US">
         Thank you for calling DonutDash, delicious donuts delivered fast!
-        ${!open ? 'Our office is currently closed, but you can still check your order status.' : ''}
+        ${!open ? 'Our office is currently closed, but you can still check your order status or leave a message.' : ''}
         Please listen to the following options.
         Press 1 to check your order status.
         Press 2 for customer support.
         Press 3 for driver support.
-        Press 4 to learn about partnering your donut shop with DonutDash.
+        Press 4 to partner your donut shop with DonutDash.
         Press 0 to speak with a representative.
         Or visit us online at donut dash dot app.
       </Say>
@@ -62,7 +93,7 @@ function mainMenu() {
 function handleMenuSelection(digit: string) {
   switch (digit) {
     case '1':
-      // Order status
+      // Order status — self-service lookup, no extension forwarding
       return texml(`
         <Gather action="https://donutdash.app/api/telnyx/voice/order-status" method="POST" numDigits="8" timeout="10">
           <Say voice="Azure.en-US-JennyNeural" language="en-US">
@@ -75,73 +106,32 @@ function handleMenuSelection(digit: string) {
       `)
 
     case '2':
-      // Customer support
-      return texml(`
-        <Say voice="Azure.en-US-JennyNeural" language="en-US">
-          For customer support, you can email us at support at donut dash dot app,
-          or visit donut dash dot app slash support.
-          To speak with a representative, press 0.
-          To return to the main menu, press 9.
-        </Say>
-        <Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="1" timeout="5"/>
-        <Redirect method="POST">https://donutdash.app/api/telnyx/voice</Redirect>
-      `)
+      // Customer support → dial extension
+      return dialExtension(
+        'Connecting you to customer support, please hold.',
+        'You\'ve reached customer support, but our office is currently closed.',
+      )
 
     case '3':
-      // Driver support
-      return texml(`
-        <Say voice="Azure.en-US-JennyNeural" language="en-US">
-          For driver support, please visit donut dash dot app slash support slash drivers,
-          or email driver support at donut dash dot app.
-          If you're interested in becoming a DonutDash driver, visit donut dash dot app slash driver to sign up.
-          To speak with a representative, press 0.
-          To return to the main menu, press 9.
-        </Say>
-        <Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="1" timeout="5"/>
-        <Redirect method="POST">https://donutdash.app/api/telnyx/voice</Redirect>
-      `)
+      // Driver support → dial extension
+      return dialExtension(
+        'Connecting you to driver support, please hold.',
+        'You\'ve reached driver support, but our office is currently closed.',
+      )
 
     case '4':
-      // Shop partnership
-      return texml(`
-        <Say voice="Azure.en-US-JennyNeural" language="en-US">
-          Thank you for your interest in partnering with DonutDash!
-          We help local donut shops reach more customers through online ordering and delivery.
-          To get started, visit donut dash dot app slash partner dash setup,
-          or email us at partners at donut dash dot app.
-          To speak with a representative, press 0.
-          To return to the main menu, press 9.
-        </Say>
-        <Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="1" timeout="5"/>
-        <Redirect method="POST">https://donutdash.app/api/telnyx/voice</Redirect>
-      `)
+      // Shop partnership → dial extension
+      return dialExtension(
+        'Connecting you to shop partnerships, please hold.',
+        'You\'ve reached shop partnerships, but our office is currently closed.',
+      )
 
     case '0':
-      // Forward to representative
-      if (!isBusinessHours()) {
-        return texml(`
-          <Say voice="Azure.en-US-JennyNeural" language="en-US">
-            Our office is currently closed. Our support hours are 7 AM to 9 PM Central Time, 7 days a week.
-            Please call back during business hours, or email us at support at donut dash dot app.
-            Thank you for calling DonutDash. Goodbye!
-          </Say>
-          <Hangup/>
-        `)
-      }
-      return texml(`
-        <Say voice="Azure.en-US-JennyNeural" language="en-US">
-          Please hold while we connect you to a representative. This call may be recorded for quality purposes.
-        </Say>
-        <Dial callerId="+14309990168" timeout="30">
-          <Number>${FORWARD_NUMBER}</Number>
-        </Dial>
-        <Say voice="Azure.en-US-JennyNeural" language="en-US">
-          We're sorry, no one is available to take your call right now.
-          Please leave a message after the beep, or email us at support at donut dash dot app.
-        </Say>
-        <Record maxLength="120" action="https://donutdash.app/api/telnyx/voice/voicemail" method="POST"/>
-        <Hangup/>
-      `)
+      // General representative → dial extension
+      return dialExtension(
+        'Please hold while we connect you to a representative.',
+        'Our office is currently closed.',
+      )
 
     case '9':
       // Return to main menu
