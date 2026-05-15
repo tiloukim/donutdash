@@ -28,9 +28,17 @@ function dialExtension(connectingMessage: string, closedMessage: string) {
       <Say voice="Azure.en-US-JennyNeural" language="en-US">
         ${closedMessage}
         Our support hours are 7 AM to 9 PM Central Time, 7 days a week.
-        Please leave a message after the beep, or email us at support at donut dash dot app.
+        Please leave a message after the beep. When you're done, press the pound key to send.
       </Say>
-      <Record maxLength="120" action="https://donutdash.app/api/telnyx/voice/voicemail" method="POST"/>
+      <Record
+        maxLength="120"
+        playBeep="true"
+        finishOnKey="#"
+        action="https://donutdash.app/api/telnyx/voice/voicemail"
+        method="POST"
+        recordingStatusCallback="https://donutdash.app/api/telnyx/voice/voicemail"
+        recordingStatusCallbackMethod="POST"
+      />
       <Hangup/>
     `)
   }
@@ -44,7 +52,7 @@ function dialExtension(connectingMessage: string, closedMessage: string) {
     </Dial>
     <Say voice="Azure.en-US-JennyNeural" language="en-US">
       We're sorry, no one is available to take your call right now.
-      Please leave a message after the beep, or email us at support at donut dash dot app.
+      Please leave a message after the beep. When you're done, press the pound key to send.
     </Say>
     <Record
       maxLength="120"
