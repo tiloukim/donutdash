@@ -30,18 +30,53 @@ export async function POST(req: NextRequest) {
   ).toString()
   const callerNumber = (params.From || params.from || params.Caller || params.caller || 'Unknown').toString()
   const duration = (params.RecordingDuration || params.recording_duration || '0').toString()
+  const callSid = (params.CallSid || params.call_sid || params.CallControlId || params.call_control_id || '').toString()
 
-  // Persist regardless — even a row with empty URL is useful evidence the
-  // webhook fired. /admin/voicemails will show "(recording pending)" for those.
+  // Telnyx fires BOTH `action` and `recordingStatusCallback` for the same
+  // recording — one as the next TeXML step, one as a status notification.
+  // Dedupe by call_sid (upsert): a later callback with the real URL/duration
+  // overwrites the earlier "pending" row.
   try {
     const svc = createServiceClient()
-    const { error } = await svc.from('dd_voicemails').insert({
-      caller_number: callerNumber,
-      recording_url: recordingUrl || 'pending',
-      duration_seconds: parseInt(duration, 10) || 0,
-    })
-    if (error) console.error('[voicemail webhook] insert error:', error.message)
-    else console.log('[voicemail webhook] persisted row for', callerNumber)
+
+    if (callSid) {
+      const { data: existing } = await svc
+        .from('dd_voicemails')
+        .select('id, recording_url, duration_seconds')
+        .eq('call_sid', callSid)
+        .maybeSingle()
+
+      if (existing) {
+        // Only update if this callback has better data (real URL or duration)
+        const updates: Record<string, unknown> = {}
+        if (recordingUrl && existing.recording_url !== recordingUrl) updates.recording_url = recordingUrl
+        const dur = parseInt(duration, 10) || 0
+        if (dur > (existing.duration_seconds || 0)) updates.duration_seconds = dur
+        if (Object.keys(updates).length > 0) {
+          await svc.from('dd_voicemails').update(updates).eq('id', existing.id)
+          console.log('[voicemail webhook] updated row', existing.id, 'with', Object.keys(updates))
+        } else {
+          console.log('[voicemail webhook] duplicate call_sid, no new data')
+        }
+      } else {
+        const { error } = await svc.from('dd_voicemails').insert({
+          call_sid: callSid,
+          caller_number: callerNumber,
+          recording_url: recordingUrl || 'pending',
+          duration_seconds: parseInt(duration, 10) || 0,
+        })
+        if (error) console.error('[voicemail webhook] insert error:', error.message)
+        else console.log('[voicemail webhook] persisted row for', callerNumber)
+      }
+    } else {
+      // No CallSid → can't dedupe, just insert.
+      const { error } = await svc.from('dd_voicemails').insert({
+        caller_number: callerNumber,
+        recording_url: recordingUrl || 'pending',
+        duration_seconds: parseInt(duration, 10) || 0,
+      })
+      if (error) console.error('[voicemail webhook] insert error:', error.message)
+    }
   } catch (e) {
     console.error('[voicemail webhook] persist threw:', e)
   }
