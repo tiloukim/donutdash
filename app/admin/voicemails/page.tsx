@@ -169,12 +169,18 @@ export default function AdminVoicemails() {
                   </div>
                 </div>
 
-                <audio
-                  controls
-                  src={vm.recording_url}
-                  style={{ width: '100%', height: 36 }}
-                  onPlay={() => { if (isUnread) toggleListened(vm) }}
-                />
+                {vm.recording_url && vm.recording_url !== 'pending' ? (
+                  <audio
+                    controls
+                    src={vm.recording_url}
+                    style={{ width: '100%', height: 36 }}
+                    onPlay={() => { if (isUnread) toggleListened(vm) }}
+                  />
+                ) : (
+                  <div style={{ padding: '10px 12px', background: '#FEF3C7', color: '#92400E', borderRadius: 6, fontSize: 12 }}>
+                    Recording pending — Telnyx posted the webhook but no audio URL yet. Check Telnyx call log.
+                  </div>
+                )}
 
                 {editingNotes === vm.id ? (
                   <div style={{ display: 'flex', gap: 6 }}>

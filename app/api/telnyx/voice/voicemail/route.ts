@@ -11,24 +11,39 @@ function texml(content: string) {
 
 export async function POST(req: NextRequest) {
   const body = await req.formData().catch(() => null)
-  const params = body ? Object.fromEntries(body.entries()) : await req.json().catch(() => ({}))
+  const params: Record<string, unknown> = body
+    ? Object.fromEntries(body.entries())
+    : await req.json().catch(() => ({}))
 
-  const recordingUrl = params.RecordingUrl || params.recording_url || ''
-  const callerNumber = params.From || params.from || 'Unknown'
-  const duration = params.RecordingDuration || params.recording_duration || '0'
+  // Log everything so we can see exactly what Telnyx sends. Check Vercel logs
+  // under /api/telnyx/voice/voicemail right after a test voicemail.
+  console.log('[voicemail webhook] received params:', JSON.stringify(params))
 
-  // Persist to /admin/voicemails archive (best-effort)
+  // Telnyx TeXML uses CamelCase (Twilio-compat). Call Control format uses
+  // snake_case. Some carriers also send PublicRecordingUrl. Cover all.
+  const recordingUrl = (
+    params.RecordingUrl ||
+    params.recording_url ||
+    params.PublicRecordingUrl ||
+    params.public_recording_url ||
+    ''
+  ).toString()
+  const callerNumber = (params.From || params.from || params.Caller || params.caller || 'Unknown').toString()
+  const duration = (params.RecordingDuration || params.recording_duration || '0').toString()
+
+  // Persist regardless — even a row with empty URL is useful evidence the
+  // webhook fired. /admin/voicemails will show "(recording pending)" for those.
   try {
-    if (recordingUrl) {
-      const svc = createServiceClient()
-      await svc.from('dd_voicemails').insert({
-        caller_number: callerNumber.toString(),
-        recording_url: recordingUrl.toString(),
-        duration_seconds: parseInt(duration.toString(), 10) || 0,
-      })
-    }
+    const svc = createServiceClient()
+    const { error } = await svc.from('dd_voicemails').insert({
+      caller_number: callerNumber,
+      recording_url: recordingUrl || 'pending',
+      duration_seconds: parseInt(duration, 10) || 0,
+    })
+    if (error) console.error('[voicemail webhook] insert error:', error.message)
+    else console.log('[voicemail webhook] persisted row for', callerNumber)
   } catch (e) {
-    console.error('Failed to persist voicemail:', e)
+    console.error('[voicemail webhook] persist threw:', e)
   }
 
   // Notify admin about voicemail
