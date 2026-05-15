@@ -18,6 +18,7 @@ const ALL_NAV_ITEMS = [
   { href: '/admin/payouts', label: 'Payouts', icon: '💰', roles: ['admin', 'manager'] },
   { href: '/admin/catering', label: 'Catering', icon: '🎂', roles: ['admin', 'manager'] },
   { href: '/admin/support', label: 'Support Chat', icon: '💬', roles: ['admin', 'manager'] },
+  { href: '/admin/voicemails', label: 'Voicemails', icon: '📞', roles: ['admin', 'manager'] },
   { href: '/admin/disputes', label: 'Disputes', icon: '⚠️', roles: ['admin', 'manager'] },
   { href: '/admin/flyers', label: 'Shop Flyers', icon: '📄', roles: ['admin', 'manager'] },
   { href: '/admin/menu-templates', label: 'Menu Templates', icon: '🍩', roles: ['admin', 'manager'] },

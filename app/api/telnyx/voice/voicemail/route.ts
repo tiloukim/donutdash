@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendSMS, sendEmail } from '@/lib/sms'
+import { createServiceClient } from '@/lib/supabase/server'
 
 function texml(content: string) {
   return new NextResponse(
@@ -15,6 +16,20 @@ export async function POST(req: NextRequest) {
   const recordingUrl = params.RecordingUrl || params.recording_url || ''
   const callerNumber = params.From || params.from || 'Unknown'
   const duration = params.RecordingDuration || params.recording_duration || '0'
+
+  // Persist to /admin/voicemails archive (best-effort)
+  try {
+    if (recordingUrl) {
+      const svc = createServiceClient()
+      await svc.from('dd_voicemails').insert({
+        caller_number: callerNumber.toString(),
+        recording_url: recordingUrl.toString(),
+        duration_seconds: parseInt(duration.toString(), 10) || 0,
+      })
+    }
+  } catch (e) {
+    console.error('Failed to persist voicemail:', e)
+  }
 
   // Notify admin about voicemail
   const message = `New DonutDash voicemail from ${callerNumber} (${duration}s). Recording: ${recordingUrl}`
@@ -32,6 +47,7 @@ export async function POST(req: NextRequest) {
         <p><strong>From:</strong> ${callerNumber}</p>
         <p><strong>Duration:</strong> ${duration} seconds</p>
         ${recordingUrl ? `<p><strong>Recording:</strong> <a href="${recordingUrl}">Listen</a></p>` : ''}
+        <p style="margin-top:16px;"><a href="https://donutdash.app/admin/voicemails" style="background:#6366F1;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:600;">Open Voicemails Admin</a></p>
       </div>`
     )
   }
