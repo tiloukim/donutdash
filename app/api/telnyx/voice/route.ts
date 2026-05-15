@@ -86,24 +86,35 @@ export async function POST(req: NextRequest) {
 
 function mainMenu() {
   const open = isBusinessHours()
+  const V = 'Azure.en-US-JennyNeural'
 
-  return texml(`
-    <Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="1" timeout="8">
-      <Say voice="Azure.en-US-JennyNeural" language="en-US">
-        Thank you for calling DonutDash, delicious donuts delivered fast!
-        ${!open ? 'Our office is currently closed, but you can still check your order status or leave a message.' : ''}
-        Please listen to the following options.
-        Press 1 to check your order status.
-        Press 2 for customer support.
-        Press 3 for driver support.
-        Press 4 to partner your donut shop with DonutDash.
-        Press 0 to speak with a representative.
-        Or visit us online at donut dash dot app.
-      </Say>
-    </Gather>
-    <Say voice="Azure.en-US-JennyNeural" language="en-US">We didn't receive your selection. Goodbye!</Say>
-    <Hangup/>
-  `)
+  // Split into multiple short <Say> blocks. Single very-long Say payloads
+  // were causing Azure TTS to glitch mid-prompt; one sentence per Say with
+  // brief pauses keeps the synthesizer happy.
+  const closedLine = !open
+    ? `<Say voice="${V}" language="en-US">Our office is currently closed, but you can still check your order status or leave a message.</Say><Pause length="1"/>`
+    : ''
+
+  return texml(
+    [
+      `<Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="1" timeout="6">`,
+      `<Say voice="${V}" language="en-US">Thank you for calling DonutDash, delicious donuts delivered fast!</Say>`,
+      `<Pause length="1"/>`,
+      closedLine,
+      `<Say voice="${V}" language="en-US">Please listen to the following options.</Say>`,
+      `<Pause length="1"/>`,
+      `<Say voice="${V}" language="en-US">For order status, press 1.</Say>`,
+      `<Say voice="${V}" language="en-US">For customer support, press 2.</Say>`,
+      `<Say voice="${V}" language="en-US">For driver support, press 3.</Say>`,
+      `<Say voice="${V}" language="en-US">To partner your donut shop with DonutDash, press 4.</Say>`,
+      `<Say voice="${V}" language="en-US">To speak with a representative, press 0.</Say>`,
+      `<Pause length="1"/>`,
+      `<Say voice="${V}" language="en-US">Or visit us online at donut dash dot app.</Say>`,
+      `</Gather>`,
+      `<Say voice="${V}" language="en-US">We didn't receive your selection. Goodbye!</Say>`,
+      `<Hangup/>`,
+    ].join('')
+  )
 }
 
 function handleMenuSelection(digit: string) {
