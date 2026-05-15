@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getIvrSettings, IvrSettings, forwardFor } from '@/lib/ivr-settings'
+import { getIvrSettings, IvrSettings, forwardFor, lookupExtension } from '@/lib/ivr-settings'
 
 function isBusinessHours(settings: IvrSettings): boolean {
   const now = new Date()
@@ -120,9 +120,13 @@ async function mainMenu() {
     ? `<Say voice="${V}" language="en-US">Our office is currently closed, but you can still check your order status or leave a message.</Say><Pause length="1"/>`
     : ''
 
+  // numDigits="4" + timeout="3" + finishOnKey="#": single-digit press is
+  // submitted after ~3s of silence (or # to send immediately); 2-4 digit
+  // extension dialed in quick succession submits as soon as the 4th digit
+  // is entered or # is pressed.
   return texml(
     [
-      `<Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="1" timeout="6">`,
+      `<Gather action="https://donutdash.app/api/telnyx/voice" method="POST" numDigits="4" timeout="3" finishOnKey="#">`,
       `<Say voice="${V}" language="en-US">${greeting}</Say>`,
       `<Pause length="1"/>`,
       closedLine,
@@ -134,6 +138,7 @@ async function mainMenu() {
       `<Say voice="${V}" language="en-US">To ${l4}, press 4.</Say>`,
       `<Say voice="${V}" language="en-US">To speak with ${l0}, press 0.</Say>`,
       `<Pause length="1"/>`,
+      `<Say voice="${V}" language="en-US">If you know your party's extension, you may dial it at any time.</Say>`,
       `<Say voice="${V}" language="en-US">Or visit us online at donut dash dot app.</Say>`,
       `</Gather>`,
       `<Say voice="${V}" language="en-US">We didn't receive your selection. Goodbye!</Say>`,
@@ -142,9 +147,70 @@ async function mainMenu() {
   )
 }
 
+async function dialExtensionDirect(ext: { name: string; phone_number: string; voicemail_only: boolean }) {
+  const settings = await getIvrSettings()
+  const V = settings.tts_voice
+  const name = xmlEscape(ext.name)
+  const vm = xmlEscape(settings.voicemail_prompt)
+
+  if (ext.voicemail_only || !isBusinessHours(settings)) {
+    return texml(`
+      <Say voice="${V}" language="en-US">
+        ${ext.voicemail_only
+          ? `Connecting you to ${name}'s voicemail.`
+          : `${name} is unavailable right now — our office is closed.`}
+        ${vm}
+      </Say>
+      <Record
+        maxLength="120"
+        playBeep="true"
+        finishOnKey="#"
+        action="https://donutdash.app/api/telnyx/voice/voicemail"
+        method="POST"
+        recordingStatusCallback="https://donutdash.app/api/telnyx/voice/voicemail"
+        recordingStatusCallbackMethod="POST"
+      />
+      <Hangup/>
+    `)
+  }
+
+  return texml(`
+    <Say voice="${V}" language="en-US">
+      Connecting you to ${name}, please hold. This call may be recorded for quality purposes.
+    </Say>
+    <Dial callerId="+14309990168" timeout="${settings.dial_timeout_seconds}">
+      <Number>${ext.phone_number}</Number>
+    </Dial>
+    <Say voice="${V}" language="en-US">
+      We're sorry, ${name} is not available right now.
+      ${vm}
+    </Say>
+    <Record
+      maxLength="120"
+      playBeep="true"
+      finishOnKey="#"
+      action="https://donutdash.app/api/telnyx/voice/voicemail"
+      method="POST"
+      recordingStatusCallback="https://donutdash.app/api/telnyx/voice/voicemail"
+      recordingStatusCallbackMethod="POST"
+    />
+    <Hangup/>
+  `)
+}
+
 async function handleMenuSelection(digit: string) {
   const settings = await getIvrSettings()
   const V = settings.tts_voice
+
+  // Multi-digit input → direct-dial extension lookup.
+  if (digit.length >= 2) {
+    const ext = await lookupExtension(digit)
+    if (ext) return dialExtensionDirect(ext)
+    return texml(`
+      <Say voice="${V}" language="en-US">Sorry, extension ${digit.split('').join(' ')} was not found. Returning to the main menu.</Say>
+      <Redirect method="POST">https://donutdash.app/api/telnyx/voice</Redirect>
+    `)
+  }
 
   switch (digit) {
     case '1':

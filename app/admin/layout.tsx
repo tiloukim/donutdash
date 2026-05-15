@@ -20,6 +20,7 @@ const ALL_NAV_ITEMS = [
   { href: '/admin/support', label: 'Support Chat', icon: '💬', roles: ['admin', 'manager'] },
   { href: '/admin/voicemails', label: 'Voicemails', icon: '📞', roles: ['admin', 'manager'] },
   { href: '/admin/ivr', label: 'IVR Settings', icon: '☎️', roles: ['admin', 'manager'] },
+  { href: '/admin/ivr-extensions', label: 'IVR Extensions', icon: '🔢', roles: ['admin', 'manager'] },
   { href: '/admin/disputes', label: 'Disputes', icon: '⚠️', roles: ['admin', 'manager'] },
   { href: '/admin/flyers', label: 'Shop Flyers', icon: '📄', roles: ['admin', 'manager'] },
   { href: '/admin/menu-templates', label: 'Menu Templates', icon: '🍩', roles: ['admin', 'manager'] },

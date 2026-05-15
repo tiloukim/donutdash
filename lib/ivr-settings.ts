@@ -101,3 +101,26 @@ export async function getIvrSettings(): Promise<IvrSettings> {
 export function invalidateIvrCache() {
   cached = null
 }
+
+export interface IvrExtension {
+  extension: string
+  name: string
+  phone_number: string
+  voicemail_only: boolean
+}
+
+export async function lookupExtension(extension: string): Promise<IvrExtension | null> {
+  if (!extension || extension.length < 2 || extension.length > 4) return null
+  try {
+    const svc = createServiceClient()
+    const { data } = await svc
+      .from('dd_ivr_extensions')
+      .select('extension, name, phone_number, voicemail_only')
+      .eq('extension', extension)
+      .eq('active', true)
+      .maybeSingle()
+    return (data as IvrExtension) || null
+  } catch {
+    return null
+  }
+}
