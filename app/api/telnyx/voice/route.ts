@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const FORWARD_NUMBER = process.env.IVR_FORWARD_NUMBER || '+19033455599'
 const BUSINESS_HOURS_START = 7   // 7 AM CT
-const BUSINESS_HOURS_END = 21   // 9 PM CT
+const BUSINESS_HOURS_END = 17   // 5 PM CT
 
 function isBusinessHours(): boolean {
   const now = new Date()
@@ -27,7 +27,7 @@ function dialExtension(connectingMessage: string, closedMessage: string) {
     return texml(`
       <Say voice="Azure.en-US-JennyNeural" language="en-US">
         ${closedMessage}
-        Our support hours are 7 AM to 9 PM Central Time, 7 days a week.
+        Our support hours are 7 AM to 5 PM Central Time, 7 days a week.
         Please leave a message after the beep. When you're done, press the pound key to send.
       </Say>
       <Record
