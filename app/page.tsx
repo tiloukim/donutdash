@@ -346,7 +346,7 @@ export default function HomePage() {
           'Donut delivery platform in Tyler, Texas. Order fresh donuts from local shops delivered to your door.',
         url: 'https://donutdash.app',
         image: 'https://donutdash.app/logo.png',
-        telephone: '',
+        telephone: '+1-430-999-0168',
         address: {
           '@type': 'PostalAddress',
           addressLocality: 'Tyler',

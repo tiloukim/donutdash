@@ -117,6 +117,41 @@ export default function Footer() {
           )}
         </div>
 
+        {/* Call us — visible on every page */}
+        <div style={{
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 12,
+          padding: '14px 16px',
+          marginBottom: '1.25rem',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          textAlign: 'center',
+        }}>
+          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem' }}>
+            Need help? Call us:
+          </div>
+          <a
+            href="tel:+14309990168"
+            style={{
+              color: '#fff', fontSize: '1.05rem', fontWeight: 800, letterSpacing: 0.4,
+              textDecoration: 'none', background: '#FF1493',
+              padding: '8px 16px', borderRadius: 8, display: 'inline-block',
+            }}
+          >
+            📞 (430) 999-0168
+          </a>
+          <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', flexBasis: '100%' }}>
+            Press <strong style={{ color: 'rgba(255,255,255,0.85)' }}>1</strong> for order status &nbsp;·&nbsp;
+            <strong style={{ color: 'rgba(255,255,255,0.85)' }}>2</strong> customer support &nbsp;·&nbsp;
+            <strong style={{ color: 'rgba(255,255,255,0.85)' }}>3</strong> driver support &nbsp;·&nbsp;
+            <strong style={{ color: 'rgba(255,255,255,0.85)' }}>4</strong> shop partnership
+          </div>
+        </div>
+
         {/* Links grid — 3 columns */}
         <div className="dd-footer-grid">
           <div>
@@ -126,12 +161,8 @@ export default function Footer() {
               <Link href="/orders" className="dd-footer-link">My Orders</Link>
               <Link href="/cart" className="dd-footer-link">Cart</Link>
               <Link href="/support" className="dd-footer-link">Customer Help</Link>
-              {!isCustomer && (
-                <>
-                  <Link href="/support/shops" className="dd-footer-link">Shop Support</Link>
-                  <Link href="/support/drivers" className="dd-footer-link">Driver Support</Link>
-                </>
-              )}
+              <Link href="/support/shops" className="dd-footer-link">Shop Support</Link>
+              <Link href="/support/drivers" className="dd-footer-link">Driver Support</Link>
             </div>
           </div>
 
