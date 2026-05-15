@@ -46,7 +46,15 @@ function dialExtension(connectingMessage: string, closedMessage: string) {
       We're sorry, no one is available to take your call right now.
       Please leave a message after the beep, or email us at support at donut dash dot app.
     </Say>
-    <Record maxLength="120" action="https://donutdash.app/api/telnyx/voice/voicemail" method="POST"/>
+    <Record
+      maxLength="120"
+      playBeep="true"
+      finishOnKey="#"
+      action="https://donutdash.app/api/telnyx/voice/voicemail"
+      method="POST"
+      recordingStatusCallback="https://donutdash.app/api/telnyx/voice/voicemail"
+      recordingStatusCallbackMethod="POST"
+    />
     <Hangup/>
   `)
 }
