@@ -104,24 +104,29 @@ export async function POST(req: NextRequest) {
   const adminPhone = process.env.IVR_FORWARD_NUMBER || process.env.ADMIN_PHONE_NUMBERS?.split(',')[0]
   const adminEmail = process.env.ADMIN_EMAILS?.split(',')[0]
 
-  const forLine = forExtension
-    ? `For: ext ${forExtension}${extOwnerName ? ` (${extOwnerName})` : ''}\n`
-    : ''
-  const smsMessage = `New DonutDash voicemail\n${forLine}From: ${callerNumber} (${duration}s)\n${recordingUrl ? `Listen: ${recordingUrl}` : 'Recording processing…'}`
+  // Extension owners get a terse, link-first SMS — they just want to tap and listen.
+  // Admin fallback / non-extension calls get a slightly more verbose version.
+  const extSms = recordingUrl
+    ? `DonutDash voicemail from ${callerNumber}: ${recordingUrl}`
+    : `DonutDash voicemail from ${callerNumber} — recording still processing, check /admin/voicemails`
+  const adminSms = (() => {
+    const forLine = forExtension ? `For: ext ${forExtension}${extOwnerName ? ` (${extOwnerName})` : ''}\n` : ''
+    return `New DonutDash voicemail\n${forLine}From: ${callerNumber} (${duration}s)\n${recordingUrl ? `Listen: ${recordingUrl}` : 'Recording processing…'}`
+  })()
 
-  // Try the extension owner first; if that fails (number can't receive SMS,
-  // Telnyx error, etc.), fall back to admin so we don't lose the notification.
+  // Extension owner gets the terse, link-first SMS; if that fails, the
+  // admin gets the verbose version as a fallback.
   let smsDelivered = false
   if (extOwnerPhone) {
     try {
-      smsDelivered = await sendSMS(extOwnerPhone, smsMessage)
+      smsDelivered = await sendSMS(extOwnerPhone, extSms)
       console.log(`[voicemail webhook] ext SMS to ${extOwnerPhone}:`, smsDelivered ? 'ok' : 'FAILED')
     } catch (e) { console.error('[voicemail webhook] ext SMS threw:', e) }
   }
   if (!smsDelivered && adminPhone) {
     const adminMsg = extOwnerPhone
-      ? `[ext SMS to ${extOwnerPhone} failed — fallback]\n${smsMessage}`
-      : smsMessage
+      ? `[ext SMS to ${extOwnerPhone} failed — fallback]\n${adminSms}`
+      : adminSms
     try {
       const ok = await sendSMS(adminPhone, adminMsg)
       console.log(`[voicemail webhook] admin SMS to ${adminPhone}:`, ok ? 'ok' : 'FAILED')
