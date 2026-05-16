@@ -103,16 +103,29 @@ export async function POST(req: NextRequest) {
   // was for an extension; admin is always copied via email as backup.
   const adminPhone = process.env.IVR_FORWARD_NUMBER || process.env.ADMIN_PHONE_NUMBERS?.split(',')[0]
   const adminEmail = process.env.ADMIN_EMAILS?.split(',')[0]
-  const targetPhone = extOwnerPhone || adminPhone
 
   const forLine = forExtension
     ? `For: ext ${forExtension}${extOwnerName ? ` (${extOwnerName})` : ''}\n`
     : ''
   const smsMessage = `New DonutDash voicemail\n${forLine}From: ${callerNumber} (${duration}s)\n${recordingUrl ? `Listen: ${recordingUrl}` : 'Recording processing…'}`
 
-  if (targetPhone) {
-    try { await sendSMS(targetPhone, smsMessage) }
-    catch (e) { console.error('[voicemail webhook] sms failed:', e) }
+  // Try the extension owner first; if that fails (number can't receive SMS,
+  // Telnyx error, etc.), fall back to admin so we don't lose the notification.
+  let smsDelivered = false
+  if (extOwnerPhone) {
+    try {
+      smsDelivered = await sendSMS(extOwnerPhone, smsMessage)
+      console.log(`[voicemail webhook] ext SMS to ${extOwnerPhone}:`, smsDelivered ? 'ok' : 'FAILED')
+    } catch (e) { console.error('[voicemail webhook] ext SMS threw:', e) }
+  }
+  if (!smsDelivered && adminPhone) {
+    const adminMsg = extOwnerPhone
+      ? `[ext SMS to ${extOwnerPhone} failed — fallback]\n${smsMessage}`
+      : smsMessage
+    try {
+      const ok = await sendSMS(adminPhone, adminMsg)
+      console.log(`[voicemail webhook] admin SMS to ${adminPhone}:`, ok ? 'ok' : 'FAILED')
+    } catch (e) { console.error('[voicemail webhook] admin SMS threw:', e) }
   }
 
   if (adminEmail) {
