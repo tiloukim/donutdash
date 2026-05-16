@@ -15,12 +15,13 @@ export async function POST(req: NextRequest) {
     ? Object.fromEntries(body.entries())
     : await req.json().catch(() => ({}))
 
-  // Log everything so we can see exactly what Telnyx sends. Check Vercel logs
-  // under /api/telnyx/voice/voicemail right after a test voicemail.
   console.log('[voicemail webhook] received params:', JSON.stringify(params))
 
-  // Telnyx TeXML uses CamelCase (Twilio-compat). Call Control format uses
-  // snake_case. Some carriers also send PublicRecordingUrl. Cover all.
+  // Extension dialed (if any) is in the URL query string — appended in
+  // dialExtensionDirect() so we can route the SMS notification.
+  const url = new URL(req.url)
+  const forExtension = (url.searchParams.get('ext') || '').trim() || null
+
   const recordingUrl = (
     params.RecordingUrl ||
     params.recording_url ||
@@ -32,74 +33,104 @@ export async function POST(req: NextRequest) {
   const duration = (params.RecordingDuration || params.recording_duration || '0').toString()
   const callSid = (params.CallSid || params.call_sid || params.CallControlId || params.call_control_id || '').toString()
 
-  // Telnyx fires BOTH `action` and `recordingStatusCallback` for the same
-  // recording — one as the next TeXML step, one as a status notification.
-  // Dedupe by call_sid (upsert): a later callback with the real URL/duration
-  // overwrites the earlier "pending" row.
+  // Look up extension owner so we can SMS the right person + label the row.
+  let extOwnerPhone: string | null = null
+  let extOwnerName: string | null = null
+  if (forExtension) {
+    try {
+      const svc = createServiceClient()
+      const { data: ext } = await svc
+        .from('dd_ivr_extensions')
+        .select('name, phone_number')
+        .eq('extension', forExtension)
+        .maybeSingle()
+      if (ext) {
+        extOwnerPhone = ext.phone_number
+        extOwnerName = ext.name
+      }
+    } catch (e) {
+      console.error('[voicemail webhook] extension lookup failed:', e)
+    }
+  }
+
+  // Dedupe by call_sid (Telnyx fires action + recordingStatusCallback).
   try {
     const svc = createServiceClient()
 
     if (callSid) {
       const { data: existing } = await svc
         .from('dd_voicemails')
-        .select('id, recording_url, duration_seconds')
+        .select('id, recording_url, duration_seconds, for_extension')
         .eq('call_sid', callSid)
         .maybeSingle()
 
       if (existing) {
-        // Only update if this callback has better data (real URL or duration)
         const updates: Record<string, unknown> = {}
         if (recordingUrl && existing.recording_url !== recordingUrl) updates.recording_url = recordingUrl
         const dur = parseInt(duration, 10) || 0
         if (dur > (existing.duration_seconds || 0)) updates.duration_seconds = dur
+        if (forExtension && !existing.for_extension) {
+          updates.for_extension = forExtension
+          if (extOwnerName) updates.for_extension_name = extOwnerName
+        }
         if (Object.keys(updates).length > 0) {
           await svc.from('dd_voicemails').update(updates).eq('id', existing.id)
-          console.log('[voicemail webhook] updated row', existing.id, 'with', Object.keys(updates))
-        } else {
-          console.log('[voicemail webhook] duplicate call_sid, no new data')
         }
       } else {
-        const { error } = await svc.from('dd_voicemails').insert({
+        await svc.from('dd_voicemails').insert({
           call_sid: callSid,
           caller_number: callerNumber,
           recording_url: recordingUrl || 'pending',
           duration_seconds: parseInt(duration, 10) || 0,
+          for_extension: forExtension,
+          for_extension_name: extOwnerName,
         })
-        if (error) console.error('[voicemail webhook] insert error:', error.message)
-        else console.log('[voicemail webhook] persisted row for', callerNumber)
       }
     } else {
-      // No CallSid → can't dedupe, just insert.
-      const { error } = await svc.from('dd_voicemails').insert({
+      await svc.from('dd_voicemails').insert({
         caller_number: callerNumber,
         recording_url: recordingUrl || 'pending',
         duration_seconds: parseInt(duration, 10) || 0,
+        for_extension: forExtension,
+        for_extension_name: extOwnerName,
       })
-      if (error) console.error('[voicemail webhook] insert error:', error.message)
     }
   } catch (e) {
     console.error('[voicemail webhook] persist threw:', e)
   }
 
-  // Notify admin about voicemail
-  const message = `New DonutDash voicemail from ${callerNumber} (${duration}s). Recording: ${recordingUrl}`
-
+  // Build SMS + email recipients. Extension owner gets the SMS if the call
+  // was for an extension; admin is always copied via email as backup.
   const adminPhone = process.env.IVR_FORWARD_NUMBER || process.env.ADMIN_PHONE_NUMBERS?.split(',')[0]
   const adminEmail = process.env.ADMIN_EMAILS?.split(',')[0]
+  const targetPhone = extOwnerPhone || adminPhone
 
-  if (adminPhone) await sendSMS(adminPhone, message)
+  const forLine = forExtension
+    ? `For: ext ${forExtension}${extOwnerName ? ` (${extOwnerName})` : ''}\n`
+    : ''
+  const smsMessage = `New DonutDash voicemail\n${forLine}From: ${callerNumber} (${duration}s)\n${recordingUrl ? `Listen: ${recordingUrl}` : 'Recording processing…'}`
+
+  if (targetPhone) {
+    try { await sendSMS(targetPhone, smsMessage) }
+    catch (e) { console.error('[voicemail webhook] sms failed:', e) }
+  }
+
   if (adminEmail) {
+    const subject = forExtension
+      ? `New Voicemail for ext ${forExtension}${extOwnerName ? ` (${extOwnerName})` : ''} from ${callerNumber}`
+      : `New Voicemail from ${callerNumber}`
     await sendEmail(
       adminEmail,
-      `New Voicemail from ${callerNumber}`,
+      subject,
       `<div style="font-family:sans-serif;padding:20px;">
         <h2 style="color:#FF8C00;">DonutDash Voicemail</h2>
+        ${forExtension ? `<p><strong>For:</strong> Extension ${forExtension}${extOwnerName ? ` (${extOwnerName})` : ''}</p>` : ''}
         <p><strong>From:</strong> ${callerNumber}</p>
         <p><strong>Duration:</strong> ${duration} seconds</p>
         ${recordingUrl ? `<p><strong>Recording:</strong> <a href="${recordingUrl}">Listen</a></p>` : ''}
         <p style="margin-top:16px;"><a href="https://donutdash.app/admin/voicemails" style="background:#6366F1;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:600;">Open Voicemails Admin</a></p>
       </div>`
-    )
+    ).catch((e: unknown) => console.error('[voicemail webhook] email failed:', e))
   }
 
   return texml(`

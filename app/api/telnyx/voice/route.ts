@@ -147,11 +147,16 @@ async function mainMenu() {
   )
 }
 
-async function dialExtensionDirect(ext: { name: string; phone_number: string; voicemail_only: boolean }) {
+async function dialExtensionDirect(ext: { extension?: string; name: string; phone_number: string; voicemail_only: boolean }) {
   const settings = await getIvrSettings()
   const V = settings.tts_voice
   const name = xmlEscape(ext.name)
   const vm = xmlEscape(settings.voicemail_prompt)
+  // Append ?ext=N so the voicemail webhook can route the SMS notification
+  // to the extension's owner instead of the global admin.
+  const vmUrl = ext.extension
+    ? `https://donutdash.app/api/telnyx/voice/voicemail?ext=${encodeURIComponent(ext.extension)}`
+    : 'https://donutdash.app/api/telnyx/voice/voicemail'
 
   if (ext.voicemail_only || !isBusinessHours(settings)) {
     return texml(`
@@ -165,9 +170,9 @@ async function dialExtensionDirect(ext: { name: string; phone_number: string; vo
         maxLength="120"
         playBeep="true"
         finishOnKey="#"
-        action="https://donutdash.app/api/telnyx/voice/voicemail"
+        action="${vmUrl}"
         method="POST"
-        recordingStatusCallback="https://donutdash.app/api/telnyx/voice/voicemail"
+        recordingStatusCallback="${vmUrl}"
         recordingStatusCallbackMethod="POST"
       />
       <Hangup/>
@@ -189,9 +194,9 @@ async function dialExtensionDirect(ext: { name: string; phone_number: string; vo
       maxLength="120"
       playBeep="true"
       finishOnKey="#"
-      action="https://donutdash.app/api/telnyx/voice/voicemail"
+      action="${vmUrl}"
       method="POST"
-      recordingStatusCallback="https://donutdash.app/api/telnyx/voice/voicemail"
+      recordingStatusCallback="${vmUrl}"
       recordingStatusCallbackMethod="POST"
     />
     <Hangup/>
@@ -205,7 +210,7 @@ async function handleMenuSelection(digit: string) {
   // Multi-digit input → direct-dial extension lookup.
   if (digit.length >= 2) {
     const ext = await lookupExtension(digit)
-    if (ext) return dialExtensionDirect(ext)
+    if (ext) return dialExtensionDirect({ ...ext, extension: digit })
     return texml(`
       <Say voice="${V}" language="en-US">Sorry, extension ${digit.split('').join(' ')} was not found. Returning to the main menu.</Say>
       <Redirect method="POST">https://donutdash.app/api/telnyx/voice</Redirect>

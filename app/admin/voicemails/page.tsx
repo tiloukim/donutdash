@@ -10,6 +10,8 @@ type Voicemail = {
   received_at: string
   listened_at: string | null
   notes: string | null
+  for_extension: string | null
+  for_extension_name: string | null
 }
 
 function formatDuration(seconds: number) {
@@ -151,6 +153,11 @@ export default function AdminVoicemails() {
                     </div>
                     <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
                       {formatDate(vm.received_at)} · {formatDuration(vm.duration_seconds)}
+                      {vm.for_extension && (
+                        <> · <span style={{ background: '#EEF2FF', color: '#3730A3', padding: '2px 8px', borderRadius: 10, fontWeight: 700, fontSize: 11 }}>
+                          For ext {vm.for_extension}{vm.for_extension_name ? ` — ${vm.for_extension_name}` : ''}
+                        </span></>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
