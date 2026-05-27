@@ -76,7 +76,11 @@ export async function POST(req: NextRequest) {
       staff_id: profile.id,
       order_type: 'pos_walkin',
       source: 'pos',
-      status: 'confirmed',
+      // Walk-in sales are terminal the moment the customer pays — they're
+      // already holding their food. 'delivered' is the existing terminal
+      // status and keeps walk-ins out of the active-order workflow that
+      // delivery/pickup orders move through.
+      status: 'delivered',
       subtotal: body.subtotal,
       tax: body.tax,
       total: body.total,

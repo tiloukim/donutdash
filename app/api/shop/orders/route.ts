@@ -31,7 +31,17 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
 
-  let query = svc.from('dd_orders').select('*, dd_order_items(*), customer:dd_users!customer_id(name, email, phone), delivery:dd_deliveries(delivery_photo_url)').eq('shop_id', shop.id).order('created_at', { ascending: false })
+  // The shop "Orders" dashboard is for online order workflow (delivery + pickup
+  // that need accept/prep/ready steps). POS walk-in sales are terminal at the
+  // register and belong on the POS device's "Today's Sales" view, not here.
+  // Bookkeeping/earnings/stats endpoints intentionally do NOT filter and still
+  // include walk-ins in their totals.
+  let query = svc
+    .from('dd_orders')
+    .select('*, dd_order_items(*), customer:dd_users!customer_id(name, email, phone), delivery:dd_deliveries(delivery_photo_url)')
+    .eq('shop_id', shop.id)
+    .in('order_type', ['delivery', 'pickup'])
+    .order('created_at', { ascending: false })
 
   if (status) query = query.eq('status', status)
 
