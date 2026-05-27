@@ -215,8 +215,11 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // When shop accepts order (pending -> confirmed), create delivery and assign driver
-  if (order.status === 'pending' && status === 'confirmed' && updated) {
+  // When shop accepts order (pending -> confirmed), create delivery and assign driver.
+  // Walk-in POS sales (order_type='pos_walkin') must never trigger driver dispatch —
+  // there's no customer to deliver to and no address. Defensive check: even if a
+  // future change inserts POS rows as 'pending', this block won't run for them.
+  if (order.status === 'pending' && status === 'confirmed' && updated && order.order_type !== 'pos_walkin') {
     try {
       // Check if delivery record already exists
       const { data: existingDelivery } = await svc

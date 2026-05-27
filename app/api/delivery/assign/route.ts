@@ -24,6 +24,13 @@ export async function POST(req: NextRequest) {
 
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
+  // Refuse to dispatch a driver for walk-in POS sales — they have no delivery
+  // address, no customer, and no driver involvement. Belt-and-suspenders: nothing
+  // currently calls this endpoint for walk-ins, but reject defensively in case.
+  if (order.order_type === 'pos_walkin') {
+    return NextResponse.json({ error: 'Walk-in POS sales cannot be assigned to a driver' }, { status: 400 })
+  }
+
   // Create delivery record if not exists
   const { data: existing } = await svc
     .from('dd_deliveries')
