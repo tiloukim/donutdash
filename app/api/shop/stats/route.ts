@@ -28,7 +28,17 @@ export async function GET() {
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const { data: allOrders } = await svc.from('dd_orders').select('id, total, subtotal, status, created_at, commission_pct').eq('shop_id', shop.id)
+  // Dashboard stats reflect the DonutDash delivery/pickup business only.
+  // POS walk-in sales (order_type='pos_walkin') don't go through the
+  // platform's payment split — the shop keeps 100% — so they shouldn't
+  // be included in commission calculations or recent-order timelines.
+  // Walk-in totals live on the POS device's "Today's Sales" view and in
+  // /api/shop/bookkeeping (which is the authoritative all-sales view).
+  const { data: allOrders } = await svc
+    .from('dd_orders')
+    .select('id, total, subtotal, status, created_at, commission_pct')
+    .eq('shop_id', shop.id)
+    .in('order_type', ['delivery', 'pickup'])
   const orders = allOrders || []
 
   // Filter non-cancelled orders for revenue calculations
@@ -54,7 +64,13 @@ export async function GET() {
 
   const pendingOrders = orders.filter(o => o.status === 'pending').length
 
-  const { data: recentOrders } = await svc.from('dd_orders').select('*, dd_order_items(*), customer:dd_users!customer_id(name, email)').eq('shop_id', shop.id).order('created_at', { ascending: false }).limit(10)
+  const { data: recentOrders } = await svc
+    .from('dd_orders')
+    .select('*, dd_order_items(*), customer:dd_users!customer_id(name, email)')
+    .eq('shop_id', shop.id)
+    .in('order_type', ['delivery', 'pickup'])
+    .order('created_at', { ascending: false })
+    .limit(10)
 
   return NextResponse.json({
     commissionPct: shopCommissionPct,
