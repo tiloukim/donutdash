@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest) {
   // A future shop-selector screen will let admins switch between shops they don't own.
   const { data: shopRow } = await svc
     .from('dd_shops')
-    .select('id, name')
+    .select('id, name, delivery_enabled')
     .eq('owner_id', profile.id)
     .order('created_at', { ascending: true })
     .limit(1)
@@ -58,13 +58,15 @@ export async function GET(_req: NextRequest) {
     )
   }
 
-  const shop = { id: shopRow.id, name: shopRow.name }
-
   return NextResponse.json({
     user_id: profile.id,
     name: profile.name,
     role: profile.role as 'shop_owner' | 'admin',
-    shop_id: shop?.id ?? null,
-    shop_name: shop?.name ?? null,
+    shop_id: shopRow.id,
+    shop_name: shopRow.name,
+    // delivery_enabled defaults to false in the schema for new (POS-only) shops.
+    // The POS app uses this flag to hide DonutDash online-order UI for shops
+    // that haven't opted into the delivery marketplace.
+    delivery_enabled: shopRow.delivery_enabled ?? false,
   })
 }
