@@ -297,21 +297,27 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // — Fetch order items + shop info in parallel.
+  // — Fetch order items + shop info in parallel. Items aren't ordered
+  //   server-side because dd_order_items may not have a created_at
+  //   column; insertion order from the array is fine for receipts.
   const [itemsRes, shopRes] = await Promise.all([
     svc
       .from('dd_order_items')
       .select('name, quantity, price, special_instructions')
-      .eq('order_id', orderId)
-      .order('created_at', { ascending: true }),
+      .eq('order_id', orderId),
     svc
       .from('dd_shops')
       .select('id, name, address, city, state, zip, phone')
       .eq('id', order.shop_id)
       .single<ShopRow>(),
   ])
-  if (itemsRes.error || shopRes.error || !shopRes.data) {
-    return NextResponse.json({ error: 'Failed to load receipt data' }, { status: 500 })
+  if (itemsRes.error) {
+    console.error('receipt/email: items query failed', itemsRes.error)
+    return NextResponse.json({ error: `Order items: ${itemsRes.error.message}` }, { status: 500 })
+  }
+  if (shopRes.error || !shopRes.data) {
+    console.error('receipt/email: shop query failed', shopRes.error)
+    return NextResponse.json({ error: `Shop info: ${shopRes.error?.message ?? 'not found'}` }, { status: 500 })
   }
   const items = (itemsRes.data ?? []) as OrderItem[]
   const shop = shopRes.data
