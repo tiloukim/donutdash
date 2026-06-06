@@ -223,8 +223,9 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
               </td>
             </tr>
             <tr>
-              <td align="center" style="padding-top:18px;border-top:1px solid #F4D5E2;color:#9CA3AF;font-size:11px">
-                Sent to ${escapeHtml(customerEmail)} via DonutDash POS
+              <td align="center" style="padding-top:18px;border-top:1px solid #F4D5E2;color:#9CA3AF;font-size:11px;line-height:18px">
+                Sent to ${escapeHtml(customerEmail)}<br />
+                Powered by <a href="https://www.donutdash.app" style="color:#EC1B7E;font-weight:700;text-decoration:none">DonutDash POS</a>
               </td>
             </tr>
           </table>
