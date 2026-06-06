@@ -331,6 +331,15 @@ export async function POST(req: NextRequest) {
   const html = buildReceiptHtml(order, items, shop, email)
   const subject = `Your receipt from ${shop.name}${order.short_code ? ` · Order #${order.short_code}` : ''}`
 
+  // Use the shop name as the From display, keep the verified Resend
+  // address. RESEND_FROM_EMAIL can be either "Name <a@b>" or just
+  // "a@b" — extract the address part either way.
+  const envFrom = process.env.RESEND_FROM_EMAIL ?? 'DonutDash <notifications@donutdash.app>'
+  const addressMatch = envFrom.match(/<([^>]+)>/)
+  const fromAddress = addressMatch ? addressMatch[1] : envFrom.trim()
+  // Strip characters that would break the "Name <addr>" header.
+  const fromDisplayName = shop.name.replace(/[<>"\r\n]/g, '').trim() || 'DonutDash'
+
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -339,7 +348,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || 'DonutDash <notifications@donutdash.app>',
+        from: `${fromDisplayName} <${fromAddress}>`,
         to: email,
         subject,
         html,
