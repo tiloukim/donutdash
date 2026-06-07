@@ -20,8 +20,10 @@ interface CreateBody {
   lines: CartLine[]
   subtotal: number
   tax: number
+  /** Card-payment tip in dollars. 0 (or omitted) for cash sales. */
+  tip?: number
   total: number
-  payment_method: 'cash' | 'card_manual'
+  payment_method: 'cash' | 'card_manual' | 'card_pax'
   cash_received?: number
   change_given?: number
 }
@@ -83,6 +85,7 @@ export async function POST(req: NextRequest) {
       status: 'delivered',
       subtotal: body.subtotal,
       tax: body.tax,
+      tip: body.tip ?? 0,
       total: body.total,
       payment_method: body.payment_method,
       cash_received: body.cash_received ?? null,
