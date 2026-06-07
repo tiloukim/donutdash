@@ -5,8 +5,16 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/offline-stale-drivers",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/weekly-payout",
       "schedule": "0 11 * * 1"
+    },
+    {
+      "path": "/api/cron/cancel-stale-orders",
+      "schedule": "0 * * * *"
     }
   ]
 }
