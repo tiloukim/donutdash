@@ -125,16 +125,15 @@ export function buildOrderEmailHtml(orderId: string, headline: string, message: 
  * the call site — never block the signup response on a transient
  * Telnyx/Resend hiccup.
  *
- * Roles that DO alert: 'customer', 'driver'.
- * Roles that DON'T:    'shop_owner' (different growth signal — shop
- *                       owners come through the claim/setup flow which
- *                       already has its own notifyAdmins call).
+ * Roles that DO alert: 'customer', 'driver', 'shop_owner'.
  *
  * POS walk-in customers never reach this helper — they're inserted
  * directly into dd_users with auth_id=null from the POS client, so
  * they bypass /api/auth/app-signup and /api/me's auto-create entirely.
+ * That exclusion is by construction (no auth user → no signup path);
+ * we don't need a role filter to keep them out.
  */
-const SIGNUP_ALERT_ROLES = new Set<string>(['customer', 'driver'])
+const SIGNUP_ALERT_ROLES = new Set<string>(['customer', 'driver', 'shop_owner'])
 
 export async function notifyNewSignup(input: {
   role: 'customer' | 'driver' | 'shop_owner' | string
