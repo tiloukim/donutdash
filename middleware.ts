@@ -16,13 +16,31 @@ const REDIRECT_PATHS = ['/', '/login', '/signup']
 // Pages accessible by ALL roles (auth callback, onboarding, legal)
 const ALWAYS_ALLOWED = ['/auth', '/api', '/privacy', '/terms', '/sms-consent', '/partner-setup', '/contractor-agreement', '/forgot-password', '/reset-password']
 
-// Pages each role is allowed to access (prefix match)
+// Customer-facing routes. Pulled out as a constant so admin + manager
+// inherit the full customer surface without duplicating the list —
+// they need it to QA shop pages, test checkout, view rewards, etc.
+// (Actual order placement / payment endpoints have their own auth
+// checks, so middleware-level access doesn't bypass spend protection.)
+const CUSTOMER_ROUTES = [
+  '/', '/shops', '/cart', '/orders', '/checkout', '/gift-cards',
+  '/rewards', '/about', '/signup', '/login', '/catering',
+  '/group-order', '/card', '/pass', '/best-donuts',
+  '/donut-delivery', '/profile', '/account', '/support', '/promo',
+  '/forgot-password', '/reset-password',
+]
+
+// Pages each role is allowed to access (prefix match). Admin + manager
+// can reach every portal so they can navigate into the customer,
+// driver, and shop owner experiences as themselves — useful for
+// support and QA. They still default-land at /admin (see ROLE_HOME
+// above); customer / driver / shop owner pages are only reached by
+// typing the URL or following a deep link.
 const ROLE_ALLOWED: Record<string, string[]> = {
   driver: ['/driver', '/account', '/support', ...ALWAYS_ALLOWED],
   shop_owner: ['/shop', '/account', '/support', ...ALWAYS_ALLOWED],
-  admin: ['/admin', '/shop', '/driver', '/account', ...ALWAYS_ALLOWED],
-  manager: ['/admin', '/account', ...ALWAYS_ALLOWED],
-  customer: ['/', '/shops', '/cart', '/orders', '/checkout', '/gift-cards', '/rewards', '/about', '/signup', '/login', '/catering', '/group-order', '/card', '/pass', '/best-donuts', '/donut-delivery', '/profile', '/account', '/support', '/promo', '/forgot-password', '/reset-password', ...ALWAYS_ALLOWED],
+  admin: ['/admin', '/shop', '/driver', ...CUSTOMER_ROUTES, ...ALWAYS_ALLOWED],
+  manager: ['/admin', '/shop', '/driver', ...CUSTOMER_ROUTES, ...ALWAYS_ALLOWED],
+  customer: [...CUSTOMER_ROUTES, ...ALWAYS_ALLOWED],
 }
 
 export async function middleware(request: NextRequest) {
