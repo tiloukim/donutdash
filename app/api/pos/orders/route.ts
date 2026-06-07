@@ -26,6 +26,8 @@ interface CreateBody {
   payment_method: 'cash' | 'card_manual' | 'card_pax'
   cash_received?: number
   change_given?: number
+  /** Walk-in customer captured at the register, or null for anon walk-in. */
+  customer_id?: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
     .insert({
       shop_id: body.shop_id,
       staff_id: profile.id,
+      customer_id: body.customer_id ?? null,
       order_type: 'pos_walkin',
       source: 'pos',
       // Walk-in sales are terminal the moment the customer pays — they're
