@@ -6,6 +6,16 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 
+// Quick-jump links to the other portals. Admin + manager can navigate
+// in as their own session for QA / support / spot-checks. Opened in a
+// new tab so the admin's place in the dashboard isn't lost — closing
+// the tab pops them right back here.
+const PORTAL_LINKS = [
+  { href: '/driver', label: 'Driver Portal', icon: '🚗' },
+  { href: '/shop', label: 'Shop Portal', icon: '🏪' },
+  { href: '/shops', label: 'Customer Site', icon: '🛒' },
+]
+
 const ALL_NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: '📊', roles: ['admin', 'manager'] },
   { href: '/admin/shops', label: 'Shops', icon: '🏪', roles: ['admin', 'manager'] },
@@ -90,7 +100,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         ))}
       </nav>
-      <div style={{ padding: '16px 8px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ padding: '12px 8px 6px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ padding: '4px 12px 8px', color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 800, letterSpacing: 1.2 }}>
+          VIEW AS
+        </div>
+        {PORTAL_LINKS.map(portal => (
+          <a
+            key={portal.href}
+            href={portal.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8,
+              textDecoration: 'none', fontSize: 13, fontWeight: 600,
+              color: 'rgba(255,255,255,0.8)', background: 'transparent',
+              transition: 'background 0.15s',
+            }}
+          >
+            <span>{portal.icon}</span>
+            <span style={{ flex: 1 }}>{portal.label}</span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>↗</span>
+          </a>
+        ))}
+      </div>
+      <div style={{ padding: '12px 8px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ padding: '8px 12px', color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{user.name}</div>
         <button
           onClick={() => signOut('/admin')}
