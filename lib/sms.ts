@@ -119,6 +119,44 @@ export function buildOrderEmailHtml(orderId: string, headline: string, message: 
 }
 
 /**
+ * Notify admins (email + SMS) when a new user signs up. Routes through
+ * notifyAdmins so we reuse the same ADMIN_EMAILS / ADMIN_PHONE_NUMBERS
+ * env vars already configured for new-order alerts. Fire-and-forget at
+ * the call site — never block the signup response on a transient
+ * Telnyx/Resend hiccup.
+ */
+export async function notifyNewSignup(input: {
+  role: 'customer' | 'driver' | 'shop_owner' | string
+  name: string | null
+  email: string
+  phone?: string | null
+  source?: 'mobile' | 'web' | string
+}) {
+  const niceRole = input.role === 'shop_owner' ? 'Shop owner'
+    : input.role.charAt(0).toUpperCase() + input.role.slice(1)
+  const sourceTag = input.source ? ` (${input.source})` : ''
+  const smsMsg = `New DonutDash signup${sourceTag}\n${niceRole}: ${input.name ?? '(no name)'}\n${input.email}${input.phone ? `\n${input.phone}` : ''}`
+  const subject = `New ${niceRole.toLowerCase()} signup: ${input.name ?? input.email}`
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;background:#ffffff;">
+      <div style="background:#FF8C00;padding:24px 20px;text-align:center;border-radius:12px 12px 0 0;">
+        <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;">New DonutDash signup</h1>
+      </div>
+      <div style="padding:24px 20px;border:1px solid #eee;border-top:none;border-radius:0 0 12px 12px;">
+        <p style="font-size:13px;color:#888;margin:0 0 6px 0;">Role${sourceTag}</p>
+        <h2 style="margin:0 0 18px 0;color:#222;font-size:20px;">${niceRole}</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:15px;color:#222;">
+          <tr><td style="padding:6px 0;color:#777;width:90px;">Name</td><td style="padding:6px 0;">${input.name ?? '(none)'}</td></tr>
+          <tr><td style="padding:6px 0;color:#777;">Email</td><td style="padding:6px 0;"><a href="mailto:${input.email}" style="color:#FF8C00;text-decoration:none;">${input.email}</a></td></tr>
+          ${input.phone ? `<tr><td style="padding:6px 0;color:#777;">Phone</td><td style="padding:6px 0;">${input.phone}</td></tr>` : ''}
+        </table>
+      </div>
+    </div>
+  `
+  return notifyAdmins(smsMsg, subject, html)
+}
+
+/**
  * Send SMS + email to all admin contacts
  * SMS: ADMIN_PHONE_NUMBERS env var (comma-separated)
  * Email: ADMIN_EMAILS env var (comma-separated)

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { notifyNewSignup } from '@/lib/sms'
 
 export async function GET() {
   try {
@@ -57,6 +58,18 @@ export async function GET() {
         console.error('Failed to create dd_user:', insertError)
         return NextResponse.json({ user: null }, { status: 500 })
       }
+
+      // First time we've seen this auth user — a real signup, not a
+      // re-login. Fire-and-forget admin alert via the shared notifier.
+      // Web signups land here on the post-confirmation /me call; mobile
+      // signups are caught earlier in /api/auth/app-signup.
+      notifyNewSignup({
+        role: newUser.role,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        source: 'web',
+      }).catch(() => {})
 
       return NextResponse.json({ user: newUser })
     }

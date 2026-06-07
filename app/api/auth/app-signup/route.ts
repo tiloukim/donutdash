@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { notifyNewSignup } from '@/lib/sms'
 
 export async function POST(req: NextRequest) {
   const { email, password, name, phone, role } = await req.json()
@@ -33,6 +34,16 @@ export async function POST(req: NextRequest) {
     id: data.user.id,
     plan: 'free',
   }, { onConflict: 'id' })
+
+  // Fire-and-forget admin alert (email + SMS via ADMIN_EMAILS /
+  // ADMIN_PHONE_NUMBERS env vars). Never block signup on a delivery hiccup.
+  notifyNewSignup({
+    role,
+    name,
+    email,
+    phone: phone || null,
+    source: 'mobile',
+  }).catch(() => {})
 
   // Issue a session via the admin magiclink flow so the client doesn't need to
   // hit signInWithPassword (which is blocked by Supabase Auth's captcha middleware).
