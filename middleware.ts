@@ -14,7 +14,7 @@ const ROLE_HOME: Record<string, string> = {
 const REDIRECT_PATHS = ['/', '/login', '/signup']
 
 // Pages accessible by ALL roles (auth callback, onboarding, legal)
-const ALWAYS_ALLOWED = ['/auth', '/api', '/privacy', '/terms', '/sms-consent', '/partner-setup', '/contractor-agreement', '/forgot-password', '/reset-password', '/claim']
+const ALWAYS_ALLOWED = ['/auth', '/api', '/privacy', '/terms', '/sms-consent', '/partner-setup', '/contractor-agreement', '/forgot-password', '/reset-password', '/claim', '/unsubscribe']
 
 // Customer-facing routes. Pulled out as a constant so admin + manager
 // inherit the full customer surface without duplicating the list —

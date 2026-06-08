@@ -36,6 +36,7 @@ const ALL_NAV_ITEMS = [
   { href: '/admin/menu-templates', label: 'Menu Templates', icon: '🍩', roles: ['admin', 'manager'] },
   { href: '/admin/team', label: 'Team Cards', icon: '🪪', roles: ['admin', 'manager'] },
   { href: '/admin/analytics', label: 'Live Analytics', icon: '📈', roles: ['admin', 'manager'] },
+  { href: '/admin/pitch-campaign', label: 'Pitch Campaign', icon: '📣', roles: ['admin', 'manager'] },
   { href: '/admin/tax', label: 'Tax Center', icon: '🧾', roles: ['admin'] },
   { href: '/admin/settings', label: 'Settings', icon: '⚙️', roles: ['admin'] },
 ]

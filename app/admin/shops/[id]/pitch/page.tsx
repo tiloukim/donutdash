@@ -117,14 +117,24 @@ export default function ShopPitchPage() {
             )}
           </p>
         </div>
-        <Link
-          href={shop_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 14px', color: '#1A1A2E', textDecoration: 'none', fontSize: 13, fontWeight: 600 }}
-        >
-          Open shop page ↗
-        </Link>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link
+            href={`/admin/shops/${shop.id}/pitch/flyer`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ background: '#FF8C00', border: '1px solid #FF8C00', borderRadius: 8, padding: '8px 14px', color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 700 }}
+          >
+            🖨️ PDF Flyer
+          </Link>
+          <Link
+            href={shop_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 14px', color: '#1A1A2E', textDecoration: 'none', fontSize: 13, fontWeight: 600 }}
+          >
+            Open shop page ↗
+          </Link>
+        </div>
       </div>
 
       {/* Headline */}
