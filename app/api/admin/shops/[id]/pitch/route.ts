@@ -93,7 +93,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     counts,
     annual_revenue_lost_dollars: annualRevenueLost,
     avg_ticket_assumption: AVG_TICKET_DOLLARS,
-    claim_url: `https://donutdash.app/shops/claim/${shop.slug}`,
+    // Short branded URL we send in outreach SMS / email / flyer. It
+    // renders the personalized pitch landing and then CTAs into the
+    // full /shops/claim/:slug form.
+    claim_url: `https://donutdash.app/claim/${shop.slug}`,
     shop_url: `https://donutdash.app/shops/${shop.slug}`,
   })
 }
