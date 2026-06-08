@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import MenuItemCard from '@/components/MenuItemCard'
 import { useCart } from '@/lib/cart-context'
+import { trackEngagement } from '@/lib/track'
 import type { Shop, MenuItem } from '@/lib/types'
 
 const CATEGORIES = [
@@ -81,6 +82,15 @@ export default function ShopDetailPage() {
     } catch { /* ignore */ }
     setGroupOrderLoading(false)
   }
+
+  // Fire a single page_view engagement event whenever a shop loads.
+  // Server snapshots is_claimed at write time so post-claim aggregations
+  // can still surface the pre-activation demand. Tied to shop?.id so we
+  // re-fire if the user navigates between shops without unmounting.
+  useEffect(() => {
+    if (!shop?.id) return
+    trackEngagement({ shop_id: shop.id, kind: 'page_view' })
+  }, [shop?.id])
 
   const handleCopyGroupLink = () => {
     if (groupOrderLink) {
@@ -330,7 +340,7 @@ export default function ShopDetailPage() {
               gap: '0.75rem',
             }}>
               {filteredItems.map(item => (
-                <MenuItemCard key={item.id} item={item} shopId={shop.id} shopName={shop.name} />
+                <MenuItemCard key={item.id} item={item} shopId={shop.id} shopName={shop.name} shopIsUnclaimed={shop.is_claimed === false} />
               ))}
             </div>
           ) : (
@@ -430,6 +440,7 @@ export default function ShopDetailPage() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem 1.5rem 2rem', textAlign: 'center' }}>
           <Link
             href={`/shops/claim/${shop.slug}`}
+            onClick={() => trackEngagement({ shop_id: shop.id, kind: 'claim_link_click' })}
             style={{ color: '#aaa', fontSize: '0.8rem', textDecoration: 'none' }}
           >
             Own this business? <span style={{ textDecoration: 'underline' }}>Claim it</span>

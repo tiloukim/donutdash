@@ -2,15 +2,21 @@
 
 import { useState } from 'react'
 import { useCart } from '@/lib/cart-context'
+import { trackEngagement } from '@/lib/track'
 import type { MenuItem, VariantOption } from '@/lib/types'
 
 interface MenuItemCardProps {
   item: MenuItem
   shopId: string
   shopName: string
+  // True when the parent shop hasn't been claimed by its owner yet.
+  // Lets us log "lost order" intent for the marketing pitch — these
+  // clicks are the gold metric for proving demand to prospective
+  // shop owners. Falls through harmlessly on claimed shops.
+  shopIsUnclaimed?: boolean
 }
 
-export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardProps) {
+export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed }: MenuItemCardProps) {
   const { addItem, needsShopSwitch, switchShopAndAdd } = useCart()
   const isSoldOut = item.is_sold_out ?? false
   const [showModal, setShowModal] = useState(false)
@@ -51,6 +57,13 @@ export default function MenuItemCard({ item, shopId, shopName }: MenuItemCardPro
   }
 
   const handleAddToCart = () => {
+    // Log the intent BEFORE the cart-switch / variant gates — those are
+    // legitimate flow steps, not abandons. We want every "I wanted this
+    // donut" tap captured so the pitch can show real demand.
+    if (shopIsUnclaimed) {
+      trackEngagement({ shop_id: shopId, kind: 'lost_order_click' })
+    }
+
     if (needsShopSwitch(shopId)) {
       setShowSwitchConfirm(true)
       return
