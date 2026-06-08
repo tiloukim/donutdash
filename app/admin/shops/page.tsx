@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { SHOP_COMMISSION_RATE, MIN_COMMISSION_RATE, MAX_COMMISSION_RATE, SERVICE_FEE_RATE } from '@/lib/constants'
 
 interface Shop {
@@ -241,7 +242,7 @@ export default function AdminShops() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['Shop', 'Owner', 'City', 'Commission %', 'Service Fee %', 'Tax Rate %', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions'].map(h => (
+                {['Shop', 'Owner', 'City', 'Commission %', 'Service Fee %', 'Tax Rate %', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions', 'Pitch'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                 ))}
               </tr>
@@ -313,10 +314,23 @@ export default function AdminShops() {
                       {shop.is_active ? 'Deactivate' : 'Activate'}
                     </button>
                   </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <Link
+                      href={`/admin/shops/${shop.id}/pitch`}
+                      style={{
+                        padding: '6px 14px', borderRadius: 6, border: '1px solid #E5E7EB',
+                        background: '#EEF2FF', color: '#4F46E5',
+                        textDecoration: 'none', fontSize: 13, fontWeight: 600,
+                        display: 'inline-block',
+                      }}
+                    >
+                      Pitch →
+                    </Link>
+                  </td>
                 </tr>
               ))}
               {shops.length === 0 && (
-                <tr><td colSpan={10} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shops found</td></tr>
+                <tr><td colSpan={12} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shops found</td></tr>
               )}
             </tbody>
           </table>
