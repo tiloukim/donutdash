@@ -14,6 +14,7 @@ export type EngagementKind =
   | 'lost_order_click'
   | 'claim_link_click'
   | 'menu_item_view'
+  | 'search_impression'
 
 interface TrackPayload {
   shop_id: string
@@ -21,27 +22,15 @@ interface TrackPayload {
   path?: string
 }
 
-export function trackEngagement(input: TrackPayload): void {
-  // SSR / Node — silently no-op.
+function sendBody(body: string): void {
   if (typeof window === 'undefined') return
-
   const url = '/api/track/engagement'
-  const body = JSON.stringify({
-    shop_id: input.shop_id,
-    kind: input.kind,
-    path: input.path ?? window.location.pathname,
-  })
-
   try {
-    // sendBeacon is the canonical "I'm leaving the page, deliver this
-    // for me" API. Cannot set content-type to application/json on every
-    // browser, so we use a Blob with the right type.
     if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
       const blob = new Blob([body], { type: 'application/json' })
       navigator.sendBeacon(url, blob)
       return
     }
-    // Fallback — keepalive: true mirrors sendBeacon's survival semantics.
     void fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -51,4 +40,28 @@ export function trackEngagement(input: TrackPayload): void {
   } catch {
     // Analytics must NEVER throw into the calling component.
   }
+}
+
+export function trackEngagement(input: TrackPayload): void {
+  if (typeof window === 'undefined') return
+  sendBody(JSON.stringify({
+    shop_id: input.shop_id,
+    kind: input.kind,
+    path: input.path ?? window.location.pathname,
+  }))
+}
+
+// Batch shape — used for search_impression where a single page render
+// generates one event per visible shop. Folding all of them into a
+// single sendBeacon avoids burning 30+ network requests per page load.
+export function trackEngagementBatch(events: TrackPayload[]): void {
+  if (typeof window === 'undefined' || events.length === 0) return
+  const path = window.location.pathname
+  sendBody(JSON.stringify({
+    events: events.map((e) => ({
+      shop_id: e.shop_id,
+      kind: e.kind,
+      path: e.path ?? path,
+    })),
+  }))
 }

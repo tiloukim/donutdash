@@ -115,10 +115,23 @@ export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed }
     setSelectedVariants({})
   }
 
+  // Wraps the card-tap so we fire menu_item_view on the open. Intent
+  // signal: cashier-quality interest in this specific item — counts
+  // toward the unclaimed-shop pitch headline alongside page_view and
+  // lost_order_click. Sold-out items don't fire because the click is
+  // a no-op.
+  const handleCardClick = () => {
+    if (isSoldOut) return
+    if (shopIsUnclaimed) {
+      trackEngagement({ shop_id: shopId, kind: 'menu_item_view' })
+    }
+    setShowModal(true)
+  }
+
   return (
     <>
       <div
-        onClick={() => !isSoldOut && setShowModal(true)}
+        onClick={handleCardClick}
         style={{
           background: 'white',
           borderRadius: '12px',

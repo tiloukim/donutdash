@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import ShopCard from '@/components/ShopCard'
 import { useAuth } from '@/lib/auth-context'
+import { trackEngagementBatch } from '@/lib/track'
 import type { Shop } from '@/lib/types'
 
 const categories = ['All', 'Favorites', 'Donuts', 'Coffee', 'Breakfast']
@@ -224,6 +225,24 @@ function ShopsPageInner() {
 
     return result
   }, [shops, search, activeCategory, favoriteIds, sortBy, customerLocation])
+
+  // Fire one search_impression per shop that ACTUALLY appears in the
+  // visible results during this browsing session. Dedupe via a ref so
+  // re-renders, filter changes, and category switches don't double-count
+  // a shop the user has already seen — keeps the metric honest at
+  // "this shop was shown to this person at least once" granularity.
+  // The server-side daily hash also dedupes if the same person visits
+  // multiple sessions in a day, so the count stays defensible.
+  const impressedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (filteredShops.length === 0) return
+    const fresh = filteredShops.filter((s) => !impressedRef.current.has(s.id))
+    if (fresh.length === 0) return
+    fresh.forEach((s) => impressedRef.current.add(s.id))
+    trackEngagementBatch(
+      fresh.map((s) => ({ shop_id: s.id, kind: 'search_impression' as const })),
+    )
+  }, [filteredShops])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#fff' }}>
