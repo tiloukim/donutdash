@@ -113,6 +113,17 @@ export async function PATCH(request: NextRequest) {
       }
       allowed.commission_pct = pct
     }
+    if ('cash_discount_pct' in fields) {
+      // 0 disables the dual-charges popup entirely. Capping at 10
+      // (well below the SQL check at 25) because higher than 10% is
+      // basically always a misconfiguration — typical card processor
+      // savings the program is designed to recover is ~2.5–4%.
+      const pct = Number(fields.cash_discount_pct)
+      if (!Number.isFinite(pct) || pct < 0 || pct > 10) {
+        return NextResponse.json({ error: 'Cash discount must be between 0% and 10%' }, { status: 400 })
+      }
+      allowed.cash_discount_pct = pct
+    }
 
     const { data: shop, error } = await svc
       .from('dd_shops')

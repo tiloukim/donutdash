@@ -28,6 +28,8 @@ interface CreateBody {
   change_given?: number
   /** Walk-in customer captured at the register, or null for anon walk-in. */
   customer_id?: string | null
+  /** Cash discount given on this sale (dollars). 0 on card sales. */
+  cash_discount_amount?: number
 }
 
 export async function POST(req: NextRequest) {
@@ -93,6 +95,7 @@ export async function POST(req: NextRequest) {
       payment_method: body.payment_method,
       cash_received: body.cash_received ?? null,
       change_given: body.change_given ?? null,
+      cash_discount_amount: body.cash_discount_amount ?? 0,
     })
     .select('id, short_code')
     .single()
