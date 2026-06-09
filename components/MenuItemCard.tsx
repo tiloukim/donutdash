@@ -14,9 +14,15 @@ interface MenuItemCardProps {
   // clicks are the gold metric for proving demand to prospective
   // shop owners. Falls through harmlessly on claimed shops.
   shopIsUnclaimed?: boolean
+  // Optional dual-pricing context. When the parent shop runs the
+  // cash-discount program in 'dual_pricing' mode, the customer sees
+  // BOTH prices on every item (cash + card) instead of the standard
+  // single listed price. Both fields must be set for the alt price
+  // to render — guards against half-configured shops.
+  dualPricingPct?: number
 }
 
-export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed }: MenuItemCardProps) {
+export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed, dualPricingPct }: MenuItemCardProps) {
   const { addItem, needsShopSwitch, switchShopAndAdd } = useCart()
   const isSoldOut = item.is_sold_out ?? false
   const [showModal, setShowModal] = useState(false)
@@ -55,6 +61,33 @@ export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed }
     const max = Math.max(...allPrices)
     return min === max ? `$${min.toFixed(2)}` : `$${min.toFixed(2)}+`
   }
+
+  // Compute the discounted (cash) version of the price string for the
+  // dual-pricing display. Reuses getPriceDisplay() for the variant
+  // logic so range strings like "$3.50+" come back as "$3.40+ cash".
+  function getCashPriceDisplay(): string {
+    if (!dualPricingPct || dualPricingPct <= 0) return ''
+    const factor = 1 - dualPricingPct / 100
+    if (!hasVariants) {
+      return `$${(item.price * factor).toFixed(2)}`
+    }
+    if (allVariantsSelected) {
+      return `$${(getActivePrice() * factor).toFixed(2)}`
+    }
+    const allPrices: number[] = []
+    for (const v of item.variants!) {
+      for (const o of v.options) {
+        const p = typeof o === 'object' ? o.price : 0
+        if (p > 0) allPrices.push(p)
+      }
+    }
+    if (allPrices.length === 0) return `$${(item.price * factor).toFixed(2)}`
+    const min = Math.min(...allPrices) * factor
+    const max = Math.max(...allPrices) * factor
+    return min === max ? `$${min.toFixed(2)}` : `$${min.toFixed(2)}+`
+  }
+
+  const showDualPrice = !!dualPricingPct && dualPricingPct > 0
 
   const handleAddToCart = () => {
     // Log the intent BEFORE the cart-switch / variant gates — those are
@@ -213,7 +246,14 @@ export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed }
           </h4>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
             <span style={{ fontWeight: 700, color: '#1A1A2E', fontSize: '0.8rem' }}>
-              {getPriceDisplay()}
+              {showDualPrice ? (
+                <>
+                  <span style={{ color: '#10B981' }}>{getCashPriceDisplay()}</span>
+                  <span style={{ color: '#9CA3AF', fontWeight: 500, fontSize: '0.7rem' }}> / {getPriceDisplay()}</span>
+                </>
+              ) : (
+                getPriceDisplay()
+              )}
             </span>
             <button
               onClick={(e) => {
@@ -274,10 +314,21 @@ export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed }
                   {item.description}
                 </p>
               )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
-                <span style={{ fontWeight: 700, fontSize: '1.15rem', color: '#FF1493' }}>
-                  {getPriceDisplay()}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem', flexWrap: 'wrap' }}>
+                {showDualPrice ? (
+                  <>
+                    <span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#10B981' }}>
+                      {getCashPriceDisplay()} <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: 1 }}>CASH</span>
+                    </span>
+                    <span style={{ fontWeight: 700, fontSize: '1.15rem', color: '#9CA3AF' }}>
+                      {getPriceDisplay()} <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: 1 }}>CARD</span>
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ fontWeight: 700, fontSize: '1.15rem', color: '#FF1493' }}>
+                    {getPriceDisplay()}
+                  </span>
+                )}
                 {item.prep_time_min != null && item.prep_time_min > 0 && (
                   <span style={{ fontSize: '0.75rem', color: '#888', background: '#f5f5f5', padding: '2px 8px', borderRadius: 6, fontWeight: 500 }}>
                     ~{item.prep_time_min} min prep

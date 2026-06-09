@@ -124,6 +124,17 @@ export async function PATCH(request: NextRequest) {
       }
       allowed.cash_discount_pct = pct
     }
+    if ('pricing_mode' in fields) {
+      // Three modes match the SQL enum check. 'standard' is the
+      // pre-program behavior; 'cash_discount' fires a popup at
+      // checkout; 'dual_pricing' shows both prices on every item up
+      // front. Anything else is rejected.
+      const mode = String(fields.pricing_mode)
+      if (!['standard', 'cash_discount', 'dual_pricing'].includes(mode)) {
+        return NextResponse.json({ error: 'pricing_mode must be standard, cash_discount, or dual_pricing' }, { status: 400 })
+      }
+      allowed.pricing_mode = mode
+    }
 
     const { data: shop, error } = await svc
       .from('dd_shops')

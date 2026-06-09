@@ -340,7 +340,7 @@ export default function ShopDetailPage() {
               gap: '0.75rem',
             }}>
               {filteredItems.map(item => (
-                <MenuItemCard key={item.id} item={item} shopId={shop.id} shopName={shop.name} shopIsUnclaimed={shop.is_claimed === false} />
+                <MenuItemCard key={item.id} item={item} shopId={shop.id} shopName={shop.name} shopIsUnclaimed={shop.is_claimed === false} dualPricingPct={shop.pricing_mode === 'dual_pricing' && shop.cash_discount_pct ? shop.cash_discount_pct : 0} />
               ))}
             </div>
           ) : (

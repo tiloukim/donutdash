@@ -42,6 +42,12 @@ export interface Shop {
   claimed_at?: string | null
   claim_source?: string | null
   external_place_id?: string | null
+  /** Cash-discount percentage for this shop (0 = feature off). */
+  cash_discount_pct?: number
+  /** Display mode for the cash-discount program. 'dual_pricing' shows
+   *  both cash + card prices upfront on every menu item; 'cash_discount'
+   *  shows the card price with a popup at checkout. */
+  pricing_mode?: 'standard' | 'cash_discount' | 'dual_pricing'
 }
 
 export interface VariantOption {

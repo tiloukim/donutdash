@@ -17,6 +17,7 @@ interface Shop {
   min_order: number
   tax_rate: number
   cash_discount_pct: number
+  pricing_mode: 'standard' | 'cash_discount' | 'dual_pricing'
   created_at: string
   owner: { name: string; email: string } | null
 }
@@ -61,7 +62,7 @@ export default function AdminShops() {
     setToggling(null)
   }
 
-  const updateShopField = async (id: string, field: string, value: number) => {
+  const updateShopField = async (id: string, field: string, value: number | string) => {
     setSaving(id)
     try {
       const res = await fetch('/api/admin/shops', {
@@ -243,7 +244,7 @@ export default function AdminShops() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['Shop', 'Owner', 'City', 'Commission %', 'Service Fee %', 'Tax Rate %', 'Cash Discount %', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions', 'Pitch'].map(h => (
+                {['Shop', 'Owner', 'City', 'Commission %', 'Service Fee %', 'Tax Rate %', 'Cash Discount %', 'Pricing Mode', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions', 'Pitch'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                 ))}
               </tr>
@@ -283,6 +284,22 @@ export default function AdminShops() {
                       style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
                       title="0 = feature off. Set e.g. 3 to give a 3% cash discount at the POS."
                     />%
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <select
+                      value={shop.pricing_mode ?? 'standard'}
+                      onChange={e => {
+                        const next = e.target.value as Shop['pricing_mode']
+                        setShops(prev => prev.map(s => s.id === shop.id ? { ...s, pricing_mode: next } : s))
+                        updateShopField(shop.id, 'pricing_mode', next)
+                      }}
+                      style={{ padding: '4px 6px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, background: '#fff', cursor: 'pointer' }}
+                      title="standard = no popup. cash_discount = popup at checkout. dual_pricing = both prices on every menu item upfront."
+                    >
+                      <option value="standard">standard</option>
+                      <option value="cash_discount">cash_discount</option>
+                      <option value="dual_pricing">dual_pricing</option>
+                    </select>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     $<input type="number" step="0.50" min="0" value={shop.delivery_fee}
@@ -339,7 +356,7 @@ export default function AdminShops() {
                 </tr>
               ))}
               {shops.length === 0 && (
-                <tr><td colSpan={13} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shops found</td></tr>
+                <tr><td colSpan={14} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shops found</td></tr>
               )}
             </tbody>
           </table>
