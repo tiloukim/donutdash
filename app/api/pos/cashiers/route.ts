@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { hashPin } from '@/lib/pin-hash'
+import { randomBytes } from 'crypto'
 
 // GET  /api/pos/cashiers?shop_id=<uuid>  → roster for the picker
 // POST /api/pos/cashiers                  → create a new cashier
@@ -110,10 +111,19 @@ export async function POST(req: NextRequest) {
   // Create the lightweight dd_users row first. auth_id stays null —
   // cashiers don't sign in via Supabase auth; the PIN gate inside the
   // already-authenticated owner session is their identity check.
+  // Email + phone get unique placeholders because some shops have
+  // NOT NULL on those columns inherited from the old marketplace
+  // schema (back when every user came in via Supabase signup). The
+  // placeholder shape `cashier-<8hex>@cashier.pos.local` is obviously
+  // synthetic — no real mail server will route to .pos.local, and
+  // the prefix makes it grep-able in reports.
+  const slug = randomBytes(4).toString('hex')
+  const placeholderEmail = `cashier-${slug}@cashier.pos.local`
   const { data: ddUser, error: userErr } = await a.svc
     .from('dd_users')
     .insert({
       name: body.name.trim(),
+      email: placeholderEmail,
       role: 'cashier',  // dd_users.role keeps the "this user is a cashier" semantic
     })
     .select('id')
