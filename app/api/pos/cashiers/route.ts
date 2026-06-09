@@ -119,17 +119,35 @@ export async function POST(req: NextRequest) {
   // the prefix makes it grep-able in reports.
   const slug = randomBytes(4).toString('hex')
   const placeholderEmail = `cashier-${slug}@cashier.pos.local`
+  // Phone gets a synthetic placeholder too — same legacy NOT NULL risk.
+  // Format: '+0' + 9-digit slug-derived suffix. Always 11 chars to
+  // satisfy phone-like format checks if any exist, and the leading
+  // '+0' makes it obviously synthetic (no real country code starts
+  // with 0). Padded so two cashiers can't collide.
+  const phoneDigits = Array.from(slug)
+    .map((c) => parseInt(c, 16) % 10)
+    .join('')
+    .padEnd(9, '0')
+  const placeholderPhone = `+0${phoneDigits}`
   const { data: ddUser, error: userErr } = await a.svc
     .from('dd_users')
     .insert({
       name: body.name.trim(),
       email: placeholderEmail,
+      phone: placeholderPhone,
       role: 'cashier',  // dd_users.role keeps the "this user is a cashier" semantic
     })
     .select('id')
     .single()
   if (userErr || !ddUser) {
-    return NextResponse.json({ error: userErr?.message ?? 'User create failed' }, { status: 500 })
+    // Surface the raw message (including any NOT NULL column name)
+    // so the cashier-create error tells us exactly which legacy
+    // constraint is blocking, in one round-trip.
+    console.error('[pos/cashiers] dd_users insert failed:', userErr)
+    return NextResponse.json(
+      { error: userErr?.message ?? 'User create failed', code: userErr?.code, details: userErr?.details },
+      { status: 500 },
+    )
   }
 
   const { hash, salt } = hashPin(body.pin)
