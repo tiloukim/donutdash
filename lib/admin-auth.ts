@@ -76,8 +76,42 @@ export const PAGE_ROLES: Record<string, readonly AdminPortalRole[]> = {
   '/admin/team':             ['admin', 'general_manager', 'marketing_manager'],
   '/admin/analytics':        ['admin', 'general_manager', 'field_manager', 'marketing_manager'],
   '/admin/pitch-campaign':   ['admin', 'general_manager', 'field_manager', 'marketing_manager'],
+  '/admin/access-matrix':    ['admin', 'general_manager', 'field_manager', 'marketing_manager'],
   '/admin/tax':              ['admin'],
   '/admin/settings':         ['admin'],
+}
+
+// Friendly metadata for each admin page — used by the sidebar and
+// the access matrix visualizer. Group is used to cluster rows in the
+// matrix view (Operations, Marketing, Admin-only). Order matters:
+// matches the sidebar's display order.
+export const ADMIN_PAGE_META: Record<
+  keyof typeof PAGE_ROLES,
+  { label: string; icon: string; group: 'overview' | 'ops' | 'marketing' | 'admin' }
+> = {
+  '/admin':                  { label: 'Dashboard',      icon: '📊', group: 'overview' },
+  '/admin/shops':            { label: 'Shops',          icon: '🏪', group: 'ops' },
+  '/admin/users':            { label: 'Users',          icon: '👥', group: 'ops' },
+  '/admin/orders':           { label: 'Orders',         icon: '📦', group: 'ops' },
+  '/admin/drivers':          { label: 'Drivers',        icon: '🚗', group: 'ops' },
+  '/admin/driver-documents': { label: 'Driver Docs',    icon: '📋', group: 'ops' },
+  '/admin/shop-documents':   { label: 'Shop Docs',      icon: '📑', group: 'ops' },
+  '/admin/catering':         { label: 'Catering',       icon: '🎂', group: 'ops' },
+  '/admin/support':          { label: 'Support Chat',   icon: '💬', group: 'ops' },
+  '/admin/voicemails':       { label: 'Voicemails',     icon: '📞', group: 'ops' },
+  '/admin/ivr':              { label: 'IVR Settings',   icon: '☎️', group: 'ops' },
+  '/admin/ivr-extensions':   { label: 'IVR Extensions', icon: '🔢', group: 'ops' },
+  '/admin/disputes':         { label: 'Disputes',       icon: '⚠️', group: 'ops' },
+  '/admin/payouts':          { label: 'Payouts',        icon: '💰', group: 'ops' },
+  '/admin/flyers':           { label: 'Shop Flyers',    icon: '📄', group: 'marketing' },
+  '/admin/menu-templates':   { label: 'Menu Templates', icon: '🍩', group: 'marketing' },
+  '/admin/team':             { label: 'Team Cards',     icon: '🪪', group: 'marketing' },
+  '/admin/analytics':        { label: 'Live Analytics', icon: '📈', group: 'marketing' },
+  '/admin/pitch-campaign':   { label: 'Pitch Campaign', icon: '📣', group: 'marketing' },
+  '/admin/access-matrix':    { label: 'Role Access',    icon: '🎨', group: 'admin' },
+  '/admin/claim-requests':   { label: 'Claim Requests', icon: '🏷️', group: 'admin' },
+  '/admin/tax':              { label: 'Tax Center',     icon: '🧾', group: 'admin' },
+  '/admin/settings':         { label: 'Settings',       icon: '⚙️', group: 'admin' },
 }
 
 // Pick the most specific PAGE_ROLES key that matches a pathname.
@@ -109,4 +143,34 @@ export const ROLE_BADGES: Record<AdminPortalRole, { label: string; color: string
   general_manager:    { label: 'GENERAL',   color: '#FF8C00' },
   field_manager:      { label: 'FIELD',     color: '#0EA5E9' },
   marketing_manager:  { label: 'MARKETING', color: '#EC4899' },
+}
+
+// Pages that must always be reachable by every admin portal user
+// — lockout safety. If someone unchecks /admin (Dashboard) the user
+// would have no landing page on sign-in. Same for the matrix page
+// itself: if you can't see /admin/access-matrix, you can't restore
+// access you just lost.
+export const ALWAYS_ALLOWED_PAGES: readonly string[] = [
+  '/admin',
+  '/admin/access-matrix',
+]
+
+// Apply the "admin sees everything + locked pages always allowed" rules
+// on top of whatever the DB matrix says. Use this everywhere effective
+// permissions are computed.
+export function applyPermissionGuards(
+  matrix: Record<string, readonly AdminPortalRole[]>,
+): Record<string, readonly AdminPortalRole[]> {
+  const out: Record<string, readonly AdminPortalRole[]> = {}
+  for (const path of Object.keys(matrix)) {
+    const set = new Set<AdminPortalRole>(matrix[path])
+    set.add('admin') // admin is never absent
+    if (ALWAYS_ALLOWED_PAGES.includes(path)) {
+      set.add('general_manager')
+      set.add('field_manager')
+      set.add('marketing_manager')
+    }
+    out[path] = Array.from(set)
+  }
+  return out
 }

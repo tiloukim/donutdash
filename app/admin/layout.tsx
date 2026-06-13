@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 import {
-  canAccessAdminPage,
+  applyPermissionGuards,
   canAccessAdminPortal,
+  matchAdminSection,
   PAGE_ROLES,
   ROLE_BADGES,
   type AdminPortalRole,
@@ -46,6 +47,7 @@ const ALL_NAV_ITEMS: { href: keyof typeof PAGE_ROLES; label: string; icon: strin
   { href: '/admin/team',             label: 'Team Cards',      icon: '🪪' },
   { href: '/admin/analytics',        label: 'Live Analytics',  icon: '📈' },
   { href: '/admin/pitch-campaign',   label: 'Pitch Campaign',  icon: '📣' },
+  { href: '/admin/access-matrix',    label: 'Role Access',     icon: '🎨' },
   { href: '/admin/tax',              label: 'Tax Center',      icon: '🧾' },
   { href: '/admin/settings',         label: 'Settings',        icon: '⚙️' },
 ]
@@ -55,6 +57,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
+  // Live permissions from dd_role_permissions, fetched once per mount.
+  // Until they load we render with the static PAGE_ROLES fallback so
+  // there's no nav flash. applyPermissionGuards is what /api returns
+  // anyway, but apply it locally too so the fallback stays consistent
+  // with the lockout safety rails.
+  const [livePermissions, setLivePermissions] = useState<
+    Record<string, readonly AdminPortalRole[]> | null
+  >(null)
+
+  useEffect(() => {
+    if (!canAccessAdminPortal(role)) return
+    fetch('/api/admin/role-permissions')
+      .then(r => r.json())
+      .then(data => {
+        if (data.permissions) setLivePermissions(data.permissions)
+      })
+      .catch(() => { /* fall back silently to static defaults */ })
+  }, [role])
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: 18, background: '#F8F9FA' }}>
@@ -63,9 +84,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
+  const effectivePermissions = livePermissions ?? applyPermissionGuards(PAGE_ROLES)
+
   const NAV_ITEMS = canAccessAdminPortal(role)
     ? ALL_NAV_ITEMS.filter(item =>
-        PAGE_ROLES[item.href].includes(role as AdminPortalRole),
+        effectivePermissions[item.href]?.includes(role as AdminPortalRole),
       )
     : []
   const badge = canAccessAdminPortal(role) ? ROLE_BADGES[role] : null
@@ -88,7 +111,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Defense-in-depth: even if a manager guesses an admin-only URL, the
   // layout swaps the page body for a Forbidden card. Sidebar still
   // renders so they can navigate somewhere they DO have access to.
-  const isAllowedHere = canAccessAdminPage(role, pathname)
+  const section = matchAdminSection(pathname)
+  const isAllowedHere = section
+    ? (effectivePermissions[section]?.includes(role as AdminPortalRole) ?? false)
+    : role === 'admin'
 
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === '/admin'
