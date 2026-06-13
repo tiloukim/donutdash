@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
   if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { allowed } = checkRateLimit(`payout:${ddUser.id}`, 5, 60000)
+  const { allowed } = await checkRateLimit(`payout:${ddUser.id}`, 5, 60000)
   if (!allowed) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }

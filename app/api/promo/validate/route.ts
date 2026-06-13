@@ -8,7 +8,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    const { allowed } = checkRateLimit(`promo:${ip}`, 20, 60000)
+    const { allowed } = await checkRateLimit(`promo:${ip}`, 20, 60000)
     if (!allowed) {
       return NextResponse.json({ valid: false, error: 'Too many requests. Please try again later.' }, { status: 429 })
     }

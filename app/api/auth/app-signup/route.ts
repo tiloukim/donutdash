@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { notifyNewSignup } from '@/lib/sms'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { getClientIp } from '@/lib/client-ip'
 
 export async function POST(req: NextRequest) {
   const { email, password, name, phone, role } = await req.json()
@@ -11,6 +13,13 @@ export async function POST(req: NextRequest) {
 
   if (!['customer', 'driver', 'shop_owner'].includes(role)) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+  }
+
+  // Mass-signup defense — also blunts admin-SMS spam from notifyNewSignup.
+  const ip = getClientIp(req.headers)
+  const ipLimit = await checkRateLimit(`signup:ip:${ip}`, 3, 15 * 60_000)
+  if (!ipLimit.allowed) {
+    return NextResponse.json({ error: 'Too many signup attempts. Try again in 15 minutes.' }, { status: 429 })
   }
 
   const supabase = createServiceClient()

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       .from('dd_users').select('id, email, name').eq('auth_id', authUser.id).single()
     if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-    const { allowed } = checkRateLimit(`checkout:${ddUser.id}`, 10, 60000)
+    const { allowed } = await checkRateLimit(`checkout:${ddUser.id}`, 10, 60000)
     if (!allowed) return NextResponse.json({ error: 'Too many requests.' }, { status: 429 })
 
     const body = await request.json()

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { getClientIp } from '@/lib/client-ip'
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json()
@@ -9,6 +11,19 @@ export async function POST(req: NextRequest) {
   }
 
   const trimmedEmail = String(email).trim().toLowerCase()
+  const ip = getClientIp(req.headers)
+
+  // Rate-limit credential-stuffing attempts. Per-IP catches single-source
+  // bursts; per-email catches a distributed slow attack on one account.
+  const ipLimit = await checkRateLimit(`login:ip:${ip}`, 10, 60_000)
+  if (!ipLimit.allowed) {
+    return NextResponse.json({ error: 'Too many login attempts. Try again in a minute.' }, { status: 429 })
+  }
+  const emailLimit = await checkRateLimit(`login:email:${trimmedEmail}`, 5, 15 * 60_000)
+  if (!emailLimit.allowed) {
+    return NextResponse.json({ error: 'Too many login attempts. Try again in 15 minutes.' }, { status: 429 })
+  }
+
   const supabase = createServiceClient()
 
   // Verify password without going through captcha-protected signInWithPassword.

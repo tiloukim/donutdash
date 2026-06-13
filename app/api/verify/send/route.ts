@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { getClientIp } from '@/lib/client-ip'
 
 export const dynamic = 'force-dynamic'
 
@@ -6,6 +8,19 @@ export async function POST(req: NextRequest) {
   const { phone } = await req.json()
   if (!phone?.trim()) {
     return NextResponse.json({ error: 'Phone number is required.' }, { status: 400 })
+  }
+
+  // SMS-pump defense. Twilio charges per send — without these caps,
+  // someone can burn the Verify quota and bombard a victim's phone.
+  const ip = getClientIp(req.headers)
+  const normalizedPhone = phone.trim()
+  const ipLimit = await checkRateLimit(`verify-send:ip:${ip}`, 10, 15 * 60_000)
+  if (!ipLimit.allowed) {
+    return NextResponse.json({ error: 'Too many verification requests. Try again in 15 minutes.' }, { status: 429 })
+  }
+  const phoneLimit = await checkRateLimit(`verify-send:phone:${normalizedPhone}`, 3, 60 * 60_000)
+  if (!phoneLimit.allowed) {
+    return NextResponse.json({ error: 'Too many codes sent to this number. Try again in an hour.' }, { status: 429 })
   }
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID

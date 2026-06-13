@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const { allowed } = checkRateLimit(`stripe-checkout:${ddUser.id}`, 10, 60000)
+    const { allowed } = await checkRateLimit(`stripe-checkout:${ddUser.id}`, 10, 60000)
     if (!allowed) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
     }

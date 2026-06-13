@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gift card purchasing coming soon!' }, { status: 403 })
     }
 
-    const { allowed } = checkRateLimit(`giftcard:${ddUser.id}`, 10, 60000)
+    const { allowed } = await checkRateLimit(`giftcard:${ddUser.id}`, 10, 60000)
     if (!allowed) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
     }

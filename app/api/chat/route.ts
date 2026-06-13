@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
     if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-    const { allowed } = checkRateLimit(`chat:${ddUser.id}`, 30, 60000)
+    const { allowed } = await checkRateLimit(`chat:${ddUser.id}`, 30, 60000)
     if (!allowed) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
     }
