@@ -5,40 +5,49 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
+import {
+  canAccessAdminPage,
+  canAccessAdminPortal,
+  PAGE_ROLES,
+  ROLE_BADGES,
+  type AdminPortalRole,
+} from '@/lib/admin-auth'
 
-// Quick-jump links to the other portals. Admin + manager can navigate
-// in as their own session for QA / support / spot-checks. Opened in a
-// new tab so the admin's place in the dashboard isn't lost — closing
-// the tab pops them right back here.
+// Quick-jump links to the other portals. Admin + manager roles can
+// navigate in as their own session for QA / support / spot-checks.
+// Opened in a new tab so the admin's place in the dashboard isn't
+// lost — closing the tab pops them right back here.
 const PORTAL_LINKS = [
   { href: '/driver', label: 'Driver Portal', icon: '🚗' },
   { href: '/shop', label: 'Shop Portal', icon: '🏪' },
   { href: '/shops', label: 'Customer Site', icon: '🛒' },
 ]
 
-const ALL_NAV_ITEMS = [
-  { href: '/admin', label: 'Dashboard', icon: '📊', roles: ['admin', 'manager'] },
-  { href: '/admin/shops', label: 'Shops', icon: '🏪', roles: ['admin', 'manager'] },
-  { href: '/admin/users', label: 'Users', icon: '👥', roles: ['admin', 'manager'] },
-  { href: '/admin/orders', label: 'Orders', icon: '📦', roles: ['admin', 'manager'] },
-  { href: '/admin/drivers', label: 'Drivers', icon: '🚗', roles: ['admin', 'manager'] },
-  { href: '/admin/driver-documents', label: 'Driver Docs', icon: '📋', roles: ['admin', 'manager'] },
-  { href: '/admin/shop-documents', label: 'Shop Docs', icon: '📑', roles: ['admin', 'manager'] },
-  { href: '/admin/claim-requests', label: 'Claim Requests', icon: '🏷️', roles: ['admin'] },
-  { href: '/admin/payouts', label: 'Payouts', icon: '💰', roles: ['admin', 'manager'] },
-  { href: '/admin/catering', label: 'Catering', icon: '🎂', roles: ['admin', 'manager'] },
-  { href: '/admin/support', label: 'Support Chat', icon: '💬', roles: ['admin', 'manager'] },
-  { href: '/admin/voicemails', label: 'Voicemails', icon: '📞', roles: ['admin', 'manager'] },
-  { href: '/admin/ivr', label: 'IVR Settings', icon: '☎️', roles: ['admin', 'manager'] },
-  { href: '/admin/ivr-extensions', label: 'IVR Extensions', icon: '🔢', roles: ['admin', 'manager'] },
-  { href: '/admin/disputes', label: 'Disputes', icon: '⚠️', roles: ['admin', 'manager'] },
-  { href: '/admin/flyers', label: 'Shop Flyers', icon: '📄', roles: ['admin', 'manager'] },
-  { href: '/admin/menu-templates', label: 'Menu Templates', icon: '🍩', roles: ['admin', 'manager'] },
-  { href: '/admin/team', label: 'Team Cards', icon: '🪪', roles: ['admin', 'manager'] },
-  { href: '/admin/analytics', label: 'Live Analytics', icon: '📈', roles: ['admin', 'manager'] },
-  { href: '/admin/pitch-campaign', label: 'Pitch Campaign', icon: '📣', roles: ['admin', 'manager'] },
-  { href: '/admin/tax', label: 'Tax Center', icon: '🧾', roles: ['admin'] },
-  { href: '/admin/settings', label: 'Settings', icon: '⚙️', roles: ['admin'] },
+// Order + presentation only. The role-gating itself lives in
+// PAGE_ROLES (lib/admin-auth.ts) — single source of truth.
+const ALL_NAV_ITEMS: { href: keyof typeof PAGE_ROLES; label: string; icon: string }[] = [
+  { href: '/admin',                  label: 'Dashboard',       icon: '📊' },
+  { href: '/admin/shops',            label: 'Shops',           icon: '🏪' },
+  { href: '/admin/users',            label: 'Users',           icon: '👥' },
+  { href: '/admin/orders',           label: 'Orders',          icon: '📦' },
+  { href: '/admin/drivers',          label: 'Drivers',         icon: '🚗' },
+  { href: '/admin/driver-documents', label: 'Driver Docs',     icon: '📋' },
+  { href: '/admin/shop-documents',   label: 'Shop Docs',       icon: '📑' },
+  { href: '/admin/claim-requests',   label: 'Claim Requests',  icon: '🏷️' },
+  { href: '/admin/payouts',          label: 'Payouts',         icon: '💰' },
+  { href: '/admin/catering',         label: 'Catering',        icon: '🎂' },
+  { href: '/admin/support',          label: 'Support Chat',    icon: '💬' },
+  { href: '/admin/voicemails',       label: 'Voicemails',      icon: '📞' },
+  { href: '/admin/ivr',              label: 'IVR Settings',    icon: '☎️' },
+  { href: '/admin/ivr-extensions',   label: 'IVR Extensions',  icon: '🔢' },
+  { href: '/admin/disputes',         label: 'Disputes',        icon: '⚠️' },
+  { href: '/admin/flyers',           label: 'Shop Flyers',     icon: '📄' },
+  { href: '/admin/menu-templates',   label: 'Menu Templates',  icon: '🍩' },
+  { href: '/admin/team',             label: 'Team Cards',      icon: '🪪' },
+  { href: '/admin/analytics',        label: 'Live Analytics',  icon: '📈' },
+  { href: '/admin/pitch-campaign',   label: 'Pitch Campaign',  icon: '📣' },
+  { href: '/admin/tax',              label: 'Tax Center',      icon: '🧾' },
+  { href: '/admin/settings',         label: 'Settings',        icon: '⚙️' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -54,10 +63,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
-  const isAdminOrManager = role === 'admin' || role === 'manager'
-  const NAV_ITEMS = ALL_NAV_ITEMS.filter(item => item.roles.includes(role || ''))
+  const NAV_ITEMS = canAccessAdminPortal(role)
+    ? ALL_NAV_ITEMS.filter(item =>
+        PAGE_ROLES[item.href].includes(role as AdminPortalRole),
+      )
+    : []
+  const badge = canAccessAdminPortal(role) ? ROLE_BADGES[role] : null
 
-  if (!user || !isAdminOrManager) {
+  if (!user || !canAccessAdminPortal(role)) {
     return (
       <RoleAuthForm
         role="admin"
@@ -72,6 +85,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
+  // Defense-in-depth: even if a manager guesses an admin-only URL, the
+  // layout swaps the page body for a Forbidden card. Sidebar still
+  // renders so they can navigate somewhere they DO have access to.
+  const isAllowedHere = canAccessAdminPage(role, pathname)
+
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === '/admin'
     return pathname.startsWith(href)
@@ -81,7 +99,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <>
       <div style={{ padding: '16px 20px 10px' }}>
         <img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} />
-        <span style={{ background: role === 'manager' ? '#FF8C00' : '#6366F1', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block', letterSpacing: 1 }}>{role === 'manager' ? 'MANAGER' : 'ADMIN'}</span>
+        {badge && (
+          <span style={{ background: badge.color, color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block', letterSpacing: 1 }}>
+            {badge.label}
+          </span>
+        )}
       </div>
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1, padding: '0 8px', overflowY: 'auto' }}>
         {NAV_ITEMS.map(item => (
@@ -188,7 +210,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <span style={{ fontSize: 14, color: '#666' }}>{user.name}</span>
         </header>
-        <div style={{ padding: 24 }}>{children}</div>
+        <div style={{ padding: 24 }}>
+          {isAllowedHere ? children : (
+            <div style={{
+              maxWidth: 480, margin: '60px auto', background: '#fff',
+              border: '1px solid #FCA5A5', borderRadius: 12, padding: 32,
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>🚫</div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#991B1B', marginBottom: 8 }}>
+                You don&apos;t have access to this page
+              </h2>
+              <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 20 }}>
+                Your {badge?.label.toLowerCase() ?? 'current'} role can&apos;t view this section. Pick something from the sidebar, or ask an admin to grant access.
+              </p>
+              <Link href="/admin" style={{
+                display: 'inline-block', padding: '10px 20px', borderRadius: 8,
+                background: '#6366F1', color: '#fff', textDecoration: 'none',
+                fontSize: 14, fontWeight: 600,
+              }}>
+                Back to Dashboard
+              </Link>
+            </div>
+          )}
+        </div>
       </main>
 
       <style>{`

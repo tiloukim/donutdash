@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { canAccessAdminPortal } from '@/lib/admin-auth'
 import { buildPitchForShopId, buildPitchEmailHtml } from '@/lib/pitch'
 import { sendEmail } from '@/lib/sms'
 
@@ -22,7 +23,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     .select('role')
     .eq('auth_id', user.id)
     .single()
-  if (!caller || (caller.role !== 'admin' && caller.role !== 'manager')) {
+  if (!caller || (!canAccessAdminPortal(caller.role))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

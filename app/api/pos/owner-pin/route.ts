@@ -21,7 +21,7 @@ async function authorizeForShop(shopId: string) {
     .single()
   if (!caller) return { error: 'No DonutDash profile', status: 403 as const }
 
-  if (caller.role !== 'admin' && caller.role !== 'manager') {
+  if (caller.role !== 'admin' && caller.role !== 'general_manager' && caller.role !== 'field_manager') {
     const { data: shop } = await svc
       .from('dd_shops')
       .select('id')

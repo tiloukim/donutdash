@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   // Cashier needs a real role to ring up walk-ins. Customers / drivers
   // shouldn't be touching this endpoint.
-  if (!['shop_owner', 'manager', 'admin'].includes(caller.role)) {
+  if (!['shop_owner', 'admin', 'general_manager', 'field_manager'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

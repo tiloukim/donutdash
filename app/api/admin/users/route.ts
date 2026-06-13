@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { canAccessAdminPortal, isAdmin } from '@/lib/admin-auth'
+
+// Roles a caller may assign via this endpoint. Mirrors the
+// dd_users_role_check constraint so a malformed value 400s
+// before hitting the DB.
+const ASSIGNABLE_ROLES = new Set([
+  'customer',
+  'shop_owner',
+  'driver',
+  'cashier',
+  'admin',
+  'general_manager',
+  'field_manager',
+  'marketing_manager',
+])
 
 export async function GET() {
   try {
@@ -9,7 +24,7 @@ export async function GET() {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { data: users, error } = await svc
       .from('dd_users')
@@ -32,10 +47,19 @@ export async function PATCH(request: NextRequest) {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await request.json()
     const { id, role, is_active, name, email, phone, new_password } = body
+
+    // Privilege escalation guard: only admin can change roles. A
+    // general_manager could otherwise self-promote to admin.
+    if (role !== undefined && !isAdmin(ddUser.role)) {
+      return NextResponse.json({ error: 'Only admins can change roles' }, { status: 403 })
+    }
+    if (role !== undefined && !ASSIGNABLE_ROLES.has(role)) {
+      return NextResponse.json({ error: `Invalid role: ${role}` }, { status: 400 })
+    }
 
     // Fetch the user first
     const { data: targetUser } = await svc.from('dd_users').select('*').eq('id', id).single()
@@ -87,7 +111,13 @@ export async function DELETE(request: NextRequest) {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    // Deleting a user is admin-only — a manager could otherwise
+    // nuke the admin account and lock everyone out.
+    if (!isAdmin(ddUser.role)) {
+      return NextResponse.json({ error: 'Only admins can delete users' }, { status: 403 })
+    }
 
     const { id } = await request.json()
     if (!id) return NextResponse.json({ error: 'Missing user id' }, { status: 400 })

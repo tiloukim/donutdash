@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { canAccessAdminPortal } from '@/lib/admin-auth'
 
 // PATCH  /api/admin/pitch-campaign/:id — update status / notes / email
 // DELETE /api/admin/pitch-campaign/:id — hard delete from the list
@@ -15,7 +16,7 @@ async function authorize() {
     .select('id, role')
     .eq('auth_id', user.id)
     .single()
-  if (!caller || (caller.role !== 'admin' && caller.role !== 'manager')) {
+  if (!caller || (!canAccessAdminPortal(caller.role))) {
     return { error: 'Forbidden', status: 403 as const }
   }
   return { svc, caller }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { canAccessAdminPortal } from '@/lib/admin-auth'
 import { resolveCommissionRate } from '@/lib/constants'
 
 export async function GET() {
@@ -10,7 +11,7 @@ export async function GET() {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     // Fetch all stats in parallel
     const [ordersRes, deliveriesRes, shopsRes, driversRes, usersRes] = await Promise.all([

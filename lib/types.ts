@@ -4,7 +4,15 @@ export interface User {
   email: string
   name: string
   phone: string | null
-  role: 'customer' | 'shop_owner' | 'driver' | 'manager' | 'admin'
+  role:
+    | 'customer'
+    | 'shop_owner'
+    | 'driver'
+    | 'admin'
+    | 'general_manager'
+    | 'field_manager'
+    | 'marketing_manager'
+    | 'cashier'
   avatar_url: string | null
   is_active: boolean
   driver_status: 'pending_documents' | 'pending_approval' | 'approved' | null

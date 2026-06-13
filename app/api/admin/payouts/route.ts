@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { canAccessAdminPortal } from '@/lib/admin-auth'
 import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate } from '@/lib/constants'
 
 export async function GET(req: NextRequest) {
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-  if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const period = searchParams.get('period') || 'week' // week, month, all

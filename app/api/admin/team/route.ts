@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { canAccessAdminPortal } from '@/lib/admin-auth'
 import crypto from 'crypto'
 
 function makeUploadToken(): string {
@@ -12,7 +13,7 @@ async function requireAdmin() {
   if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('role').eq('auth_id', user.id).single()
-  if (!ddUser || (ddUser.role !== 'admin' && ddUser.role !== 'manager')) {
+  if (!ddUser || (!canAccessAdminPortal(ddUser.role))) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
   return { svc, ddUser }

@@ -17,7 +17,7 @@ async function authorize() {
     .eq('auth_id', user.id)
     .maybeSingle()
   if (!caller) return { error: 'No DonutDash profile', status: 403 as const }
-  if (!['shop_owner', 'manager', 'admin'].includes(caller.role)) {
+  if (!['shop_owner', 'admin', 'general_manager', 'field_manager'].includes(caller.role)) {
     return { error: 'Forbidden', status: 403 as const }
   }
   return { svc, caller }

@@ -23,7 +23,13 @@ async function authorizeShop(shopId: string, mustBeOwnerOrManager: boolean) {
     .maybeSingle()
   if (!caller) return { error: 'No DonutDash profile', status: 403 as const }
 
-  if (caller.role === 'admin' || caller.role === 'manager') {
+  // Admin / general / field managers can manage any shop's cashier roster.
+  // Marketing manager is excluded — POS staff is operational, not marketing.
+  if (
+    caller.role === 'admin' ||
+    caller.role === 'general_manager' ||
+    caller.role === 'field_manager'
+  ) {
     return { svc, caller }
   }
   // Shop owner only for their own shop

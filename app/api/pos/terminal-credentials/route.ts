@@ -38,7 +38,7 @@ async function authorizeForShop(shopId: string) {
     .single()
   if (!caller) return { error: 'No DonutDash profile', status: 403 as const }
 
-  if (caller.role !== 'admin' && caller.role !== 'manager') {
+  if (caller.role !== 'admin' && caller.role !== 'general_manager' && caller.role !== 'field_manager') {
     // Shop owner — verify they own this specific shop. We don't allow
     // any other role (driver, customer) to touch terminal creds even
     // for read.

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { canAccessAdminPortal } from '@/lib/admin-auth'
 import { MIN_COMMISSION_RATE, MAX_COMMISSION_RATE, SHOP_COMMISSION_RATE } from '@/lib/constants'
 
 const MIN_COMMISSION_PCT = MIN_COMMISSION_RATE * 100
@@ -14,7 +15,7 @@ export async function GET() {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { data: shops, error } = await svc
       .from('dd_shops')
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || (ddUser.role !== 'admin' && ddUser.role !== 'manager')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || (!canAccessAdminPortal(ddUser.role))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await request.json()
     const { name, address, city, state, zip, phone, description, delivery_fee, min_order, tax_rate, service_fee_pct, commission_pct, lat, lng } = body
@@ -94,7 +95,7 @@ export async function PATCH(request: NextRequest) {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await request.json()
     const { id, ...fields } = body

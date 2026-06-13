@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { canAccessAdminPortal } from '@/lib/admin-auth'
 import { MENU_TEMPLATES } from '@/lib/menu-template'
 
 async function requireAdmin() {
@@ -8,7 +9,7 @@ async function requireAdmin() {
   if (!user) return null
   const svc = createServiceClient()
   const { data: ddUser } = await svc.from('dd_users').select('role').eq('auth_id', user.id).single()
-  if (!ddUser || (ddUser.role !== 'admin' && ddUser.role !== 'manager')) return null
+  if (!ddUser || (!canAccessAdminPortal(ddUser.role))) return null
   return svc
 }
 

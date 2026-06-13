@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { canAccessAdminPortal } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
       .eq('auth_id', authUser.id)
       .single()
 
-    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') {
+    if (!ddUser || !canAccessAdminPortal(ddUser.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -51,7 +52,7 @@ export async function PATCH(request: NextRequest) {
       .eq('auth_id', authUser.id)
       .single()
 
-    if (!ddUser || ddUser.role !== 'admin' && ddUser.role !== 'manager') {
+    if (!ddUser || !canAccessAdminPortal(ddUser.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

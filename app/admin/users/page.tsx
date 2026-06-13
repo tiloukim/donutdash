@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAuth } from '@/lib/auth-context'
 
 interface UserRow {
   id: string
@@ -13,9 +14,24 @@ interface UserRow {
   created_at: string
 }
 
-const ROLES = ['customer', 'shop_owner', 'driver', 'manager', 'admin']
+// Display order + labels for the role dropdown. The labels are
+// what shows in the UI; the values match dd_users.role exactly.
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'customer',          label: 'Customer' },
+  { value: 'shop_owner',        label: 'Shop Owner' },
+  { value: 'driver',            label: 'Driver' },
+  { value: 'cashier',           label: 'Cashier' },
+  { value: 'marketing_manager', label: 'Marketing Manager' },
+  { value: 'field_manager',     label: 'Field Manager' },
+  { value: 'general_manager',   label: 'General Manager' },
+  { value: 'admin',             label: 'Admin' },
+]
 
 export default function AdminUsers() {
+  const { role: currentRole } = useAuth()
+  // Role changes are admin-only — non-admin managers see a read-only badge instead.
+  const canChangeRoles = currentRole === 'admin'
+
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
@@ -153,13 +169,19 @@ export default function AdminUsers() {
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{u.email}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{u.phone || '—'}</td>
                   <td style={{ padding: '12px 16px' }}>
-                    <select
-                      value={u.role}
-                      onChange={e => updateUser(u.id, { role: e.target.value })}
-                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #D1D5DB', fontSize: 13, background: '#fff', cursor: 'pointer' }}
-                    >
-                      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
+                    {canChangeRoles ? (
+                      <select
+                        value={u.role}
+                        onChange={e => updateUser(u.id, { role: e.target.value })}
+                        style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #D1D5DB', fontSize: 13, background: '#fff', cursor: 'pointer' }}
+                      >
+                        {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      </select>
+                    ) : (
+                      <span style={{ fontSize: 13, color: '#374151' }}>
+                        {ROLE_OPTIONS.find(r => r.value === u.role)?.label ?? u.role}
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
