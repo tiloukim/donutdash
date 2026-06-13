@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assignment'
+import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
+import { getPayConfig } from '@/lib/pay-config'
 import { SquareClient, SquareEnvironment } from 'square'
 
 function getSquareClient() {
@@ -239,7 +240,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // than invent a 2-mile default that overpays vs the customer's charge.
         const dist = (shopLat && shopLng && dropLat && dropLng)
           ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 0
-        const earnings = calculateDriverEarnings(dist, order.tip || 0)
+        const cfg = await getPayConfig()
+        const tip = order.tip || 0
+        const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
 
         console.log('[ORDER ACCEPT] Creating delivery - distance:', dist, 'earnings:', earnings)
 
@@ -254,7 +257,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             dropoff_lng: order.delivery_lng,
             distance_miles: dist,
             driver_earnings: earnings,
-            base_pay: 3.00,
+            base_pay: cfg.driverBasePay,
           })
           .select()
           .single()

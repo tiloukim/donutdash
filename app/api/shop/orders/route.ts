@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assignment'
+import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
 import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { refundSquareOrder } from '@/lib/square-refund'
 import { resolveCommissionRate } from '@/lib/constants'
+import { getPayConfig } from '@/lib/pay-config'
 
 // Valid shop-side status transitions
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -249,7 +250,9 @@ export async function PATCH(req: NextRequest) {
         // than invent a 2-mile default that overpays vs the customer's charge.
         const dist = (shopLat && shopLng && dropLat && dropLng)
           ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 0
-        const earnings = calculateDriverEarnings(dist, updated.tip || 0)
+        const cfg = await getPayConfig()
+        const tip = updated.tip || 0
+        const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
 
         const { data: delivery } = await svc
           .from('dd_deliveries')
@@ -262,7 +265,7 @@ export async function PATCH(req: NextRequest) {
             dropoff_lng: updated.delivery_lng,
             distance_miles: dist,
             driver_earnings: earnings,
-            base_pay: 3.00,
+            base_pay: cfg.driverBasePay,
           })
           .select()
           .single()

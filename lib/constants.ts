@@ -1,3 +1,15 @@
+// Pay / fee constants below are FALLBACK DEFAULTS — the runtime
+// values flow through getPayConfig() in lib/pay-config.ts, which
+// reads dd_platform_settings (admin Settings page). New code should
+// import the helper, not these constants.
+//   - service_fee_rate    -> SERVICE_FEE_RATE
+//   - default_delivery_fee -> DEFAULT_DELIVERY_FEE
+//   - driver_base_pay     -> BASE_DELIVERY_PAY
+//   - driver_per_mile     -> PER_MILE_PAY
+//   - shop_commission_rate -> SHOP_COMMISSION_RATE
+//   - min_order_amount    -> MIN_ORDER_AMOUNT
+// Per-delivery base_pay is snapshotted to dd_deliveries.base_pay at
+// creation, so historical payouts always honor the quote.
 export const SERVICE_FEE_RATE = 0.10
 
 export const SHOP_COMMISSION_RATE = 0.20

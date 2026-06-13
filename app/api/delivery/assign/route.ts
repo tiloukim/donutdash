@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assignment'
+import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
 import { MAX_DELIVERY_MILES } from '@/lib/constants'
+import { getPayConfig } from '@/lib/pay-config'
 
 // Called when a new order is confirmed to start the auto-assignment process
 export async function POST(req: NextRequest) {
@@ -59,7 +60,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Delivery distance ${dist.toFixed(1)}mi exceeds maximum ${MAX_DELIVERY_MILES}mi. Order needs admin review.` }, { status: 400 })
     }
 
-    const earnings = calculateDriverEarnings(dist, order.tip || 0)
+    const cfg = await getPayConfig()
+    const tip = order.tip || 0
+    const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
 
     const { data: delivery, error } = await svc
       .from('dd_deliveries')
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
         dropoff_lng: order.delivery_lng,
         distance_miles: dist,
         driver_earnings: earnings,
-        base_pay: 3.00,
+        base_pay: cfg.driverBasePay,
       })
       .select()
       .single()

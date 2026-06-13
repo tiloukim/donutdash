@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
 import { sendEmail, sendSMS } from './sms'
-import { MAX_DRIVER_DISTANCE_MILES, BASE_DELIVERY_PAY, PER_MILE_PAY, OFFER_TIMEOUT_SECONDS, DEFAULT_DELIVERY_FEE } from './constants'
+import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS } from './constants'
 
 export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = [], shopId?: string) {
   const svc = createServiceClient()
@@ -198,25 +198,7 @@ export async function assignNextDriver(deliveryId: string) {
   return createDeliveryOffer(deliveryId, nearest.driver_id)
 }
 
-export function calculateDriverEarnings(distanceMiles: number, tip: number = 0): number {
-  // distanceMiles is one-way (shop → customer) from haversineDistance.
-  // Driver is paid per mile of one-way distance only.
-  const earnings = BASE_DELIVERY_PAY + (distanceMiles * PER_MILE_PAY) + tip
-  return Math.round(earnings * 100) / 100
-}
-
-export function calculateDeliveryFee(): number {
-  return DEFAULT_DELIVERY_FEE
-}
-
-// Admin profit per delivery = delivery fee + service fee - driver pay (excluding tip)
-export function calculateAdminProfit(distanceMiles: number, serviceFee: number): {
-  deliveryFee: number
-  driverPay: number
-  adminProfit: number
-} {
-  const deliveryFee = DEFAULT_DELIVERY_FEE
-  const driverPay = calculateDriverEarnings(distanceMiles, 0) // exclude tip
-  const adminProfit = deliveryFee + serviceFee - driverPay
-  return { deliveryFee, driverPay, adminProfit: Math.round(adminProfit * 100) / 100 }
-}
+// Driver earnings / delivery fee helpers moved to lib/pay-config.ts —
+// quoteDriverEarnings() reads from dd_platform_settings at runtime so
+// the admin Settings page actually controls pay. Old constant-only
+// helpers were removed to keep callers from grabbing the stale path.

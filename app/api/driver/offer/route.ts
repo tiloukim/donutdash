@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { assignNextDriver, calculateDriverEarnings } from '@/lib/delivery-assignment'
+import { assignNextDriver } from '@/lib/delivery-assignment'
+import { quoteDriverEarnings } from '@/lib/pay-config'
 import { haversineDistance } from '@/lib/osrm'
 
 // GET - get current pending offer for this driver
@@ -169,7 +170,7 @@ export async function POST(req: NextRequest) {
     ? haversineDistance(shopLat, shopLng, dropLat, dropLng)
     : (offer.delivery?.distance_miles || 0)
   if (!Number.isFinite(dist) || dist < 0) dist = 0
-  const earnings = calculateDriverEarnings(dist, tip)
+  const earnings = await quoteDriverEarnings(dist, tip)
 
   // Update offer
   await svc.from('dd_delivery_offers')
