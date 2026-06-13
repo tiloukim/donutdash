@@ -15,7 +15,7 @@ export async function GET() {
 
     // Fetch all stats in parallel
     const [ordersRes, deliveriesRes, shopsRes, driversRes, usersRes] = await Promise.all([
-      svc.from('dd_orders').select('id, total, subtotal, delivery_fee, service_fee, tip, status, commission_pct'),
+      svc.from('dd_orders').select('id, total, subtotal, delivery_fee, service_fee, tip, status, commission_pct, order_type, refund_amount'),
       svc.from('dd_deliveries').select('id, driver_earnings, status'),
       svc.from('dd_shops').select('id, is_active'),
       svc.from('dd_users').select('id').eq('role', 'driver').eq('is_active', true),
@@ -28,27 +28,48 @@ export async function GET() {
     const drivers = driversRes.data || []
     const users = usersRes.data || []
 
-    // Only count non-cancelled orders for financial metrics
-    const validOrders = orders.filter(o => o.status !== 'cancelled')
+    // Platform-revenue metrics only count delivery + pickup orders.
+    // POS walk-ins (order_type='pos_walkin') never touch the platform —
+    // the shop collects payment directly — so they're irrelevant to
+    // commission/service-fee/delivery-fee totals.
+    const validOrders = orders.filter(o =>
+      o.status !== 'cancelled' && (o.order_type === 'delivery' || o.order_type === 'pickup')
+    )
 
-    const totalRevenue = validOrders.reduce((sum, o) => sum + (o.total || 0), 0)
-    const totalSubtotal = validOrders.reduce((sum, o) => sum + (o.subtotal || 0), 0)
-    const totalDeliveryFees = validOrders.reduce((sum, o) => sum + (o.delivery_fee || 0), 0)
-    const totalServiceFees = validOrders.reduce((sum, o) => sum + (o.service_fee || 0), 0)
-    const totalTips = validOrders.reduce((sum, o) => sum + (o.tip || 0), 0)
+    // Effective amounts after partial refunds. Same proportional
+    // treatment as /api/shop/earnings + /api/admin/payouts.
+    const effSubtotal = (o: typeof validOrders[number]) => {
+      const s = Number(o.subtotal || 0); const t = Number(o.total || 0); const r = Number(o.refund_amount || 0)
+      if (r <= 0 || t <= 0) return s
+      return Math.max(0, s * (1 - Math.min(r / t, 1)))
+    }
+    const effFee = (raw: number, o: typeof validOrders[number]) => {
+      const t = Number(o.total || 0); const r = Number(o.refund_amount || 0)
+      if (r <= 0 || t <= 0) return raw
+      return Math.max(0, raw * (1 - Math.min(r / t, 1)))
+    }
+
+    const totalRevenue = validOrders.reduce((sum, o) => sum + (Number(o.total || 0) - Number(o.refund_amount || 0)), 0)
+    const totalDeliveryFees = validOrders.reduce((sum, o) => sum + effFee(Number(o.delivery_fee || 0), o), 0)
+    const totalServiceFees = validOrders.reduce((sum, o) => sum + effFee(Number(o.service_fee || 0), o), 0)
+    const totalTips = validOrders.reduce((sum, o) => sum + effFee(Number(o.tip || 0), o), 0)
 
     // Commission earned from shops — uses each order's snapshotted rate so historical
     // orders keep the rate that was active when they were placed.
-    const shopCommissions = Math.round(validOrders.reduce((sum, o) => sum + Number(o.subtotal || 0) * resolveCommissionRate(o), 0) * 100) / 100
+    const shopCommissions = Math.round(validOrders.reduce((sum, o) => sum + effSubtotal(o) * resolveCommissionRate(o), 0) * 100) / 100
 
     // Driver payouts from completed/active deliveries (not cancelled)
     const driverPayouts = deliveries
       .filter(d => d.status !== 'cancelled')
       .reduce((sum, d) => sum + (d.driver_earnings || 0), 0)
 
-    // Net profit = commissions + service fees + delivery fees - driver payouts
-    // Tips pass through to drivers and are not platform revenue
-    const netProfit = Math.round((shopCommissions + totalServiceFees + totalDeliveryFees - driverPayouts) * 100) / 100
+    // Net profit = commissions + service fees + delivery fees + tips collected
+    //              - driver payouts (which include tips paid out)
+    // Tips pass through: customer paid → platform → driver. Without
+    // adding tips on the revenue side, the subtraction inside
+    // driverPayouts double-counts the tip pool and silently lowers
+    // net profit by ~totalTips.
+    const netProfit = Math.round((shopCommissions + totalServiceFees + totalDeliveryFees + totalTips - driverPayouts) * 100) / 100
 
     return NextResponse.json({
       totalRevenue: Math.round(totalRevenue * 100) / 100,
@@ -58,7 +79,7 @@ export async function GET() {
       totalDeliveryFees: Math.round(totalDeliveryFees * 100) / 100,
       driverPayouts: Math.round(driverPayouts * 100) / 100,
       totalTips: Math.round(totalTips * 100) / 100,
-      totalOrders: orders.length,
+      totalOrders: validOrders.length,
       activeShops: shops.filter(s => s.is_active).length,
       activeDrivers: drivers.length,
       totalUsers: users.length,

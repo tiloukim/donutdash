@@ -34,12 +34,17 @@ export async function GET() {
   // 4 weeks ago (28 days)
   const fourWeeksAgo = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000).toISOString()
 
-  // Fetch all non-cancelled orders from last 30 days in one query
+  // Fetch all non-cancelled delivery+pickup orders from last 30 days.
+  // POS walk-ins (order_type='pos_walkin') don't pass through platform
+  // commission — shop already kept 100% at the register — so they
+  // belong in /api/shop/bookkeeping (all-sales view) but NOT here
+  // (this view drives the "platform owes you X" payout estimate).
   const { data: orders, error } = await svc
     .from('dd_orders')
     .select('id, created_at, status, subtotal, total, commission_pct, refund_amount, dd_order_items(id)')
     .eq('shop_id', shop.id)
     .neq('status', 'cancelled')
+    .in('order_type', ['delivery', 'pickup'])
     .gte('created_at', thirtyDaysAgo)
     .order('created_at', { ascending: false })
 

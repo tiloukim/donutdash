@@ -26,8 +26,9 @@ export async function GET(req: NextRequest) {
       .gte('delivered_at', yearStart)
       .lt('delivered_at', yearEnd),
     svc.from('dd_orders')
-      .select('id, total, subtotal, delivery_fee, service_fee, tip, status, created_at, shop_id, commission_pct')
+      .select('id, total, subtotal, delivery_fee, service_fee, tip, refund_amount, status, created_at, shop_id, commission_pct')
       .neq('status', 'cancelled')
+      .in('order_type', ['delivery', 'pickup'])
       .gte('created_at', yearStart)
       .lt('created_at', yearEnd),
     svc.from('dd_payout_requests')
@@ -96,13 +97,27 @@ export async function GET(req: NextRequest) {
   }).filter(d => d.deliveryCount > 0 || d.totalPaid > 0)
     .sort((a, b) => b.totalEarnings - a.totalEarnings)
 
-  // Platform income summary
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0)
-  const totalSubtotal = orders.reduce((sum, o) => sum + (o.subtotal || 0), 0)
-  const totalDeliveryFees = orders.reduce((sum, o) => sum + (o.delivery_fee || 0), 0)
-  const totalServiceFees = orders.reduce((sum, o) => sum + (o.service_fee || 0), 0)
-  const totalTips = orders.reduce((sum, o) => sum + (o.tip || 0), 0)
-  const shopCommissions = Math.round(orders.reduce((sum, o) => sum + Number(o.subtotal || 0) * resolveCommissionRate(o), 0) * 100) / 100
+  // Effective amounts after partial refunds — applied proportionally
+  // across all line items (matches /api/shop/earnings + /api/admin/payouts).
+  const effSubtotal = (o: typeof orders[number]) => {
+    const s = Number(o.subtotal || 0); const t = Number(o.total || 0); const r = Number(o.refund_amount || 0)
+    if (r <= 0 || t <= 0) return s
+    return Math.max(0, s * (1 - Math.min(r / t, 1)))
+  }
+  const effShare = (raw: number, o: typeof orders[number]) => {
+    const t = Number(o.total || 0); const r = Number(o.refund_amount || 0)
+    if (r <= 0 || t <= 0) return raw
+    return Math.max(0, raw * (1 - Math.min(r / t, 1)))
+  }
+
+  // Platform income summary. Subtract refund_amount everywhere — without
+  // this, refunded orders inflate 1099 totals (the IRS gets a number the
+  // shop / driver never actually received).
+  const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.total || 0) - Number(o.refund_amount || 0)), 0)
+  const totalDeliveryFees = orders.reduce((sum, o) => sum + effShare(Number(o.delivery_fee || 0), o), 0)
+  const totalServiceFees = orders.reduce((sum, o) => sum + effShare(Number(o.service_fee || 0), o), 0)
+  const totalTips = orders.reduce((sum, o) => sum + effShare(Number(o.tip || 0), o), 0)
+  const shopCommissions = Math.round(orders.reduce((sum, o) => sum + effSubtotal(o) * resolveCommissionRate(o), 0) * 100) / 100
   const totalDriverEarnings = driverSummaries.reduce((sum, d) => sum + d.totalEarnings, 0)
 
   // Platform taxable income = commissions + service fees + delivery fees - driver payouts
@@ -116,11 +131,10 @@ export async function GET(req: NextRequest) {
       const d = new Date(o.created_at)
       return d >= qStart && d < qEnd
     })
-    const qRevenue = qOrders.reduce((sum, o) => sum + (o.total || 0), 0)
-    const qSubtotal = qOrders.reduce((sum, o) => sum + (o.subtotal || 0), 0)
-    const qServiceFees = qOrders.reduce((sum, o) => sum + (o.service_fee || 0), 0)
-    const qDeliveryFees = qOrders.reduce((sum, o) => sum + (o.delivery_fee || 0), 0)
-    const qCommissions = Math.round(qOrders.reduce((sum, o) => sum + Number(o.subtotal || 0) * resolveCommissionRate(o), 0) * 100) / 100
+    const qRevenue = qOrders.reduce((sum, o) => sum + (Number(o.total || 0) - Number(o.refund_amount || 0)), 0)
+    const qServiceFees = qOrders.reduce((sum, o) => sum + effShare(Number(o.service_fee || 0), o), 0)
+    const qDeliveryFees = qOrders.reduce((sum, o) => sum + effShare(Number(o.delivery_fee || 0), o), 0)
+    const qCommissions = Math.round(qOrders.reduce((sum, o) => sum + effSubtotal(o) * resolveCommissionRate(o), 0) * 100) / 100
 
     const qDeliveries = deliveries.filter(d => {
       const dt = new Date(d.delivered_at)
@@ -147,11 +161,12 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // Per-shop earnings breakdown (shop gets subtotal minus commission)
+  // Per-shop earnings breakdown (shop gets subtotal minus commission).
+  // Same refund-proportional treatment as the platform summary.
   const shopSummaries = shops.map((shop: any) => {
     const shopOrders = orders.filter((o: any) => o.shop_id === shop.id)
-    const totalSubtotalShop = shopOrders.reduce((sum: number, o: any) => sum + Number(o.subtotal || 0), 0)
-    const commission = Math.round(shopOrders.reduce((sum: number, o: any) => sum + Number(o.subtotal || 0) * resolveCommissionRate(o), 0) * 100) / 100
+    const totalSubtotalShop = shopOrders.reduce((sum: number, o) => sum + effSubtotal(o), 0)
+    const commission = Math.round(shopOrders.reduce((sum: number, o) => sum + effSubtotal(o) * resolveCommissionRate(o), 0) * 100) / 100
     const shopEarnings = Math.round((totalSubtotalShop - commission) * 100) / 100
     const owner = shop.owner as any
     const w9 = shopW9Docs.find((d: any) => d.shop_id === shop.id)

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { isShopOpen } from '@/lib/shop-hours'
+import { refundSquareOrder } from '@/lib/square-refund'
+import { refundStripePayment } from '@/lib/stripe'
+import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 
 // Auto-cancel delivery/pickup orders that are still active after their
 // shop's closing hour. Runs hourly via vercel cron (vercel.json).
@@ -63,27 +66,100 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Cancel all active delivery/pickup orders for closed shops in one
-  // round trip. Customers see a real reason in their order history.
-  const { data: cancelled, error: updateErr } = await svc
+  // Refund + cancel each affected order. Auto-cancelling a PAID order
+  // without issuing a refund is silent charge-without-fulfillment — the
+  // customer paid for donuts they'll never get. Refund per order before
+  // status flip so a refund failure aborts that order's cancel (the next
+  // cron run will retry).
+  const { data: toCancel } = await svc
     .from('dd_orders')
-    .update({
-      status: 'cancelled',
-      cancellation_reason: 'Auto-cancelled: shop closed',
-      updated_at: new Date().toISOString(),
-    })
+    .select('id, total, payment_id, payment_method, customer_id, refund_amount')
     .in('shop_id', closedShops)
     .in('order_type', ['delivery', 'pickup'])
     .in('status', ACTIVE_STATUSES)
-    .select('id')
 
-  if (updateErr) {
-    return NextResponse.json({ error: updateErr.message }, { status: 500 })
+  const refunded: string[] = []
+  const refundFailures: { id: string; error: string }[] = []
+  const refundSkipped: string[] = []
+
+  for (const order of toCancel || []) {
+    const total = Number(order.total) || 0
+    const alreadyRefunded = Number(order.refund_amount) || 0
+    const refundable = Math.max(0, total - alreadyRefunded)
+
+    // No payment to refund (free order, comped, or already fully refunded)
+    if (refundable <= 0 || !order.payment_id) {
+      refundSkipped.push(order.id)
+      continue
+    }
+
+    let result: { success: boolean; error?: string }
+    if (order.payment_method === 'square') {
+      result = await refundSquareOrder({
+        orderId: order.id,
+        amountCents: Math.round(refundable * 100),
+        reason: 'Auto-cancelled: shop closed',
+        idempotencyKey: `cron-stale-refund-${order.id}`,
+      })
+    } else if (order.payment_method === 'stripe') {
+      result = await refundStripePayment({
+        paymentId: order.payment_id,
+        amountCents: Math.round(refundable * 100),
+        reason: 'Auto-cancelled: shop closed',
+        idempotencyKey: `cron-stale-refund-${order.id}`,
+      })
+    } else {
+      // Unknown payment method — skip refund but proceed to cancel,
+      // since holding the order open is also unhelpful.
+      refundSkipped.push(order.id)
+      continue
+    }
+
+    if (!result.success) {
+      console.error('[CRON CANCEL-STALE] Refund failed', order.id, result.error)
+      refundFailures.push({ id: order.id, error: result.error || 'unknown' })
+      continue // skip cancel — next run retries
+    }
+
+    // Refund succeeded — flip status and stamp refund_amount
+    const { error: updErr } = await svc
+      .from('dd_orders')
+      .update({
+        status: 'cancelled',
+        cancellation_reason: 'Auto-cancelled: shop closed',
+        refund_amount: alreadyRefunded + refundable,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', order.id)
+      .in('status', ACTIVE_STATUSES) // race guard
+
+    if (updErr) {
+      console.error('[CRON CANCEL-STALE] Status update failed', order.id, updErr.message)
+      continue
+    }
+
+    refunded.push(order.id)
+
+    // Best-effort customer email — never block the cron on email delivery.
+    if (order.customer_id) {
+      svc.from('dd_users').select('email').eq('id', order.customer_id).maybeSingle().then(({ data }) => {
+        if (!data?.email) return
+        const html = buildOrderEmailHtml(
+          order.id,
+          'Your order was cancelled and refunded',
+          `We had to cancel order #${order.id.slice(0, 8)} because the shop closed before we could prepare it. $${refundable.toFixed(2)} has been refunded — it should appear in your account in 5–10 business days.`,
+        )
+        sendOrderEmail(data.email, 'DonutDash order cancelled — refund issued', html).catch(() => {})
+      })
+    }
   }
 
   return NextResponse.json({
     checked: shopIds.length,
     closedShops: closedShops.length,
-    cancelled: cancelled?.length ?? 0,
+    cancelled: refunded.length,
+    refundFailures: refundFailures.length,
+    refundSkipped: refundSkipped.length,
+    failures: refundFailures,
   })
 }

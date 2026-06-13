@@ -28,10 +28,13 @@ export async function GET(req: NextRequest) {
     startDate = d.toISOString()
   }
 
-  // Fetch delivered orders with shop info
+  // Fetch delivered orders with shop info. Filter to delivery + pickup
+  // only — POS walk-ins don't have a platform commission (shop keeps
+  // 100%) and shouldn't appear in shop payout calculations.
   let ordersQuery = svc.from('dd_orders')
-    .select('id, subtotal, delivery_fee, service_fee, tip, total, commission_pct, shop_id, created_at, shop:dd_shops!shop_id(id, name)')
+    .select('id, subtotal, delivery_fee, service_fee, tip, total, commission_pct, refund_amount, shop_id, created_at, shop:dd_shops!shop_id(id, name)')
     .eq('status', 'delivered')
+    .in('order_type', ['delivery', 'pickup'])
   if (startDate) ordersQuery = ordersQuery.gte('created_at', startDate)
   const { data: orders } = await ordersQuery
 
@@ -42,17 +45,25 @@ export async function GET(req: NextRequest) {
   if (startDate) deliveriesQuery = deliveriesQuery.gte('delivered_at', startDate)
   const { data: deliveries } = await deliveriesQuery
 
-  // Aggregate shop payouts
+  // Aggregate shop payouts. Refunds are applied proportionally: if R/T
+  // of the order was refunded, the shop's effective subtotal drops by
+  // the same ratio (the refund is shared across all line items rather
+  // than coming entirely out of platform commission or shop).
   const shopMap = new Map<string, { name: string; orders: number; subtotal: number; commission: number; payout: number }>()
   for (const order of orders || []) {
     const shopId = order.shop_id
     const shopName = (order.shop as any)?.name || 'Unknown Shop'
+    const subtotal = Number(order.subtotal || 0)
+    const total = Number(order.total || 0)
+    const refund = Number(order.refund_amount || 0)
+    const refundRatio = refund > 0 && total > 0 ? Math.min(refund / total, 1) : 0
+    const effSub = Math.max(0, subtotal * (1 - refundRatio))
     const existing = shopMap.get(shopId) || { name: shopName, orders: 0, subtotal: 0, commission: 0, payout: 0 }
     existing.orders += 1
-    existing.subtotal += Number(order.subtotal || 0)
-    const commission = Number(order.subtotal || 0) * resolveCommissionRate(order)
+    existing.subtotal += effSub
+    const commission = effSub * resolveCommissionRate(order)
     existing.commission += commission
-    existing.payout += Number(order.subtotal || 0) - commission
+    existing.payout += effSub - commission
     shopMap.set(shopId, existing)
   }
 
