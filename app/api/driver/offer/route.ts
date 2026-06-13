@@ -55,12 +55,31 @@ export async function GET() {
     return NextResponse.json(offer)
   }
 
-  // No pending offer — check for unassigned deliveries and self-assign
+  // No pending offer — check for unassigned deliveries and self-assign.
+  // Self-claim must respect the same gates findNearestAvailableDrivers
+  // enforces from the platform side: driver must be online AND not
+  // already busy on another delivery.
   const { data: driverLoc } = await svc
     .from('dd_driver_locations')
-    .select('lat, lng')
+    .select('lat, lng, is_online')
     .eq('driver_id', ddUser.id)
     .maybeSingle()
+
+  if (!driverLoc?.is_online) {
+    return NextResponse.json(null)
+  }
+
+  // Busy-driver gate — if this driver has an active delivery, no
+  // self-claim. Mirrors the cap in findNearestAvailableDrivers.
+  const { data: activeDeliveries } = await svc
+    .from('dd_deliveries')
+    .select('id')
+    .eq('driver_id', ddUser.id)
+    .in('status', ['assigned', 'picked_up', 'delivering'])
+    .limit(1)
+  if (activeDeliveries && activeDeliveries.length > 0) {
+    return NextResponse.json(null)
+  }
 
   if (driverLoc?.lat && driverLoc?.lng && driverLoc.lat !== 0 && driverLoc.lng !== 0) {
     const { data: unassigned } = await svc

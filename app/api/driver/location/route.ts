@@ -21,6 +21,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing lat/lng' }, { status: 400 })
   }
 
+  // Location ping must NOT force is_online=true. The driver controls
+  // online state via POST /api/driver/online; if a foreground refresh
+  // or background timer overwrote it, an "offline" toggle would silently
+  // flip back on within seconds, defeating the offline-stale cron and
+  // the manual control alike. is_online stays untouched here — only
+  // /api/driver/online sets it.
   const { data, error } = await svc
     .from('dd_driver_locations')
     .upsert({
@@ -29,7 +35,6 @@ export async function POST(req: NextRequest) {
       lng,
       heading: heading || null,
       speed: speed || null,
-      is_online: true,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'driver_id' })
     .select()

@@ -10,6 +10,12 @@ export async function POST(req: Request) {
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  // Unapproved / pending / rejected drivers can't take work even if
+  // they bypass the UI and POST directly.
+  if (ddUser.role === 'driver' && ddUser.driver_status !== 'approved') {
+    return NextResponse.json({ error: 'Driver account is not approved for deliveries' }, { status: 403 })
+  }
+
   const { delivery_id } = await req.json()
 
   // Atomically assign - only works if driver_id is still null

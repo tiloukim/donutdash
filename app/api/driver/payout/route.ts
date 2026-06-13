@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const svc = createServiceClient()
-  const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
+  const { data: ddUser } = await svc.from('dd_users').select('id, role, referral_credit').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
   if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -66,7 +66,10 @@ export async function POST(req: NextRequest) {
     .in('status', ['pending', 'approved', 'paid'])
 
   const totalPaidOut = (existingPayouts || []).reduce((sum, p) => sum + Number(p.amount), 0)
-  const availableBalance = Math.round((allTimeEarnings - totalPaidOut) * 100) / 100
+  // Include referral credit. The earnings page surfaces this to the
+  // driver; without adding it here, drivers see it but can never cash it.
+  const referralCredit = Number(ddUser.referral_credit) || 0
+  const availableBalance = Math.round((allTimeEarnings + referralCredit - totalPaidOut) * 100) / 100
 
   if (amount > availableBalance) {
     return NextResponse.json({ error: `Amount exceeds available balance ($${availableBalance.toFixed(2)})` }, { status: 400 })

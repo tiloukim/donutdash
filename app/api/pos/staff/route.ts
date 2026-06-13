@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 // Resolve the signed-in user's POS staff profile.
-// Phase 1 access rule:
-//   - shop_owner / admin: first shop where dd_shops.owner_id = dd_users.id
-//   - everyone else (customer, driver, manager): rejected
+// Access rule:
+//   - shop_owner / admin / general_manager / field_manager:
+//       admin/ops get the first shop they own; non-admin gets their own shop
+//   - everyone else (customer, driver, marketing_manager): rejected
 //
 // Note: dd_users.auth_id is the FK to auth.users.id; dd_users.id is its own PK.
 // dd_team_members is intentionally NOT consulted — that table is for digital
@@ -29,15 +30,17 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: 'No DonutDash profile for this account' }, { status: 403 })
   }
 
-  if (profile.role !== 'shop_owner' && profile.role !== 'admin') {
+  const allowedRoles = ['shop_owner', 'admin', 'general_manager', 'field_manager']
+  if (!allowedRoles.includes(profile.role)) {
     return NextResponse.json(
-      { error: 'POS access is limited to shop owners. Manager support is coming soon.' },
+      { error: 'POS access is limited to shop owners and platform staff.' },
       { status: 403 },
     )
   }
 
-  // Pick the first shop the user owns (admins often own shops too — e.g. tilou owns Top Donuts).
-  // A future shop-selector screen will let admins switch between shops they don't own.
+  // Pick the first shop the user owns (admin / ops often own shops too —
+  // e.g. tilou owns Top Donuts). Future shop-selector screen will let
+  // platform staff switch between shops they don't own.
   const { data: shopRow } = await svc
     .from('dd_shops')
     .select('id, name, delivery_enabled')
@@ -50,9 +53,9 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          profile.role === 'admin'
-            ? 'Admin accounts need a shop to run POS. Become an owner of a shop or wait for the shop-selector screen.'
-            : 'No shop is linked to this owner account.',
+          profile.role === 'shop_owner'
+            ? 'No shop is linked to this owner account.'
+            : 'Platform staff need to own a shop to run POS. Future shop-selector screen will let you pick any shop.',
       },
       { status: 403 },
     )
@@ -61,7 +64,7 @@ export async function GET(_req: NextRequest) {
   return NextResponse.json({
     user_id: profile.id,
     name: profile.name,
-    role: profile.role as 'shop_owner' | 'admin',
+    role: profile.role,
     shop_id: shopRow.id,
     shop_name: shopRow.name,
     // delivery_enabled defaults to false in the schema for new (POS-only) shops.

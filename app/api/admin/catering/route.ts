@@ -62,9 +62,25 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Request ID is required' }, { status: 400 })
     }
 
+    // Whitelist statuses so a caller can't set status='deleted' or any
+    // arbitrary string. Same intent as how dispute statuses are validated.
+    const ALLOWED_STATUSES = new Set(['pending', 'quoted', 'accepted', 'rejected', 'completed', 'cancelled'])
+    if (status !== undefined && !ALLOWED_STATUSES.has(status)) {
+      return NextResponse.json({ error: `Invalid status: ${status}` }, { status: 400 })
+    }
+    // quote_amount must be a non-negative number — without this a negative
+    // quote could be stored and later refunded as a positive amount.
+    let quoteValue: number | undefined
+    if (quote_amount !== undefined && quote_amount !== null) {
+      quoteValue = Number(quote_amount)
+      if (!Number.isFinite(quoteValue) || quoteValue < 0) {
+        return NextResponse.json({ error: 'quote_amount must be a non-negative number' }, { status: 400 })
+      }
+    }
+
     const updates: Record<string, unknown> = {}
     if (status) updates.status = status
-    if (quote_amount !== undefined) updates.quote_amount = quote_amount
+    if (quoteValue !== undefined) updates.quote_amount = quoteValue
     if (admin_notes !== undefined) updates.admin_notes = admin_notes
 
     const { data, error } = await svc

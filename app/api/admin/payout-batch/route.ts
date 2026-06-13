@@ -32,7 +32,12 @@ export async function POST(req: NextRequest) {
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
   if (!ddUser || ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { action, batchId, itemId } = await req.json()
+  // req.json() can only be consumed once per request — pull every
+  // field we might need up front so `skip_item` doesn't silently drop
+  // notes by attempting a second parse later in the handler.
+  const requestBody = await req.json()
+  const { action, batchId, itemId } = requestBody
+  const bodyNotes: string | null = typeof requestBody?.notes === 'string' ? requestBody.notes : null
 
   // Generate new batch for a specific week
   if (action === 'generate') {
@@ -204,7 +209,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true })
   }
 
-  // Mark all items in batch as paid
+  // Mark all items in batch as paid. Idempotency guard on the batch
+  // update so two simultaneous "Pay All" clicks don't overwrite the
+  // first processed_at/processed_by stamps with the second click's.
   if (action === 'pay_all' && batchId) {
     const { error: itemsError } = await svc.from('dd_payout_items')
       .update({ status: 'paid', paid_at: new Date().toISOString() })
@@ -213,19 +220,27 @@ export async function POST(req: NextRequest) {
 
     if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 })
 
-    const { error: batchError } = await svc.from('dd_payout_batches')
+    const { data: batchRows, error: batchError } = await svc.from('dd_payout_batches')
       .update({ status: 'completed', processed_at: new Date().toISOString(), processed_by: ddUser.id })
       .eq('id', batchId)
+      .eq('status', 'pending')
+      .select('id')
 
     if (batchError) return NextResponse.json({ error: batchError.message }, { status: 500 })
+    if (!batchRows || batchRows.length === 0) {
+      return NextResponse.json({ success: true, alreadyCompleted: true })
+    }
     return NextResponse.json({ success: true })
   }
 
-  // Skip an item
+  // Skip an item. Note that req.json() can only be consumed once per
+  // request — `action` was already pulled off body above, so we cached
+  // the parsed body here to avoid the previous "second read throws and
+  // notes silently drop" bug.
   if (action === 'skip_item' && itemId) {
-    const body = await req.json().catch(() => ({}))
+    // bodyNotes was packed into the original parse above; use it directly
     const { error } = await svc.from('dd_payout_items')
-      .update({ status: 'skipped', notes: (body as any).notes || null })
+      .update({ status: 'skipped', notes: bodyNotes || null })
       .eq('id', itemId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })

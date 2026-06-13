@@ -11,9 +11,12 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const svc = createServiceClient()
-  const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
+  const { data: ddUser } = await svc.from('dd_users').select('id, role, driver_status').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
   if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (ddUser.role === 'driver' && ddUser.driver_status !== 'approved') {
+    return NextResponse.json({ deliveries: [] })
+  }
 
   // Find deliveries with no driver assigned (pending status)
   const { data: unassigned } = await svc.from('dd_deliveries')
@@ -32,9 +35,12 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const svc = createServiceClient()
-  const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
+  const { data: ddUser } = await svc.from('dd_users').select('id, role, driver_status').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
   if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (ddUser.role === 'driver' && ddUser.driver_status !== 'approved') {
+    return NextResponse.json({ error: 'Driver account is not approved for deliveries' }, { status: 403 })
+  }
 
   const { delivery_id } = await req.json()
   if (!delivery_id) return NextResponse.json({ error: 'delivery_id required' }, { status: 400 })
@@ -59,13 +65,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'You already have an active delivery' }, { status: 400 })
   }
 
-  // Assign to this driver
-  const { error: updateErr } = await svc.from('dd_deliveries')
+  // Assign to this driver. Use .select() and verify exactly one row
+  // updated — the previous .is('driver_id', null) guard quietly
+  // filtered the update to zero rows on a race, returned success,
+  // then bumped the order to 'confirmed' for a delivery this driver
+  // doesn't actually own.
+  const { data: updatedRows, error: updateErr } = await svc.from('dd_deliveries')
     .update({ driver_id: ddUser.id, status: 'assigned' })
     .eq('id', delivery_id)
-    .is('driver_id', null) // race condition guard
+    .is('driver_id', null)
+    .select('id')
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+  if (!updatedRows || updatedRows.length === 0) {
+    return NextResponse.json({ error: 'Already claimed by another driver' }, { status: 409 })
+  }
 
   // Update order status to confirmed
   await svc.from('dd_orders')

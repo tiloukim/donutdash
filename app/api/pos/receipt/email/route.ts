@@ -47,8 +47,10 @@ interface OrderRow {
   payment_method: string | null
   cash_received: number | null
   change_given: number | null
-  discount_label: string | null
-  discount_amount: number | null
+  // dd_orders has cash_discount_amount (written by POST /api/pos/orders).
+  // discount_label is purely cosmetic — there's no column for it on
+  // walk-in sales, so the cash-discount program is labeled as such.
+  cash_discount_amount: number | null
   created_at: string
 }
 
@@ -98,12 +100,12 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
     })
     .join('')
 
-  const hasDiscount = order.discount_amount != null && Number(order.discount_amount) > 0
+  const hasDiscount = order.cash_discount_amount != null && Number(order.cash_discount_amount) > 0
   const discountRow = hasDiscount
     ? `
       <tr>
-        <td style="padding:4px 0;color:#EC1B7E;font-weight:600">${escapeHtml(order.discount_label ?? 'Discount')}</td>
-        <td style="padding:4px 0;text-align:right;color:#EC1B7E;font-weight:600">−${fmtMoney(order.discount_amount)}</td>
+        <td style="padding:4px 0;color:#EC1B7E;font-weight:600">Cash Discount</td>
+        <td style="padding:4px 0;text-align:right;color:#EC1B7E;font-weight:600">−${fmtMoney(order.cash_discount_amount)}</td>
       </tr>
     `
     : ''
@@ -278,7 +280,7 @@ export async function POST(req: NextRequest) {
     .select(`
       id, shop_id, short_code, subtotal, tax, tip, total,
       payment_method, cash_received, change_given,
-      discount_label, discount_amount, created_at
+      cash_discount_amount, created_at
     `)
     .eq('id', orderId)
     .maybeSingle<OrderRow>()

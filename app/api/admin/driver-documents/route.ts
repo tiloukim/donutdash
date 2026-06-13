@@ -59,8 +59,15 @@ export async function PATCH(req: NextRequest) {
     const approvedTypes = new Set((allDocs || []).map((d: any) => d.doc_type))
     const requiredTypes = ['selfie', 'drivers_license', 'drivers_license_back', 'w9', 'insurance', 'vehicle_registration', 'contractor_agreement']
     const allApproved = requiredTypes.every(t => approvedTypes.has(t))
+    // Only transition pending_documents → pending_approval. If the
+    // driver is already 'approved' (re-uploaded a doc for refresh),
+    // don't demote them back to pending and stop them from receiving
+    // offers. Same if rejected — that requires a manual reset.
     if (allApproved) {
-      await svc.from('dd_users').update({ driver_status: 'pending_approval' }).eq('id', doc.driver_id)
+      await svc.from('dd_users')
+        .update({ driver_status: 'pending_approval' })
+        .eq('id', doc.driver_id)
+        .eq('driver_status', 'pending_documents')
     }
   }
 
