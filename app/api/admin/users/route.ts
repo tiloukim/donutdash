@@ -135,7 +135,18 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { error: dbErr } = await svc.from('dd_users').delete().eq('id', id)
-    if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
+    if (dbErr) {
+      // 23503 = FK violation. Translate to an admin-friendly message
+      // pointing at the table that needs a SET NULL / CASCADE rule.
+      if (dbErr.code === '23503') {
+        const detail = dbErr.message.match(/on table "([^"]+)"/)?.[1]
+        return NextResponse.json({
+          error: `This user has historical records in ${detail || 'a related table'} that block deletion. Run supabase/dd-users-fk-set-null.sql to convert those references to SET NULL, then retry.`,
+          constraint: dbErr.message,
+        }, { status: 409 })
+      }
+      return NextResponse.json({ error: dbErr.message }, { status: 500 })
+    }
 
     if (targetUser.auth_id) {
       const { error: authErr } = await svc.auth.admin.deleteUser(targetUser.auth_id)
