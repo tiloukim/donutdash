@@ -30,6 +30,11 @@ export default function RoleAuthForm({
   const { supabase, refreshUser } = useAuth()
   const searchParams = useSearchParams()
   const isApp = searchParams.get('app') === '1' || (typeof window !== 'undefined' && !!(window as unknown as Record<string, unknown>).ReactNativeWebView)
+  // Turnstile is only required when the site key is configured. Without it
+  // (typical local dev setup), the widget never renders and the submit button
+  // would stay disabled forever — so we skip the gate in that mode.
+  const hasCaptcha = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const requiresCaptcha = !isApp && hasCaptcha
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -38,7 +43,9 @@ export default function RoleAuthForm({
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [captchaToken, setCaptchaToken] = useState(isApp ? 'app-bypass' : '')
+  const [captchaToken, setCaptchaToken] = useState(
+    isApp ? 'app-bypass' : hasCaptcha ? '' : 'dev-no-captcha',
+  )
   const [smsConsent, setSmsConsent] = useState(false)
   const [showConfirmEmail, setShowConfirmEmail] = useState(false)
 
@@ -115,7 +122,7 @@ export default function RoleAuthForm({
     setError('')
 
     try {
-      if (!isApp && !captchaToken) {
+      if (requiresCaptcha && !captchaToken) {
         setError('Please complete the CAPTCHA verification.')
         setLoading(false)
         return
@@ -509,7 +516,7 @@ export default function RoleAuthForm({
             </div>
           )}
 
-          {!isApp && <Turnstile onToken={setCaptchaToken} />}
+          {requiresCaptcha && <Turnstile onToken={setCaptchaToken} />}
 
           <button
             type="submit"
