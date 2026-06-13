@@ -11,15 +11,50 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ orde
 
   const svc = createServiceClient()
 
-  // Get the order to know status and coordinates
+  // Get the order to know status and coordinates + ownership info for the
+  // authorization check below.
   const { data: order } = await svc
     .from('dd_orders')
-    .select('status, delivery_lat, delivery_lng, shop_id')
+    .select('status, delivery_lat, delivery_lng, shop_id, customer_id')
     .eq('id', orderId)
     .single()
 
   if (!order) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  }
+
+  // Authorization: only the customer who placed the order, the assigned
+  // driver, the shop owner, or admin/managers can stream live GPS. Without
+  // this any logged-in user could enumerate orderIds and stream any
+  // driver's location.
+  const { data: caller } = await svc
+    .from('dd_users')
+    .select('id, role')
+    .eq('auth_id', user.id)
+    .maybeSingle()
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const isAdmin = caller.role === 'admin'
+    || caller.role === 'general_manager'
+    || caller.role === 'field_manager'
+  if (!isAdmin) {
+    // Pull the assigned driver_id once for the authorization check.
+    const { data: deliveryAuth } = await svc
+      .from('dd_deliveries')
+      .select('driver_id')
+      .eq('order_id', orderId)
+      .maybeSingle()
+    const { data: shop } = await svc
+      .from('dd_shops')
+      .select('owner_id')
+      .eq('id', order.shop_id)
+      .maybeSingle()
+    const isCustomer = order.customer_id === caller.id
+    const isDriver = deliveryAuth?.driver_id === caller.id
+    const isShopOwner = shop?.owner_id === caller.id
+    if (!isCustomer && !isDriver && !isShopOwner) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
   }
 
   // Get the delivery for this order

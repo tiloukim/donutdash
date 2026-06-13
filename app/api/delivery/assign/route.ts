@@ -5,7 +5,11 @@ import { haversineDistance } from '@/lib/osrm'
 import { MAX_DELIVERY_MILES } from '@/lib/constants'
 import { getPayConfig } from '@/lib/pay-config'
 
-// Called when a new order is confirmed to start the auto-assignment process
+// Called when a new order is confirmed to start the auto-assignment process.
+// Triggered server-side from /api/stripe/webhook, /api/shop/orders, and the
+// admin reassign flow. Restricted to admin / general / field managers and
+// the owning shop_owner — without this, any signed-in user could trigger
+// dispatch for any order_id they guess.
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,6 +19,32 @@ export async function POST(req: NextRequest) {
   if (!order_id) return NextResponse.json({ error: 'Missing order_id' }, { status: 400 })
 
   const svc = createServiceClient()
+
+  const { data: caller } = await svc
+    .from('dd_users')
+    .select('id, role')
+    .eq('auth_id', user.id)
+    .maybeSingle()
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const isAdminOrOps = caller.role === 'admin'
+    || caller.role === 'general_manager'
+    || caller.role === 'field_manager'
+  if (!isAdminOrOps && caller.role !== 'shop_owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (caller.role === 'shop_owner') {
+    // Shop owner can only dispatch for their own shop's orders.
+    const { data: orderShop } = await svc
+      .from('dd_orders')
+      .select('shop:dd_shops(owner_id)')
+      .eq('id', order_id)
+      .maybeSingle()
+    const ownerId = (orderShop?.shop as { owner_id?: string } | null)?.owner_id
+    if (ownerId !== caller.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
 
   // Get order with shop info
   const { data: order } = await svc

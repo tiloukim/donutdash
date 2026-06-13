@@ -38,15 +38,52 @@ export async function POST(req: NextRequest) {
   }
 
   const svc = createServiceClient()
-  const { data: staff } = await svc
+
+  // Resolve caller. The cashier-verify flow runs inside an already-
+  // authenticated shop device session; the calling user must own (or
+  // operate platform-wide) the shop the staff row belongs to. Without
+  // this, any signed-in user could enumerate cashiers and probe PINs
+  // — eventually locking every cashier in the system (DoS).
+  const { data: caller } = await svc
+    .from('dd_users')
+    .select('id, role')
+    .eq('auth_id', user.id)
+    .maybeSingle()
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { data: staffWithShop } = await svc
     .from('dd_shop_staff')
     .select(`
-      id, role, status, pin_hash, pin_salt, pin_failed_attempts, pin_locked_until,
+      id, shop_id, role, status, pin_hash, pin_salt, pin_failed_attempts, pin_locked_until,
       user:dd_users!user_id(id, name)
     `)
     .eq('id', body.staff_id)
     .maybeSingle()
-  if (!staff) return NextResponse.json({ error: 'Cashier not found' }, { status: 404 })
+  if (!staffWithShop) return NextResponse.json({ error: 'Cashier not found' }, { status: 404 })
+
+  const isAdminOrOps = caller.role === 'admin'
+    || caller.role === 'general_manager'
+    || caller.role === 'field_manager'
+  if (!isAdminOrOps) {
+    const { data: shop } = await svc
+      .from('dd_shops')
+      .select('owner_id')
+      .eq('id', staffWithShop.shop_id)
+      .maybeSingle()
+    const isOwner = shop?.owner_id === caller.id
+    const { data: callerStaff } = await svc
+      .from('dd_shop_staff')
+      .select('id')
+      .eq('shop_id', staffWithShop.shop_id)
+      .eq('user_id', caller.id)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (!isOwner && !callerStaff) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
+
+  const staff = staffWithShop
 
   const row = staff as unknown as {
     id: string

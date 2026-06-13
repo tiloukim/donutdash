@@ -26,7 +26,12 @@ export async function GET(req: NextRequest) {
     .range(offset, offset + limit - 1)
 
   if (search) {
-    query = query.or(`ip_hash.ilike.%${search}%,city.ilike.%${search}%,path.ilike.%${search}%,session_id.ilike.%${search}%`)
+    // PostgREST .or() interpolates the string verbatim, so a query like
+    // search=%,user_id.eq.<uuid> injects a side-filter into the OR clause.
+    // Escape commas (clause separators), parens (grouping), and percent
+    // (LIKE wildcard) so any side-channel chars are treated as literals.
+    const safe = search.replace(/[,()%]/g, ch => `\\${ch}`)
+    query = query.or(`ip_hash.ilike.%${safe}%,city.ilike.%${safe}%,path.ilike.%${safe}%,session_id.ilike.%${safe}%`)
   }
 
   const { data: visitors, count } = await query

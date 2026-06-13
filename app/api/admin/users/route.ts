@@ -60,6 +60,11 @@ export async function PATCH(request: NextRequest) {
     if (role !== undefined && !ASSIGNABLE_ROLES.has(role)) {
       return NextResponse.json({ error: `Invalid role: ${role}` }, { status: 400 })
     }
+    // Same threat model: a non-admin manager rotating another admin's
+    // email or password could lock the admin out. Gate both to admin-only.
+    if ((email !== undefined || new_password !== undefined) && !isAdmin(ddUser.role)) {
+      return NextResponse.json({ error: 'Only admins can change email or password' }, { status: 403 })
+    }
 
     // Fetch the user first
     const { data: targetUser } = await svc.from('dd_users').select('*').eq('id', id).single()

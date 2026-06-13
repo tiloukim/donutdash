@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { canAccessAdminPortal } from '@/lib/admin-auth'
+import { canAccessAdminPortal, isAdmin } from '@/lib/admin-auth'
 import { refundSquareOrder } from '@/lib/square-refund'
 
 export async function GET() {
@@ -49,6 +49,12 @@ export async function PATCH(req: NextRequest) {
     if (!dispute_id) return NextResponse.json({ error: 'dispute_id required' }, { status: 400 })
     if (!status || !['approved', 'rejected', 'refunded'].includes(status)) {
       return NextResponse.json({ error: 'Invalid status. Must be approved, rejected, or refunded.' }, { status: 400 })
+    }
+
+    // Issuing a refund moves real money; admin-only. Other managers
+    // can mark a dispute approved/rejected but can't trigger Square refund.
+    if (status === 'refunded' && !isAdmin(ddUser.role)) {
+      return NextResponse.json({ error: 'Only admins can issue refunds' }, { status: 403 })
     }
 
     let refundResult: { success: boolean; error?: string } | null = null
