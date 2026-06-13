@@ -77,7 +77,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Invalid reason' }, { status: 400 })
   }
 
-  const amount = refund_amount ? Math.min(Number(refund_amount), Number(order.total)) : Number(order.total)
+  // Clamp to [0, order.total]. Without the lower bound, a malicious /
+  // buggy client can post a negative refund_amount which would later be
+  // applied as a NEGATIVE refund (effectively a charge) against the order.
+  const requested = refund_amount != null ? Number(refund_amount) : Number(order.total)
+  const amount = Math.max(0, Math.min(requested, Number(order.total)))
 
   // Store first photo in photo_url column, all photos in photo_urls jsonb
   const firstPhoto = Array.isArray(photo_urls) && photo_urls.length > 0 ? photo_urls[0] : null

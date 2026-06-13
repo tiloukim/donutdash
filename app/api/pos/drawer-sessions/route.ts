@@ -45,6 +45,50 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'opening_count must be a non-negative number' }, { status: 400 })
   }
 
+  // Same cross-shop attribution guard as /api/pos/shifts. Without this
+  // an authorized shop_owner could open a drawer at the wrong shop, or
+  // attribute it to a random user_id.
+  if (a.caller.role === 'shop_owner') {
+    const { data: ownedShop } = await a.svc
+      .from('dd_shops')
+      .select('id')
+      .eq('id', body.shop_id)
+      .eq('owner_id', a.caller.id)
+      .maybeSingle()
+    if (!ownedShop) {
+      return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
+    }
+  }
+  if (body.user_id !== a.caller.id) {
+    const { data: staffRow } = await a.svc
+      .from('dd_shop_staff')
+      .select('id')
+      .eq('shop_id', body.shop_id)
+      .eq('user_id', body.user_id)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (!staffRow) {
+      return NextResponse.json({ error: 'user_id is not active staff at this shop' }, { status: 400 })
+    }
+  }
+
+  // Refuse to open a fresh session if one is already open at this shop
+  // — otherwise the cash-sales window calc on close becomes meaningless
+  // (it would sum sales attributed to the older session too).
+  const { data: openSession } = await a.svc
+    .from('dd_drawer_sessions')
+    .select('id, opened_at')
+    .eq('shop_id', body.shop_id)
+    .is('closed_at', null)
+    .maybeSingle()
+  if (openSession) {
+    return NextResponse.json({
+      error: 'A drawer session is already open for this shop. Close it before opening a new one.',
+      sessionId: openSession.id,
+      openedAt: openSession.opened_at,
+    }, { status: 409 })
+  }
+
   const { data, error } = await a.svc
     .from('dd_drawer_sessions')
     .insert({

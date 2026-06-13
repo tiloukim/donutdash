@@ -121,8 +121,13 @@ export async function POST(request: NextRequest) {
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
       0
     )
-    const tax = Math.round(subtotal * shopTaxRate * 100) / 100
     const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
+    // Texas Comptroller Rule 3.293: separately-stated delivery and service
+    // fees on prepared-food sales are part of the taxable sale price. Tip
+    // is not. Square + Stripe checkout paths must agree on the tax base or
+    // the customer gets taxed differently depending on payment method.
+    const taxableBasis = subtotal + deliveryFee + serviceFee
+    const tax = Math.round(taxableBasis * shopTaxRate * 100) / 100
     const tipAmount = tip || 0
     const promoDiscount = promo_discount && promo_discount > 0 ? Math.round(promo_discount * 100) / 100 : 0
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100

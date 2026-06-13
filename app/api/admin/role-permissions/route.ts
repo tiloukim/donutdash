@@ -41,12 +41,16 @@ export async function GET() {
     .select('role, page_path')
 
   // Seed every known page so the matrix UI can render even pages
-  // with zero rows (just admin will show as checked).
+  // with zero rows (just admin will show as checked). Rows pointing
+  // at page_paths that aren't in PAGE_ROLES anymore (renamed/removed
+  // route) are dropped — including them would create phantom rows
+  // in the matrix view and applyPermissionGuards() would seed admin
+  // access to non-existent pages.
   const matrix: Record<string, AdminPortalRole[]> = {}
   for (const path of Object.keys(PAGE_ROLES)) matrix[path] = []
   for (const row of rows ?? []) {
     if (!VALID_ROLES.has(row.role as AdminPortalRole)) continue
-    if (!matrix[row.page_path]) matrix[row.page_path] = []
+    if (!PAGE_ROLES[row.page_path]) continue
     matrix[row.page_path].push(row.role as AdminPortalRole)
   }
 

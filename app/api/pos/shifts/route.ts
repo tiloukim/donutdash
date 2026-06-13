@@ -46,6 +46,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'shop_id + user_id required' }, { status: 400 })
   }
 
+  // Cross-shop attribution guard: caller must be the shop owner or an
+  // admin/ops role for THIS shop, AND user_id must be a registered
+  // staff member of THIS shop. Without this, a shop_owner of Shop A
+  // could clock in any user_id at Shop B (or attribute a shift to a
+  // random dd_users.id), corrupting payroll.
+  if (a.caller.role === 'shop_owner') {
+    const { data: ownedShop } = await a.svc
+      .from('dd_shops')
+      .select('id')
+      .eq('id', body.shop_id)
+      .eq('owner_id', a.caller.id)
+      .maybeSingle()
+    if (!ownedShop) {
+      return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
+    }
+  }
+  // Verify user_id is staff at this shop. Shop owner themselves is also
+  // allowed (they may run the register without a dd_shop_staff row).
+  if (body.user_id !== a.caller.id) {
+    const { data: staffRow } = await a.svc
+      .from('dd_shop_staff')
+      .select('id')
+      .eq('shop_id', body.shop_id)
+      .eq('user_id', body.user_id)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (!staffRow) {
+      return NextResponse.json({ error: 'user_id is not active staff at this shop' }, { status: 400 })
+    }
+  }
+
   // Close any open shift for this user before starting a fresh one.
   await a.svc
     .from('dd_shifts')

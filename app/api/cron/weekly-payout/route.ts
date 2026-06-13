@@ -35,18 +35,31 @@ export async function GET(req: NextRequest) {
     const weekStartStr = weekStart.toISOString().split('T')[0]
     const weekEndStr = weekEnd.toISOString().split('T')[0]
 
-    // Check if batch already exists
+    // Check if batch already exists. maybeSingle() (vs single()) returns
+    // null on 0 rows instead of throwing a 'No rows' PostgREST error,
+    // which the cron silently swallowed and re-skipped forever.
     const { data: existing } = await svc.from('dd_payout_batches')
-      .select('id').eq('week_start', weekStartStr).single()
+      .select('id').eq('week_start', weekStartStr).maybeSingle()
 
     if (existing) {
       return NextResponse.json({ message: `Batch already exists for ${weekStartStr}`, skipped: true })
     }
 
-    // Fetch delivered orders for this week
+    // Fetch delivered orders for this week. Window by created_at AND
+    // exclude pos_walkin: shop already kept 100% at the register so
+    // including walk-ins would re-pay the shop a second time.
+    //
+    // Known imperfection: shops aggregate by orders.created_at while
+    // drivers aggregate by deliveries.delivered_at below. An order
+    // created late Sunday and delivered next-week-Monday pays the shop
+    // in this batch and the driver in next week's — splitting a single
+    // order's P&L across two weeks. Acceptable for V1 (the dollar
+    // amounts reconcile across batches over time); revisit if reports
+    // need same-batch reconciliation.
     const { data: orders } = await svc.from('dd_orders')
-      .select('id, subtotal, shop_id, tip, status, commission_pct')
+      .select('id, subtotal, total, refund_amount, shop_id, tip, status, commission_pct')
       .eq('status', 'delivered')
+      .in('order_type', ['delivery', 'pickup'])
       .gte('created_at', weekStart.toISOString())
       .lte('created_at', weekEnd.toISOString())
 
@@ -91,18 +104,23 @@ export async function GET(req: NextRequest) {
       driverEarnings.set(del.driver_id, existing)
     }
 
-    // Calculate shop payouts
+    // Calculate shop payouts. Refunds applied proportionally (same
+    // pattern as /api/admin/payouts + /api/shop/earnings).
     const shopEarnings = new Map<string, { amount: number; orders: number; subtotal: number; commission: number }>()
     for (const order of orders || []) {
       const shopId = order.shop_id
       const subtotal = Number(order.subtotal || 0)
-      const commission = subtotal * resolveCommissionRate(order)
-      const payout = subtotal - commission
+      const total = Number(order.total || 0)
+      const refund = Number(order.refund_amount || 0)
+      const refundRatio = refund > 0 && total > 0 ? Math.min(refund / total, 1) : 0
+      const effSub = Math.max(0, subtotal * (1 - refundRatio))
+      const commission = effSub * resolveCommissionRate(order)
+      const payout = effSub - commission
 
       const existing = shopEarnings.get(shopId) || { amount: 0, orders: 0, subtotal: 0, commission: 0 }
       existing.amount += payout
       existing.orders += 1
-      existing.subtotal += subtotal
+      existing.subtotal += effSub
       existing.commission += commission
       shopEarnings.set(shopId, existing)
     }

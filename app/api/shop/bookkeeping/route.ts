@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { resolveCommissionRate } from '@/lib/constants'
 
 async function getShopId() {
   const supabase = await createClient()
@@ -44,9 +45,14 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Also get DonutDash order income for this shop
+  // All-sales view: walk-ins + delivery/pickup. For each order type the
+  // shop's effective income differs:
+  //   - pos_walkin: shop kept 100% at the register, so shop income = total
+  //                 (subtotal + tax). Net of any refund_amount.
+  //   - delivery / pickup: shop only gets subtotal × (1 - commission_pct).
+  //                        Net of refund_amount applied proportionally.
   const orderQuery = svc.from('dd_orders')
-    .select('id, total, status, created_at')
+    .select('id, order_type, subtotal, total, tax, commission_pct, refund_amount, status, created_at')
     .eq('shop_id', shopId)
     .neq('status', 'cancelled')
     .gte('created_at', `${year}-01-01`)
@@ -54,16 +60,44 @@ export async function GET(req: NextRequest) {
 
   const { data: orders } = await orderQuery
 
-  // Aggregate orders by month
-  const ordersByMonth: Record<number, { count: number; total: number }> = {}
-  for (const o of orders || []) {
-    const m = new Date(o.created_at).getMonth()
-    if (!ordersByMonth[m]) ordersByMonth[m] = { count: 0, total: 0 }
-    ordersByMonth[m].count++
-    ordersByMonth[m].total += o.total
+  const effSubtotal = (o: { subtotal: number | null; total: number | null; refund_amount?: number | null }) => {
+    const s = Number(o.subtotal || 0); const t = Number(o.total || 0); const r = Number(o.refund_amount || 0)
+    if (r <= 0 || t <= 0) return s
+    return Math.max(0, s * (1 - Math.min(r / t, 1)))
+  }
+  const shopIncomeFor = (o: { order_type: string | null; subtotal: number | null; total: number | null; tax: number | null; commission_pct: number | null; refund_amount?: number | null }) => {
+    const refund = Number(o.refund_amount || 0)
+    const total = Number(o.total || 0)
+    if (o.order_type === 'pos_walkin') {
+      // Shop already pocketed everything; subtract any later refund
+      return Math.max(0, total - refund)
+    }
+    // Delivery / pickup: subtotal × (1 - commission), refund-proportional
+    return effSubtotal(o) * (1 - resolveCommissionRate(o))
   }
 
-  return NextResponse.json({ entries: data || [], ordersByMonth })
+  // Aggregate by month + by channel (walk-in vs online) so the shop can
+  // see where the year's income actually came from.
+  const ordersByMonth: Record<number, { count: number; total: number }> = {}
+  const byChannel = {
+    walkin:   { count: 0, total: 0 },
+    delivery: { count: 0, total: 0 },
+    pickup:   { count: 0, total: 0 },
+  }
+  for (const o of orders || []) {
+    const m = new Date(o.created_at).getMonth()
+    const income = Math.round(shopIncomeFor(o) * 100) / 100
+    if (!ordersByMonth[m]) ordersByMonth[m] = { count: 0, total: 0 }
+    ordersByMonth[m].count++
+    ordersByMonth[m].total += income
+    const channel = o.order_type === 'pos_walkin' ? 'walkin'
+      : o.order_type === 'pickup' ? 'pickup'
+      : 'delivery'
+    byChannel[channel].count++
+    byChannel[channel].total += income
+  }
+
+  return NextResponse.json({ entries: data || [], ordersByMonth, byChannel })
 }
 
 // POST: Add a new entry

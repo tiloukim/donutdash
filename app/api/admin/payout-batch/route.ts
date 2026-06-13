@@ -50,11 +50,13 @@ export async function POST(req: NextRequest) {
     const weekStartStr = weekStart.toISOString().split('T')[0]
     const weekEndStr = weekEnd.toISOString().split('T')[0]
 
-    // Check if batch already exists
+    // Check if batch already exists. maybeSingle() returns null on 0 rows
+    // instead of throwing (which .single() does in newer supabase-js
+    // versions and would falsely block legitimate generations).
     const { data: existing } = await svc.from('dd_payout_batches')
       .select('id')
       .eq('week_start', weekStartStr)
-      .single()
+      .maybeSingle()
 
     if (existing) {
       return NextResponse.json({ error: `Batch already exists for week of ${weekStartStr}` }, { status: 400 })

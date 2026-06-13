@@ -15,7 +15,20 @@ export async function GET() {
   const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
   if (!shop) return NextResponse.json({ error: 'No shop' }, { status: 404 })
 
-  // Get all disputes for orders belonging to this shop
+  // Filter to this shop in the SQL query, not in JS — the previous
+  // pattern fetched EVERY dispute in the system (across all shops) and
+  // post-filtered, which both wasted bandwidth and risked cross-shop
+  // PII leakage if any future logging dumped the raw response.
+  const { data: shopOrders } = await svc
+    .from('dd_orders')
+    .select('id')
+    .eq('shop_id', shop.id)
+  const shopOrderIds = (shopOrders || []).map((o: { id: string }) => o.id)
+
+  if (shopOrderIds.length === 0) {
+    return NextResponse.json({ disputes: [] })
+  }
+
   const { data: disputes, error } = await svc
     .from('dd_disputes')
     .select(`
@@ -26,25 +39,10 @@ export async function GET() {
         delivery:dd_deliveries(delivery_photo_url)
       )
     `)
+    .in('order_id', shopOrderIds)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Filter to only this shop's orders
-  const shopDisputes = (disputes || []).filter((d: any) => {
-    // The order must belong to this shop — check via a subquery
-    return true // We'll filter server-side below
-  })
-
-  // We need to verify these disputes are for this shop's orders
-  // Get all order IDs for this shop
-  const { data: shopOrders } = await svc
-    .from('dd_orders')
-    .select('id')
-    .eq('shop_id', shop.id)
-
-  const shopOrderIds = new Set((shopOrders || []).map((o: any) => o.id))
-  const filtered = (disputes || []).filter((d: any) => shopOrderIds.has(d.order_id))
-
-  return NextResponse.json({ disputes: filtered })
+  return NextResponse.json({ disputes: disputes || [] })
 }

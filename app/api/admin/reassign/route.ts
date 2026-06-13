@@ -74,10 +74,21 @@ export async function POST(req: NextRequest) {
     .eq('delivery_id', delivery.id)
     .eq('status', 'pending')
 
-  // Reset delivery to pending with no driver (do NOT reset order status)
-  await svc.from('dd_deliveries')
+  // Reset delivery to pending with no driver. Atomic guard so an admin
+  // who clicks Reassign the same instant a driver accepts can't bump
+  // the active driver off the run (the guard above is racey on its own;
+  // a row update conditional on the previous state is the real fence).
+  const { data: resetRows } = await svc.from('dd_deliveries')
     .update({ driver_id: null, status: 'pending' })
     .eq('id', delivery.id)
+    .eq('status', delivery.status) // only succeeds if state hasn't moved
+    .is('driver_id', delivery.driver_id) // and driver hasn't changed
+    .select('id')
+  if (!resetRows || resetRows.length === 0) {
+    return NextResponse.json({
+      error: 'Delivery state changed mid-reassign (driver may have just accepted). Refresh and retry if still stuck.',
+    }, { status: 409 })
+  }
 
   // Try assigning again
   const result = await assignNextDriver(delivery.id)

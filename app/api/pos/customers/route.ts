@@ -53,13 +53,16 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
 
   // Best-effort dedupe — same order as the old client logic to avoid
-  // surprising the cashier with a different row id.
+  // surprising the cashier with a different row id. Use eq() not ilike()
+  // since email is already lowercased above; ilike would treat unescaped
+  // % from a malicious client as a wildcard and leak PII from foreign
+  // customer rows.
   if (email) {
     const { data: existing } = await svc
       .from('dd_users')
       .select('id, name, email, phone')
       .eq('role', 'customer')
-      .ilike('email', email)
+      .eq('email', email)
       .limit(1)
     if (existing && existing.length > 0) {
       return NextResponse.json({ customer: existing[0] })

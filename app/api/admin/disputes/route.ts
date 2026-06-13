@@ -84,9 +84,16 @@ export async function PATCH(req: NextRequest) {
             idempotencyKey: `refund-dispute-${dispute_id}`,
           })
           if (refundResult.success) {
+            // Conditional update — refund_amount must still equal what
+            // we read above. Two admins resolving the same dispute would
+            // otherwise double-increment (Square's idempotency key
+            // prevents the duplicate refund itself, but the DB write
+            // would still drift).
             await svc.from('dd_orders').update({
               refund_amount: alreadyRefunded + amount,
-            }).eq('id', existing.order_id)
+            })
+              .eq('id', existing.order_id)
+              .eq('refund_amount', alreadyRefunded)
           } else {
             console.error('Square refund failed for dispute', dispute_id, refundResult.error)
             return NextResponse.json({

@@ -289,6 +289,25 @@ export async function POST(request: NextRequest) {
       items_json: itemsJson,
     }
 
+    // Promo discount: Stripe charges sum(line_items), so subtracting from
+    // metadata `total` alone was a silent customer overcharge. Materialize
+    // the discount as a one-off Stripe coupon and attach via session
+    // `discounts` — Stripe deducts it from the charged amount, our
+    // application_fee_amount math still nets the right shop payout.
+    let stripeDiscount: { coupon: string } | undefined
+    if (promoDiscount > 0) {
+      const promoCents = Math.round(promoDiscount * 100)
+      // Guard: a malformed promo can't exceed what we're charging
+      const safePromoCents = Math.min(promoCents, totalCents - 1)
+      const coupon = await stripe.coupons.create({
+        amount_off: safePromoCents,
+        currency: 'usd',
+        duration: 'once',
+        name: (promo_code as string)?.slice(0, 40) || 'Discount',
+      })
+      stripeDiscount = { coupon: coupon.id }
+    }
+
     // Create Stripe Checkout Session with connected account destination
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -302,11 +321,7 @@ export async function POST(request: NextRequest) {
       metadata,
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&stripe=1`,
       cancel_url: `${origin}/checkout`,
-      ...(promoDiscount > 0 ? {
-        discounts: [],
-        // Apply discount via adjusting total — Stripe doesn't have inline discounts
-        // so we already subtracted promoDiscount from total above
-      } : {}),
+      ...(stripeDiscount ? { discounts: [stripeDiscount] } : {}),
     })
 
     return NextResponse.json({ url: session.url, sessionId: session.id })
