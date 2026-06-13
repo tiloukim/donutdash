@@ -1,7 +1,29 @@
 /**
- * Send SMS via Telnyx (with Twilio fallback)
+ * Convert a US phone number to E.164. Twilio + Telnyx both reject
+ * local-format numbers like "(903) 555-1234" or "9035551234". Centralized
+ * here so every caller goes through the same shape.
+ */
+export function toE164(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const trimmed = String(raw).trim()
+  if (trimmed.startsWith('+')) return trimmed
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return null // give up — caller should treat as unsendable
+}
+
+/**
+ * Send SMS via Telnyx (with Twilio fallback). `to` is normalized to E.164
+ * before send so local-format numbers don't 400 from the provider.
  */
 export async function sendSMS(to: string, body: string) {
+  const e164 = toE164(to)
+  if (!e164) {
+    console.warn('sendSMS skipped — could not normalize phone:', to)
+    return false
+  }
+  to = e164
   // Try Telnyx first (primary — 10DLC registered, cheaper)
   const telnyxKey = process.env.TELNYX_API_KEY
   const telnyxFrom = process.env.TELNYX_PHONE_NUMBER

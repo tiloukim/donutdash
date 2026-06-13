@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { sendSMS } from '@/lib/sms'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -32,36 +33,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Customer has no phone number' }, { status: 400 })
   }
 
-  // Send SMS via Twilio
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken = process.env.TWILIO_AUTH_TOKEN
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER
-
-  if (!accountSid || !authToken || !fromNumber) {
-    return NextResponse.json({ error: 'SMS not configured' }, { status: 500 })
-  }
-
-  try {
-    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        To: customerPhone,
-        From: fromNumber,
-        Body: message,
-      }),
-    })
-
-    if (!res.ok) {
-      const err = await res.json()
-      return NextResponse.json({ error: err.message || 'SMS failed' }, { status: 500 })
-    }
-
-    return NextResponse.json({ success: true })
-  } catch {
+  // Use the shared sendSMS helper — Telnyx-first (10DLC registered),
+  // Twilio fallback. Centralizes E.164 normalization so local-format
+  // numbers like "(903) 555-1234" don't 400 from the provider.
+  const ok = await sendSMS(customerPhone, message)
+  if (!ok) {
     return NextResponse.json({ error: 'Failed to send SMS' }, { status: 500 })
   }
+  return NextResponse.json({ success: true })
 }

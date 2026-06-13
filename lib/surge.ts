@@ -5,11 +5,17 @@ export async function getSurgeMultiplier(): Promise<{ multiplier: number; isActi
   const svc = createServiceClient()
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
 
+  // Only count ACTIVE orders that are recent. The old query counted
+  // every non-cancelled, non-delivered order created in the last hour —
+  // which silently included abandoned 'pending' orders that never
+  // advanced through the state machine, permanently keeping surge on.
+  // Filter to in-progress statuses + filter by recent created_at.
   const { count, error } = await svc
     .from('dd_orders')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', oneHourAgo)
-    .not('status', 'in', '("cancelled","delivered")')
+    .in('order_type', ['delivery', 'pickup']) // walk-ins don't affect dispatch
+    .in('status', ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'delivering'])
 
   if (error) {
     console.error('Surge check error:', error)
@@ -33,7 +39,11 @@ export async function getShopBusyness(shopIds: string[]): Promise<Record<string,
     .from('dd_orders')
     .select('shop_id')
     .in('shop_id', shopIds)
-    .not('status', 'in', '("cancelled","delivered")')
+    // Only in-progress statuses. Same fix as getSurgeMultiplier — old
+    // query included abandoned 'pending' orders that never advanced,
+    // permanently marking a shop as busy.
+    .in('status', ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'delivering'])
+    .in('order_type', ['delivery', 'pickup'])
 
   if (error) {
     console.error('Shop busyness check error:', error)

@@ -100,6 +100,17 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { id, ...fields } = body
 
+    // Revenue-impacting fields are admin-only — a marketing manager
+    // shouldn't be able to flip commission rates or service fees. UI
+    // surface for these fields is already admin-gated, this is the
+    // matching server enforcement.
+    const REVENUE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'delivery_fee', 'min_order', 'cash_discount_pct']
+    const callerIsAdmin = ddUser.role === 'admin'
+    const touchesRevenue = REVENUE_FIELDS.some(k => k in fields)
+    if (touchesRevenue && !callerIsAdmin) {
+      return NextResponse.json({ error: 'Only admins can change pricing or commission fields' }, { status: 403 })
+    }
+
     // Only allow these fields to be updated
     const allowed: Record<string, any> = {}
     if ('is_active' in fields) allowed.is_active = fields.is_active

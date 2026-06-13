@@ -8,14 +8,48 @@ interface RouteResult {
   polyline: string
 }
 
+// router.project-osrm.org is a free demo server — rate-limits and
+// 503s under load. Wrap with a 5s timeout + single retry so a slow
+// response doesn't stall the caller (callers already fall back to
+// haversine when this returns null, which is acceptable for ETAs but
+// silently breaks route_polyline). A user-agent is required by some
+// public OSRM mirrors per their AUP.
+async function fetchOsrm(url: string, attempt = 0): Promise<Response | null> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 5000)
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'DonutDash/1.0 (https://donutdash.app)' },
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+    if (res.ok) return res
+    // 5xx / 429 → retry once after a short backoff
+    if ((res.status >= 500 || res.status === 429) && attempt < 1) {
+      await new Promise(r => setTimeout(r, 250))
+      return fetchOsrm(url, attempt + 1)
+    }
+    return null
+  } catch (err) {
+    clearTimeout(timer)
+    if (attempt < 1) {
+      await new Promise(r => setTimeout(r, 250))
+      return fetchOsrm(url, attempt + 1)
+    }
+    console.warn('OSRM fetch failed after retry:', err)
+    return null
+  }
+}
+
 export async function getRoute(
   fromLat: number, fromLng: number,
   toLat: number, toLng: number
 ): Promise<RouteResult | null> {
+  const res = await fetchOsrm(
+    `${OSRM_API}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=polyline`
+  )
+  if (!res) return null
   try {
-    const res = await fetch(
-      `${OSRM_API}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=polyline`
-    )
     const data = await res.json()
     if (data.code !== 'Ok' || !data.routes?.length) return null
 
