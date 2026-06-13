@@ -432,6 +432,22 @@ export default function AdminOrders() {
                                   {reassignMsg && <div style={{ fontSize: 12, color: '#059669', marginTop: 6 }}>{reassignMsg}</div>}
                                 </div>
                               )}
+                              {/* Payout trace — full money waterfall for this order */}
+                              <div style={{ marginTop: 12 }}>
+                                <a
+                                  href={`/admin/orders/${order.id}/payout-trace`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{
+                                    display: 'inline-block', padding: '8px 16px', borderRadius: 8,
+                                    background: '#6366F1', color: '#fff', textDecoration: 'none',
+                                    fontSize: 13, fontWeight: 700,
+                                  }}
+                                >
+                                  💰 Payout Trace →
+                                </a>
+                              </div>
                             </div>
 
                             {/* Live Driver Tracking */}
