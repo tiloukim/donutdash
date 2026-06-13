@@ -30,6 +30,8 @@ interface CreateBody {
   customer_id?: string | null
   /** Cash discount given on this sale (dollars). 0 on card sales. */
   cash_discount_amount?: number
+  /** Active cashier (dd_users.id). Defaults to the auth user when missing. */
+  cashier_user_id?: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -75,11 +77,54 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Resolve the actual cashier — the PIN switcher hands the device
+  // owner's session to multiple cashiers throughout a shift. Without
+  // this, staff_id always points at the device owner and per-cashier
+  // shift attribution is meaningless.
+  let staffId = profile.id
+  if (body.cashier_user_id && body.cashier_user_id !== profile.id) {
+    const { data: cashierStaff } = await svc
+      .from('dd_shop_staff')
+      .select('user_id')
+      .eq('shop_id', body.shop_id)
+      .eq('user_id', body.cashier_user_id)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (!cashierStaff) {
+      return NextResponse.json({ error: 'cashier_user_id is not an active cashier at this shop' }, { status: 400 })
+    }
+    staffId = body.cashier_user_id
+  }
+
+  // Reconcile totals server-side. The cashier can set custom per-line
+  // prices (e.g. one-off discount), but body.subtotal must equal
+  // sum(price × qty) and body.total must equal subtotal + tax + tip −
+  // cash_discount. Without this, a malicious / buggy client can post
+  // total=$0.01 for a $50 cart and wreck the drawer reconciliation.
+  const recomputedSubtotal = body.lines.reduce(
+    (s, l) => s + Number(l.price) * Number(l.quantity), 0,
+  )
+  const tip = Number(body.tip ?? 0)
+  const tax = Number(body.tax ?? 0)
+  const discount = Number(body.cash_discount_amount ?? 0)
+  const recomputedTotal = recomputedSubtotal + tax + tip - discount
+  const TOLERANCE = 0.01 // one cent of float wobble
+  if (Math.abs(recomputedSubtotal - Number(body.subtotal)) > TOLERANCE) {
+    return NextResponse.json({
+      error: `subtotal mismatch: client ${body.subtotal}, server ${recomputedSubtotal.toFixed(2)}`,
+    }, { status: 400 })
+  }
+  if (Math.abs(recomputedTotal - Number(body.total)) > TOLERANCE) {
+    return NextResponse.json({
+      error: `total mismatch: client ${body.total}, server ${recomputedTotal.toFixed(2)}`,
+    }, { status: 400 })
+  }
+
   const { data: order, error } = await svc
     .from('dd_orders')
     .insert({
       shop_id: body.shop_id,
-      staff_id: profile.id,
+      staff_id: staffId,
       customer_id: body.customer_id ?? null,
       order_type: 'pos_walkin',
       source: 'pos',
@@ -88,14 +133,14 @@ export async function POST(req: NextRequest) {
       // status and keeps walk-ins out of the active-order workflow that
       // delivery/pickup orders move through.
       status: 'delivered',
-      subtotal: body.subtotal,
-      tax: body.tax,
-      tip: body.tip ?? 0,
-      total: body.total,
+      subtotal: Math.round(recomputedSubtotal * 100) / 100,
+      tax: Math.round(tax * 100) / 100,
+      tip: Math.round(tip * 100) / 100,
+      total: Math.round(recomputedTotal * 100) / 100,
       payment_method: body.payment_method,
       cash_received: body.cash_received ?? null,
       change_given: body.change_given ?? null,
-      cash_discount_amount: body.cash_discount_amount ?? 0,
+      cash_discount_amount: Math.round(discount * 100) / 100,
     })
     .select('id, short_code')
     .single()

@@ -45,6 +45,22 @@ export async function POST(request: NextRequest) {
     try {
       const svc = createServiceClient()
 
+      // Idempotency: Stripe retries on any non-2xx, and the partial unique
+      // index on dd_orders.payment_id will reject duplicates server-side,
+      // but a pre-check avoids the noisy 500 + admin notification + items
+      // insert work on every retry. Same payment → same order, return 200.
+      const paymentId = session.payment_intent || session.id
+      if (paymentId) {
+        const { data: existing } = await svc
+          .from('dd_orders')
+          .select('id')
+          .eq('payment_id', paymentId)
+          .maybeSingle()
+        if (existing) {
+          return NextResponse.json({ received: true, deduped: true, order_id: existing.id })
+        }
+      }
+
       // Parse order data from metadata
       const shopId = meta.shop_id
       const customerId = meta.customer_id
@@ -134,6 +150,11 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (orderError) {
+        // Unique violation on payment_id = a race with another concurrent
+        // delivery of the same event. Treat as success so Stripe stops retrying.
+        if (orderError.code === '23505') {
+          return NextResponse.json({ received: true, deduped: true })
+        }
         console.error('Stripe webhook: order creation failed:', orderError)
         return NextResponse.json({ error: orderError.message }, { status: 500 })
       }
