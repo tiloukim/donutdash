@@ -206,6 +206,17 @@ export default function PayoutsPage() {
       {message && <div style={{ background: '#D1FAE5', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#065F46', fontSize: 14 }}>{message}</div>}
       {error && <div style={{ background: '#FEE2E2', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#DC2626', fontSize: 14 }}>{error}</div>}
 
+      <div style={{ marginBottom: 16 }}>
+        <a href="/admin/payouts/owed" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '10px 16px', borderRadius: 8,
+          background: '#6366F1', color: '#fff', textDecoration: 'none',
+          fontSize: 14, fontWeight: 700,
+        }}>
+          💰 Cash Reconciliation — what&apos;s actually yours →
+        </a>
+      </div>
+
       {/* Overview Tab */}
       {tab === 'overview' && (
         <>
