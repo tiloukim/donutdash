@@ -30,6 +30,11 @@ interface CreateBody {
   customer_id?: string | null
   /** Cash discount given on this sale (dollars). 0 on card sales. */
   cash_discount_amount?: number
+  /** Card processing fee added by the terminal (dollars). Server adds
+   *  this to its recomputed total so the integrity check accepts the
+   *  client-reported grand total. Persisted alongside cash_discount so
+   *  reports can break down "what we collected as the surcharge." */
+  card_surcharge_amount?: number
   /** Card brand from the terminal (VISA, MASTERCARD, AMEX, …). Lets the
    *  Transactions screen show "Mastercard 1427" instead of generic Card. */
   card_brand?: string | null
@@ -112,7 +117,8 @@ export async function POST(req: NextRequest) {
   const tip = Number(body.tip ?? 0)
   const tax = Number(body.tax ?? 0)
   const discount = Number(body.cash_discount_amount ?? 0)
-  const recomputedTotal = recomputedSubtotal + tax + tip - discount
+  const surcharge = Number(body.card_surcharge_amount ?? 0)
+  const recomputedTotal = recomputedSubtotal + tax + tip - discount + surcharge
   const TOLERANCE = 0.01 // one cent of float wobble
   if (Math.abs(recomputedSubtotal - Number(body.subtotal)) > TOLERANCE) {
     return NextResponse.json({
@@ -146,6 +152,11 @@ export async function POST(req: NextRequest) {
       cash_received: body.cash_received ?? null,
       change_given: body.change_given ?? null,
       cash_discount_amount: Math.round(discount * 100) / 100,
+      // TODO: persist card_surcharge once we add the column. For now the
+      // surcharge is folded into `total` (which IS persisted) and used
+      // only for the integrity check above. Reports that need to know
+      // "what % was surcharge" can derive it from (total - subtotal - tax
+      // - tip + cash_discount) until the column lands.
       card_brand: body.card_brand ?? null,
       card_last4: body.card_last4 ?? null,
     })
