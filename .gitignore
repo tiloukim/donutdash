@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# supabase CLI scratch
+supabase/.temp/
+
+# stray local-only files
+/Privacy
+/app.json
+/public/OG-LOG-new-backup.png
