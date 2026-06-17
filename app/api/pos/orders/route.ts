@@ -40,6 +40,14 @@ interface CreateBody {
   card_brand?: string | null
   /** Last 4 of the PAN. Indexed on dd_orders so cashiers can search by it. */
   card_last4?: string | null
+  /** Gateway approval code (Dejavoo AuthCode). Persisted so reprints from
+   *  the Transactions tab can still show "Authorization: XXXXXX" instead
+   *  of dropping the line. */
+  card_auth_code?: string | null
+  /** Gateway reference # (Dejavoo PNRef). Same value as the iPOSpays
+   *  terminal-side receipt's "Ref #" — lets cashiers reconcile a POS
+   *  receipt against the Transactions log on the iPOSpays portal. */
+  card_ref_number?: string | null
   /** Active cashier (dd_users.id). Defaults to the auth user when missing. */
   cashier_user_id?: string | null
 }
@@ -159,6 +167,8 @@ export async function POST(req: NextRequest) {
       // - tip + cash_discount) until the column lands.
       card_brand: body.card_brand ?? null,
       card_last4: body.card_last4 ?? null,
+      card_auth_code: body.card_auth_code ?? null,
+      card_ref_number: body.card_ref_number ?? null,
     })
     .select('id, short_code')
     .single()
