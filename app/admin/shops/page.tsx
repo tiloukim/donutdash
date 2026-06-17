@@ -22,11 +22,15 @@ interface Shop {
   owner: { name: string; email: string } | null
 }
 
+const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pricing_mode', 'delivery_fee', 'min_order'] as const
+
 export default function AdminShops() {
   const [shops, setShops] = useState<Shop[]>([])
+  const [originalShops, setOriginalShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<string | null>(null)
-  const [saving, setSaving] = useState<string | null>(null)
+  const [savingAll, setSavingAll] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -42,10 +46,66 @@ export default function AdminShops() {
   useEffect(() => {
     fetch('/api/admin/shops')
       .then(r => r.json())
-      .then(data => setShops(data.shops || []))
+      .then(data => {
+        const list = data.shops || []
+        setShops(list)
+        setOriginalShops(list)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  const dirtyShops = shops
+    .map(s => {
+      const orig = originalShops.find(o => o.id === s.id)
+      if (!orig) return null
+      const changes: Record<string, number | string> = {}
+      for (const f of EDITABLE_FIELDS) {
+        if (s[f] !== orig[f]) changes[f] = s[f] as number | string
+      }
+      return Object.keys(changes).length ? { id: s.id, name: s.name, changes } : null
+    })
+    .filter((x): x is { id: string; name: string; changes: Record<string, number | string> } => x !== null)
+
+  const hasChanges = dirtyShops.length > 0
+
+  const discardChanges = () => {
+    setShops(originalShops)
+    setSaveError('')
+  }
+
+  const saveAllChanges = async () => {
+    setSavingAll(true)
+    setSaveError('')
+    const failures: string[] = []
+    for (const d of dirtyShops) {
+      try {
+        const res = await fetch('/api/admin/shops', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: d.id, ...d.changes }),
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          failures.push(`${d.name}: ${body.error || res.statusText}`)
+        }
+      } catch {
+        failures.push(`${d.name}: network error`)
+      }
+    }
+    if (failures.length === 0) {
+      setOriginalShops(shops)
+    } else {
+      setSaveError(failures.join(' • '))
+      // Sync originals for shops that DID save successfully so the dirty
+      // bar only shows the remaining failures.
+      const failedIds = new Set(
+        failures.map(f => dirtyShops.find(d => f.startsWith(d.name + ':'))?.id).filter(Boolean) as string[]
+      )
+      setOriginalShops(prev => shops.map(s => failedIds.has(s.id) ? (prev.find(o => o.id === s.id) ?? s) : s))
+    }
+    setSavingAll(false)
+  }
 
   const toggleShop = async (id: string, currentActive: boolean) => {
     setToggling(id)
@@ -57,24 +117,10 @@ export default function AdminShops() {
       })
       if (res.ok) {
         setShops(prev => prev.map(s => s.id === id ? { ...s, is_active: !currentActive } : s))
+        setOriginalShops(prev => prev.map(s => s.id === id ? { ...s, is_active: !currentActive } : s))
       }
     } catch { /* ignore */ }
     setToggling(null)
-  }
-
-  const updateShopField = async (id: string, field: string, value: number | string) => {
-    setSaving(id)
-    try {
-      const res = await fetch('/api/admin/shops', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, [field]: value }),
-      })
-      if (res.ok) {
-        setShops(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s))
-      }
-    } catch { /* ignore */ }
-    setSaving(null)
   }
 
   const handleCreateShop = async () => {
@@ -107,7 +153,9 @@ export default function AdminShops() {
       })
       const data = await res.json()
       if (res.ok) {
-        setShops(prev => [{ ...data.shop, owner: null }, ...prev])
+        const created = { ...data.shop, owner: null }
+        setShops(prev => [created, ...prev])
+        setOriginalShops(prev => [created, ...prev])
         setShowCreate(false)
         setNewShop({ name: '', address: '', city: '', state: 'TX', zip: '', phone: '', description: '', delivery_fee: '3.99', min_order: '10', tax_rate: '8.25', service_fee_pct: String(SERVICE_FEE_RATE * 100), commission_pct: String(SHOP_COMMISSION_RATE * 100), lat: '', lng: '' })
       } else {
@@ -250,15 +298,19 @@ export default function AdminShops() {
               </tr>
             </thead>
             <tbody>
-              {filteredShops.map(shop => (
-                <tr key={shop.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>{shop.name}</td>
+              {filteredShops.map(shop => {
+                const isDirty = dirtyShops.some(d => d.id === shop.id)
+                return (
+                <tr key={shop.id} style={{ borderBottom: '1px solid #F3F4F6', background: isDirty ? '#FFFBEB' : undefined }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>
+                    {shop.name}
+                    {isDirty && <span style={{ marginLeft: 6, display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }} title="Unsaved changes" />}
+                  </td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{shop.owner?.name || '-'}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{shop.city}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <input type="number" step="0.5" min={MIN_COMMISSION_RATE * 100} max={MAX_COMMISSION_RATE * 100} value={shop.commission_pct ?? SHOP_COMMISSION_RATE * 100}
                       onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, commission_pct: parseFloat(e.target.value) || 0 } : s))}
-                      onBlur={e => updateShopField(shop.id, 'commission_pct', parseFloat(e.target.value) || 0)}
                       title={`Allowed range: ${MIN_COMMISSION_RATE * 100}% – ${MAX_COMMISSION_RATE * 100}%`}
                       style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
                     />%
@@ -266,21 +318,18 @@ export default function AdminShops() {
                   <td style={{ padding: '12px 16px' }}>
                     <input type="number" step="0.5" min="0" max="50" value={shop.service_fee_pct}
                       onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, service_fee_pct: parseFloat(e.target.value) || 0 } : s))}
-                      onBlur={e => updateShopField(shop.id, 'service_fee_pct', parseFloat(e.target.value) || 0)}
                       style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
                     />%
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <input type="number" step="0.25" min="0" max="15" value={shop.tax_rate}
                       onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, tax_rate: parseFloat(e.target.value) || 0 } : s))}
-                      onBlur={e => updateShopField(shop.id, 'tax_rate', parseFloat(e.target.value) || 0)}
                       style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
                     />%
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <input type="number" step="0.25" min="0" max="10" value={shop.cash_discount_pct ?? 0}
                       onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, cash_discount_pct: parseFloat(e.target.value) || 0 } : s))}
-                      onBlur={e => updateShopField(shop.id, 'cash_discount_pct', parseFloat(e.target.value) || 0)}
                       style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
                       title="0 = feature off. Set e.g. 3 to give a 3% cash discount at the POS."
                     />%
@@ -291,7 +340,6 @@ export default function AdminShops() {
                       onChange={e => {
                         const next = e.target.value as Shop['pricing_mode']
                         setShops(prev => prev.map(s => s.id === shop.id ? { ...s, pricing_mode: next } : s))
-                        updateShopField(shop.id, 'pricing_mode', next)
                       }}
                       style={{ padding: '4px 6px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, background: '#fff', cursor: 'pointer' }}
                       title="standard = no popup. cash_discount = popup at checkout. dual_pricing = both prices on every menu item upfront."
@@ -304,14 +352,12 @@ export default function AdminShops() {
                   <td style={{ padding: '12px 16px' }}>
                     $<input type="number" step="0.50" min="0" value={shop.delivery_fee}
                       onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, delivery_fee: parseFloat(e.target.value) || 0 } : s))}
-                      onBlur={e => updateShopField(shop.id, 'delivery_fee', parseFloat(e.target.value) || 0)}
                       style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
                     />
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     $<input type="number" step="1" min="0" value={shop.min_order}
                       onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, min_order: parseFloat(e.target.value) || 0 } : s))}
-                      onBlur={e => updateShopField(shop.id, 'min_order', parseFloat(e.target.value) || 0)}
                       style={{ width: 65, padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
                     />
                   </td>
@@ -354,7 +400,8 @@ export default function AdminShops() {
                     </Link>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
               {shops.length === 0 && (
                 <tr><td colSpan={14} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shops found</td></tr>
               )}
@@ -362,6 +409,43 @@ export default function AdminShops() {
           </table>
         </div>
       </div>
+
+      {hasChanges && (
+        <div style={{
+          position: 'sticky', bottom: 16, marginTop: 16, zIndex: 50,
+          background: '#111827', color: '#fff', borderRadius: 12,
+          padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16,
+          boxShadow: '0 10px 25px rgba(0,0,0,0.25)',
+        }}>
+          <div style={{ flex: 1, fontSize: 14 }}>
+            <strong>{dirtyShops.length}</strong> shop{dirtyShops.length === 1 ? '' : 's'} with unsaved changes
+            {saveError && <div style={{ marginTop: 4, color: '#FCA5A5', fontSize: 12 }}>{saveError}</div>}
+          </div>
+          <button
+            onClick={discardChanges}
+            disabled={savingAll}
+            style={{
+              padding: '8px 16px', borderRadius: 8, border: '1px solid #4B5563',
+              background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600,
+              cursor: savingAll ? 'not-allowed' : 'pointer', opacity: savingAll ? 0.5 : 1,
+            }}
+          >
+            Discard
+          </button>
+          <button
+            onClick={saveAllChanges}
+            disabled={savingAll}
+            style={{
+              padding: '8px 20px', borderRadius: 8, border: 'none',
+              background: savingAll ? '#6B7280' : '#10B981', color: '#fff',
+              fontSize: 14, fontWeight: 700,
+              cursor: savingAll ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {savingAll ? 'Saving…' : 'Save changes'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
