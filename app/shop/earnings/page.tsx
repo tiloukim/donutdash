@@ -21,6 +21,33 @@ interface EarningsData {
   weeklyTotals: { weekLabel: string; total: number; earnings: number }[]
 }
 
+interface OrderBreakdown {
+  order: { id: string; short_code: string | null; status: string; order_type: string; created_at: string; shop_name: string | null }
+  customer: {
+    paid: number
+    composition: { subtotal: number; tax: number; delivery_fee: number; service_fee: number; tip: number; promo_discount: number }
+  }
+  shop: {
+    gross: number
+    commission: number
+    commission_rate_pct: number
+    effective_payout: number
+    effective_commission: number
+    refund_amount: number
+    refund_ratio_pct: number
+  }
+  platform?: {
+    application_fee: number
+    stripe_fee: number
+    stripe_fee_source: 'live' | 'estimated' | 'none'
+    platform_gross: number
+    effective_delivery_fee: number
+    effective_service_fee: number
+    effective_tip: number
+    effective_tax: number
+  }
+}
+
 function fmt(n: number) {
   return '$' + n.toFixed(2)
 }
@@ -73,6 +100,29 @@ export default function EarningsPage() {
   const [stripeData, setStripeData] = useState<StripePayoutsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [breakdown, setBreakdown] = useState<OrderBreakdown | null>(null)
+  const [breakdownLoading, setBreakdownLoading] = useState(false)
+  const [breakdownError, setBreakdownError] = useState('')
+
+  function openBreakdown(orderId: string) {
+    setBreakdown(null)
+    setBreakdownError('')
+    setBreakdownLoading(true)
+    fetch(`/api/shop/orders/${orderId}/breakdown`)
+      .then(async r => {
+        const json = await r.json()
+        if (!r.ok) throw new Error(json.error || 'Failed to load breakdown')
+        return json as OrderBreakdown
+      })
+      .then(setBreakdown)
+      .catch(e => setBreakdownError(e.message))
+      .finally(() => setBreakdownLoading(false))
+  }
+  function closeBreakdown() {
+    setBreakdown(null)
+    setBreakdownError('')
+    setBreakdownLoading(false)
+  }
 
   useEffect(() => {
     fetch('/api/shop/earnings')
@@ -149,33 +199,57 @@ export default function EarningsPage() {
         </div>
       </div>
 
-      {/* Next Payout */}
-      <div style={{
-        background: '#fff', borderRadius: 16, padding: '18px 20px', marginBottom: 20,
-        border: '2px solid #D1FAE5',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#888', marginBottom: 2 }}>Your Next Payout</div>
-            <div style={{ fontSize: 30, fontWeight: 800, color: '#065F46' }}>{fmt(data.nextPayout)}</div>
-            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>Arrives in ~2 business days via Stripe</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            {data.stripeConnected ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 20 }}>&#x2705;</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#065F46' }}>Stripe Connected</span>
+      {/* Next Payout — when Stripe is connected, the source of truth is
+          Stripe's balance + in-flight payout, NOT a sum of completed-order
+          earnings (those keep counting for 30 days even after Stripe has
+          already paid them to the bank, double-counting the same dollars). */}
+      {(() => {
+        const stripeReady = data.stripeConnected && stripeData?.connected && stripeData.balance
+        const inFlight = stripeData?.recent_payouts?.find(
+          p => p.status === 'in_transit' || p.status === 'pending',
+        )
+        // Money that is on its way: pending Stripe holds + already-released
+        // funds that haven't yet been sent to the bank. Once Stripe initiates
+        // the bank transfer, the amount moves through `in_transit` and then
+        // disappears from `available` — so this naturally drops to 0 the
+        // moment funds clear.
+        const inFlightAmount = stripeReady
+          ? (stripeData!.balance!.available_usd + stripeData!.balance!.pending_usd)
+          : data.nextPayout
+        const eta = inFlight?.arrival_date
+          ? `Arrives ${new Date(inFlight.arrival_date).toLocaleDateString()} via Stripe`
+          : inFlightAmount > 0
+            ? 'Arrives in ~2 business days via Stripe'
+            : 'No payout in flight — new sales will show up here'
+        return (
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: '18px 20px', marginBottom: 20,
+            border: '2px solid #D1FAE5',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#888', marginBottom: 2 }}>Your Next Payout</div>
+                <div style={{ fontSize: 30, fontWeight: 800, color: '#065F46' }}>{fmt(inFlightAmount)}</div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{eta}</div>
               </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 20 }}>&#x26A0;&#xFE0F;</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#92400E' }}>Connect Stripe to get paid</span>
+              <div style={{ textAlign: 'right' }}>
+                {data.stripeConnected ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 20 }}>&#x2705;</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#065F46' }}>Stripe Connected</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 20 }}>&#x26A0;&#xFE0F;</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#92400E' }}>Connect Stripe to get paid</span>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      </div>
+        )
+      })()}
 
       {/* Stripe Payouts — live data from the shop's Connect account */}
       {stripeData?.connected && stripeData.balance && (
@@ -336,12 +410,21 @@ export default function EarningsPage() {
         ) : (
           <div>
             {data.recentOrders.map(order => (
-              <div key={order.id} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '12px 0',
-                borderBottom: '1px solid #f5f5f5',
-                flexWrap: 'wrap',
-              }}>
+              <div
+                key={order.id}
+                onClick={() => openBreakdown(order.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '12px 8px',
+                  borderBottom: '1px solid #f5f5f5',
+                  flexWrap: 'wrap',
+                  cursor: 'pointer',
+                  borderRadius: 8,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = '#FAFAFA' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+              >
                 {/* Left: date + order # */}
                 <div style={{ flex: '1 1 120px', minWidth: 100 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>#{order.id.slice(0, 8)}</div>
@@ -373,6 +456,115 @@ export default function EarningsPage() {
       }}>
         DonutDash fee is taken from each order&apos;s subtotal at the rate on your merchant agreement (default {(SHOP_COMMISSION_RATE * 100).toFixed(0)}%). This covers payment processing, customer support, and the platform.
       </div>
+
+      {/* Breakdown modal — opens when a Recent Orders row is clicked. */}
+      {(breakdown || breakdownLoading || breakdownError) && (
+        <div
+          onClick={closeBreakdown}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 16, zIndex: 50,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 16, padding: '20px 22px',
+              maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#1A1A2E' }}>Payment Breakdown</div>
+              <button
+                onClick={closeBreakdown}
+                style={{ background: 'none', border: 'none', fontSize: 22, color: '#888', cursor: 'pointer', lineHeight: 1, padding: 4 }}
+                aria-label="Close"
+              >×</button>
+            </div>
+
+            {breakdownLoading && (
+              <div style={{ padding: 30, textAlign: 'center', color: '#888', fontSize: 14 }}>Loading...</div>
+            )}
+            {breakdownError && (
+              <div style={{ padding: 16, background: '#FEE2E2', borderRadius: 8, color: '#991B1B', fontSize: 13 }}>
+                {breakdownError}
+              </div>
+            )}
+
+            {breakdown && (() => {
+              const b = breakdown
+              const Row = ({ label, amount, sub, bold, color, indent }: { label: string; amount: number | string; sub?: string; bold?: boolean; color?: string; indent?: boolean }) => (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', paddingLeft: indent ? 12 : 0 }}>
+                  <div>
+                    <div style={{ fontSize: bold ? 14 : 13, fontWeight: bold ? 700 : 500, color: color || '#1A1A2E' }}>{label}</div>
+                    {sub && <div style={{ fontSize: 11, color: '#999' }}>{sub}</div>}
+                  </div>
+                  <div style={{ fontSize: bold ? 14 : 13, fontWeight: bold ? 800 : 600, color: color || '#1A1A2E' }}>
+                    {typeof amount === 'number' ? fmt(amount) : amount}
+                  </div>
+                </div>
+              )
+              return (
+                <div>
+                  {/* Order header */}
+                  <div style={{ padding: '10px 12px', background: '#FFF7FB', borderRadius: 10, marginBottom: 14, fontSize: 12, color: '#6B6B7B' }}>
+                    {b.order.short_code && <div><strong style={{ color: '#1A1A2E' }}>#{b.order.short_code}</strong> · {b.order.order_type}</div>}
+                    <div>{new Date(b.order.created_at).toLocaleString()}</div>
+                  </div>
+
+                  {/* Customer paid */}
+                  <div style={{ borderTop: '1px solid #F0F0F0', paddingTop: 10 }}>
+                    <Row label="Customer paid" amount={b.customer.paid} bold />
+                    <Row label="Subtotal (food)" amount={b.customer.composition.subtotal} indent />
+                    {b.customer.composition.delivery_fee > 0 && <Row label="Delivery fee" amount={b.customer.composition.delivery_fee} indent />}
+                    {b.customer.composition.service_fee > 0 && <Row label="Service fee" amount={b.customer.composition.service_fee} indent />}
+                    {b.customer.composition.tax > 0 && <Row label="Sales tax" amount={b.customer.composition.tax} indent />}
+                    {b.customer.composition.tip > 0 && <Row label="Driver tip" amount={b.customer.composition.tip} indent />}
+                    {b.customer.composition.promo_discount > 0 && <Row label="Promo discount" amount={-b.customer.composition.promo_discount} indent color="#065F46" />}
+                  </div>
+
+                  {/* Shop slice */}
+                  <div style={{ borderTop: '1px solid #F0F0F0', marginTop: 10, paddingTop: 10 }}>
+                    <Row
+                      label="Shop receives"
+                      amount={b.shop.effective_payout}
+                      sub={`Subtotal − ${b.shop.commission_rate_pct}% commission`}
+                      bold
+                      color="#065F46"
+                    />
+                    <Row label="DonutDash commission" amount={-b.shop.effective_commission} indent color="#92400E" />
+                    {b.shop.refund_amount > 0 && (
+                      <Row label={`Refund (${b.shop.refund_ratio_pct}%)`} amount={-b.shop.refund_amount} indent color="#991B1B" />
+                    )}
+                  </div>
+
+                  {/* Platform slice — admin only */}
+                  {b.platform && (
+                    <div style={{ borderTop: '1px solid #F0F0F0', marginTop: 10, paddingTop: 10, background: '#FAFAFE', margin: '10px -8px 0', padding: '12px 8px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                        Platform (admin view)
+                      </div>
+                      <Row label="Application fee (gross)" amount={b.platform.application_fee} sub="Customer total − shop transfer" />
+                      <Row
+                        label="Stripe processing fee"
+                        amount={-b.platform.stripe_fee}
+                        sub={b.platform.stripe_fee_source === 'live' ? 'From Stripe balance txn' : '2.9% + $0.30 estimate'}
+                        color="#991B1B"
+                      />
+                      <Row label="Platform net (to Mercury)" amount={b.platform.platform_gross} bold color="#1E40AF" />
+                      <div style={{ fontSize: 11, color: '#6B7280', marginTop: 8, lineHeight: 1.5 }}>
+                        Of this, ${b.platform.effective_delivery_fee.toFixed(2)} delivery + ${b.platform.effective_service_fee.toFixed(2)} service + ${b.platform.effective_tip.toFixed(2)} tip + ${b.platform.effective_tax.toFixed(2)} tax fund driver pay, tax remittance, and platform ops.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
