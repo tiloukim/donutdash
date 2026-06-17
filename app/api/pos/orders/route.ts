@@ -30,6 +30,11 @@ interface CreateBody {
   customer_id?: string | null
   /** Cash discount given on this sale (dollars). 0 on card sales. */
   cash_discount_amount?: number
+  /** Card brand from the terminal (VISA, MASTERCARD, AMEX, …). Lets the
+   *  Transactions screen show "Mastercard 1427" instead of generic Card. */
+  card_brand?: string | null
+  /** Last 4 of the PAN. Indexed on dd_orders so cashiers can search by it. */
+  card_last4?: string | null
   /** Active cashier (dd_users.id). Defaults to the auth user when missing. */
   cashier_user_id?: string | null
 }
@@ -141,6 +146,8 @@ export async function POST(req: NextRequest) {
       cash_received: body.cash_received ?? null,
       change_given: body.change_given ?? null,
       cash_discount_amount: Math.round(discount * 100) / 100,
+      card_brand: body.card_brand ?? null,
+      card_last4: body.card_last4 ?? null,
     })
     .select('id, short_code')
     .single()
