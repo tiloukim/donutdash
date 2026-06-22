@@ -37,6 +37,7 @@ export default function ProfilePage() {
   const [editingAddr, setEditingAddr] = useState<string | null>(null)
 
   // Referral state
+  const [referralEnabled, setReferralEnabled] = useState(false)
   const [referralCode, setReferralCode] = useState('')
   const [referralCount, setReferralCount] = useState(0)
   const [totalEarned, setTotalEarned] = useState(0)
@@ -61,6 +62,7 @@ export default function ProfilePage() {
     fetch('/api/referral')
       .then(r => r.json())
       .then(data => {
+        setReferralEnabled(!!data.enabled)
         if (data.referral_code) setReferralCode(data.referral_code)
         setReferralCount(data.referral_count || 0)
         setTotalEarned(data.total_earned || 0)
@@ -257,7 +259,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Referral Program */}
-        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #f0f0f0', padding: 24, marginTop: 20 }}>
+        {referralEnabled && <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #f0f0f0', padding: 24, marginTop: 20 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>Referral Program</h2>
           <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>Share & earn $5 when your friend completes their first order!</p>
 
@@ -302,7 +304,7 @@ export default function ProfilePage() {
               <div style={{ fontSize: 12, color: '#888' }}>Earned</div>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Delete Account */}
         <div style={{ marginTop: 40, padding: '20px 0', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>

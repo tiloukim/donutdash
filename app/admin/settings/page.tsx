@@ -28,6 +28,11 @@ const WELCOME_DEFAULTS: Record<string, string> = {
   welcome_promo_max_discount: '0',
 }
 
+// Customer referral program ($5 credit). Read by lib/referral.ts; defaults off.
+const REFERRAL_DEFAULTS: Record<string, string> = {
+  referral_program_enabled: 'false',
+}
+
 export default function AdminSettings() {
   const [values, setValues] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -45,12 +50,16 @@ export default function AdminSettings() {
         for (const key of Object.keys(WELCOME_DEFAULTS)) {
           loaded[key] = data.settings?.[key] ?? WELCOME_DEFAULTS[key]
         }
+        for (const key of Object.keys(REFERRAL_DEFAULTS)) {
+          loaded[key] = data.settings?.[key] ?? REFERRAL_DEFAULTS[key]
+        }
         setValues(loaded)
       })
       .catch(() => {
         const defaults: Record<string, string> = {}
         for (const field of FIELDS) defaults[field.key] = field.defaultValue
         for (const key of Object.keys(WELCOME_DEFAULTS)) defaults[key] = WELCOME_DEFAULTS[key]
+        for (const key of Object.keys(REFERRAL_DEFAULTS)) defaults[key] = REFERRAL_DEFAULTS[key]
         setValues(defaults)
       })
       .finally(() => setLoading(false))
@@ -83,6 +92,7 @@ export default function AdminSettings() {
 
   const promoEnabled = values.welcome_promo_enabled === 'true'
   const promoType = values.welcome_promo_type === 'amount' ? 'amount' : 'percent'
+  const referralEnabled = values.referral_program_enabled === 'true'
 
   return (
     <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -219,6 +229,32 @@ export default function AdminSettings() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Referral program */}
+      <div style={{
+        background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 32,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E' }}>Customer Referral Program</h2>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={referralEnabled}
+              onChange={e => set('referral_program_enabled', e.target.checked ? 'true' : 'false')}
+              style={{ width: 18, height: 18, cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 14, fontWeight: 600, color: referralEnabled ? '#065F46' : '#6B7280' }}>
+              {referralEnabled ? 'Enabled' : 'Disabled'}
+            </span>
+          </label>
+        </div>
+        <p style={{ fontSize: 13, color: '#6B7280', marginTop: 0, marginBottom: 0 }}>
+          Gives the referrer and the new customer $5 each after the new customer&apos;s first delivered order.
+          When off, no new credits accrue and the referral section is hidden from customer profiles.
+          Existing credit balances are left untouched.
+        </p>
       </div>
 
       {message && (
