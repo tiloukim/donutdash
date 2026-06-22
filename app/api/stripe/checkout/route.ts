@@ -162,7 +162,11 @@ export async function POST(request: NextRequest) {
     // Recompute the promo on the server from the real subtotal — the client's
     // promo_discount is display-only and never trusted. Returns null if the
     // customer isn't eligible (not new / promo disabled / wrong code).
-    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code })
+    // marginCap = the platform's own take (service + small-order fees +
+    // commission); tax, tip, and delivery are excluded so the discount can't
+    // eat money owed to the state or the driver, nor fail the charge.
+    const platformMargin = serviceFee + smallOrderFee + subtotal * shopCommissionRate
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code, marginCap: platformMargin })
     const promoDiscount = promo?.discount ?? 0
     const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + smallOrderFee + tipAmount - promoDiscount) * 100) / 100
