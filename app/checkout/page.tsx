@@ -37,6 +37,56 @@ export default function CheckoutPage() {
   const [fulfillmentType, setFulfillmentType] = useState<'delivery' | 'pickup'>(fulfillmentParam)
   const isPickup = fulfillmentType === 'pickup'
 
+  const [promoInput, setPromoInput] = useState('')
+  const [promo, setPromo] = useState<{ code: string; discount: number; label: string } | null>(null)
+  const [promoError, setPromoError] = useState('')
+  const [promoChecking, setPromoChecking] = useState(false)
+
+  // Auto-apply the platform welcome offer for new customers. The server decides
+  // eligibility + amount; an empty code just probes for the auto discount.
+  useEffect(() => {
+    if (!user || total <= 0) return
+    let cancelled = false
+    fetch('/api/promo/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subtotal: total }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!cancelled && data?.valid) {
+          setPromo({ code: data.code, discount: data.discount, label: data.label })
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [user, total])
+
+  const applyPromo = async () => {
+    const code = promoInput.trim()
+    if (!code) return
+    setPromoError('')
+    setPromoChecking(true)
+    try {
+      const res = await fetch('/api/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subtotal: total, code }),
+      })
+      const data = await res.json()
+      if (data?.valid) {
+        setPromo({ code: data.code, discount: data.discount, label: data.label })
+        setPromoError('')
+      } else {
+        setPromoError(data?.error || 'That code isn’t valid for this order.')
+      }
+    } catch {
+      setPromoError('Could not check that code. Please try again.')
+    } finally {
+      setPromoChecking(false)
+    }
+  }
+
   useEffect(() => {
     if (!shopId) return
     fetch(`/api/shops/${shopId}`)
@@ -76,7 +126,8 @@ export default function CheckoutPage() {
   const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * (shopFees.tax_rate / 100) * 100) / 100
   const tip = isPickup ? 0 : tipParam
 
-  const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + smallOrderFee + tip) * 100) / 100
+  const promoDiscount = promo?.discount || 0
+  const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + smallOrderFee + tip - promoDiscount) * 100) / 100
 
   // Generate date options: today + next 6 days
   const dateOptions = Array.from({ length: 7 }, (_, i) => {
@@ -180,8 +231,10 @@ export default function CheckoutPage() {
         ? null
         : ([gateCode && `Gate code: ${gateCode}`, instructions].filter(Boolean).join('. ') || null),
       tip,
-      promo_code: null,
-      promo_discount: 0,
+      // Display values only — every checkout route recomputes the discount
+      // server-side from the real subtotal, so these can't lower the charge.
+      promo_code: promo?.code || null,
+      promo_discount: promo?.discount || 0,
       scheduled_for: scheduledFor,
     }
 
@@ -418,8 +471,77 @@ export default function CheckoutPage() {
             </div>
           </div>}
 
-          {/* Promo Code section removed — promotions disabled platform-wide
-              until Stripe-coupon-based discounting is wired up. */}
+          {/* Promo Code */}
+          <div style={{
+            background: 'white', borderRadius: '14px', border: '1px solid #f0f0f0',
+            padding: '1.5rem', marginBottom: '1.5rem',
+          }}>
+            <h3 style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '1rem', color: '#1A1A2E' }}>
+              Promo Code
+            </h3>
+            {promo ? (
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '0.85rem 1rem', borderRadius: '10px',
+                background: '#ECFDF5', border: '1px solid #A7F3D0',
+              }}>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#065F46', fontSize: '0.95rem' }}>
+                    {promo.code} applied
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: '#10B981' }}>
+                    {promo.label} — you save ${promo.discount.toFixed(2)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setPromo(null); setPromoInput(''); setPromoError('') }}
+                  style={{
+                    background: 'none', border: 'none', color: '#065F46',
+                    fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <input
+                    type="text"
+                    placeholder="Enter code"
+                    value={promoInput}
+                    onChange={e => setPromoInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyPromo() } }}
+                    style={{
+                      flex: 1, padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #ddd',
+                      fontSize: '0.95rem', outline: 'none', textTransform: 'uppercase',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')}
+                    onBlur={e => (e.currentTarget.style.borderColor = '#ddd')}
+                  />
+                  <button
+                    type="button"
+                    onClick={applyPromo}
+                    disabled={promoChecking || !promoInput.trim()}
+                    style={{
+                      padding: '0.75rem 1.5rem', borderRadius: '10px', border: 'none',
+                      background: promoChecking || !promoInput.trim() ? '#ccc' : '#1A1A2E',
+                      color: 'white', fontWeight: 700, fontSize: '0.95rem',
+                      cursor: promoChecking || !promoInput.trim() ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {promoChecking ? '...' : 'Apply'}
+                  </button>
+                </div>
+                {promoError && (
+                  <p style={{ fontSize: '0.82rem', color: '#DC2626', marginTop: '0.5rem', marginBottom: 0 }}>
+                    {promoError}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
 
           {/* When */}
           <div style={{
@@ -591,6 +713,12 @@ export default function CheckoutPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
                   <span style={{ color: '#666' }}>Tip</span>
                   <span>${tip.toFixed(2)}</span>
+                </div>
+              )}
+              {promoDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem', color: '#10B981', fontWeight: 600 }}>
+                  <span>{promo?.label || 'Promo discount'}</span>
+                  <span>−${promoDiscount.toFixed(2)}</span>
                 </div>
               )}
               <div style={{

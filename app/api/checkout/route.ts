@@ -6,6 +6,7 @@ import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { computeWelcomePromo } from '@/lib/promo'
 import crypto from 'crypto'
 
 function getSquareClient() {
@@ -50,7 +51,6 @@ export async function POST(request: NextRequest) {
       delivery_instructions,
       tip,
       promo_code,
-      promo_discount,
       scheduled_for,
     } = body
 
@@ -129,7 +129,10 @@ export async function POST(request: NextRequest) {
     const taxableBasis = subtotal + deliveryFee + serviceFee
     const tax = Math.round(taxableBasis * shopTaxRate * 100) / 100
     const tipAmount = tip || 0
-    const promoDiscount = promo_discount && promo_discount > 0 ? Math.round(promo_discount * 100) / 100 : 0
+    // Promo recomputed server-side from the real subtotal; client value ignored.
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code })
+    const promoDiscount = promo?.discount ?? 0
+    const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100
 
     // Create the order in Supabase
@@ -151,7 +154,7 @@ export async function POST(request: NextRequest) {
         delivery_lat: deliveryLat,
         delivery_lng: deliveryLng,
         delivery_instructions: delivery_instructions || null,
-        promo_code: promo_code || null,
+        promo_code: promoCode,
         promo_discount: promoDiscount || 0,
         scheduled_for: scheduled_for || null,
       })
