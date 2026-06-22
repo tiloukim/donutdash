@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { isReferralProgramEnabled } from '@/lib/referral'
 import crypto from 'crypto'
 
 function generateReferralCode(): string {
@@ -13,6 +14,13 @@ export async function GET() {
     if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const svc = createServiceClient()
+
+    // When the program is off, tell the client so it hides the referral UI.
+    // No code is generated and no stats are surfaced.
+    if (!(await isReferralProgramEnabled(svc))) {
+      return NextResponse.json({ enabled: false })
+    }
+
     const { data: ddUser } = await svc.from('dd_users').select('id, referral_code, referral_credit').eq('auth_id', authUser.id).single()
     if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
@@ -27,6 +35,7 @@ export async function GET() {
     const { count } = await svc.from('dd_referrals').select('*', { count: 'exact', head: true }).eq('referrer_id', ddUser.id).eq('status', 'completed')
 
     return NextResponse.json({
+      enabled: true,
       referral_code: referralCode,
       referral_count: count || 0,
       total_earned: Number(ddUser.referral_credit) || 0,
@@ -47,6 +56,10 @@ export async function POST(request: NextRequest) {
     if (!referral_code) return NextResponse.json({ error: 'Missing referral code' }, { status: 400 })
 
     const svc = createServiceClient()
+
+    if (!(await isReferralProgramEnabled(svc))) {
+      return NextResponse.json({ error: 'The referral program is not currently active.' }, { status: 403 })
+    }
     const { data: ddUser } = await svc.from('dd_users').select('id, referred_by').eq('auth_id', authUser.id).single()
     if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 

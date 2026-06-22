@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
+import { isReferralProgramEnabled } from '@/lib/referral'
 
 export async function POST(req: Request) {
   const supabase = await createClient()
@@ -105,6 +106,10 @@ export async function POST(req: Request) {
   // Complete pending referral on first delivered order
   if (status === 'delivered') {
     (async () => {
+      // Referral program off → never award the $5 credit. Existing balances
+      // are left untouched; this only stops new credits from accruing.
+      if (!(await isReferralProgramEnabled(svc))) return
+
       const { data: orderData } = await svc.from('dd_orders').select('customer_id').eq('id', delivery.order_id).single()
       if (!orderData) return
 
