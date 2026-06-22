@@ -5,6 +5,7 @@ import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMIS
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { computeWelcomePromo } from '@/lib/promo'
 
 /**
  * POST — Create a Stripe Checkout Session with platform fee (15%) routed
@@ -47,7 +48,6 @@ export async function POST(request: NextRequest) {
       delivery_instructions,
       tip,
       promo_code,
-      promo_discount,
       scheduled_for,
       fulfillment_type,
     } = body
@@ -159,7 +159,12 @@ export async function POST(request: NextRequest) {
     const tax = Math.round(taxableBasis * shopTaxRate * 100) / 100
     // Pickup orders have no driver, so tips are forced to $0.
     const tipAmount = isPickup ? 0 : (tip || 0)
-    const promoDiscount = promo_discount && promo_discount > 0 ? Math.round(promo_discount * 100) / 100 : 0
+    // Recompute the promo on the server from the real subtotal — the client's
+    // promo_discount is display-only and never trusted. Returns null if the
+    // customer isn't eligible (not new / promo disabled / wrong code).
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code })
+    const promoDiscount = promo?.discount ?? 0
+    const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + smallOrderFee + tipAmount - promoDiscount) * 100) / 100
 
     // Stripe destination charges transfer (total - application_fee_amount) to the
@@ -283,7 +288,7 @@ export async function POST(request: NextRequest) {
       delivery_lat: isPickup ? '' : (deliveryLat?.toString() || ''),
       delivery_lng: isPickup ? '' : (deliveryLng?.toString() || ''),
       delivery_instructions: isPickup ? '' : (delivery_instructions || '').slice(0, 300),
-      promo_code: (promo_code || '').slice(0, 50),
+      promo_code: (promoCode || '').slice(0, 50),
       promo_discount: promoDiscount.toString(),
       scheduled_for: scheduled_for || '',
       items_json: itemsJson,
@@ -303,7 +308,7 @@ export async function POST(request: NextRequest) {
         amount_off: safePromoCents,
         currency: 'usd',
         duration: 'once',
-        name: (promo_code as string)?.slice(0, 40) || 'Discount',
+        name: promo?.label?.slice(0, 40) || promoCode?.slice(0, 40) || 'Discount',
       })
       stripeDiscount = { coupon: coupon.id }
     }

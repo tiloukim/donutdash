@@ -5,6 +5,7 @@ import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
 import { isShopOpen } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendSMS, buildOrderEmailHtml } from '@/lib/sms'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { computeWelcomePromo } from '@/lib/promo'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       shopId, items, delivery_address, delivery_city,
-      delivery_instructions, tip, promo_code, promo_discount, scheduled_for,
+      delivery_instructions, tip, promo_code, scheduled_for,
       fulfillment_type,
     } = body
 
@@ -87,7 +88,12 @@ export async function POST(request: NextRequest) {
     const tax = Math.round(subtotal * shopTaxRate * 100) / 100
     const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
     const tipAmount = isPickup ? 0 : (tip || 0)
-    const promoDiscountAmt = promo_discount && promo_discount > 0 ? Math.round(promo_discount * 100) / 100 : 0
+    // Recompute the promo server-side from the real subtotal — client value is
+    // never trusted. PayPal charges this single total, so subtracting here
+    // reduces the actual amount captured.
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code })
+    const promoDiscountAmt = promo?.discount ?? 0
+    const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscountAmt) * 100) / 100
 
     // Create order in DB
@@ -109,7 +115,7 @@ export async function POST(request: NextRequest) {
         delivery_lat: isPickup ? null : deliveryLat,
         delivery_lng: isPickup ? null : deliveryLng,
         delivery_instructions: isPickup ? null : (delivery_instructions || null),
-        promo_code: promo_code || null,
+        promo_code: promoCode,
         promo_discount: promoDiscountAmt || 0,
         scheduled_for: scheduled_for || null,
       })
