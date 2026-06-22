@@ -44,6 +44,16 @@ interface ComputeArgs {
   subtotal: number
   /** Optional code the customer typed at checkout. */
   code?: string | null
+  /**
+   * Optional cap (dollars) = the platform's own discountable margin for this
+   * order (service/small-order fees + commission — NOT tax, tip, or delivery,
+   * which are earmarked for the state and the driver). The discount is clamped
+   * to this so it can never drive the platform's Stripe application_fee
+   * negative (which fails the charge) or dip into the shop's payout. Callers
+   * that don't know the fee breakdown (e.g. the display-only validate
+   * endpoint) omit it.
+   */
+  marginCap?: number
 }
 
 /**
@@ -55,7 +65,7 @@ interface ComputeArgs {
  *   3. a typed code, if the platform has one configured, must match
  *   4. the computed discount is > $0
  */
-export async function computeWelcomePromo({ svc, customerId, subtotal, code }: ComputeArgs): Promise<WelcomePromo | null> {
+export async function computeWelcomePromo({ svc, customerId, subtotal, code, marginCap }: ComputeArgs): Promise<WelcomePromo | null> {
   if (!customerId || !(subtotal > 0)) return null
 
   const { data: rows } = await svc
@@ -106,6 +116,10 @@ export async function computeWelcomePromo({ svc, customerId, subtotal, code }: C
   // Never discount more than the food subtotal; the per-gateway charge math
   // (and Stripe's coupon guard) handle the final clamp against the grand total.
   discount = Math.min(discount, subtotal)
+  // Clamp to the platform's discountable margin so the promo can only ever come
+  // out of platform earnings — never the shop payout, and never enough to fail
+  // the charge. Degrades gracefully: the customer just gets a smaller discount.
+  if (marginCap != null) discount = Math.min(discount, Math.max(0, marginCap))
   discount = Math.round(discount * 100) / 100
   if (discount <= 0) return null
 

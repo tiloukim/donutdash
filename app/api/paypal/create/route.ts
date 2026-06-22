@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { createPayPalOrder } from '@/lib/paypal'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SHOP_COMMISSION_RATE } from '@/lib/constants'
 import { isShopOpen } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendSMS, buildOrderEmailHtml } from '@/lib/sms'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -90,8 +90,10 @@ export async function POST(request: NextRequest) {
     const tipAmount = isPickup ? 0 : (tip || 0)
     // Recompute the promo server-side from the real subtotal — client value is
     // never trusted. PayPal charges this single total, so subtracting here
-    // reduces the actual amount captured.
-    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code })
+    // reduces the actual amount captured. marginCap (service fee + commission;
+    // tax/tip/delivery excluded) keeps the discount inside platform earnings.
+    const platformMargin = serviceFee + subtotal * SHOP_COMMISSION_RATE
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code, marginCap: platformMargin })
     const promoDiscountAmt = promo?.discount ?? 0
     const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscountAmt) * 100) / 100

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { SquareClient, SquareEnvironment } from 'square'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
@@ -130,7 +130,10 @@ export async function POST(request: NextRequest) {
     const tax = Math.round(taxableBasis * shopTaxRate * 100) / 100
     const tipAmount = tip || 0
     // Promo recomputed server-side from the real subtotal; client value ignored.
-    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code })
+    // marginCap (service fee + commission; tax/tip/delivery excluded) keeps the
+    // discount inside platform earnings — never the shop payout.
+    const platformMargin = serviceFee + subtotal * SHOP_COMMISSION_RATE
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code, marginCap: platformMargin })
     const promoDiscount = promo?.discount ?? 0
     const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100
