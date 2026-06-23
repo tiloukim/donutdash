@@ -119,6 +119,24 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
     `
     : ''
 
+  // The card surcharge isn't persisted as its own column — at sale time it's
+  // folded into total: total = subtotal + tax + tip − cash_discount + surcharge.
+  // Recover it exactly from the stored fields so every charge is itemized and
+  // the lines still add up to Total. Cash sales have no surcharge, so this
+  // resolves to 0 and the row is hidden.
+  const surcharge = Math.round(
+    (Number(order.total) - Number(order.subtotal) - Number(order.tax)
+      - Number(order.tip ?? 0) + Number(order.cash_discount_amount ?? 0)) * 100,
+  ) / 100
+  const surchargeRow = surcharge > 0.005
+    ? `
+      <tr>
+        <td style="padding:4px 0;color:#6B7280">Card Surcharge</td>
+        <td style="padding:4px 0;text-align:right;color:#1F2937">${fmtMoney(surcharge)}</td>
+      </tr>
+    `
+    : ''
+
   const paymentLabel = order.payment_method === 'cash' ? 'Cash' : 'Card'
   const cashBlock = order.payment_method === 'cash' && order.cash_received != null
     ? `
@@ -192,6 +210,7 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
                     <td style="padding:4px 0;color:#6B7280">Tax</td>
                     <td style="padding:4px 0;text-align:right;color:#1F2937">${fmtMoney(order.tax)}</td>
                   </tr>
+                  ${surchargeRow}
                   ${tipRow}
                   <tr>
                     <td colspan="2" style="padding-top:12px;border-top:1px solid #F4D5E2"></td>
