@@ -89,4 +89,62 @@ export async function authorizeForShop(shopId: string, opts: AuthorizeOpts = {})
   return { svc, caller }
 }
 
+interface ShopStatus {
+  is_active: boolean | null
+  pos_enabled?: boolean | null
+}
+
+// By-id shop status (no owner filter), tolerant of pos_enabled not being
+// migrated yet — treats POS as enabled until the column exists.
+async function fetchShopStatusById(
+  svc: ReturnType<typeof createServiceClient>,
+  shopId: string,
+): Promise<ShopStatus | null> {
+  const full = await svc.from('dd_shops').select('is_active, pos_enabled').eq('id', shopId).maybeSingle()
+  if (!full.error) return (full.data as ShopStatus) ?? null
+  const basic = await svc.from('dd_shops').select('is_active').eq('id', shopId).maybeSingle()
+  return (basic.data as ShopStatus) ?? null
+}
+
+// Shop-only status gate (no caller/role logic) for POS routes that have
+// already done their own identity + ownership auth — use when a caller id
+// isn't readily available (e.g. lock-screen PIN routes). Returns { error,
+// status } to block a deactivated / POS-disabled shop, or null to proceed.
+export async function assertShopActive(
+  svc: ReturnType<typeof createServiceClient>,
+  shopId: string,
+): Promise<{ error: string; status: 403 } | null> {
+  const shop = await fetchShopStatusById(svc, shopId)
+  if (shop?.is_active === false) {
+    return { error: 'This shop has been deactivated. Please contact DonutDash.', status: 403 as const }
+  }
+  if (shop?.pos_enabled === false) {
+    return { error: 'POS access is disabled for this shop. Please contact DonutDash.', status: 403 as const }
+  }
+  return null
+}
+
+// Full additive POS gate for routes that already authed the caller. Blocks a
+// deactivated caller (any role), and — for non-privileged callers — a
+// deactivated / POS-disabled shop. Privileged staff (admin/managers) bypass
+// the shop gate so they can still configure/support an off shop. Drop this in
+// right after a route's existing auth + shopId resolution; it's purely
+// additive (no change to identity/ownership behavior).
+export async function assertPosAccess(
+  svc: ReturnType<typeof createServiceClient>,
+  callerId: string,
+  shopId: string,
+): Promise<{ error: string; status: 403 } | null> {
+  const { data: caller } = await svc
+    .from('dd_users')
+    .select('role, is_active')
+    .eq('id', callerId)
+    .maybeSingle()
+  if (caller?.is_active === false) {
+    return { error: 'Your account has been deactivated. Please contact DonutDash.', status: 403 as const }
+  }
+  if (caller && DEFAULT_PRIVILEGED.includes(caller.role)) return null
+  return assertShopActive(svc, shopId)
+}
+
 export type AuthorizedShopContext = Awaited<ReturnType<typeof authorizeForShop>>

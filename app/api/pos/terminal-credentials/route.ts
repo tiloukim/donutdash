@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 
 // GET  /api/pos/terminal-credentials?shop_id=<uuid>
 // PUT  /api/pos/terminal-credentials
@@ -59,6 +60,8 @@ export async function GET(req: NextRequest) {
 
   const a = await authorizeForShop(shopId)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+  const gate = await assertPosAccess(a.svc, a.caller.id, shopId)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   const { data, error } = await a.svc
     .from('dd_shop_terminal_credentials')
@@ -100,6 +103,8 @@ export async function PUT(req: NextRequest) {
 
   const a = await authorizeForShop(body.shop_id)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+  const gate = await assertPosAccess(a.svc, a.caller.id, body.shop_id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   const { error } = await a.svc
     .from('dd_shop_terminal_credentials')
@@ -129,6 +134,8 @@ export async function DELETE(req: NextRequest) {
 
   const a = await authorizeForShop(shopId)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+  const gate = await assertPosAccess(a.svc, a.caller.id, shopId)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   const { error } = await a.svc
     .from('dd_shop_terminal_credentials')

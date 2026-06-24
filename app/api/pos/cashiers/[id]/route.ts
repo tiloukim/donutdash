@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { hashPin } from '@/lib/pin-hash'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 
 // PATCH  /api/pos/cashiers/:id   → update name, role, hourly_rate, PIN, status
 // DELETE /api/pos/cashiers/:id   → soft-inactive
@@ -43,6 +44,8 @@ async function authorize(staffRowId: string) {
     .eq('owner_id', caller.id)
     .maybeSingle()
   if (!shop) return { error: 'You do not own this shop', status: 403 as const }
+  const gate = await assertPosAccess(svc, caller.id, staff.shop_id)
+  if (gate) return gate
   return { svc, caller }
 }
 
