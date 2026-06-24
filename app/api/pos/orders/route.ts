@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { authorizeForShop } from '@/lib/pos-shop-auth'
 
 // Create a POS walk-in order. Writes go through the service role
 // (matches how customer checkout and driver flows work today).
@@ -53,13 +53,6 @@ interface CreateBody {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await createClient()
-  const { data: userRes, error: userErr } = await auth.auth.getUser()
-  if (userErr || !userRes?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  const authId = userRes.user.id
-
   let body: CreateBody
   try {
     body = (await req.json()) as CreateBody
@@ -71,29 +64,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'shop_id and at least one line are required' }, { status: 400 })
   }
 
-  const svc = createServiceClient()
-
-  // Authorize: shop_owner of this shop, or admin.
-  const { data: profile } = await svc
-    .from('dd_users')
-    .select('id, role')
-    .eq('auth_id', authId)
-    .maybeSingle()
-  if (!profile) {
-    return NextResponse.json({ error: 'No DonutDash profile' }, { status: 403 })
-  }
-
-  if (profile.role !== 'admin') {
-    const { data: shop } = await svc
-      .from('dd_shops')
-      .select('id')
-      .eq('id', body.shop_id)
-      .eq('owner_id', profile.id)
-      .maybeSingle()
-    if (!shop) {
-      return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
-    }
-  }
+  // Authorize + enforce account status: owner of this shop (admin bypasses
+  // ownership), and the account/shop must be active + POS-enabled. A
+  // deactivated owner/shop or a POS-disabled shop is rejected with 403 — this
+  // is what makes admin "deactivate" actually stop the POS from ringing sales.
+  const a = await authorizeForShop(body.shop_id, { privilegedRoles: ['admin'] })
+  if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+  const svc = a.svc
+  const profile = a.caller
 
   // Resolve the actual cashier — the PIN switcher hands the device
   // owner's session to multiple cashiers throughout a shift. Without

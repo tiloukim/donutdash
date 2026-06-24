@@ -9,6 +9,7 @@ interface Shop {
   name: string
   city: string
   is_active: boolean
+  pos_enabled?: boolean
   rating: number
   review_count: number
   commission_pct: number
@@ -29,6 +30,7 @@ export default function AdminShops() {
   const [originalShops, setOriginalShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [togglingPos, setTogglingPos] = useState<string | null>(null)
   const [savingAll, setSavingAll] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [search, setSearch] = useState('')
@@ -121,6 +123,25 @@ export default function AdminShops() {
       }
     } catch { /* ignore */ }
     setToggling(null)
+  }
+
+  // POS entitlement — separate from is_active so a shop can be on delivery
+  // but off POS (or vice-versa). Enforced server-side in authorizeForShop;
+  // an undefined value (pre-migration) is treated as enabled.
+  const togglePos = async (id: string, currentEnabled: boolean) => {
+    setTogglingPos(id)
+    try {
+      const res = await fetch('/api/admin/shops', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, pos_enabled: !currentEnabled }),
+      })
+      if (res.ok) {
+        setShops(prev => prev.map(s => s.id === id ? { ...s, pos_enabled: !currentEnabled } : s))
+        setOriginalShops(prev => prev.map(s => s.id === id ? { ...s, pos_enabled: !currentEnabled } : s))
+      }
+    } catch { /* ignore */ }
+    setTogglingPos(null)
   }
 
   const handleCreateShop = async () => {
@@ -385,6 +406,26 @@ export default function AdminShops() {
                     >
                       {shop.is_active ? 'Deactivate' : 'Activate'}
                     </button>
+                    {(() => {
+                      const posOn = shop.pos_enabled !== false
+                      return (
+                        <button
+                          onClick={() => togglePos(shop.id, posOn)}
+                          disabled={togglingPos === shop.id}
+                          title={posOn ? 'Disable the in-store POS for this shop' : 'Enable the in-store POS for this shop'}
+                          style={{
+                            marginLeft: 8,
+                            padding: '6px 14px', borderRadius: 6, border: '1px solid #E5E7EB',
+                            background: posOn ? '#FEF2F2' : '#F0FDF4',
+                            color: posOn ? '#DC2626' : '#16A34A',
+                            cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                            opacity: togglingPos === shop.id ? 0.5 : 1,
+                          }}
+                        >
+                          {posOn ? 'Disable POS' : 'Enable POS'}
+                        </button>
+                      )
+                    })()}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <Link

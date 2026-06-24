@@ -114,6 +114,7 @@ export async function PATCH(request: NextRequest) {
     // Only allow these fields to be updated
     const allowed: Record<string, any> = {}
     if ('is_active' in fields) allowed.is_active = fields.is_active
+    if ('pos_enabled' in fields) allowed.pos_enabled = fields.pos_enabled
     if ('service_fee_pct' in fields) allowed.service_fee_pct = fields.service_fee_pct
     if ('delivery_fee' in fields) allowed.delivery_fee = fields.delivery_fee
     if ('min_order' in fields) allowed.min_order = fields.min_order
