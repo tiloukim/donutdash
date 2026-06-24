@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 
 // POST /api/pos/receipt/email
 //
@@ -299,6 +300,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
     }
   }
+
+  const gate = await assertPosAccess(svc, profile.id, order.shop_id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   // — Fetch order items + shop info in parallel. Items aren't ordered
   //   server-side because dd_order_items may not have a created_at

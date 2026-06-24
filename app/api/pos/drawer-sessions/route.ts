@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 
 // POS drawer session management — open + close cash drawer banking
 // sessions. Same RLS-bypass pattern as /api/pos/shifts.
@@ -44,6 +45,11 @@ export async function POST(req: NextRequest) {
   if (!Number.isFinite(body.opening_count) || body.opening_count < 0) {
     return NextResponse.json({ error: 'opening_count must be a non-negative number' }, { status: 400 })
   }
+
+  // POS entitlement gate — no opening a drawer for a deactivated/POS-disabled
+  // shop. (Closing an already-open drawer stays allowed for end-of-day.)
+  const gate = await assertPosAccess(a.svc, a.caller.id, body.shop_id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   // Same cross-shop attribution guard as /api/pos/shifts. Without this
   // an authorized shop_owner could open a drawer at the wrong shop, or

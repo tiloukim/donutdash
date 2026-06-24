@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 
 // PATCH /api/pos/orders/:id/customer
 // Post-sale customer attach. The cashier completes the walk-in sale and
@@ -74,6 +75,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
     }
   }
+
+  const gate = await assertPosAccess(svc, profile.id, order.shop_id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   // Validate the customer id if attaching (null is allowed for detach).
   if (body.customer_id != null) {

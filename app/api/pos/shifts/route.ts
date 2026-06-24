@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 
 // POS shift management — clock in / clock out endpoints used by the
 // register's shift bar. POS client can't write to dd_shifts directly
@@ -45,6 +46,10 @@ export async function POST(req: NextRequest) {
   if (!body.shop_id || !body.user_id) {
     return NextResponse.json({ error: 'shop_id + user_id required' }, { status: 400 })
   }
+
+  // POS entitlement gate — no clocking in for a deactivated/POS-disabled shop.
+  const gate = await assertPosAccess(a.svc, a.caller.id, body.shop_id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   // Cross-shop attribution guard: caller must be the shop owner or an
   // admin/ops role for THIS shop, AND user_id must be a registered

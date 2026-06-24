@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { hashPin } from '@/lib/pin-hash'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 import { randomBytes } from 'crypto'
 
 // GET  /api/pos/cashiers?shop_id=<uuid>  → roster for the picker
@@ -56,6 +57,8 @@ export async function GET(req: NextRequest) {
 
   const a = await authorizeShop(shopId, false)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+  const gate = await assertPosAccess(a.svc, a.caller.id, shopId)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   const { data, error } = await a.svc
     .from('dd_shop_staff')
@@ -113,6 +116,8 @@ export async function POST(req: NextRequest) {
 
   const a = await authorizeShop(body.shop_id, false)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+  const gate = await assertPosAccess(a.svc, a.caller.id, body.shop_id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   // Create the lightweight dd_users row first. auth_id stays null —
   // cashiers don't sign in via Supabase auth; the PIN gate inside the

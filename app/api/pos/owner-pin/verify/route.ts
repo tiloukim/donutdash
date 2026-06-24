@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { verifyPin } from '@/lib/pin-hash'
+import { assertShopActive } from '@/lib/pos-shop-auth'
 
 // POST /api/pos/owner-pin/verify
 // Body: { shop_id, pin }
@@ -43,6 +44,9 @@ export async function POST(req: NextRequest) {
     .eq('id', body.shop_id)
     .maybeSingle()
   if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+
+  const gate = await assertShopActive(svc, body.shop_id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   const row = shop as {
     owner_pin_hash: string | null
