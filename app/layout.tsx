@@ -90,7 +90,7 @@ export default function RootLayout({
                 {
                   '@type': 'Organization',
                   name: 'DonutDash',
-                  legalName: 'KIMCO LLC DBA DonutDash',
+                  legalName: 'DonutDash Technologies LLC',
                   url: 'https://www.donutdash.app',
                   logo: 'https://www.donutdash.app/logo.png',
                   sameAs: ['https://www.facebook.com/profile.php?id=61575586874091'],

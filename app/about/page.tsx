@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar'
 export const metadata: Metadata = {
   title: 'About DonutDash | Donut Delivery Platform',
   description:
-    'DonutDash is a donut delivery platform by KIMCO LLC connecting customers with local donut shops in Tyler, Texas. Learn about our mission, how it works, and how to join.',
+    'DonutDash is a donut delivery platform by DonutDash Technologies LLC connecting customers with local donut shops in Tyler, Texas. Learn about our mission, how it works, and how to join.',
   alternates: {
     canonical: '/about',
   },
@@ -20,7 +20,7 @@ const jsonLd = {
   mainEntity: {
     '@type': 'Organization',
     name: 'DonutDash',
-    legalName: 'KIMCO LLC DBA DonutDash',
+    legalName: 'DonutDash Technologies LLC',
     url: 'https://donutdash.app',
     logo: 'https://donutdash.app/logo.png',
     foundingLocation: {
@@ -82,7 +82,7 @@ export default function AboutPage() {
           The Company
         </h2>
         <p style={{ fontSize: '1rem', color: '#555', marginBottom: '2rem' }}>
-          DonutDash is operated by KIMCO LLC, based in Tyler, Texas. We are a local company
+          DonutDash is operated by DonutDash Technologies LLC, based in Tyler, Texas. We are a local company
           that understands the Tyler community and is committed to supporting local donut
           shops and creating delivery jobs in the area.
         </p>

@@ -41,7 +41,7 @@ table.form td{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size
 
 <!-- PAGE 1: Cover Letter -->
 <div style="display:flex;justify-content:space-between">
-  <div style="font-size:10px;line-height:1.5">Kimco LLC d/b/a DonutDash<br>7205 S Broadway Ave. #400<br>Tyler, TX 75703</div>
+  <div style="font-size:10px;line-height:1.5">DonutDash Technologies LLC<br>7205 S Broadway Ave. #400<br>Tyler, TX 75703</div>
   <div style="font-size:9px;text-align:right">If you have questions contact:<br>1099k@donutdash.app</div>
 </div>
 <div style="margin:50px 0 50px 60px;font-size:12px;line-height:1.6">
@@ -75,7 +75,7 @@ table.form td{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size
     <tr>
       <td rowspan="4">
         <div class="lbl">FILER'S name, street address, city or town, state or province, country, ZIP or foreign postal code, and telephone no.</div>
-        <div style="font-size:10px;margin-top:4px;line-height:1.5">Kimco LLC d/b/a DonutDash<br>7205 S Broadway Ave. #400<br>Tyler, TX 75703</div>
+        <div style="font-size:10px;margin-top:4px;line-height:1.5">DonutDash Technologies LLC<br>7205 S Broadway Ave. #400<br>Tyler, TX 75703</div>
       </td>
       <td><div class="lbl">FILER'S TIN</div><div class="val">83-4598794</div></td>
       <td><div class="lbl">OMB No. 1545-2205</div></td>
@@ -131,7 +131,7 @@ table.form td{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size
     <tr><td><div class="lbl">5i&ensp;September</div><div class="val">$ ${mo(8)}</div></td><td><div class="lbl">5j&ensp;October</div><div class="val">$ ${mo(9)}</div></td></tr>
     <tr><td><div class="lbl">5k&ensp;November</div><div class="val">$ ${mo(10)}</div></td><td><div class="lbl">5l&ensp;December</div><div class="val">$ ${mo(11)}</div></td></tr>
     <tr>
-      <td><div class="lbl">PSE'S name and telephone number</div><div class="val">Kimco LLC d/b/a DonutDash&ensp;1099k@donutdash.app</div></td>
+      <td><div class="lbl">PSE'S name and telephone number</div><div class="val">DonutDash Technologies LLC&ensp;1099k@donutdash.app</div></td>
       <td><div class="lbl">6&ensp;State</div><div class="val">${data.shop.state || 'TX'}</div></td>
       <td><div class="lbl">7&ensp;State identification no.</div><div class="val">&nbsp;</div></td>
       <td><div class="lbl">8&ensp;State income tax withheld</div><div class="val">$</div></td>

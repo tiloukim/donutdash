@@ -380,7 +380,7 @@ export default function DriverDocuments() {
           </a>
         </div>
         <div style={{ fontSize: 12, color: '#888', marginTop: 4, marginLeft: 26 }}>
-          Please review the full agreement between you and KIMCO LLC DBA DonutDash.
+          Please review the full agreement between you and DonutDash Technologies LLC.
         </div>
       </div>
     </div>
