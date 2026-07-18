@@ -50,7 +50,7 @@ export default function ContractorAgreementPage() {
           Independent Contractor Agreement
         </h1>
         <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '2rem' }}>
-          Effective Date: April 1, 2026
+          Effective Date: July 18, 2026
         </p>
 
         {/* 1. Parties */}
