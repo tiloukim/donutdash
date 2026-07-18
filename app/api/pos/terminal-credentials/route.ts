@@ -1,20 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
-// GET  /api/pos/terminal-credentials?shop_id=<uuid>
-// PUT  /api/pos/terminal-credentials
+// GET  /api/pos/terminal-credentials?shop_id=<uuid>&device_id=<id>  → one register
+// GET  /api/pos/terminal-credentials?shop_id=<uuid>                 → all registers
+// PUT  /api/pos/terminal-credentials                                → upsert one register
+// DELETE /api/pos/terminal-credentials?shop_id=<uuid>&device_id=<id> → remove one register
 //
-// Per-shop SPIn credential storage for the Dejavoo terminal integration.
-// Authorized callers are admin or the shop_owner of that specific shop.
-// POS app calls GET on first launch / Settings open to mirror creds
-// into expo-secure-store; PUT propagates edits back to the backend so
-// they survive APK reinstall + apply to every device at that shop.
+// Per-register SPIn credential storage for the Dejavoo terminal
+// integration. Rows are keyed on (shop_id, device_id) so a shop can run
+// one QD3 per lane — each Elo owns its own credentials row. Authorized
+// callers are admin/manager or the shop_owner of that specific shop.
+// POS app calls GET on first launch / Settings open to mirror THIS
+// device's creds into expo-secure-store; PUT propagates edits back so
+// they survive APK reinstall.
+//
+// device_id is NOT a security boundary — it only partitions rows within
+// a shop. Authorization is still by shop_id (see authorizeForShop), so a
+// device may read/manage any lane in its own shop (admin overview) but
+// no lane in another shop.
 //
 // auth_key is sensitive — only ever returned to authorized callers
 // over HTTPS, never logged, never embedded in URLs.
 
+// Rows written before the per-device migration are backfilled to this
+// device_id; a PUT/DELETE with no device_id targets it, preserving the
+// pre-migration single-terminal behavior for old clients.
+const LEGACY_DEVICE_ID = 'legacy-default'
+
 interface TerminalCredentials {
   shop_id: string
+  device_id: string
+  register_label: string | null
   tpn: string
   auth_key: string
   register_id: string | null
@@ -56,14 +72,31 @@ async function authorizeForShop(shopId: string) {
 export async function GET(req: NextRequest) {
   const shopId = req.nextUrl.searchParams.get('shop_id')
   if (!shopId) return NextResponse.json({ error: 'shop_id required' }, { status: 400 })
+  const deviceId = req.nextUrl.searchParams.get('device_id')
 
   const a = await authorizeForShop(shopId)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
 
+  // No device_id → admin/overview mode: return every register (lane)
+  // configured at this shop. Powers the admin-web overview and the POS
+  // listShopRegisters() helper.
+  if (!deviceId) {
+    const { data, error } = await a.svc
+      .from('dd_shop_terminal_credentials')
+      .select('*')
+      .eq('shop_id', shopId)
+      .order('register_label', { ascending: true })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ registers: (data as TerminalCredentials[] | null) ?? [] })
+  }
+
+  // device_id present → this device's own binding, keyed on
+  // (shop_id, device_id).
   const { data, error } = await a.svc
     .from('dd_shop_terminal_credentials')
     .select('*')
     .eq('shop_id', shopId)
+    .eq('device_id', deviceId)
     .maybeSingle()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -75,6 +108,8 @@ export async function GET(req: NextRequest) {
 
 interface PutBody {
   shop_id: string
+  device_id?: string
+  register_label?: string | null
   tpn: string
   auth_key: string
   register_id?: string | null
@@ -101,11 +136,18 @@ export async function PUT(req: NextRequest) {
   const a = await authorizeForShop(body.shop_id)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
 
+  // Key this row on (shop_id, device_id). Old clients that don't send a
+  // device_id write the shop's legacy-default row, preserving the
+  // pre-migration single-terminal behavior.
+  const deviceId = body.device_id?.trim() || LEGACY_DEVICE_ID
+
   const { error } = await a.svc
     .from('dd_shop_terminal_credentials')
     .upsert(
       {
         shop_id: body.shop_id,
+        device_id: deviceId,
+        register_label: body.register_label?.trim() || null,
         tpn: body.tpn.trim(),
         auth_key: body.auth_key.trim(),
         register_id: body.register_id?.trim() || null,
@@ -115,17 +157,21 @@ export async function PUT(req: NextRequest) {
         print_on_terminal: body.print_on_terminal ?? false,
         updated_by: a.caller.id,
       },
-      { onConflict: 'shop_id' },
+      { onConflict: 'shop_id,device_id' },
     )
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
 
-// DELETE — admin can wipe credentials remotely (e.g. credential rotation,
-// shop closed, AuthKey compromised). Same auth model.
+// DELETE — remove one lane's credentials remotely (e.g. credential
+// rotation, register retired, AuthKey compromised). Same auth model.
+// Scoped to a single (shop_id, device_id) so unbinding one Elo never
+// wipes the other lanes at the shop. A missing device_id targets the
+// legacy-default row (old single-terminal clients).
 export async function DELETE(req: NextRequest) {
   const shopId = req.nextUrl.searchParams.get('shop_id')
   if (!shopId) return NextResponse.json({ error: 'shop_id required' }, { status: 400 })
+  const deviceId = req.nextUrl.searchParams.get('device_id')?.trim() || LEGACY_DEVICE_ID
 
   const a = await authorizeForShop(shopId)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
@@ -134,6 +180,7 @@ export async function DELETE(req: NextRequest) {
     .from('dd_shop_terminal_credentials')
     .delete()
     .eq('shop_id', shopId)
+    .eq('device_id', deviceId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
