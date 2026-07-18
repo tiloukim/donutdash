@@ -3,10 +3,16 @@
 import { usePathname } from 'next/navigation'
 import Footer from './Footer'
 
-const HIDE_PATTERNS: RegExp[] = [
+// Internal app dashboards — no footer at all (not even the "Powered by" bar).
+const NO_FOOTER_PATTERNS: RegExp[] = [
   /^\/admin(\/|$)/,
   /^\/driver(\/|$)/,
   /^\/shop(\/|$)/,
+]
+
+// Routes where the full marketing footer is hidden but the slim
+// "Powered by" attribution bar still shows.
+const HIDE_PATTERNS: RegExp[] = [
   /^\/auth(\/|$)/,
   /^\/checkout(\/|$)/,
   /^\/partner-setup(\/|$)/,
@@ -18,8 +24,9 @@ const HIDE_PATTERNS: RegExp[] = [
 
 export default function ConditionalFooter() {
   const pathname = usePathname() || ''
-  // On gated/app routes the full marketing footer is hidden, but the
-  // "Powered by" attribution still appears site-wide as a slim bar.
+  // Internal dashboards get nothing.
+  if (NO_FOOTER_PATTERNS.some(p => p.test(pathname))) return null
+  // Other gated routes hide the full footer but keep the attribution bar.
   if (HIDE_PATTERNS.some(p => p.test(pathname))) return <PoweredByBar />
   return <Footer />
 }
