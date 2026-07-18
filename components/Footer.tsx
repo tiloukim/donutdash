@@ -204,6 +204,9 @@ export default function Footer() {
         fontSize: '0.8rem',
       }}>
         &copy; {new Date().getFullYear()} DonutDash&trade;. All rights reserved.
+        <div style={{ marginTop: '0.35rem', color: 'rgba(255,255,255,0.3)', fontSize: '0.72rem' }}>
+          Powered by DonutDash Technologies LLC
+        </div>
       </div>
     </footer>
   )
