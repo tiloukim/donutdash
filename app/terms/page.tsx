@@ -46,7 +46,7 @@ export default function TermsPage() {
           Terms of Service
         </h1>
         <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '2.5rem' }}>
-          Effective Date: April 1, 2026 &middot; Last Updated: April 1, 2026
+          Effective Date: April 1, 2026 &middot; Last Updated: July 18, 2026
         </p>
 
         {/* 1 */}
@@ -55,7 +55,7 @@ export default function TermsPage() {
           Welcome to DonutDash. By accessing or using the DonutDash website (<a href="https://donutdash.app" style={{ color: '#FF8C00' }}>donutdash.app</a>), mobile application, or any related services (collectively, the &ldquo;Platform&rdquo;), you agree to be bound by these Terms of Service (&ldquo;Terms&rdquo;). If you do not agree to these Terms, please do not use the Platform.
         </p>
         <p style={paragraphStyle}>
-          These Terms constitute a legally binding agreement between you and KIMCO LLC, doing business as DonutDash (&ldquo;DonutDash,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), a Texas limited liability company located in Tyler, Texas.
+          These Terms constitute a legally binding agreement between you and DonutDash Technologies LLC (&ldquo;DonutDash,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), a Texas limited liability company located in Tyler, Texas.
         </p>
 
         {/* 2 */}
@@ -132,7 +132,7 @@ export default function TermsPage() {
         {/* 8 */}
         <h2 style={headingStyle}>8. Intellectual Property</h2>
         <p style={paragraphStyle}>
-          All content on the Platform, including but not limited to the DonutDash name, logo, trademarks, text, graphics, software, and design, is the property of KIMCO LLC or its licensors and is protected by copyright, trademark, and other intellectual property laws.
+          All content on the Platform, including but not limited to the DonutDash name, logo, trademarks, text, graphics, software, and design, is the property of DonutDash Technologies LLC or its licensors and is protected by copyright, trademark, and other intellectual property laws.
         </p>
         <p style={paragraphStyle}>
           You may not copy, reproduce, modify, distribute, or create derivative works from any content on the Platform without our prior written consent. Shop owners retain ownership of their product images and descriptions but grant DonutDash a non-exclusive license to display such content on the Platform.
@@ -153,7 +153,7 @@ export default function TermsPage() {
         {/* 10 */}
         <h2 style={headingStyle}>10. Indemnification</h2>
         <p style={paragraphStyle}>
-          You agree to indemnify, defend, and hold harmless KIMCO LLC (d/b/a DonutDash), its officers, directors, employees, and agents from and against any and all claims, liabilities, damages, losses, costs, and expenses (including reasonable attorneys&rsquo; fees) arising out of or related to your use of the Platform, your violation of these Terms, or your violation of any rights of a third party.
+          You agree to indemnify, defend, and hold harmless DonutDash Technologies LLC, its officers, directors, employees, and agents from and against any and all claims, liabilities, damages, losses, costs, and expenses (including reasonable attorneys&rsquo; fees) arising out of or related to your use of the Platform, your violation of these Terms, or your violation of any rights of a third party.
         </p>
 
         {/* 11 */}
@@ -174,14 +174,14 @@ export default function TermsPage() {
           If you have any questions about these Terms of Service, please contact us:
         </p>
         <p style={paragraphStyle}>
-          <strong>KIMCO LLC (d/b/a DonutDash)</strong><br />
+          <strong>DonutDash Technologies LLC</strong><br />
           Tyler, Texas<br />
           Website: <a href="https://donutdash.app" style={{ color: '#FF8C00' }}>donutdash.app</a><br />
           Email: support@donutdash.app
         </p>
 
         <div style={{ marginTop: '3rem', paddingTop: '1.5rem', borderTop: '1px solid #eee', color: '#999', fontSize: '0.85rem' }}>
-          Last updated: April 1, 2026
+          Last updated: July 18, 2026
         </div>
       </div>
     </div>

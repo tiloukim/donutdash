@@ -46,11 +46,11 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '2.5rem' }}>
-          Effective Date: April 1, 2026 &middot; Last Updated: April 1, 2026
+          Effective Date: April 1, 2026 &middot; Last Updated: July 18, 2026
         </p>
 
         <p style={paragraphStyle}>
-          KIMCO LLC, doing business as DonutDash (&ldquo;DonutDash,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use the DonutDash website (<a href="https://donutdash.app" style={{ color: '#FF8C00' }}>donutdash.app</a>), mobile application, and related services (collectively, the &ldquo;Platform&rdquo;).
+          DonutDash Technologies LLC (&ldquo;DonutDash,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use the DonutDash website (<a href="https://donutdash.app" style={{ color: '#FF8C00' }}>donutdash.app</a>), mobile application, and related services (collectively, the &ldquo;Platform&rdquo;).
         </p>
 
         {/* 1 */}
@@ -200,14 +200,14 @@ export default function PrivacyPage() {
           If you have any questions or concerns about this Privacy Policy or our data practices, please contact us:
         </p>
         <p style={paragraphStyle}>
-          <strong>KIMCO LLC (d/b/a DonutDash)</strong><br />
+          <strong>DonutDash Technologies LLC</strong><br />
           Tyler, Texas<br />
           Website: <a href="https://donutdash.app" style={{ color: '#FF8C00' }}>donutdash.app</a><br />
           Email: support@donutdash.app
         </p>
 
         <div style={{ marginTop: '3rem', paddingTop: '1.5rem', borderTop: '1px solid #eee', color: '#999', fontSize: '0.85rem' }}>
-          Last updated: April 1, 2026
+          Last updated: July 18, 2026
         </div>
       </div>
     </div>

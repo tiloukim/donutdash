@@ -66,7 +66,7 @@ export default function SignAgreementPage() {
       ctx.fillText(`Contractor: ${fullName.trim()}`, 20, 60)
       ctx.font = '14px sans-serif'
       ctx.fillText(`Date: ${date}`, 20, 82)
-      ctx.fillText('Company: KIMCO LLC DBA DonutDash', 400, 60)
+      ctx.fillText('Company: DonutDash Technologies LLC', 400, 60)
       ctx.fillText('Tyler, Texas', 400, 82)
 
       // Draw signature
@@ -148,7 +148,7 @@ export default function SignAgreementPage() {
         fontSize: 14, lineHeight: 1.8, color: '#333',
       }}>
         <h3 style={{ color: ORANGE, fontSize: 16, marginTop: 0 }}>1. Parties</h3>
-        <p>This Independent Contractor Agreement (&quot;Agreement&quot;) is entered into between <strong>KIMCO LLC DBA DonutDash</strong> (&quot;Company&quot;), a Texas limited liability company with its principal place of business in Tyler, Texas, and the individual who accepts this Agreement through the DonutDash platform (&quot;Contractor&quot; or &quot;Driver&quot;).</p>
+        <p>This Independent Contractor Agreement (&quot;Agreement&quot;) is entered into between <strong>DonutDash Technologies LLC</strong> (&quot;Company&quot;), a Texas limited liability company with its principal place of business in Tyler, Texas, and the individual who accepts this Agreement through the DonutDash platform (&quot;Contractor&quot; or &quot;Driver&quot;).</p>
 
         <h3 style={{ color: ORANGE, fontSize: 16 }}>2. Independent Contractor Status</h3>
         <p>Contractor is an independent contractor and is <strong>not</strong> an employee, agent, partner, or joint venturer of the Company. Contractor retains full control over when, where, and how they perform delivery services.</p>

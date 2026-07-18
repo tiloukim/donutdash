@@ -57,7 +57,7 @@ export default function ContractorAgreementPage() {
         <h2 style={headingStyle}>1. Parties</h2>
         <p style={paragraphStyle}>
           This Independent Contractor Agreement (&quot;Agreement&quot;) is entered into between{' '}
-          <strong>KIMCO LLC DBA DonutDash</strong> (&quot;Company&quot;), a Texas limited liability company
+          <strong>DonutDash Technologies LLC</strong> (&quot;Company&quot;), a Texas limited liability company
           with its principal place of business in Tyler, Texas, and the individual who accepts this
           Agreement through the DonutDash platform (&quot;Contractor&quot; or &quot;Driver&quot;).
         </p>
@@ -243,7 +243,7 @@ export default function ContractorAgreementPage() {
           }}
         >
           <p style={{ ...paragraphStyle, marginBottom: '0.25rem', fontWeight: 600 }}>
-            KIMCO LLC DBA DonutDash
+            DonutDash Technologies LLC
           </p>
           <p style={{ ...paragraphStyle, marginBottom: '0.25rem' }}>Tyler, TX</p>
           <p style={{ ...paragraphStyle, marginBottom: 0 }}>
