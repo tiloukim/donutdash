@@ -139,8 +139,15 @@ export default function AdminShops() {
       if (res.ok) {
         setShops(prev => prev.map(s => s.id === id ? { ...s, pos_enabled: !currentEnabled } : s))
         setOriginalShops(prev => prev.map(s => s.id === id ? { ...s, pos_enabled: !currentEnabled } : s))
+      } else {
+        // Surface the failure instead of silently doing nothing (e.g. the
+        // pos_enabled column not yet migrated returns a 500 here).
+        const data = await res.json().catch(() => ({} as { error?: string }))
+        alert(`Couldn't ${currentEnabled ? 'disable' : 'enable'} POS: ${data.error || res.statusText}`)
       }
-    } catch { /* ignore */ }
+    } catch {
+      alert('Network error — could not update POS status.')
+    }
     setTogglingPos(null)
   }
 
