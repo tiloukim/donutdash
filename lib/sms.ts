@@ -37,7 +37,14 @@ export async function sendSMS(to: string, body: string) {
         },
         body: JSON.stringify({ from: telnyxFrom, to, text: body }),
       })
-      if (res.ok) return true
+      if (res.ok) {
+        // Log the Telnyx message id + accepted status so a non-delivery can be
+        // traced to the Telnyx MDR (Portal → Reporting). "accepted" here just
+        // means Telnyx queued it — carrier delivery is separate (10DLC, etc.).
+        const data = await res.json().catch(() => ({} as { data?: { id?: string; to?: Array<{ status?: string }> } }))
+        console.log('[sms] Telnyx accepted:', JSON.stringify({ id: data?.data?.id, to, from: telnyxFrom, status: data?.data?.to?.[0]?.status }))
+        return true
+      }
       const err = await res.json().catch(() => ({}))
       console.error('Telnyx SMS error:', err.message || res.status)
     } catch (err) {
@@ -66,7 +73,11 @@ export async function sendSMS(to: string, body: string) {
         },
         body: params.toString(),
       })
-      if (res.ok) return true
+      if (res.ok) {
+        const data = await res.json().catch(() => ({} as { sid?: string; status?: string }))
+        console.log('[sms] Twilio accepted:', JSON.stringify({ sid: data?.sid, to, status: data?.status }))
+        return true
+      }
       const err = await res.json().catch(() => ({}))
       console.error('Twilio SMS error:', err.message || res.status)
     } catch (err) {
