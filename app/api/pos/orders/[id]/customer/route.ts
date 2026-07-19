@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { awardLoyaltyPoints } from '@/lib/loyalty'
 
 // PATCH /api/pos/orders/:id/customer
 // Post-sale customer attach. The cashier completes the walk-in sale and
@@ -49,7 +50,7 @@ export async function PATCH(
   // Load the order so we can shop-scope the auth check.
   const { data: order, error: orderErr } = await svc
     .from('dd_orders')
-    .select('id, shop_id, source')
+    .select('id, shop_id, source, subtotal')
     .eq('id', orderId)
     .maybeSingle()
   if (orderErr || !order) {
@@ -96,5 +97,24 @@ export async function PATCH(
     return NextResponse.json({ error: updateErr.message }, { status: 500 })
   }
 
-  return NextResponse.json({ id: orderId, customer_id: body.customer_id })
+  // Award loyalty for a post-sale attach — the moment most walk-ins volunteer
+  // their info. Idempotent (skipIfAwarded) so an order that already earned at
+  // creation isn't double-credited. Non-fatal.
+  let loyalty = null
+  if (body.customer_id) {
+    try {
+      const award = await awardLoyaltyPoints(svc, {
+        userId: body.customer_id,
+        orderId,
+        subtotal: Number(order.subtotal ?? 0),
+        source: 'POS sale',
+        skipIfAwarded: true,
+      })
+      if (award) loyalty = { earned: award.earned, balance: award.points, tier: award.tier }
+    } catch (e) {
+      console.error('POS attach loyalty award error:', e)
+    }
+  }
+
+  return NextResponse.json({ id: orderId, customer_id: body.customer_id, loyalty })
 }

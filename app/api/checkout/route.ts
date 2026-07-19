@@ -6,6 +6,7 @@ import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { awardLoyaltyPoints } from '@/lib/loyalty'
 import { computeWelcomePromo } from '@/lib/promo'
 import crypto from 'crypto'
 
@@ -200,50 +201,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: itemsError.message }, { status: 500 })
     }
 
-    // Award loyalty points: 1 point per $1 spent (fire and forget)
-    const loyaltyPoints = Math.floor(subtotal)
-    if (loyaltyPoints > 0) {
-      (async () => {
-        try {
-          // Upsert loyalty record
-          const { data: existing } = await svc
-            .from('dd_loyalty')
-            .select('points, lifetime_points')
-            .eq('user_id', ddUser.id)
-            .single()
-
-          if (existing) {
-            const newLifetime = existing.lifetime_points + loyaltyPoints
-            const newTier = newLifetime >= 5000 ? 'platinum' : newLifetime >= 1500 ? 'gold' : newLifetime >= 500 ? 'silver' : 'bronze'
-            await svc.from('dd_loyalty').update({
-              points: existing.points + loyaltyPoints,
-              lifetime_points: newLifetime,
-              tier: newTier,
-              updated_at: new Date().toISOString(),
-            }).eq('user_id', ddUser.id)
-          } else {
-            const newTier = loyaltyPoints >= 5000 ? 'platinum' : loyaltyPoints >= 1500 ? 'gold' : loyaltyPoints >= 500 ? 'silver' : 'bronze'
-            await svc.from('dd_loyalty').insert({
-              user_id: ddUser.id,
-              points: loyaltyPoints,
-              lifetime_points: loyaltyPoints,
-              tier: newTier,
-            })
-          }
-
-          // Log the transaction
-          await svc.from('dd_loyalty_transactions').insert({
-            user_id: ddUser.id,
-            order_id: order.id,
-            points: loyaltyPoints,
-            type: 'earned',
-            description: `Earned ${loyaltyPoints} pts from order #${order.id.slice(0, 8)}`,
-          })
-        } catch (e) {
-          console.error('Loyalty points error:', e)
-        }
-      })()
-    }
+    // Award loyalty points: 1 point per $1 of subtotal (fire and forget).
+    awardLoyaltyPoints(svc, { userId: ddUser.id, orderId: order.id, subtotal, source: 'online order' })
+      .catch((e) => console.error('Loyalty points error:', e))
 
     // Notify admins of new order (fire and forget)
     const shopName = shop?.name || 'a shop'
