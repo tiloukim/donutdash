@@ -65,7 +65,7 @@ function buildReceiptText(order: OrderRow, shopName: string): string {
   return [
     `${shopName}${order.short_code ? ` #${order.short_code}` : ''}`,
     `Total ${money(order.total)} (${paymentLabel})`,
-    `Receipt: donutdash.app/receipt/${order.id}`,
+    `Receipt: https://donutdash.app/receipt/${order.id}`,
   ].join('\n')
 }
 
