@@ -164,16 +164,25 @@ export function buildReceiptHtml(
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
     <title>Receipt from ${escapeHtml(shop.name)}</title>
+    <style>
+      /* The card is width:100% capped at 560px with box-sizing:border-box so
+         its padding never pushes the amount column off a narrow phone screen.
+         Tighten padding + header on small screens so nothing gets clipped. */
+      @media only screen and (max-width: 480px) {
+        .rcpt-card { padding: 20px !important; }
+        .rcpt-shop { font-size: 22px !important; }
+      }
+    </style>
   </head>
   <body style="margin:0;padding:0;background-color:#FFF5F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#FFF5F8;padding:24px 0">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#FFF5F8;padding:24px 12px;box-sizing:border-box">
       <tr>
         <td align="center">
-          <table cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:92%;background:#fff;border-radius:12px;border:1px solid #F4D5E2;padding:32px">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" class="rcpt-card" style="max-width:560px;background:#fff;border-radius:12px;border:1px solid #F4D5E2;padding:32px;box-sizing:border-box">
             <!-- Header -->
             <tr>
               <td align="center" style="padding-bottom:20px;border-bottom:1px solid #F4D5E2">
-                <div style="font-size:28px;font-weight:800;color:#1F2937;letter-spacing:0.3px">${escapeHtml(shop.name)}</div>
+                <div class="rcpt-shop" style="font-size:28px;font-weight:800;color:#1F2937;letter-spacing:0.3px">${escapeHtml(shop.name)}</div>
                 ${shop.address ? `<div style="color:#6B7280;margin-top:6px">${escapeHtml(shop.address)}</div>` : ''}
                 ${cityStateZip ? `<div style="color:#6B7280">${escapeHtml(cityStateZip)}</div>` : ''}
                 ${shop.phone ? `<div style="color:#6B7280">${escapeHtml(shop.phone)}</div>` : ''}
