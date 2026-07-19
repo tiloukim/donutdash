@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest) {
   // platform staff switch between shops they don't own.
   const { data: shopRow } = await svc
     .from('dd_shops')
-    .select('id, name, delivery_enabled')
+    .select('id, name, delivery_enabled, pos_enabled')
     .eq('owner_id', profile.id)
     .order('created_at', { ascending: true })
     .limit(1)
@@ -71,5 +71,9 @@ export async function GET(_req: NextRequest) {
     // The POS app uses this flag to hide DonutDash online-order UI for shops
     // that haven't opted into the delivery marketplace.
     delivery_enabled: shopRow.delivery_enabled ?? false,
+    // Admin kill-switch (admin → Shops → Disable POS). Defaults to true so a
+    // null/absent column never locks a shop out. The POS shows a lockout
+    // screen when this is false; order creation is also rejected server-side.
+    pos_enabled: shopRow.pos_enabled ?? true,
   })
 }

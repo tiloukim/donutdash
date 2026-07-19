@@ -73,6 +73,17 @@ export async function POST(req: NextRequest) {
   const svc = a.svc
   const profile = a.caller
 
+  // Admin kill-switch (admin → Shops → Disable POS). Authoritative server-side
+  // enforcement so a stale client that missed the flag still can't ring sales.
+  const { data: shopFlags } = await svc
+    .from('dd_shops')
+    .select('pos_enabled')
+    .eq('id', body.shop_id)
+    .maybeSingle()
+  if (shopFlags && shopFlags.pos_enabled === false) {
+    return NextResponse.json({ error: 'POS has been disabled for this shop by an administrator.' }, { status: 403 })
+  }
+
   // Resolve the actual cashier — the PIN switcher hands the device
   // owner's session to multiple cashiers throughout a shift. Without
   // this, staff_id always points at the device owner and per-cashier
