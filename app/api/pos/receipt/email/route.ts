@@ -36,6 +36,31 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
+// Card network badge for the Payment row — a brand-colored pill (works in
+// every email client, unlike SVG/remote logos) plus the masked last 4.
+function cardBrandHtml(brand: string | null, last4: string | null): string {
+  const key = (brand ?? '').trim().toLowerCase().replace(/\s+/g, '')
+  const brands: Record<string, { label: string; bg: string }> = {
+    visa: { label: 'VISA', bg: '#1A1F71' },
+    mastercard: { label: 'Mastercard', bg: '#EB001B' },
+    amex: { label: 'AMEX', bg: '#1F72CD' },
+    americanexpress: { label: 'AMEX', bg: '#1F72CD' },
+    discover: { label: 'DISCOVER', bg: '#FF6000' },
+    diners: { label: 'Diners Club', bg: '#0079BE' },
+    dinersclub: { label: 'Diners Club', bg: '#0079BE' },
+    jcb: { label: 'JCB', bg: '#0B4EA2' },
+    unionpay: { label: 'UnionPay', bg: '#005BAC' },
+  }
+  const match = brands[key]
+  const label = match?.label ?? (brand ? escapeHtml(brand.toUpperCase()) : 'Card')
+  const bg = match?.bg ?? '#1F2937'
+  const badge = `<span style="display:inline-block;background:${bg};color:#fff;font-size:11px;font-weight:800;letter-spacing:0.5px;padding:3px 9px;border-radius:5px;vertical-align:middle">${label}</span>`
+  const tail = last4
+    ? `<span style="color:#1F2937;font-weight:600;margin-left:8px;vertical-align:middle">•••• ${escapeHtml(last4)}</span>`
+    : ''
+  return `${badge}${tail}`
+}
+
 interface OrderRow {
   id: string
   shop_id: string
@@ -47,6 +72,8 @@ interface OrderRow {
   payment_method: string | null
   cash_received: number | null
   change_given: number | null
+  card_brand: string | null
+  card_last4: string | null
   // dd_orders has cash_discount_amount (written by POST /api/pos/orders).
   // discount_label is purely cosmetic — there's no column for it on
   // walk-in sales, so the cash-discount program is labeled as such.
@@ -64,6 +91,7 @@ interface OrderItem {
 interface ShopRow {
   id: string
   name: string
+  slug: string
   address: string | null
   city: string | null
   state: string | null
@@ -74,6 +102,8 @@ interface ShopRow {
 function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, customerEmail: string): string {
   const cityState = [shop.city, shop.state].filter(Boolean).join(', ')
   const cityStateZip = shop.zip ? `${cityState} ${shop.zip}`.trim() : cityState
+  // Deep link back to this shop's page so the customer can reorder.
+  const shopUrl = `https://donutdash.app/shops/${encodeURIComponent(shop.slug)}`
   const placed = new Date(order.created_at).toLocaleString('en-US', {
     weekday: 'short',
     month: 'short',
@@ -90,11 +120,11 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
         : ''
       return `
         <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #F4D5E2">
+          <td style="padding:5px 0;border-bottom:1px solid #F4D5E2">
             <div style="color:#1F2937;font-weight:600">${it.quantity}× ${escapeHtml(it.name)}</div>
             ${note}
           </td>
-          <td style="padding:8px 0;border-bottom:1px solid #F4D5E2;text-align:right;color:#1F2937;font-weight:600">${lineTotal}</td>
+          <td style="padding:5px 0;border-bottom:1px solid #F4D5E2;text-align:right;color:#1F2937;font-weight:600">${lineTotal}</td>
         </tr>
       `
     })
@@ -119,7 +149,10 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
     `
     : ''
 
-  const paymentLabel = order.payment_method === 'cash' ? 'Cash' : 'Card'
+  const isCard = order.payment_method !== 'cash'
+  const paymentValueHtml = isCard
+    ? cardBrandHtml(order.card_brand, order.card_last4)
+    : '<span style="color:#1F2937;font-weight:600">Cash</span>'
   const cashBlock = order.payment_method === 'cash' && order.cash_received != null
     ? `
       <tr>
@@ -164,7 +197,7 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
 
             <!-- Items -->
             <tr>
-              <td style="padding-top:8px">
+              <td style="padding-top:2px">
                 <table cellpadding="0" cellspacing="0" border="0" width="100%">
                   <thead>
                     <tr>
@@ -181,7 +214,7 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
 
             <!-- Totals -->
             <tr>
-              <td style="padding-top:16px">
+              <td style="padding-top:6px">
                 <table cellpadding="0" cellspacing="0" border="0" width="100%">
                   <tr>
                     <td style="padding:4px 0;color:#6B7280">Subtotal</td>
@@ -210,7 +243,7 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
                 <table cellpadding="0" cellspacing="0" border="0" width="100%">
                   <tr>
                     <td style="padding:4px 0;color:#6B7280">Payment</td>
-                    <td style="padding:4px 0;text-align:right;color:#1F2937;font-weight:600">${paymentLabel}</td>
+                    <td style="padding:4px 0;text-align:right">${paymentValueHtml}</td>
                   </tr>
                   ${cashBlock}
                 </table>
@@ -222,12 +255,13 @@ function buildReceiptHtml(order: OrderRow, items: OrderItem[], shop: ShopRow, cu
               <td align="center" style="padding-top:24px">
                 <div style="font-size:18px;font-weight:700;color:#1F2937">Thank you!</div>
                 <div style="color:#6B7280;font-size:13px;margin-top:4px">Come back soon.</div>
+                <a href="${shopUrl}" style="display:inline-block;margin-top:16px;background:#EC1B7E;color:#ffffff;font-weight:700;font-size:14px;text-decoration:none;padding:12px 24px;border-radius:9px">Order again from ${escapeHtml(shop.name)}</a>
               </td>
             </tr>
             <tr>
               <td align="center" style="padding-top:18px;border-top:1px solid #F4D5E2;color:#9CA3AF;font-size:11px;line-height:18px">
                 Sent to ${escapeHtml(customerEmail)}<br />
-                Powered by <a href="https://www.donutdash.app" style="color:#EC1B7E;font-weight:700;text-decoration:none">DonutDash POS</a>
+                Powered by <a href="https://www.donutdash.app" style="color:#EC1B7E;font-weight:700;text-decoration:none">DonutDash&trade; POS</a>
               </td>
             </tr>
           </table>
@@ -280,6 +314,7 @@ export async function POST(req: NextRequest) {
     .select(`
       id, shop_id, short_code, subtotal, tax, tip, total,
       payment_method, cash_received, change_given,
+      card_brand, card_last4,
       cash_discount_amount, created_at
     `)
     .eq('id', orderId)
@@ -310,7 +345,7 @@ export async function POST(req: NextRequest) {
       .eq('order_id', orderId),
     svc
       .from('dd_shops')
-      .select('id, name, address, city, state, zip, phone')
+      .select('id, name, slug, address, city, state, zip, phone')
       .eq('id', order.shop_id)
       .single<ShopRow>(),
   ])
