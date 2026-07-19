@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const { data: ddUser } = await supabase
       .from('dd_users')
-      .select('id, email, name')
+      .select('id, email, name, phone')
       .eq('auth_id', authUser.id)
       .single()
 
@@ -143,6 +143,11 @@ export async function POST(request: NextRequest) {
       .from('dd_orders')
       .insert({
         customer_id: ddUser.id,
+        // Denormalized so the POS/receipt can show who ordered without
+        // reading dd_users (RLS blocks staff from other users' rows), and
+        // so the order stays self-contained if the account is later removed.
+        customer_name: ddUser.name ?? null,
+        customer_phone: ddUser.phone ?? null,
         shop_id: shopId,
         status: 'pending',
         subtotal,
