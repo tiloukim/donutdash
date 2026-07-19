@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   // the active driver off the run (the guard above is racey on its own;
   // a row update conditional on the previous state is the real fence).
   const { data: resetRows } = await svc.from('dd_deliveries')
-    .update({ driver_id: null, status: 'pending' })
+    .update({ driver_id: null, driver_name: null, driver_phone: null, status: 'pending' })
     .eq('id', delivery.id)
     .eq('status', delivery.status) // only succeeds if state hasn't moved
     .is('driver_id', delivery.driver_id) // and driver hasn't changed

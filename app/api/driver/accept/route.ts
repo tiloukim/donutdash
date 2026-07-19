@@ -20,7 +20,9 @@ export async function POST(req: Request) {
 
   // Atomically assign - only works if driver_id is still null
   const { data, error } = await svc.from('dd_deliveries')
-    .update({ driver_id: ddUser.id, status: 'assigned' })
+    // Denormalize name/phone so the POS can show the driver without reading
+    // dd_users (RLS-blocked for the cashier session).
+    .update({ driver_id: ddUser.id, driver_name: ddUser.name ?? null, driver_phone: ddUser.phone ?? null, status: 'assigned' })
     .eq('id', delivery_id)
     .is('driver_id', null)
     .select()
