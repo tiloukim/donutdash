@@ -263,7 +263,7 @@ export function buildReceiptHtml(
             <tr>
               <td align="center" style="padding-top:18px;border-top:1px solid #F4D5E2;color:#9CA3AF;font-size:11px;line-height:18px">
                 ${sentToLine}
-                Powered by <a href="https://donutdash.app" style="color:#EC1B7E;font-weight:700;text-decoration:none">DonutDash&trade; POS</a>
+                Powered by <a href="https://www.donutdashtech.com" style="color:#EC1B7E;font-weight:700;text-decoration:none">DonutDash&trade; POS</a>
               </td>
             </tr>
           </table>
