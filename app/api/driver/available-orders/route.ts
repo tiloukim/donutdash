@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const svc = createServiceClient()
-  const { data: ddUser } = await svc.from('dd_users').select('id, role, driver_status').eq('auth_id', user.id).single()
+  const { data: ddUser } = await svc.from('dd_users').select('id, role, driver_status, name, phone').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
   if (ddUser.role !== 'driver' && ddUser.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   if (ddUser.role === 'driver' && ddUser.driver_status !== 'approved') {
@@ -71,7 +71,9 @@ export async function POST(req: NextRequest) {
   // then bumped the order to 'confirmed' for a delivery this driver
   // doesn't actually own.
   const { data: updatedRows, error: updateErr } = await svc.from('dd_deliveries')
-    .update({ driver_id: ddUser.id, status: 'assigned' })
+    // Denormalize name/phone so the POS can show the driver without reading
+    // dd_users (RLS-blocked for the cashier session).
+    .update({ driver_id: ddUser.id, driver_name: ddUser.name ?? null, driver_phone: ddUser.phone ?? null, status: 'assigned' })
     .eq('id', delivery_id)
     .is('driver_id', null)
     .select('id')
