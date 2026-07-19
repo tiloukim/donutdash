@@ -83,6 +83,38 @@ export async function POST(request: NextRequest) {
       const promoDiscount = parseFloat(meta.promo_discount) || 0
       const scheduledFor = meta.scheduled_for || null
 
+      // Denormalize the customer's name/phone onto the order so the POS and
+      // receipt can show who ordered without reading dd_users (RLS blocks
+      // staff from other users' rows), and so the order stays self-contained.
+      let customerName: string | null = null
+      let customerPhone: string | null = null
+      {
+        const { data: cust } = await svc
+          .from('dd_users')
+          .select('name, phone')
+          .eq('id', customerId)
+          .maybeSingle()
+        customerName = cust?.name ?? null
+        customerPhone = cust?.phone ?? null
+      }
+
+      // Pull the card brand + last4 from the PaymentIntent's charge so the
+      // receipt can show e.g. "Visa ••4242". Best-effort — never fail the order.
+      let cardBrand: string | null = null
+      let cardLast4: string | null = null
+      try {
+        const piId = typeof session.payment_intent === 'string' ? session.payment_intent : null
+        if (piId) {
+          const pi = await stripe.paymentIntents.retrieve(piId, {
+            expand: ['latest_charge.payment_method_details'],
+          })
+          const card = (pi as any)?.latest_charge?.payment_method_details?.card
+          if (card) { cardBrand = card.brand ?? null; cardLast4 = card.last4 ?? null }
+        }
+      } catch (e) {
+        console.error('Stripe webhook: could not read card brand/last4', e)
+      }
+
       // items_json is the compact tuple format from /api/stripe/checkout:
       //   [[menu_item_id, qty, price_cents, instructions], ...]
       // Names + image_urls are looked up from dd_menu_items below.
@@ -124,6 +156,10 @@ export async function POST(request: NextRequest) {
         .from('dd_orders')
         .insert({
           customer_id: customerId,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          card_brand: cardBrand,
+          card_last4: cardLast4,
           shop_id: shopId,
           status: 'pending',
           fulfillment_type: fulfillmentType,

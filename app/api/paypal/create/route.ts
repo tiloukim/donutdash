@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { data: ddUser } = await supabase
-      .from('dd_users').select('id, email, name').eq('auth_id', authUser.id).single()
+      .from('dd_users').select('id, email, name, phone').eq('auth_id', authUser.id).single()
     if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
     const { allowed } = await checkRateLimit(`checkout:${ddUser.id}`, 10, 60000)
@@ -103,6 +103,8 @@ export async function POST(request: NextRequest) {
       .from('dd_orders')
       .insert({
         customer_id: ddUser.id,
+        customer_name: ddUser.name ?? null,
+        customer_phone: ddUser.phone ?? null,
         shop_id: shopId,
         status: 'pending',
         fulfillment_type: fulfillmentType,
