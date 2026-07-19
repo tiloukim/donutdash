@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeForShop } from '@/lib/pos-shop-auth'
+import { awardLoyaltyPoints, type LoyaltyAward } from '@/lib/loyalty'
 
 // Create a POS walk-in order. Writes go through the service role
 // (matches how customer checkout and driver flows work today).
@@ -183,5 +184,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: itemsError.message }, { status: 500 })
   }
 
-  return NextResponse.json({ id: order.id, short_code: order.short_code })
+  // Loyalty: award points to the attached walk-in customer (1 pt per $1 of
+  // subtotal), same rules as online orders. Non-fatal — a loyalty hiccup must
+  // never fail a sale the customer already paid for. Returned so the POS can
+  // show "Earned X pts · <balance> total" on the receipt screen.
+  let loyalty: LoyaltyAward | null = null
+  if (body.customer_id) {
+    try {
+      loyalty = await awardLoyaltyPoints(svc, {
+        userId: body.customer_id,
+        orderId: order.id,
+        subtotal: Math.round(recomputedSubtotal * 100) / 100,
+        source: 'POS sale',
+      })
+    } catch (e) {
+      console.error('POS loyalty award error:', e)
+    }
+  }
+
+  return NextResponse.json({
+    id: order.id,
+    short_code: order.short_code,
+    loyalty: loyalty ? { earned: loyalty.earned, balance: loyalty.points, tier: loyalty.tier } : null,
+  })
 }
