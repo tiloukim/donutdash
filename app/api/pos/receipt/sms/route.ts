@@ -34,49 +34,39 @@ interface OrderRow {
   payment_method: string | null
   cash_received: number | null
   change_given: number | null
+  card_brand: string | null
+  card_last4: string | null
   cash_discount_amount: number | null
-}
-
-interface OrderItem {
-  name: string
-  quantity: number
-  price: number | null
 }
 
 function money(n: number | null | undefined): string {
   return `$${Number(n ?? 0).toFixed(2)}`
 }
 
-// Plain-text receipt for SMS. Mirrors the email receipt's breakdown, including
-// the card surcharge derived from stored fields (total = subtotal + tax + tip
-// − cash_discount + surcharge), so the lines add up to the total.
-function buildReceiptText(order: OrderRow, items: OrderItem[], shopName: string): string {
-  const lines: string[] = []
-  lines.push(`${shopName}${order.short_code ? ` #${order.short_code}` : ''}`)
-  for (const it of items) {
-    lines.push(`${it.quantity}x ${it.name} ${money((it.price ?? 0) * it.quantity)}`)
+// Short card-network label for SMS (no HTML/logos), e.g. "Visa ••4242".
+function cardBrandText(brand: string | null, last4: string | null): string {
+  const key = (brand ?? '').trim().toLowerCase().replace(/\s+/g, '')
+  const map: Record<string, string> = {
+    visa: 'Visa', mastercard: 'Mastercard', amex: 'Amex', americanexpress: 'Amex',
+    discover: 'Discover', diners: 'Diners', dinersclub: 'Diners', jcb: 'JCB', unionpay: 'UnionPay',
   }
-  lines.push(`Subtotal ${money(order.subtotal)}`)
+  const label = map[key] ?? (brand || 'Card')
+  return last4 ? `${label} ••${last4}` : label
+}
 
-  const cashDiscount = Number(order.cash_discount_amount ?? 0)
-  if (cashDiscount > 0) lines.push(`Cash Discount -${money(cashDiscount)}`)
-
-  lines.push(`Tax ${money(order.tax)}`)
-
-  const tip = Number(order.tip ?? 0)
-  const surcharge =
-    Math.round((Number(order.total) - Number(order.subtotal) - Number(order.tax) - tip + cashDiscount) * 100) / 100
-  if (surcharge > 0.005) lines.push(`Card Surcharge ${money(surcharge)}`)
-  if (tip > 0) lines.push(`Tip ${money(tip)}`)
-
-  const paymentLabel = order.payment_method === 'cash' ? 'Cash' : 'Card'
-  lines.push(`Total ${money(order.total)} (${paymentLabel})`)
-
-  if (order.payment_method === 'cash' && order.cash_received != null) {
-    lines.push(`Cash ${money(order.cash_received)} / Change ${money(order.change_given)}`)
-  }
-  lines.push('Thank you!')
-  return lines.join('\n')
+// Short SMS: order summary + a link to the full styled web receipt
+// (/receipt/[id] — same design as the emailed receipt). Kept brief to
+// minimize SMS segments; the itemized breakdown + "Order again" button live
+// on the linked page.
+function buildReceiptText(order: OrderRow, shopName: string): string {
+  const paymentLabel = order.payment_method === 'cash'
+    ? 'Cash'
+    : cardBrandText(order.card_brand, order.card_last4)
+  return [
+    `${shopName}${order.short_code ? ` #${order.short_code}` : ''}`,
+    `Total ${money(order.total)} (${paymentLabel})`,
+    `Receipt: donutdash.app/receipt/${order.id}`,
+  ].join('\n')
 }
 
 export async function POST(req: NextRequest) {
@@ -121,7 +111,8 @@ export async function POST(req: NextRequest) {
     .from('dd_orders')
     .select(`
       id, shop_id, short_code, subtotal, tax, tip, total,
-      payment_method, cash_received, change_given, cash_discount_amount
+      payment_method, cash_received, change_given,
+      card_brand, card_last4, cash_discount_amount
     `)
     .eq('id', orderId)
     .maybeSingle<OrderRow>()
@@ -141,17 +132,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const [itemsRes, shopRes] = await Promise.all([
-    svc.from('dd_order_items').select('name, quantity, price').eq('order_id', orderId),
-    svc.from('dd_shops').select('name').eq('id', order.shop_id).single<{ name: string }>(),
-  ])
-  if (itemsRes.error) {
-    return NextResponse.json({ error: `Order items: ${itemsRes.error.message}` }, { status: 500 })
-  }
-  const items = (itemsRes.data ?? []) as OrderItem[]
-  const shopName = shopRes.data?.name ?? 'Your order'
+  const { data: shopData } = await svc
+    .from('dd_shops')
+    .select('name')
+    .eq('id', order.shop_id)
+    .single<{ name: string }>()
+  const shopName = shopData?.name ?? 'Your order'
 
-  const text = buildReceiptText(order, items, shopName)
+  const text = buildReceiptText(order, shopName)
   const ok = await sendSMS(phone, text)
   if (!ok) {
     return NextResponse.json({ error: 'Failed to send the receipt text' }, { status: 502 })
