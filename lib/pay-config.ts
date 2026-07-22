@@ -88,3 +88,28 @@ export async function quoteDriverEarnings(
   const total = cfg.driverBasePay + distanceMiles * cfg.driverPerMile + tip
   return Math.round(total * 100) / 100
 }
+
+// Guarantee a delivery has a real driver_earnings before it is shown to a
+// driver. Some order-creation paths (missing coords, POS test orders) leave
+// driver_earnings null, and earnings used to be computed only at accept time —
+// so the offer card fell back to a hardcoded "$4.00" placeholder and the
+// driver saw a different number after accepting. This computes from the stored
+// distance + tip, PERSISTS it to the row, and returns it, so the figure the
+// driver is offered is the figure they're paid. Already-set earnings (> 0) are
+// returned untouched — the quote is a snapshot, never re-priced out from under
+// an accepted delivery.
+export async function ensureDriverEarnings(
+  deliveryId: string,
+  distanceMiles: number | null | undefined,
+  tip: number | null | undefined,
+  current: number | null | undefined,
+): Promise<number> {
+  if (current != null && current > 0) return current
+  const dist = Number.isFinite(distanceMiles) && (distanceMiles as number) > 0
+    ? (distanceMiles as number)
+    : 0
+  const earnings = await quoteDriverEarnings(dist, tip || 0)
+  const svc = createServiceClient()
+  await svc.from('dd_deliveries').update({ driver_earnings: earnings }).eq('id', deliveryId)
+  return earnings
+}

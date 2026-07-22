@@ -85,7 +85,7 @@ export default function DriverDashboard() {
     // Browser notification
     if ('Notification' in window && Notification.permission === 'granted') {
       const shopName = offer.delivery?.order?.shop?.name || 'New Order'
-      const earnings = (offer.delivery?.driver_earnings || 4.00).toFixed(2)
+      const earnings = (offer.delivery?.driver_earnings ?? 0).toFixed(2)
       new Notification('New Delivery Offer!', {
         body: `${shopName} - Earn $${earnings}`,
         icon: '/logo.png',
@@ -492,7 +492,7 @@ export default function DriverDashboard() {
               <span style={{ fontWeight: 700 }}>${offer.delivery?.order?.total?.toFixed(2)}</span>
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, color: '#10B981' }}>
-              ${(offer.delivery?.driver_earnings || 4.00).toFixed(2)}
+              ${(offer.delivery?.driver_earnings ?? 0).toFixed(2)}
             </div>
           </div>
 
@@ -579,7 +579,7 @@ function AvailableDeliveries() {
                     <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{shop?.address}, {shop?.city}</div>
                   </div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: '#10B981' }}>
-                    ${(d.driver_earnings || 4.00).toFixed(2)}
+                    ${(d.driver_earnings ?? 0).toFixed(2)}
                   </div>
                 </div>
                 <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>

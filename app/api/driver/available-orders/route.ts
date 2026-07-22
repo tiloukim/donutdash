@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { createDeliveryOffer } from '@/lib/delivery-assignment'
+import { ensureDriverEarnings } from '@/lib/pay-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,14 @@ export async function GET() {
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
 
-  return NextResponse.json({ deliveries: unassigned || [] })
+  // Backfill any missing driver_earnings so the offer never shows a placeholder.
+  const deliveries = await Promise.all((unassigned || []).map(async d => {
+    const tip = (d.order as { tip?: number } | null)?.tip
+    const driver_earnings = await ensureDriverEarnings(d.id, d.distance_miles, tip, d.driver_earnings)
+    return { ...d, driver_earnings }
+  }))
+
+  return NextResponse.json({ deliveries })
 }
 
 // POST — driver claims an available delivery
@@ -47,7 +55,7 @@ export async function POST(req: NextRequest) {
 
   // Verify the delivery is still unassigned
   const { data: delivery } = await svc.from('dd_deliveries')
-    .select('id, driver_id, status, order_id, driver_earnings, order:dd_orders(tip)')
+    .select('id, driver_id, status, order_id, distance_miles, driver_earnings, order:dd_orders(tip)')
     .eq('id', delivery_id)
     .single()
 
@@ -82,6 +90,11 @@ export async function POST(req: NextRequest) {
   if (!updatedRows || updatedRows.length === 0) {
     return NextResponse.json({ error: 'Already claimed by another driver' }, { status: 409 })
   }
+
+  // Guarantee earnings are set for the claimed delivery (this path never
+  // computed them, so a null would leave the active screen showing a placeholder).
+  const tip = (delivery.order as { tip?: number } | null)?.tip
+  await ensureDriverEarnings(delivery_id, delivery.distance_miles, tip, delivery.driver_earnings)
 
   // Update order status to confirmed
   await svc.from('dd_orders')

@@ -184,7 +184,7 @@ function GlobalDriverAlert() {
           playSound()
           if ('Notification' in window && Notification.permission === 'granted') {
             const shopName = data.offer.delivery?.order?.shop?.name || 'New Order'
-            const earnings = (data.offer.delivery?.driver_earnings || 4).toFixed(2)
+            const earnings = (data.offer.delivery?.driver_earnings ?? 0).toFixed(2)
             new Notification('New Delivery Offer!', { body: `${shopName} — Earn $${earnings}`, icon: '/logo.png', tag: 'delivery-offer', requireInteraction: true })
           }
         } else if (!data.offer) {
@@ -223,7 +223,7 @@ function GlobalDriverAlert() {
   if (!offer) return null
 
   const shopName = offer.delivery?.order?.shop?.name || 'New Order'
-  const earnings = (offer.delivery?.driver_earnings || 4).toFixed(2)
+  const earnings = (offer.delivery?.driver_earnings ?? 0).toFixed(2)
   const items = offer.delivery?.order?.items?.length || 0
 
   return (

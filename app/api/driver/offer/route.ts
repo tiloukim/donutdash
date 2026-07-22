@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
-import { quoteDriverEarnings } from '@/lib/pay-config'
+import { quoteDriverEarnings, ensureDriverEarnings } from '@/lib/pay-config'
 import { haversineDistance } from '@/lib/osrm'
 
 // GET - get current pending offer for this driver
@@ -51,6 +51,12 @@ export async function GET() {
     // Enrich with items
     if (offer.delivery?.order) {
       offer.delivery.order.items = offer.delivery.order.dd_order_items
+    }
+    // Guarantee a real earnings figure so the offer card never shows a placeholder.
+    if (offer.delivery) {
+      offer.delivery.driver_earnings = await ensureDriverEarnings(
+        offer.delivery.id, offer.delivery.distance_miles, offer.delivery.order?.tip, offer.delivery.driver_earnings,
+      )
     }
     return NextResponse.json(offer)
   }
@@ -118,6 +124,11 @@ export async function GET() {
                 if (fullOffer?.delivery?.order) {
                   fullOffer.delivery.order.items = fullOffer.delivery.order.dd_order_items
                 }
+                if (fullOffer?.delivery) {
+                  fullOffer.delivery.driver_earnings = await ensureDriverEarnings(
+                    fullOffer.delivery.id, fullOffer.delivery.distance_miles, fullOffer.delivery.order?.tip, fullOffer.delivery.driver_earnings,
+                  )
+                }
                 return NextResponse.json(fullOffer)
               }
             }
@@ -176,20 +187,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ declined: true })
   }
 
-  // Accept
-  // Calculate earnings based on distance + tip
-  const shopLat = offer.delivery?.order?.shop?.lat
-  const shopLng = offer.delivery?.order?.shop?.lng
-  const dropLat = offer.delivery?.dropoff_lat
-  const dropLng = offer.delivery?.dropoff_lng
-  const tip = offer.delivery?.order?.tip || 0
-  // Prefer live recompute; fall back to the saved distance_miles on the
-  // delivery record, then 0 (base pay only) — never invent a 2-mile default.
-  let dist = (shopLat && shopLng && dropLat && dropLng)
-    ? haversineDistance(shopLat, shopLng, dropLat, dropLng)
-    : (offer.delivery?.distance_miles || 0)
-  if (!Number.isFinite(dist) || dist < 0) dist = 0
-  const earnings = await quoteDriverEarnings(dist, tip)
+  // Accept.
+  // Honor the exact figure the driver was offered — accepting must not re-price
+  // the delivery. If the offered amount is already set (it is, since the offer
+  // GET backfills it), use it verbatim. Only compute as a fallback for a
+  // delivery that somehow reached accept with no earnings.
+  let earnings = offer.delivery?.driver_earnings
+  if (earnings == null || earnings <= 0) {
+    const shopLat = offer.delivery?.order?.shop?.lat
+    const shopLng = offer.delivery?.order?.shop?.lng
+    const dropLat = offer.delivery?.dropoff_lat
+    const dropLng = offer.delivery?.dropoff_lng
+    const tip = offer.delivery?.order?.tip || 0
+    // Prefer live recompute; fall back to the saved distance_miles on the
+    // delivery record, then 0 (base pay only) — never invent a 2-mile default.
+    let dist = (shopLat && shopLng && dropLat && dropLng)
+      ? haversineDistance(shopLat, shopLng, dropLat, dropLng)
+      : (offer.delivery?.distance_miles || 0)
+    if (!Number.isFinite(dist) || dist < 0) dist = 0
+    earnings = await quoteDriverEarnings(dist, tip)
+  }
 
   // Update offer
   await svc.from('dd_delivery_offers')
