@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { SHOP_COMMISSION_RATE, MIN_COMMISSION_RATE, MAX_COMMISSION_RATE, SERVICE_FEE_RATE } from '@/lib/constants'
 
@@ -35,6 +35,8 @@ export default function AdminShops() {
   const [savingAll, setSavingAll] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [search, setSearch] = useState('')
+  // Which shop's fee/config panel is expanded (only one open at a time).
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
@@ -328,7 +330,7 @@ export default function AdminShops() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['ID', 'Shop', 'Owner', 'City', 'Commission %', 'Service Fee %', 'Tax Rate %', 'Cash Discount %', 'Pricing Mode', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions', 'Pitch'].map(h => (
+                {['ID', 'Shop', 'Owner', 'City', 'Rating', 'Status', 'Fees', 'Actions', 'Pitch'].map(h => (
                   <th key={h} style={{ padding: '9px 10px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                 ))}
               </tr>
@@ -336,8 +338,13 @@ export default function AdminShops() {
             <tbody>
               {filteredShops.map(shop => {
                 const isDirty = dirtyShops.some(d => d.id === shop.id)
+                const isExpanded = expandedId === shop.id
+                const posOn = shop.pos_enabled !== false
+                const numStyle: React.CSSProperties = { width: 64, padding: '5px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }
+                const cfgLabel: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.4 }
                 return (
-                <tr key={shop.id} style={{ borderBottom: '1px solid #F3F4F6', background: isDirty ? '#FFFBEB' : undefined }}>
+                <Fragment key={shop.id}>
+                <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #F3F4F6', background: isDirty ? '#FFFBEB' : undefined }}>
                   <td style={{ padding: '9px 10px', fontSize: 13, fontWeight: 700, color: '#6366F1', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                     #{shop.shop_number}
                   </td>
@@ -347,60 +354,7 @@ export default function AdminShops() {
                   </td>
                   <td style={{ padding: '9px 10px', fontSize: 13, color: '#6B7280' }}>{shop.owner?.name || '-'}</td>
                   <td style={{ padding: '9px 10px', fontSize: 13, color: '#6B7280' }}>{shop.city}</td>
-                  <td style={{ padding: '9px 10px' }}>
-                    <input type="number" step="0.5" min={MIN_COMMISSION_RATE * 100} max={MAX_COMMISSION_RATE * 100} value={shop.commission_pct ?? SHOP_COMMISSION_RATE * 100}
-                      onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, commission_pct: parseFloat(e.target.value) || 0 } : s))}
-                      title={`Allowed range: ${MIN_COMMISSION_RATE * 100}% – ${MAX_COMMISSION_RATE * 100}%`}
-                      style={{ width: 52, padding: '4px 6px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
-                    />%
-                  </td>
-                  <td style={{ padding: '9px 10px' }}>
-                    <input type="number" step="0.5" min="0" max="50" value={shop.service_fee_pct}
-                      onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, service_fee_pct: parseFloat(e.target.value) || 0 } : s))}
-                      style={{ width: 52, padding: '4px 6px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
-                    />%
-                  </td>
-                  <td style={{ padding: '9px 10px' }}>
-                    <input type="number" step="0.25" min="0" max="15" value={shop.tax_rate}
-                      onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, tax_rate: parseFloat(e.target.value) || 0 } : s))}
-                      style={{ width: 52, padding: '4px 6px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
-                    />%
-                  </td>
-                  <td style={{ padding: '9px 10px' }}>
-                    <input type="number" step="0.25" min="0" max="10" value={shop.cash_discount_pct ?? 0}
-                      onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, cash_discount_pct: parseFloat(e.target.value) || 0 } : s))}
-                      style={{ width: 52, padding: '4px 6px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
-                      title="0 = feature off. Set e.g. 3 to give a 3% cash discount at the POS."
-                    />%
-                  </td>
-                  <td style={{ padding: '9px 10px' }}>
-                    <select
-                      value={shop.pricing_mode ?? 'standard'}
-                      onChange={e => {
-                        const next = e.target.value as Shop['pricing_mode']
-                        setShops(prev => prev.map(s => s.id === shop.id ? { ...s, pricing_mode: next } : s))
-                      }}
-                      style={{ padding: '4px 6px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, background: '#fff', cursor: 'pointer' }}
-                      title="standard = no popup. cash_discount = popup at checkout. dual_pricing = both prices on every menu item upfront."
-                    >
-                      <option value="standard">standard</option>
-                      <option value="cash_discount">cash_discount</option>
-                      <option value="dual_pricing">dual_pricing</option>
-                    </select>
-                  </td>
-                  <td style={{ padding: '9px 10px' }}>
-                    $<input type="number" step="0.50" min="0" value={shop.delivery_fee}
-                      onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, delivery_fee: parseFloat(e.target.value) || 0 } : s))}
-                      style={{ width: 52, padding: '4px 6px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
-                    />
-                  </td>
-                  <td style={{ padding: '9px 10px' }}>
-                    $<input type="number" step="1" min="0" value={shop.min_order}
-                      onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, min_order: parseFloat(e.target.value) || 0 } : s))}
-                      style={{ width: 52, padding: '4px 6px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }}
-                    />
-                  </td>
-                  <td style={{ padding: '9px 10px', fontSize: 13 }}>⭐ {shop.rating} ({shop.review_count})</td>
+                  <td style={{ padding: '9px 10px', fontSize: 13, whiteSpace: 'nowrap' }}>⭐ {shop.rating} ({shop.review_count})</td>
                   <td style={{ padding: '9px 10px' }}>
                     <span style={{
                       display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
@@ -411,6 +365,19 @@ export default function AdminShops() {
                     </span>
                   </td>
                   <td style={{ padding: '9px 10px' }}>
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : shop.id)}
+                      title="Edit commission, fees, tax, pricing mode, delivery fee, and min order"
+                      style={{
+                        padding: '5px 12px', borderRadius: 6, border: `1px solid ${isExpanded ? '#6366F1' : '#E5E7EB'}`,
+                        background: isExpanded ? '#EEF2FF' : '#fff', color: '#4F46E5',
+                        cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Fees {isExpanded ? '▲' : '▾'}
+                    </button>
+                  </td>
+                  <td style={{ padding: '9px 10px', whiteSpace: 'nowrap' }}>
                     <button
                       onClick={() => toggleShop(shop.id, shop.is_active)}
                       disabled={toggling === shop.id}
@@ -424,26 +391,21 @@ export default function AdminShops() {
                     >
                       {shop.is_active ? 'Deactivate' : 'Activate'}
                     </button>
-                    {(() => {
-                      const posOn = shop.pos_enabled !== false
-                      return (
-                        <button
-                          onClick={() => togglePos(shop.id, posOn)}
-                          disabled={togglingPos === shop.id}
-                          title={posOn ? 'Disable the in-store POS for this shop' : 'Enable the in-store POS for this shop'}
-                          style={{
-                            marginLeft: 8,
-                            padding: '5px 10px', borderRadius: 6, border: '1px solid #E5E7EB',
-                            background: posOn ? '#FEF2F2' : '#F0FDF4',
-                            color: posOn ? '#DC2626' : '#16A34A',
-                            cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                            opacity: togglingPos === shop.id ? 0.5 : 1,
-                          }}
-                        >
-                          {posOn ? 'Disable POS' : 'Enable POS'}
-                        </button>
-                      )
-                    })()}
+                    <button
+                      onClick={() => togglePos(shop.id, posOn)}
+                      disabled={togglingPos === shop.id}
+                      title={posOn ? 'Disable the in-store POS for this shop' : 'Enable the in-store POS for this shop'}
+                      style={{
+                        marginLeft: 8,
+                        padding: '5px 10px', borderRadius: 6, border: '1px solid #E5E7EB',
+                        background: posOn ? '#FEF2F2' : '#F0FDF4',
+                        color: posOn ? '#DC2626' : '#16A34A',
+                        cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                        opacity: togglingPos === shop.id ? 0.5 : 1,
+                      }}
+                    >
+                      {posOn ? 'Disable POS' : 'Enable POS'}
+                    </button>
                   </td>
                   <td style={{ padding: '9px 10px' }}>
                     <Link
@@ -459,10 +421,84 @@ export default function AdminShops() {
                     </Link>
                   </td>
                 </tr>
+                {isExpanded && (
+                <tr style={{ borderBottom: '1px solid #F3F4F6', background: '#FAFAFC' }}>
+                  <td colSpan={9} style={{ padding: '2px 16px 16px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end' }}>
+                      <label style={cfgLabel}>Commission %
+                        <span>
+                          <input type="number" step="0.5" min={MIN_COMMISSION_RATE * 100} max={MAX_COMMISSION_RATE * 100} value={shop.commission_pct ?? SHOP_COMMISSION_RATE * 100}
+                            onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, commission_pct: parseFloat(e.target.value) || 0 } : s))}
+                            title={`Allowed range: ${MIN_COMMISSION_RATE * 100}% – ${MAX_COMMISSION_RATE * 100}%`}
+                            style={numStyle}
+                          /> %
+                        </span>
+                      </label>
+                      <label style={cfgLabel}>Service Fee %
+                        <span>
+                          <input type="number" step="0.5" min="0" max="50" value={shop.service_fee_pct}
+                            onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, service_fee_pct: parseFloat(e.target.value) || 0 } : s))}
+                            style={numStyle}
+                          /> %
+                        </span>
+                      </label>
+                      <label style={cfgLabel}>Tax Rate %
+                        <span>
+                          <input type="number" step="0.25" min="0" max="15" value={shop.tax_rate}
+                            onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, tax_rate: parseFloat(e.target.value) || 0 } : s))}
+                            style={numStyle}
+                          /> %
+                        </span>
+                      </label>
+                      <label style={cfgLabel}>Cash Discount %
+                        <span>
+                          <input type="number" step="0.25" min="0" max="10" value={shop.cash_discount_pct ?? 0}
+                            onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, cash_discount_pct: parseFloat(e.target.value) || 0 } : s))}
+                            title="0 = feature off. Set e.g. 3 to give a 3% cash discount at the POS."
+                            style={numStyle}
+                          /> %
+                        </span>
+                      </label>
+                      <label style={cfgLabel}>Pricing Mode
+                        <select
+                          value={shop.pricing_mode ?? 'standard'}
+                          onChange={e => {
+                            const next = e.target.value as Shop['pricing_mode']
+                            setShops(prev => prev.map(s => s.id === shop.id ? { ...s, pricing_mode: next } : s))
+                          }}
+                          style={{ padding: '5px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, background: '#fff', cursor: 'pointer' }}
+                          title="standard = no popup. cash_discount = popup at checkout. dual_pricing = both prices on every menu item upfront."
+                        >
+                          <option value="standard">standard</option>
+                          <option value="cash_discount">cash_discount</option>
+                          <option value="dual_pricing">dual_pricing</option>
+                        </select>
+                      </label>
+                      <label style={cfgLabel}>Delivery Fee
+                        <span>
+                          $ <input type="number" step="0.50" min="0" value={shop.delivery_fee}
+                            onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, delivery_fee: parseFloat(e.target.value) || 0 } : s))}
+                            style={numStyle}
+                          />
+                        </span>
+                      </label>
+                      <label style={cfgLabel}>Min Order
+                        <span>
+                          $ <input type="number" step="1" min="0" value={shop.min_order}
+                            onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, min_order: parseFloat(e.target.value) || 0 } : s))}
+                            style={numStyle}
+                          />
+                        </span>
+                      </label>
+                    </div>
+                  </td>
+                </tr>
+                )}
+                </Fragment>
                 )
               })}
               {shops.length === 0 && (
-                <tr><td colSpan={14} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shops found</td></tr>
+                <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No shops found</td></tr>
               )}
             </tbody>
           </table>
