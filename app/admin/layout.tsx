@@ -217,7 +217,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main content */}
-      <main style={{ flex: 1, marginLeft: 230, background: '#F8F9FA', minHeight: '100vh' }} className="admin-main">
+      <main style={{ flex: 1, minWidth: 0, marginLeft: 230, background: '#F8F9FA', minHeight: '100vh' }} className="admin-main">
         <header style={{
           background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '16px 24px',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
