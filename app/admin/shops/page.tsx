@@ -113,6 +113,17 @@ export default function AdminShops() {
   }
 
   const toggleShop = async (id: string, currentActive: boolean) => {
+    // Deactivating hides the shop from the marketplace and blocks both its
+    // delivery orders and POS (via the server-side is_active gate). Confirm
+    // first; activating needs no prompt.
+    if (currentActive) {
+      const shopName = shops.find(s => s.id === id)?.name || 'this shop'
+      const ok = window.confirm(
+        `Deactivate ${shopName}?\n\n` +
+        `The shop will be hidden from the marketplace and can't take delivery orders or POS sales until it's reactivated.`
+      )
+      if (!ok) return
+    }
     setToggling(id)
     try {
       const res = await fetch('/api/admin/shops', {
