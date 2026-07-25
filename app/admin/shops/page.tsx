@@ -132,6 +132,16 @@ export default function AdminShops() {
   // but off POS (or vice-versa). Enforced server-side in authorizeForShop;
   // an undefined value (pre-migration) is treated as enabled.
   const togglePos = async (id: string, currentEnabled: boolean) => {
+    // Disabling is disruptive — it blocks the shop's register from taking
+    // any sales or card payments. Confirm first; enabling needs no prompt.
+    if (currentEnabled) {
+      const shopName = shops.find(s => s.id === id)?.name || 'this shop'
+      const ok = window.confirm(
+        `Disable the in-store POS for ${shopName}?\n\n` +
+        `The register will immediately stop taking sales and card payments until POS is re-enabled. Delivery/marketplace is unaffected.`
+      )
+      if (!ok) return
+    }
     setTogglingPos(id)
     try {
       const res = await fetch('/api/admin/shops', {
