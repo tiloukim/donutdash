@@ -6,6 +6,7 @@ import { SHOP_COMMISSION_RATE, MIN_COMMISSION_RATE, MAX_COMMISSION_RATE, SERVICE
 
 interface Shop {
   id: string
+  shop_number: number
   name: string
   city: string
   is_active: boolean
@@ -199,8 +200,15 @@ export default function AdminShops() {
 
   const filteredShops = shops.filter(s => {
     if (!search) return true
-    const q = search.toLowerCase()
-    return s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q) || (s.owner?.name || '').toLowerCase().includes(q)
+    const q = search.toLowerCase().trim()
+    // Allow searching the shop ID with or without a leading "#".
+    const idQ = q.replace(/^#/, '')
+    return (
+      String(s.shop_number).includes(idQ) ||
+      s.name.toLowerCase().includes(q) ||
+      s.city.toLowerCase().includes(q) ||
+      (s.owner?.name || '').toLowerCase().includes(q)
+    )
   })
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }
@@ -210,7 +218,7 @@ export default function AdminShops() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
         <input
           type="text"
-          placeholder="Search shops by name, city, or owner..."
+          placeholder="Search shops by ID (#1001), name, city, or owner..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{
@@ -320,7 +328,7 @@ export default function AdminShops() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {['Shop', 'Owner', 'City', 'Commission %', 'Service Fee %', 'Tax Rate %', 'Cash Discount %', 'Pricing Mode', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions', 'Pitch'].map(h => (
+                {['ID', 'Shop', 'Owner', 'City', 'Commission %', 'Service Fee %', 'Tax Rate %', 'Cash Discount %', 'Pricing Mode', 'Delivery Fee', 'Min Order', 'Rating', 'Status', 'Actions', 'Pitch'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                 ))}
               </tr>
@@ -330,6 +338,9 @@ export default function AdminShops() {
                 const isDirty = dirtyShops.some(d => d.id === shop.id)
                 return (
                 <tr key={shop.id} style={{ borderBottom: '1px solid #F3F4F6', background: isDirty ? '#FFFBEB' : undefined }}>
+                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#6366F1', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    #{shop.shop_number}
+                  </td>
                   <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>
                     {shop.name}
                     {isDirty && <span style={{ marginLeft: 6, display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }} title="Unsaved changes" />}
