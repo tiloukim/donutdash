@@ -222,7 +222,7 @@ export default function ActiveDelivery() {
         <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
         <h2 style={{ fontSize: 24, fontWeight: 700, color: '#065F46', marginBottom: 8 }}>Delivery Complete!</h2>
         <p style={{ fontSize: 16, color: '#10B981', fontWeight: 700, marginBottom: 24 }}>
-          Earned: ${(delivery?.driver_earnings || 4.00).toFixed(2)}
+          Earned: ${(delivery?.driver_earnings ?? 0).toFixed(2)}
         </p>
         <Link href="/driver" style={{
           background: '#FF8C00', color: '#fff', padding: '12px 28px',
@@ -566,7 +566,7 @@ export default function ActiveDelivery() {
         ))}
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontWeight: 700, fontSize: 16 }}>
           <span>Your Earnings</span>
-          <span style={{ color: '#10B981' }}>${(delivery.driver_earnings || 4.00).toFixed(2)}</span>
+          <span style={{ color: '#10B981' }}>${(delivery.driver_earnings ?? 0).toFixed(2)}</span>
         </div>
       </div>
 
