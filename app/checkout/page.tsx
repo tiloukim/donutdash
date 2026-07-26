@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
+import SquarePaymentForm from '@/components/SquarePaymentForm'
 import { useCart } from '@/lib/cart-context'
 import { useAuth } from '@/lib/auth-context'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
@@ -29,7 +30,6 @@ export default function CheckoutPage() {
   const [scheduledTime, setScheduledTime] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe')
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
   const [shopAddress, setShopAddress] = useState<{ address: string; city: string; state: string; zip: string } | null>(null)
   const [feesExpanded, setFeesExpanded] = useState(false)
@@ -186,7 +186,7 @@ export default function CheckoutPage() {
     )
   }
 
-  const handlePlaceOrder = async () => {
+  const handleTokenize = async (token: string) => {
     if (!isPickup) {
       if (!address.trim()) {
         setError('Please enter a delivery address.')
@@ -229,37 +229,22 @@ export default function CheckoutPage() {
       promo_code: promo?.code || null,
       promo_discount: promo?.discount || 0,
       scheduled_for: scheduledFor,
+      sourceId: token,
     }
 
     try {
-      if (paymentMethod === 'paypal') {
-        const res = await fetch('/api/paypal/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setError(data.error || 'Failed to create PayPal checkout.')
-          return
-        }
-        if (data.approveUrl) {
-          window.location.href = data.approveUrl
-        }
-      } else {
-        const res = await fetch('/api/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setError(data.error || 'Failed to create checkout.')
-          return
-        }
-        if (data.url) {
-          window.location.href = data.url
-        }
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Payment failed. Please try again.')
+        return
+      }
+      if (data.orderId) {
+        window.location.href = `/checkout/success?order_id=${data.orderId}`
       }
     } catch {
       setError('Something went wrong. Please try again.')
@@ -737,20 +722,15 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          <button
-            onClick={handlePlaceOrder}
-            disabled={submitting}
-            style={{
-              width: '100%', padding: '1rem',
-              background: submitting ? '#ccc' : '#FF8C00',
-              color: 'white', border: 'none', borderRadius: '12px',
-              fontSize: '1.05rem', fontWeight: 700,
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s',
-            }}
-          >
-            {submitting ? 'Processing...' : `Place Order – $${grandTotal.toFixed(2)}`}
-          </button>
+          <SquarePaymentForm
+            total={grandTotal}
+            loading={submitting}
+            onError={setError}
+            onTokenize={handleTokenize}
+          />
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', marginTop: 12 }}>
+            🔒 Secure payment · powered by Square
+          </p>
         </div>
       </main>
     </div>
