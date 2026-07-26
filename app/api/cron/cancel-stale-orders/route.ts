@@ -71,12 +71,16 @@ export async function GET(req: NextRequest) {
   // customer paid for donuts they'll never get. Refund per order before
   // status flip so a refund failure aborts that order's cancel (the next
   // cron run will retry).
+  // Never auto-cancel a future-scheduled order for "shop closed" — the shop
+  // will be open at the scheduled slot. Only ASAP / already-due orders qualify.
+  const staleNow = new Date().toISOString()
   const { data: toCancel } = await svc
     .from('dd_orders')
     .select('id, total, payment_id, payment_method, customer_id, refund_amount')
     .in('shop_id', closedShops)
     .in('order_type', ['delivery', 'pickup'])
     .in('status', ACTIVE_STATUSES)
+    .or(`scheduled_for.is.null,scheduled_for.lte.${staleNow}`)
 
   const refunded: string[] = []
   const refundFailures: { id: string; error: string }[] = []

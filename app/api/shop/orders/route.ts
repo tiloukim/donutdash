@@ -37,11 +37,17 @@ export async function GET(req: Request) {
   // register and belong on the POS device's "Today's Sales" view, not here.
   // Bookkeeping/earnings/stats endpoints intentionally do NOT filter and still
   // include walk-ins in their totals.
+  // Hold scheduled orders: don't surface one to the store until 2h before its
+  // slot. ASAP orders (scheduled_for null) always show. Released orders (slot
+  // within 2h) reappear here as fresh "new order" alerts for the shop.
+  const scheduleCutoff = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+
   let query = svc
     .from('dd_orders')
     .select('*, dd_order_items(*), customer:dd_users!customer_id(name, email, phone), delivery:dd_deliveries(delivery_photo_url)')
     .eq('shop_id', shop.id)
     .in('order_type', ['delivery', 'pickup'])
+    .or(`scheduled_for.is.null,scheduled_for.lte.${scheduleCutoff}`)
     .order('created_at', { ascending: false })
 
   if (status) query = query.eq('status', status)
