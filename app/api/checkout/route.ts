@@ -351,22 +351,41 @@ export async function POST(request: NextRequest) {
     //  - Fallback: create a Square-hosted payment link the client redirects to.
     let paymentLinkUrl: string | null = null
     if (sourceId) {
-      const paymentResult = await square.payments.create({
-        sourceId,
-        idempotencyKey: crypto.randomUUID(),
-        amountMoney: { amount: BigInt(Math.round(total * 100)), currency: 'USD' },
-        locationId: process.env.SQUARE_LOCATION_ID!,
-        referenceId: order.id,
-        note: `DonutDash Order #${order.id.slice(0, 8)} - ${shop?.name || 'Order'}`,
-        ...(verificationToken ? { verificationToken } : {}),
-      })
-      if (paymentResult.payment?.status !== 'COMPLETED') {
+      let paymentId: string | undefined
+      try {
+        const paymentResult = await square.payments.create({
+          sourceId,
+          idempotencyKey: crypto.randomUUID(),
+          amountMoney: { amount: BigInt(Math.round(total * 100)), currency: 'USD' },
+          locationId: process.env.SQUARE_LOCATION_ID!,
+          referenceId: order.id,
+          note: `DonutDash Order #${order.id.slice(0, 8)} - ${shop?.name || 'Order'}`,
+          ...(verificationToken ? { verificationToken } : {}),
+        })
+        if (paymentResult.payment?.status !== 'COMPLETED') throw new Error('not completed')
+        paymentId = paymentResult.payment.id
+      } catch (payErr) {
+        // Void the pending order and translate Square's decline codes into a
+        // friendly message instead of surfacing the raw 400 body.
         await supabase.from('dd_orders').update({ status: 'cancelled' }).eq('id', order.id)
-        return NextResponse.json({ error: 'Payment was not completed. Please try a different card.' }, { status: 400 })
+        const e = payErr as { errors?: { code?: string }[]; body?: { errors?: { code?: string }[] } }
+        const codes = [
+          ...(Array.isArray(e?.errors) ? e.errors.map(x => x.code) : []),
+          ...(Array.isArray(e?.body?.errors) ? e.body!.errors!.map(x => x.code) : []),
+        ]
+        let message = 'Payment could not be completed. Please check your card details or try another card.'
+        if (codes.includes('CVV_FAILURE')) message = 'Card declined — the security code (CVV) is incorrect. Please re-enter your card.'
+        else if (codes.includes('ADDRESS_VERIFICATION_FAILURE')) message = 'Card declined — the billing ZIP does not match. Please check it and try again.'
+        else if (codes.includes('INSUFFICIENT_FUNDS')) message = 'Card declined — insufficient funds.'
+        else if (codes.includes('CARD_EXPIRED') || codes.includes('INVALID_EXPIRATION')) message = 'Card declined — expired or invalid expiration date.'
+        else if (codes.includes('TRANSACTION_LIMIT')) message = 'Card declined — the amount exceeds the transaction limit. Try a smaller order or a different card.'
+        else if (codes.includes('CARD_DECLINED') || codes.includes('GENERIC_DECLINE')) message = 'Card declined. Please try a different card.'
+        else if (codes.includes('CARD_NOT_SUPPORTED')) message = 'This card type is not supported. Please try a different card.'
+        return NextResponse.json({ error: message }, { status: 400 })
       }
       await supabase
         .from('dd_orders')
-        .update({ status: 'confirmed', payment_id: paymentResult.payment.id })
+        .update({ status: 'confirmed', payment_id: paymentId })
         .eq('id', order.id)
     } else {
       const checkoutResponse = await square.checkout.paymentLinks.create({
