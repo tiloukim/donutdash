@@ -30,7 +30,6 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe')
-  const [shopHasStripe, setShopHasStripe] = useState<boolean | null>(null)
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
   const [shopAddress, setShopAddress] = useState<{ address: string; city: string; state: string; zip: string } | null>(null)
   const [feesExpanded, setFeesExpanded] = useState(false)
@@ -107,12 +106,6 @@ export default function CheckoutPage() {
             state: s.state || '',
             zip: s.zip || '',
           })
-        }
-        if (s && s.stripe_onboarding_complete) {
-          setShopHasStripe(true)
-          setPaymentMethod('stripe')
-        } else {
-          setShopHasStripe(false)
         }
       })
       .catch(() => {})
@@ -238,12 +231,6 @@ export default function CheckoutPage() {
       scheduled_for: scheduledFor,
     }
 
-    if (!shopHasStripe) {
-      setError('This shop has not finished setting up payments yet. Please try again later or contact support.')
-      setSubmitting(false)
-      return
-    }
-
     try {
       if (paymentMethod === 'paypal') {
         const res = await fetch('/api/paypal/create', {
@@ -260,14 +247,14 @@ export default function CheckoutPage() {
           window.location.href = data.approveUrl
         }
       } else {
-        const res = await fetch('/api/stripe/checkout', {
+        const res = await fetch('/api/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderPayload),
         })
         const data = await res.json()
         if (!res.ok) {
-          setError(data.error || 'Failed to create Stripe checkout session.')
+          setError(data.error || 'Failed to create checkout.')
           return
         }
         if (data.url) {
