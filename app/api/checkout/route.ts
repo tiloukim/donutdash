@@ -61,6 +61,13 @@ export async function POST(request: NextRequest) {
     const fulfillmentType: 'delivery' | 'pickup' = fulfillment_type === 'pickup' ? 'pickup' : 'delivery'
     const isPickup = fulfillmentType === 'pickup'
 
+    // Orders scheduled more than 2h out are "held": we don't notify the store
+    // or surface them in the shop queue now. They stay a paid 'pending' order,
+    // hidden from the shop feed (and the stale-cancel cron) until 2h before the
+    // slot — at which point they reappear as a fresh "new order" for the store.
+    const SCHEDULE_HOLD_MS = 2 * 60 * 60 * 1000
+    const isFarScheduled = !!scheduled_for && (new Date(scheduled_for).getTime() - Date.now() > SCHEDULE_HOLD_MS)
+
     // Delivery needs an address; pickup does not.
     if (!shopId || !items || items.length === 0 || (!isPickup && !delivery_address)) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -234,10 +241,12 @@ export async function POST(request: NextRequest) {
         <a href="https://donutdash.app/admin/orders" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF8C00;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">View in Admin</a>
       </div>
     `
-    notifyAdmins(smsMsg, `New Order: $${total.toFixed(2)} from ${shopName}`, emailHtml).catch(() => {})
+    // Held scheduled orders are announced 2h before the slot (when they
+    // re-enter the shop feed), not at checkout time.
+    if (!isFarScheduled) notifyAdmins(smsMsg, `New Order: $${total.toFixed(2)} from ${shopName}`, emailHtml).catch(() => {})
 
     // Notify shop owner via email + SMS (fire and forget)
-    if (shop?.owner_id) {
+    if (!isFarScheduled && shop?.owner_id) {
       (async () => {
         const { data: owner } = await svc.from('dd_users').select('email, phone').eq('id', shop.owner_id).single()
         // SMS to shop owner
@@ -388,7 +397,7 @@ export async function POST(request: NextRequest) {
       // order stuck 'pending' (and auto-cancelled as stale).
       const { error: confirmErr } = await svc
         .from('dd_orders')
-        .update({ status: 'confirmed', payment_id: paymentId })
+        .update({ status: isFarScheduled ? 'pending' : 'confirmed', payment_id: paymentId })
         .eq('id', order.id)
       if (confirmErr) {
         console.error('[checkout] PAID but confirm update failed — reconcile', { orderId: order.id, paymentId, confirmErr })
