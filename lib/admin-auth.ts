@@ -76,7 +76,7 @@ export const PAGE_ROLES: Record<string, readonly AdminPortalRole[]> = {
   '/admin/team':             ['admin', 'general_manager', 'marketing_manager'],
   '/admin/analytics':        ['admin', 'general_manager', 'field_manager', 'marketing_manager'],
   '/admin/pitch-campaign':   ['admin', 'general_manager', 'field_manager', 'marketing_manager'],
-  '/admin/access-matrix':    ['admin', 'general_manager', 'field_manager', 'marketing_manager'],
+  '/admin/access-matrix':    ['admin'],
   '/admin/tax':              ['admin'],
   '/admin/settings':         ['admin'],
 }
@@ -147,11 +147,15 @@ export const ROLE_BADGES: Record<AdminPortalRole, { label: string; color: string
 
 // Pages that must always be reachable by every admin portal user
 // — lockout safety. If someone unchecks /admin (Dashboard) the user
-// would have no landing page on sign-in. Same for the matrix page
-// itself: if you can't see /admin/access-matrix, you can't restore
-// access you just lost.
+// would have no landing page on sign-in.
 export const ALWAYS_ALLOWED_PAGES: readonly string[] = [
   '/admin',
+]
+
+// Pages hard-locked to admin only — non-overridable by the DB matrix.
+// Role Access edits everyone's permissions, so a non-admin must never be
+// able to reach it (they could otherwise grant themselves any page).
+export const ADMIN_ONLY_PAGES: readonly string[] = [
   '/admin/access-matrix',
 ]
 
@@ -163,6 +167,11 @@ export function applyPermissionGuards(
 ): Record<string, readonly AdminPortalRole[]> {
   const out: Record<string, readonly AdminPortalRole[]> = {}
   for (const path of Object.keys(matrix)) {
+    // Hard-locked pages are admin-only, ignoring whatever the DB matrix says.
+    if (ADMIN_ONLY_PAGES.includes(path)) {
+      out[path] = ['admin']
+      continue
+    }
     const set = new Set<AdminPortalRole>(matrix[path])
     set.add('admin') // admin is never absent
     if (ALWAYS_ALLOWED_PAGES.includes(path)) {
