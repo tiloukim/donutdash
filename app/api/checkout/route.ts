@@ -53,9 +53,14 @@ export async function POST(request: NextRequest) {
       tip,
       promo_code,
       scheduled_for,
+      fulfillment_type,
     } = body
 
-    if (!shopId || !items || items.length === 0 || !delivery_address) {
+    const fulfillmentType: 'delivery' | 'pickup' = fulfillment_type === 'pickup' ? 'pickup' : 'delivery'
+    const isPickup = fulfillmentType === 'pickup'
+
+    // Delivery needs an address; pickup does not.
+    if (!shopId || !items || items.length === 0 || (!isPickup && !delivery_address)) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -86,36 +91,35 @@ export async function POST(request: NextRequest) {
     const shopFeeRate = shop ? shop.service_fee_pct / 100 : SERVICE_FEE_RATE
     const shopTaxRate = shop?.tax_rate ? shop.tax_rate / 100 : 0
 
-    // Geocode delivery address to get coordinates
+    // Geocode delivery address + enforce delivery range (delivery orders only).
     let deliveryLat: number | null = null
     let deliveryLng: number | null = null
-    try {
-      const fullAddress = `${delivery_address}, ${delivery_city || ''}`
-      const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
-        { headers: { 'User-Agent': 'DonutDash/1.0' } }
-      )
-      const geoData = await geoRes.json()
-      if (geoData?.[0]) {
-        deliveryLat = parseFloat(geoData[0].lat)
-        deliveryLng = parseFloat(geoData[0].lon)
+    if (!isPickup) {
+      try {
+        const fullAddress = `${delivery_address}, ${delivery_city || ''}`
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
+          { headers: { 'User-Agent': 'DonutDash/1.0' } }
+        )
+        const geoData = await geoRes.json()
+        if (geoData?.[0]) {
+          deliveryLat = parseFloat(geoData[0].lat)
+          deliveryLng = parseFloat(geoData[0].lon)
+        }
+      } catch {
+        // Geocoding failed — continue without coordinates
       }
-    } catch {
-      // Geocoding failed — continue without coordinates
+
+      if (deliveryLat != null && deliveryLng != null) {
+        const dist = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
+        if (dist > MAX_DELIVERY_MILES) {
+          return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
+        }
+      }
     }
 
-    if (deliveryLat != null && deliveryLng != null) {
-      const dist = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
-      if (dist > MAX_DELIVERY_MILES) {
-        return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
-      }
-    }
-
-    // Use shop's flat delivery fee (or platform default)
-    let deliveryFee = shop?.delivery_fee ?? DEFAULT_DELIVERY_FEE
-
-    // DonutDash Pass disabled for now
-    const hasPass = false
+    // Flat delivery fee for delivery; pickup is free.
+    const deliveryFee = isPickup ? 0 : (shop?.delivery_fee ?? DEFAULT_DELIVERY_FEE)
 
     // Calculate totals
     const subtotal = items.reduce(
@@ -158,11 +162,12 @@ export async function POST(request: NextRequest) {
         tip: tipAmount,
         total,
         payment_method: 'square',
-        delivery_address,
-        delivery_city: delivery_city || '',
+        fulfillment_type: fulfillmentType,
+        delivery_address: isPickup ? '' : delivery_address,
+        delivery_city: isPickup ? '' : (delivery_city || ''),
         delivery_lat: deliveryLat,
         delivery_lng: deliveryLng,
-        delivery_instructions: delivery_instructions || null,
+        delivery_instructions: isPickup ? null : (delivery_instructions || null),
         promo_code: promoCode,
         promo_discount: promoDiscount || 0,
         scheduled_for: scheduled_for || null,
@@ -285,8 +290,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Add delivery fee
-    if (!hasPass) {
+    // Add delivery fee (delivery orders only)
+    if (deliveryFee > 0) {
       squareLineItems.push({
         name: 'Delivery Fee',
         quantity: '1',
