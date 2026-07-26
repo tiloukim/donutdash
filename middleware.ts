@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isAnyManager } from '@/lib/admin-auth'
 
 // Role → home page mapping
 const ROLE_HOME: Record<string, string> = {
@@ -115,9 +116,15 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Managers (general/field/marketing) share the admin portal, but dd_users
+  // stores their specific role — map it to the 'manager' bucket the ROLE_HOME
+  // / ROLE_ALLOWED tables are keyed by. Without this a manager falls through
+  // to the customer defaults and lands on the customer home.
+  const roleKey = isAnyManager(role) ? 'manager' : role
+
   // Redirect from landing/login/signup to role dashboard
   if (REDIRECT_PATHS.includes(pathname) && role !== 'customer') {
-    const home = ROLE_HOME[role]
+    const home = ROLE_HOME[roleKey]
     if (home) {
       const url = request.nextUrl.clone()
       url.pathname = home
@@ -151,11 +158,11 @@ export async function middleware(request: NextRequest) {
 
   // Prevent role users from accessing wrong sections
   // e.g., driver shouldn't access /shop, shop_owner shouldn't access /driver
-  const allowed = ROLE_ALLOWED[role] || ROLE_ALLOWED.customer
+  const allowed = ROLE_ALLOWED[roleKey] || ROLE_ALLOWED.customer
   const isAllowed = allowed.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'))
 
   if (!isAllowed) {
-    const home = ROLE_HOME[role] || '/'
+    const home = ROLE_HOME[roleKey] || '/'
     const url = request.nextUrl.clone()
     url.pathname = home
     const redirect = NextResponse.redirect(url)

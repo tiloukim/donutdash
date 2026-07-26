@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
+import { isAnyManager } from '@/lib/admin-auth'
 import Turnstile from '@/components/Turnstile'
 
 export default function LoginPage() {
@@ -99,7 +100,7 @@ export default function LoginPage() {
           const { user: me } = await res.json()
           if (me?.role === 'driver') { router.push('/driver'); return }
           if (me?.role === 'shop_owner') { router.push('/shop'); return }
-          if (me?.role === 'admin') { router.push('/admin'); return }
+          if (me?.role === 'admin' || isAnyManager(me?.role)) { router.push('/admin'); return }
         }
       }
       router.push('/')
