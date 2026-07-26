@@ -367,7 +367,7 @@ export async function POST(request: NextRequest) {
       } catch (payErr) {
         // Void the pending order and translate Square's decline codes into a
         // friendly message instead of surfacing the raw 400 body.
-        await supabase.from('dd_orders').update({ status: 'cancelled' }).eq('id', order.id)
+        await svc.from('dd_orders').update({ status: 'cancelled', cancellation_reason: 'Payment declined' }).eq('id', order.id)
         const e = payErr as { errors?: { code?: string }[]; body?: { errors?: { code?: string }[] } }
         const codes = [
           ...(Array.isArray(e?.errors) ? e.errors.map(x => x.code) : []),
@@ -383,10 +383,16 @@ export async function POST(request: NextRequest) {
         else if (codes.includes('CARD_NOT_SUPPORTED')) message = 'This card type is not supported. Please try a different card.'
         return NextResponse.json({ error: message }, { status: 400 })
       }
-      await supabase
+      // Use the service client — RLS blocks the customer-scoped client from
+      // updating order status/payment, which would silently leave a paid
+      // order stuck 'pending' (and auto-cancelled as stale).
+      const { error: confirmErr } = await svc
         .from('dd_orders')
         .update({ status: 'confirmed', payment_id: paymentId })
         .eq('id', order.id)
+      if (confirmErr) {
+        console.error('[checkout] PAID but confirm update failed — reconcile', { orderId: order.id, paymentId, confirmErr })
+      }
     } else {
       const checkoutResponse = await square.checkout.paymentLinks.create({
         idempotencyKey: crypto.randomUUID(),
@@ -403,7 +409,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to create checkout' }, { status: 500 })
       }
       paymentLinkUrl = paymentLink.url
-      await supabase
+      await svc
         .from('dd_orders')
         .update({ payment_id: paymentLink.id })
         .eq('id', order.id)
