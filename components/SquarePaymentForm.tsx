@@ -96,8 +96,9 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
           googlePay.addEventListener?.('click', () => walletTokenize(googlePay))
           setGooglePayReady(true)
         } catch { /* Google Pay unavailable */ }
-      } catch {
-        onErrorRef.current('Failed to initialize payment form.')
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        onErrorRef.current(`Payment form couldn't load: ${msg}`)
       }
     }
 
