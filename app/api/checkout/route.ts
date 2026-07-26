@@ -54,6 +54,8 @@ export async function POST(request: NextRequest) {
       promo_code,
       scheduled_for,
       fulfillment_type,
+      sourceId,
+      verificationToken,
     } = body
 
     const fulfillmentType: 'delivery' | 'pickup' = fulfillment_type === 'pickup' ? 'pickup' : 'delivery'
@@ -342,27 +344,51 @@ export async function POST(request: NextRequest) {
       }]
     }
 
-    const checkoutResponse = await square.checkout.paymentLinks.create({
-      idempotencyKey: crypto.randomUUID(),
-      order: squareOrder,
-      checkoutOptions: {
-        redirectUrl: `${origin}/checkout/success?order_id=${order.id}`,
-        merchantSupportEmail: ddUser.email,
-      },
-      paymentNote: `DonutDash Order #${order.id.slice(0, 8)} - ${shop?.name || 'Order'}`,
-    })
-
-    const paymentLink = checkoutResponse.paymentLink
-    if (!paymentLink?.url) {
-      console.error('Square checkout error: no payment link returned', checkoutResponse)
-      return NextResponse.json({ error: 'Failed to create checkout' }, { status: 500 })
+    // Two payment modes:
+    //  - Embedded (Web Payments SDK): the client sends a one-time `sourceId`
+    //    (card / Apple Pay / Google Pay), so we charge it inline into the
+    //    platform Square account and confirm the order immediately.
+    //  - Fallback: create a Square-hosted payment link the client redirects to.
+    let paymentLinkUrl: string | null = null
+    if (sourceId) {
+      const paymentResult = await square.payments.create({
+        sourceId,
+        idempotencyKey: crypto.randomUUID(),
+        amountMoney: { amount: BigInt(Math.round(total * 100)), currency: 'USD' },
+        locationId: process.env.SQUARE_LOCATION_ID!,
+        referenceId: order.id,
+        note: `DonutDash Order #${order.id.slice(0, 8)} - ${shop?.name || 'Order'}`,
+        ...(verificationToken ? { verificationToken } : {}),
+      })
+      if (paymentResult.payment?.status !== 'COMPLETED') {
+        await supabase.from('dd_orders').update({ status: 'cancelled' }).eq('id', order.id)
+        return NextResponse.json({ error: 'Payment was not completed. Please try a different card.' }, { status: 400 })
+      }
+      await supabase
+        .from('dd_orders')
+        .update({ status: 'confirmed', payment_id: paymentResult.payment.id })
+        .eq('id', order.id)
+    } else {
+      const checkoutResponse = await square.checkout.paymentLinks.create({
+        idempotencyKey: crypto.randomUUID(),
+        order: squareOrder,
+        checkoutOptions: {
+          redirectUrl: `${origin}/checkout/success?order_id=${order.id}`,
+          merchantSupportEmail: ddUser.email,
+        },
+        paymentNote: `DonutDash Order #${order.id.slice(0, 8)} - ${shop?.name || 'Order'}`,
+      })
+      const paymentLink = checkoutResponse.paymentLink
+      if (!paymentLink?.url) {
+        console.error('Square checkout error: no payment link returned', checkoutResponse)
+        return NextResponse.json({ error: 'Failed to create checkout' }, { status: 500 })
+      }
+      paymentLinkUrl = paymentLink.url
+      await supabase
+        .from('dd_orders')
+        .update({ payment_id: paymentLink.id })
+        .eq('id', order.id)
     }
-
-    // Update order with payment link id
-    await supabase
-      .from('dd_orders')
-      .update({ payment_id: paymentLink.id })
-      .eq('id', order.id)
 
     // Send order confirmation email to customer (fire and forget)
     if (ddUser.email) {
@@ -394,7 +420,9 @@ export async function POST(request: NextRequest) {
       sendOrderEmail(ddUser.email, `Order Confirmed - DonutDash #${order.id.slice(0, 8).toUpperCase()}`, confirmHtml).catch(() => {})
     }
 
-    return NextResponse.json({ url: paymentLink.url, orderId: order.id })
+    // Embedded flow: order is already charged + confirmed → { ok, orderId }.
+    // Fallback flow: return the hosted payment-link URL to redirect to.
+    return NextResponse.json({ ok: true, url: paymentLinkUrl, orderId: order.id })
   } catch (err) {
     console.error('Checkout error:', err)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to create checkout session' }, { status: 500 })
