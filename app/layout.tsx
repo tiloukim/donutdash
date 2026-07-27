@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   keywords:
     'donut delivery, tyler tx, east texas donuts, donut shop, order donuts online, donut delivery near me, tyler texas donuts, east texas donut delivery',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon-48.png',
     apple: '/apple-touch-icon.png',
   },
   metadataBase: new URL('https://www.donutdash.app'),
