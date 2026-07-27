@@ -12,7 +12,7 @@ export async function GET() {
   if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin'))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: shop } = await svc.from('dd_shops').select('id, stripe_account_id').eq('owner_id', ddUser.id).single()
+  const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
   if (!shop) return NextResponse.json({ error: 'No shop' }, { status: 404 })
 
   const now = new Date()
@@ -143,7 +143,6 @@ export async function GET() {
       orderCount: monthOrders.length,
     },
     nextPayout,
-    stripeConnected: !!shop.stripe_account_id,
     recentOrders,
     weeklyTotals,
   })
