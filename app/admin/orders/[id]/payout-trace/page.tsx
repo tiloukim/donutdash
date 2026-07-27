@@ -166,7 +166,7 @@ export default function PayoutTracePage({ params }: { params: Promise<{ id: stri
               value={fmt(s.effective_tax)}
               icon="🧾"
               color="#6B7280"
-              note="Sits in platform Stripe balance until quarterly remittance"
+              note="Sits in platform Square balance until quarterly remittance"
             />
             {s.refund_amount > 0 && (
               <WaterfallRow
@@ -183,7 +183,7 @@ export default function PayoutTracePage({ params }: { params: Promise<{ id: stri
               color={s.platform_net_keep >= 0 ? '#6366F1' : '#DC2626'}
               big
               divider
-              note="Application fee − Stripe fee − driver payout − tax − refund"
+              note="Application fee − driver payout − tax − refund (Square fees settle inside the account)"
             />
           </>
         )}

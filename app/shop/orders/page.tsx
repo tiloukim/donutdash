@@ -491,7 +491,7 @@ export default function ShopOrders() {
                             rejectingOrder === o.id ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>
-                                  Cancelling will refund the customer{o.payment_method === 'stripe' ? ' via Stripe' : ''}{o.status === 'ready_for_pickup' && o.fulfillment_type !== 'pickup' ? ' and release the assigned driver' : ''}.
+                                  Cancelling will refund the customer{o.status === 'ready_for_pickup' && o.fulfillment_type !== 'pickup' ? ' and release the assigned driver' : ''}.
                                 </div>
                                 <select value={rejectReason} onChange={e => setRejectReason(e.target.value)}
                                   style={{ padding: '10px', borderRadius: 8, fontSize: 13, border: '1px solid #FCA5A5' }}>
