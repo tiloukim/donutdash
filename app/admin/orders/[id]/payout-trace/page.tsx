@@ -13,7 +13,7 @@ interface Trace {
     payment_method: string | null
     payment_id: string | null
     customer: { id: string; name: string; email: string } | null
-    shop: { id: string; name: string; stripe_account_id: string | null } | null
+    shop: { id: string; name: string } | null
     delivery: { driver_id?: string; driver_earnings?: number; status?: string; delivered_at?: string; driver?: { id: string; name: string } } | null
   }
   customer: {

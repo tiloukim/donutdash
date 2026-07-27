@@ -39,7 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       subtotal, tax, delivery_fee, service_fee, tip, total, refund_amount,
       promo_discount, commission_pct, created_at, shop_id,
       customer:dd_users!customer_id(id, name, email),
-      shop:dd_shops!shop_id(id, name, stripe_account_id, owner_id),
+      shop:dd_shops!shop_id(id, name, owner_id),
       delivery:dd_deliveries(driver_id, driver_earnings, base_pay, distance_miles, status, delivered_at,
         driver:dd_users!driver_id(id, name, email)
       )
