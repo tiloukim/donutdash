@@ -42,7 +42,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       id, short_code, status, order_type, payment_method, payment_id,
       subtotal, tax, delivery_fee, service_fee, tip, total, refund_amount,
       promo_discount, commission_pct, created_at, shop_id,
-      shop:dd_shops!shop_id(id, name, owner_id, stripe_account_id)
+      shop:dd_shops!shop_id(id, name, owner_id)
     `)
     .eq('id', id)
     .maybeSingle()
@@ -50,7 +50,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
   // Non-admin shop owners may only see their own shop's orders.
-  const shopRow = order.shop as unknown as { owner_id?: string; name?: string; stripe_account_id?: string } | null
+  const shopRow = order.shop as unknown as { owner_id?: string; name?: string } | null
   if (!isAdmin) {
     if (!shopRow || shopRow.owner_id !== caller.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
