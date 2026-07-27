@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { isShopOpen } from '@/lib/shop-hours'
 import { refundSquareOrder } from '@/lib/square-refund'
-import { refundStripePayment } from '@/lib/stripe'
 import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 
 // Auto-cancel delivery/pickup orders that are still active after their
@@ -105,16 +104,9 @@ export async function GET(req: NextRequest) {
         reason: 'Auto-cancelled: shop closed',
         idempotencyKey: `cron-stale-refund-${order.id}`,
       })
-    } else if (order.payment_method === 'stripe') {
-      result = await refundStripePayment({
-        paymentId: order.payment_id,
-        amountCents: Math.round(refundable * 100),
-        reason: 'Auto-cancelled: shop closed',
-        idempotencyKey: `cron-stale-refund-${order.id}`,
-      })
     } else {
-      // Unknown payment method — skip refund but proceed to cancel,
-      // since holding the order open is also unhelpful.
+      // Non-Square payment (legacy Stripe / unknown) — can't refund here
+      // (Stripe account is closed), so skip the refund but still cancel.
       refundSkipped.push(order.id)
       continue
     }
