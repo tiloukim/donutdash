@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
     // Add tip
     if (tipAmount > 0) {
       squareLineItems.push({
-        name: 'Driver Tip',
+        name: isPickup ? 'Tip' : 'Driver Tip',
         quantity: '1',
         basePriceMoney: {
           amount: BigInt(Math.round(tipAmount * 100)),
