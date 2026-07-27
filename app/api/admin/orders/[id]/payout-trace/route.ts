@@ -8,13 +8,13 @@ export const dynamic = 'force-dynamic'
 // GET /api/admin/orders/[id]/payout-trace
 //
 // Returns the full per-order money waterfall: what the customer paid,
-// what Stripe took, what the shop received, what the platform retained,
-// what the driver gets paid, and what's left for the platform after
-// driver payout + tax remittance.
+// what the shop received, what the platform retained, what the driver
+// gets paid, and what's left for the platform after driver payout + tax
+// remittance.
 //
-// Live-fetches the Stripe BalanceTransaction so processing fees come
-// from Stripe directly rather than being estimated. Falls back to a
-// 2.9% + $0.30 estimate when Stripe lookup fails.
+// Payments run through Square, whose processing fees settle inside the
+// account rather than being broken out per order, so the waterfall works
+// from the application fee (customer total − shop earnings) directly.
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -75,11 +75,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const driverBasePay = Number(deliveryRaw?.base_pay || 0)
   const driverDistMiles = Number(deliveryRaw?.distance_miles || 0)
 
-  // Look up the actual Stripe processing fee. If anything fails we fall
-  // back to the standard US Stripe published rate so the waterfall still
-  // renders — admin can refresh later or check Stripe directly.
-  // Application fee = customer total minus what the shop earns. Processing
-  // fees settle inside the Square account and aren't broken out per order.
+  // Application fee = customer total minus what the shop earns. Square
+  // processing fees settle inside the account and aren't broken out per order.
   const applicationFee = +(total - shopGross).toFixed(2)
   const platformGross = applicationFee
   const platformNet = +(platformGross - driverEarnings - effTax - refundAmount).toFixed(2)

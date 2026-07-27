@@ -48,8 +48,8 @@ interface ComputeArgs {
    * Optional cap (dollars) = the platform's own discountable margin for this
    * order (service/small-order fees + commission — NOT tax, tip, or delivery,
    * which are earmarked for the state and the driver). The discount is clamped
-   * to this so it can never drive the platform's Stripe application_fee
-   * negative (which fails the charge) or dip into the shop's payout. Callers
+   * to this so it can never drive the platform's application_fee negative
+   * (which fails the charge) or dip into the shop's payout. Callers
    * that don't know the fee breakdown (e.g. the display-only validate
    * endpoint) omit it.
    */
@@ -87,8 +87,8 @@ export async function computeWelcomePromo({ svc, customerId, subtotal, code, mar
   }
 
   // "New customer" = no prior orders on the platform. Orders are created at
-  // checkout (Stripe orders only post-payment; PayPal/Square pre-capture), so
-  // we exclude cancelled rows to avoid counting an abandoned attempt.
+  // checkout (Square, pre-capture), so we exclude cancelled rows to avoid
+  // counting an abandoned attempt.
   const { count } = await svc
     .from('dd_orders')
     .select('id', { count: 'exact', head: true })
@@ -113,8 +113,8 @@ export async function computeWelcomePromo({ svc, customerId, subtotal, code, mar
     labelDetail = `$${value.toFixed(2)} off`
   }
 
-  // Never discount more than the food subtotal; the per-gateway charge math
-  // (and Stripe's coupon guard) handle the final clamp against the grand total.
+  // Never discount more than the food subtotal; the charge math handles the
+  // final clamp against the grand total.
   discount = Math.min(discount, subtotal)
   // Clamp to the platform's discountable margin so the promo can only ever come
   // out of platform earnings — never the shop payout, and never enough to fail
