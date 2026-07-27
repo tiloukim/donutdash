@@ -7,15 +7,11 @@ export const dynamic = 'force-dynamic'
 
 // GET /api/admin/payouts/owed
 //
-// Reconciliation view: what does the platform actually have on Stripe
-// right now, vs. what's already earmarked for drivers + tax remittance.
-// Returns a single struct the UI can render as cards.
-//
-// "True keep" = Stripe balance (available + pending) − driver owed − tax owed.
-// Doesn't include Mercury balance — that's separate (we don't poll Mercury
-// here). Once Stripe pays out to Mercury, those obligations get paid FROM
-// Mercury, so the math holds: platform's actual liquidity is anchored to
-// the larger pool (Stripe + Mercury combined) minus the same obligations.
+// Reconciliation view: what the platform currently owes out — to drivers,
+// to shops, and for tax remittance. Returns a single struct the UI can
+// render as cards. Payments run through Square, so the platform's cash
+// position lives in the Square dashboard (not polled here); this endpoint
+// reports the obligations side of the ledger only.
 
 export async function GET() {
   const auth = await createClient()

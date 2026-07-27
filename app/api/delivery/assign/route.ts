@@ -6,7 +6,7 @@ import { MAX_DELIVERY_MILES } from '@/lib/constants'
 import { getPayConfig } from '@/lib/pay-config'
 
 // Called when a new order is confirmed to start the auto-assignment process.
-// Triggered server-side from /api/stripe/webhook, /api/shop/orders, and the
+// Triggered server-side from /api/checkout, /api/shop/orders, and the
 // admin reassign flow. Restricted to admin / general / field managers and
 // the owning shop_owner — without this, any signed-in user could trigger
 // dispatch for any order_id they guess.
@@ -79,9 +79,9 @@ export async function POST(req: NextRequest) {
     const shopLng = order.shop?.lng || 0
     const dropLat = order.delivery_lat || 0
     const dropLng = order.delivery_lng || 0
-    // No coordinate fallback. /api/stripe/checkout requires successful geocoding
-    // before an order is created, so missing coords here means data corruption
-    // or a non-Stripe path; pay base only rather than invent mileage.
+    // No coordinate fallback. /api/checkout requires successful geocoding
+    // before an order is created, so missing coords here means data
+    // corruption; pay base only rather than invent mileage.
     const dist = (shopLat && shopLng && dropLat && dropLng)
       ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 0
 

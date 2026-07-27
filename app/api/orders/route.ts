@@ -4,9 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 // POST was removed: previous handler trusted client-supplied subtotal/total/
 // payment_id and inserted the row verbatim, letting any signed-in user
 // place a $0.01 paid order or mark someone else's payment_id as paid.
-// All real checkout flows go through /api/checkout (Square) or
-// /api/stripe/checkout + /api/stripe/webhook (Stripe), which compute money
-// server-side from menu_item lookups.
+// All real checkout flows go through /api/checkout (Square), which computes
+// money server-side from menu_item lookups.
 
 export async function GET() {
   try {

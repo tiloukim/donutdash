@@ -138,8 +138,8 @@ export async function POST(request: NextRequest) {
     const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
     // Texas Comptroller Rule 3.293: separately-stated delivery and service
     // fees on prepared-food sales are part of the taxable sale price. Tip
-    // is not. Square + Stripe checkout paths must agree on the tax base or
-    // the customer gets taxed differently depending on payment method.
+    // is not. All checkout paths must agree on the tax base or the customer
+    // gets taxed differently depending on payment method.
     const taxableBasis = subtotal + deliveryFee + serviceFee
     const tax = Math.round(taxableBasis * shopTaxRate * 100) / 100
     const tipAmount = tip || 0

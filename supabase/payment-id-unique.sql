@@ -1,9 +1,8 @@
--- Webhook idempotency. Stripe retries checkout.session.completed on any
--- non-2xx response, and the webhook handler had no dedupe — every retry
--- inserted a fresh dd_orders row, double-awarding loyalty + double-notifying
--- admins. The partial unique index lets POS walk-ins (payment_id NULL)
--- coexist while forcing real Stripe/Square payment_ids to map to exactly
--- one order row.
+-- Payment idempotency. Guards against a retried confirmation inserting a
+-- fresh dd_orders row for a payment that already has one (which would
+-- double-award loyalty + double-notify admins). The partial unique index
+-- lets POS walk-ins (payment_id NULL) coexist while forcing real Square
+-- payment_ids to map to exactly one order row.
 --
 -- If this fails on existing duplicate rows, run:
 --   select payment_id, count(*) from dd_orders

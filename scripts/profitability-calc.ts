@@ -1,5 +1,5 @@
 // Calculates platform profit/loss per order across a grid of scenarios.
-// Mirrors the live checkout math in app/api/stripe/checkout/route.ts.
+// Mirrors the live checkout math in app/api/checkout/route.ts.
 //
 // Run: npx tsx scripts/profitability-calc.ts
 //      npx tsx scripts/profitability-calc.ts --commission=0.25
@@ -31,10 +31,8 @@ const DELIVERY_BASE_FEE  = arg('delivery-base', DEFAULT_DELIVERY_FEE)
 const PER_MILE_FEE       = arg('delivery-per-mile', PER_EXTRA_MILE_FEE)
 const FREE_MILES         = arg('free-miles', BASE_DELIVERY_RADIUS_MILES)
 const TAX_RATE           = arg('tax', 0.0825)                       // Tyler TX
-const STRIPE_PCT         = 0.029
-const STRIPE_FIXED       = 0.30
-const STRIPE_CONNECT_PCT = 0.0025
-const STRIPE_CONNECT_FIXED = 0.25
+const SQUARE_PCT         = 0.029                                    // Square e-commerce rate
+const SQUARE_FIXED       = 0.30
 const OPS_PER_ORDER      = arg('ops', 0.50)                         // SaaS/infra/support amortized
 
 function driverPay(distanceMi: number, tip: number): number {
@@ -53,7 +51,7 @@ interface OrderResult {
   customerTotal: number
   shopReceives: number
   driverPay: number
-  stripeFees: number
+  processingFees: number
   platformGross: number
   platformNet: number
   customerDeliveryFee: number
@@ -69,24 +67,24 @@ function compute(o: OrderInput): OrderResult {
   const tax = Math.round(taxableBasis * TAX_RATE * 100) / 100
   const customerTotal = round2(o.subtotal + tax + dFee + sFee + soFee + o.tip)
 
-  // Stripe charges run on the full charge.
-  const stripeFees = Math.round((customerTotal * STRIPE_PCT + STRIPE_FIXED) * 100) / 100
-  const connectFee = Math.round((customerTotal * STRIPE_CONNECT_PCT + STRIPE_CONNECT_FIXED) * 100) / 100
+  // Square processing runs on the full charge.
+  const processingFees = Math.round((customerTotal * SQUARE_PCT + SQUARE_FIXED) * 100) / 100
 
-  // Production model (after platform-fee bug fix): shop's destination charge nets exactly
-  // subtotal × (1 - commission). Tax, delivery, service, small-order, tip all stay on platform balance.
+  // Production model: the full charge lands in the platform's Square balance;
+  // the shop is paid subtotal × (1 - commission) via the batch payout system.
+  // Tax, delivery, service, small-order, tip all stay on platform balance.
   const shopReceives = round2(o.subtotal * (1 - COMMISSION))
   const dPay = driverPay(o.distanceMi, o.tip)
 
-  // Platform absorbs Stripe processing per spec §5.
-  const platformGross = customerTotal - shopReceives - dPay - stripeFees - connectFee
+  // Platform absorbs Square processing.
+  const platformGross = customerTotal - shopReceives - dPay - processingFees
   const platformNet = platformGross - OPS_PER_ORDER
 
   return {
     customerTotal: round2(customerTotal),
     shopReceives,
     driverPay: round2(dPay),
-    stripeFees: round2(stripeFees + connectFee),
+    processingFees: round2(processingFees),
     platformGross: round2(platformGross),
     platformNet: round2(platformNet),
     customerDeliveryFee: dFee,
@@ -112,7 +110,7 @@ function printHeader() {
   console.log(`  Driver pay:             $${BASE_DELIVERY_PAY.toFixed(2)} base + $${PER_MILE_PAY.toFixed(2)}/mi + 100% tip`)
   console.log(`  Max delivery distance:  ${MAX_DELIVERY_MILES} mi`)
   console.log(`  Tax rate (Tyler):       ${(TAX_RATE * 100).toFixed(2)}% on (subtotal + delivery + service + small-order)`)
-  console.log(`  Stripe processing:      ${(STRIPE_PCT * 100).toFixed(1)}% + $${STRIPE_FIXED.toFixed(2)}  (Connect: ${(STRIPE_CONNECT_PCT * 100).toFixed(2)}% + $${STRIPE_CONNECT_FIXED})`)
+  console.log(`  Square processing:      ${(SQUARE_PCT * 100).toFixed(1)}% + $${SQUARE_FIXED.toFixed(2)}`)
   console.log(`  Ops overhead per order: $${OPS_PER_ORDER.toFixed(2)} (SaaS + infra + support amortized)`)
   console.log()
 }
@@ -125,7 +123,7 @@ function printDetailExample(subtotal: number, distance: number, tip: number) {
   if (r.smallOrderFee > 0) console.log(`    (small order fee:              $${r.smallOrderFee.toFixed(2)})`)
   console.log(`  - Shop receives:                 $${r.shopReceives.toFixed(2)}  (${(100 * (1 - COMMISSION)).toFixed(0)}% of food)`)
   console.log(`  - Driver pay (incl tip):         $${r.driverPay.toFixed(2)}`)
-  console.log(`  - Stripe fees (proc+connect):    $${r.stripeFees.toFixed(2)}`)
+  console.log(`  - Square processing fees:        $${r.processingFees.toFixed(2)}`)
   console.log(`  = Platform gross:                ${fmt(r.platformGross)}`)
   console.log(`  - Ops overhead:                  $${OPS_PER_ORDER.toFixed(2)}`)
   console.log(`  = Platform NET:                  ${fmt(r.platformNet)}`)

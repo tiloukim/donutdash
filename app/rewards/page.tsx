@@ -169,9 +169,8 @@ export default function RewardsPage() {
           ))}
         </div>
 
-        {/* Redeem Section — disabled while promo application is being rewired
-            through Stripe coupons. Points still accrue; redemption returns
-            once promos are re-enabled. */}
+        {/* Redeem Section — disabled while promo application is being rewired.
+            Points still accrue; redemption returns once promos are re-enabled. */}
         <div style={{
           background: '#FFF8F0',
           border: '1px dashed #FFD8A8',

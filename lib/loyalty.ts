@@ -1,8 +1,8 @@
 // Shared loyalty award logic — single source of truth for the earn rate,
 // tier thresholds, and the dd_loyalty / dd_loyalty_transactions writes.
 //
-// Used by online checkout (Square), the Stripe webhook, and the POS walk-in
-// sale route. Keeping it here means every channel earns points identically.
+// Used by online checkout (Square) and the POS walk-in sale route. Keeping
+// it here means every channel earns points identically.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
