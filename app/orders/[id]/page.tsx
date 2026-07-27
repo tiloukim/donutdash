@@ -407,6 +407,14 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           }}>
             Delivered
           </div>
+        ) : order.status !== 'cancelled' && order.scheduled_for && new Date(order.scheduled_for).getTime() > Date.now() ? (
+          <div style={{
+            display: 'inline-block', marginTop: 8, padding: '6px 16px',
+            borderRadius: 20, background: '#FF8C00', color: '#fff',
+            fontSize: 14, fontWeight: 700,
+          }}>
+            📅 Scheduled for {new Date(order.scheduled_for).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+          </div>
         ) : order.status !== 'cancelled' && tracking?.eta_minutes != null && tracking.eta_minutes > 0 ? (
           <div style={{
             display: 'inline-block', marginTop: 8, padding: '6px 16px',
