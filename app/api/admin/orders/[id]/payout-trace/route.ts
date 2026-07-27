@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { canAccessAdminPortal } from '@/lib/admin-auth'
-import { getStripe } from '@/lib/stripe'
 import { resolveCommissionRate } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
@@ -79,42 +78,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Look up the actual Stripe processing fee. If anything fails we fall
   // back to the standard US Stripe published rate so the waterfall still
   // renders — admin can refresh later or check Stripe directly.
-  let stripeFee = 0
-  let stripeFeeSource: 'live' | 'estimated' | 'none' = 'none'
-  let stripeTransferId: string | null = null
-  let stripeChargeId: string | null = null
-  let stripeBalanceAvailableAt: number | null = null
-  if (order.payment_method === 'stripe' && order.payment_id) {
-    if (order.payment_id.startsWith('pi_')) {
-      try {
-        const stripe = getStripe()
-        const pi = await stripe.paymentIntents.retrieve(order.payment_id, {
-          expand: ['latest_charge.balance_transaction', 'latest_charge.transfer'],
-        })
-        const charge = pi.latest_charge as { id?: string; balance_transaction?: { fee?: number; available_on?: number }; transfer?: { id?: string } } | null
-        if (charge?.balance_transaction?.fee != null) {
-          stripeFee = +((charge.balance_transaction.fee || 0) / 100).toFixed(2)
-          stripeFeeSource = 'live'
-          stripeBalanceAvailableAt = charge.balance_transaction.available_on || null
-        }
-        stripeChargeId = charge?.id || null
-        stripeTransferId = charge?.transfer?.id || null
-      } catch (err) {
-        console.warn('Stripe lookup failed for', order.payment_id, err)
-      }
-    }
-    if (stripeFeeSource === 'none') {
-      stripeFee = +(total * 0.029 + 0.30).toFixed(2)
-      stripeFeeSource = 'estimated'
-    }
-  }
-
-  // Application fee = total minus what Stripe transferred to the shop.
-  // This is what /api/stripe/checkout sets at session creation.
+  // Application fee = customer total minus what the shop earns. Processing
+  // fees settle inside the Square account and aren't broken out per order.
   const applicationFee = +(total - shopGross).toFixed(2)
-  // Stripe deducts processing fee from the platform's slice of the
-  // application fee (since the platform owns the charge).
-  const platformGross = +(applicationFee - stripeFee).toFixed(2)
+  const platformGross = applicationFee
   const platformNet = +(platformGross - driverEarnings - effTax - refundAmount).toFixed(2)
 
   // Downstream payout status — has this order's earnings been included
@@ -165,24 +132,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       driver_base_pay: driverBasePay,
       driver_distance_miles: driverDistMiles,
       driver_tip_passthrough: effTip,
-      stripe_fee: stripeFee,
-      stripe_fee_source: stripeFeeSource,
       application_fee: applicationFee,
       platform_gross: platformGross,
       platform_net_keep: platformNet,
     },
-    stripe: order.payment_method === 'stripe' ? {
-      payment_id: order.payment_id,
-      charge_id: stripeChargeId,
-      transfer_id: stripeTransferId,
-      connected_account: (order.shop as unknown as { stripe_account_id?: string } | null)?.stripe_account_id || null,
-      balance_available_at: stripeBalanceAvailableAt
-        ? new Date(stripeBalanceAvailableAt * 1000).toISOString()
-        : null,
-      dashboard_url: order.payment_id?.startsWith('pi_')
-        ? `https://dashboard.stripe.com/payments/${order.payment_id}`
-        : null,
-    } as Record<string, unknown> : null,
     payouts: {
       items: (payoutItems || []).map(p => ({
         id: p.id,

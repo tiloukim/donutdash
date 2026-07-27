@@ -8,7 +8,6 @@ interface EarningsData {
   thisWeek: { sales: number; earnings: number; orderCount: number }
   thisMonth: { sales: number; earnings: number; orderCount: number }
   nextPayout: number
-  stripeConnected: boolean
   recentOrders: {
     id: string
     created_at: string
@@ -38,8 +37,6 @@ interface OrderBreakdown {
   }
   platform?: {
     application_fee: number
-    stripe_fee: number
-    stripe_fee_source: 'live' | 'estimated' | 'none'
     platform_gross: number
     effective_delivery_fee: number
     effective_service_fee: number
@@ -74,30 +71,8 @@ function statusBadge(status: string) {
   )
 }
 
-interface StripePayoutsData {
-  connected: boolean
-  message?: string
-  error?: string
-  shop?: { id: string; name: string }
-  balance?: { available_usd: number; pending_usd: number; total_usd: number }
-  bank?: { bank_name: string | null; last4: string | null; status: string | null } | null
-  payout_schedule?: { interval?: string; weekly_anchor?: string; monthly_anchor?: number; delay_days?: number } | null
-  payouts_enabled?: boolean
-  recent_payouts?: Array<{
-    id: string
-    amount_usd: number
-    status: string
-    method: string
-    arrival_date: string | null
-    created: string
-    description: string | null
-  }>
-  express_login_url?: string
-}
-
 export default function EarningsPage() {
   const [data, setData] = useState<EarningsData | null>(null)
-  const [stripeData, setStripeData] = useState<StripePayoutsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [breakdown, setBreakdown] = useState<OrderBreakdown | null>(null)
@@ -130,11 +105,6 @@ export default function EarningsPage() {
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-    // Independent fetch — Stripe API is slower, don't block earnings render
-    fetch('/api/shop/stripe-payouts')
-      .then(r => r.json())
-      .then(setStripeData)
-      .catch(() => {})
   }, [])
 
   if (loading) {
@@ -199,176 +169,23 @@ export default function EarningsPage() {
         </div>
       </div>
 
-      {/* Next Payout — when Stripe is connected, the source of truth is
-          Stripe's balance + in-flight payout, NOT a sum of completed-order
-          earnings (those keep counting for 30 days even after Stripe has
-          already paid them to the bank, double-counting the same dollars). */}
-      {(() => {
-        const stripeReady = data.stripeConnected && stripeData?.connected && stripeData.balance
-        const inFlight = stripeData?.recent_payouts?.find(
-          p => p.status === 'in_transit' || p.status === 'pending',
-        )
-        // Money that is on its way: pending Stripe holds + already-released
-        // funds that haven't yet been sent to the bank. Once Stripe initiates
-        // the bank transfer, the amount moves through `in_transit` and then
-        // disappears from `available` — so this naturally drops to 0 the
-        // moment funds clear.
-        const inFlightAmount = stripeReady
-          ? (stripeData!.balance!.available_usd + stripeData!.balance!.pending_usd)
-          : data.nextPayout
-        const eta = inFlight?.arrival_date
-          ? `Arrives ${new Date(inFlight.arrival_date).toLocaleDateString()} via Stripe`
-          : inFlightAmount > 0
-            ? 'Arrives in ~2 business days via Stripe'
-            : 'No payout in flight — new sales will show up here'
-        return (
-          <div style={{
-            background: '#fff', borderRadius: 16, padding: '18px 20px', marginBottom: 20,
-            border: '2px solid #D1FAE5',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#888', marginBottom: 2 }}>Your Next Payout</div>
-                <div style={{ fontSize: 30, fontWeight: 800, color: '#065F46' }}>{fmt(inFlightAmount)}</div>
-                <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{eta}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                {data.stripeConnected ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 20 }}>&#x2705;</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#065F46' }}>Stripe Connected</span>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 20 }}>&#x26A0;&#xFE0F;</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#92400E' }}>Connect Stripe to get paid</span>
-                  </div>
-                )}
-              </div>
-            </div>
+      {/* Next Payout — order-based. DonutDash collects payments via Square and
+          pays each shop's earnings to the bank account on file. */}
+      <div style={{
+        background: '#fff', borderRadius: 16, padding: '18px 20px', marginBottom: 20,
+        border: '2px solid #D1FAE5',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+      }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#888', marginBottom: 2 }}>Your Next Payout</div>
+          <div style={{ fontSize: 30, fontWeight: 800, color: '#065F46' }}>{fmt(data.nextPayout)}</div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+            {data.nextPayout > 0
+              ? 'Paid to the bank account on file in Settings'
+              : 'No payout in flight — new sales will show up here'}
           </div>
-        )
-      })()}
-
-      {/* Stripe Payouts — live data from the shop's Connect account */}
-      {stripeData?.connected && stripeData.balance && (
-        <div style={{
-          background: '#fff', borderRadius: 16, padding: '18px 20px', marginBottom: 20,
-          border: '2px solid #DBEAFE',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E' }}>
-              💳 Your Stripe Payouts
-            </div>
-            <a
-              href={stripeData.express_login_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: 12, color: '#635BFF', textDecoration: 'none', fontWeight: 600 }}
-            >
-              Open in Stripe ↗
-            </a>
-          </div>
-
-          {/* Balance cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
-            <div style={{ padding: 14, borderRadius: 10, background: '#ECFDF5', border: '1px solid #A7F3D0' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#065F46', textTransform: 'uppercase', letterSpacing: 0.5 }}>Available now</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#065F46', marginTop: 4 }}>{fmt(stripeData.balance.available_usd)}</div>
-              <div style={{ fontSize: 11, color: '#047857', marginTop: 2 }}>Ready to pay out to your bank</div>
-            </div>
-            <div style={{ padding: 14, borderRadius: 10, background: '#FEF3C7', border: '1px solid #FDE68A' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: 0.5 }}>Pending settlement</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#92400E', marginTop: 4 }}>{fmt(stripeData.balance.pending_usd)}</div>
-              <div style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>Stripe holds 2–4 days then releases</div>
-            </div>
-          </div>
-
-          {/* Bank + schedule */}
-          {(stripeData.bank || stripeData.payout_schedule) && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 16, fontSize: 13 }}>
-              {stripeData.bank && (
-                <div style={{ padding: 12, borderRadius: 8, background: '#F9FAFB' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Linked bank</div>
-                  <div style={{ marginTop: 4, color: '#1A1A2E', fontWeight: 600 }}>
-                    {stripeData.bank.bank_name ?? 'Bank account'}
-                    {stripeData.bank.last4 && <span style={{ color: '#6B7280' }}> ••••{stripeData.bank.last4}</span>}
-                  </div>
-                  {stripeData.bank.status && stripeData.bank.status !== 'new' && stripeData.bank.status !== 'validated' && (
-                    <div style={{ fontSize: 11, color: '#DC2626', marginTop: 2 }}>Status: {stripeData.bank.status}</div>
-                  )}
-                </div>
-              )}
-              {stripeData.payout_schedule && (
-                <div style={{ padding: 12, borderRadius: 8, background: '#F9FAFB' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Payout schedule</div>
-                  <div style={{ marginTop: 4, color: '#1A1A2E', fontWeight: 600 }}>
-                    {stripeData.payout_schedule.interval === 'daily' && 'Every business day'}
-                    {stripeData.payout_schedule.interval === 'weekly' && `Weekly · ${stripeData.payout_schedule.weekly_anchor ?? ''}`}
-                    {stripeData.payout_schedule.interval === 'monthly' && `Monthly · day ${stripeData.payout_schedule.monthly_anchor}`}
-                    {stripeData.payout_schedule.interval === 'manual' && 'Manual (you initiate)'}
-                  </div>
-                  {stripeData.payout_schedule.delay_days != null && (
-                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{stripeData.payout_schedule.delay_days}-day rolling hold</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Recent payouts list */}
-          {stripeData.recent_payouts && stripeData.recent_payouts.length > 0 && (
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
-                Recent payouts to your bank
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {stripeData.recent_payouts.slice(0, 5).map(p => (
-                  <div key={p.id} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '8px 12px', borderRadius: 8, background: '#F9FAFB', fontSize: 13,
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 700, color: '#1A1A2E' }}>{fmt(p.amount_usd)}</div>
-                      <div style={{ fontSize: 11, color: '#6B7280' }}>
-                        {p.arrival_date
-                          ? `Arrives ${new Date(p.arrival_date).toLocaleDateString()}`
-                          : `Created ${new Date(p.created).toLocaleDateString()}`}
-                        {p.method && p.method !== 'standard' && ` · ${p.method}`}
-                      </div>
-                    </div>
-                    <span style={{
-                      padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                      background: p.status === 'paid' ? '#ECFDF5' : p.status === 'in_transit' ? '#DBEAFE' : '#FEF3C7',
-                      color: p.status === 'paid' ? '#065F46' : p.status === 'in_transit' ? '#1E40AF' : '#92400E',
-                    }}>
-                      {p.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {stripeData.recent_payouts && stripeData.recent_payouts.length === 0 && (
-            <div style={{ padding: 12, background: '#F9FAFB', borderRadius: 8, fontSize: 13, color: '#6B7280' }}>
-              No payouts yet — your first payout takes a few extra days while Stripe verifies your account.
-            </div>
-          )}
-
-          {stripeData.payouts_enabled === false && (
-            <div style={{ marginTop: 12, padding: 10, background: '#FEE2E2', borderRadius: 8, fontSize: 13, color: '#991B1B' }}>
-              ⚠ Payouts are currently disabled on your Stripe account. Check Stripe for any verification requests.
-            </div>
-          )}
         </div>
-      )}
-      {stripeData?.error && (
-        <div style={{ padding: 12, background: '#FEF3C7', borderRadius: 8, fontSize: 12, color: '#92400E', marginBottom: 20 }}>
-          Could not load Stripe payout data: {stripeData.error}
-        </div>
-      )}
+      </div>
 
       {/* Weekly Chart */}
       <div style={{
@@ -547,13 +364,7 @@ export default function EarningsPage() {
                         Platform (admin view)
                       </div>
                       <Row label="Application fee (gross)" amount={b.platform.application_fee} sub="Customer total − shop transfer" />
-                      <Row
-                        label="Stripe processing fee"
-                        amount={-b.platform.stripe_fee}
-                        sub={b.platform.stripe_fee_source === 'live' ? 'From Stripe balance txn' : '2.9% + $0.30 estimate'}
-                        color="#991B1B"
-                      />
-                      <Row label="Platform net (to Mercury)" amount={b.platform.platform_gross} bold color="#1E40AF" />
+                      <Row label="Platform net" amount={b.platform.platform_gross} bold color="#1E40AF" />
                       <div style={{ fontSize: 11, color: '#6B7280', marginTop: 8, lineHeight: 1.5 }}>
                         Of this, ${b.platform.effective_delivery_fee.toFixed(2)} delivery + ${b.platform.effective_service_fee.toFixed(2)} service + ${b.platform.effective_tip.toFixed(2)} tip + ${b.platform.effective_tax.toFixed(2)} tax fund driver pay, tax remittance, and platform ops.
                       </div>

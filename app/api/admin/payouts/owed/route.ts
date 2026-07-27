@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { canAccessAdminPortal, isAdmin } from '@/lib/admin-auth'
-import { getStripe } from '@/lib/stripe'
 import { BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
@@ -31,22 +30,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // 1) Live Stripe balance
-  let stripeAvailable = 0
-  let stripePending = 0
-  let stripeError: string | null = null
-  try {
-    const stripe = getStripe()
-    const bal = await stripe.balance.retrieve()
-    for (const a of bal.available) if (a.currency === 'usd') stripeAvailable += a.amount
-    for (const p of bal.pending) if (p.currency === 'usd') stripePending += p.amount
-    stripeAvailable = +(stripeAvailable / 100).toFixed(2)
-    stripePending = +(stripePending / 100).toFixed(2)
-  } catch (err) {
-    stripeError = err instanceof Error ? err.message : 'Stripe balance fetch failed'
-  }
-
-  // 2) Driver owed — sum delivered driver_earnings minus already-paid
+  // Driver owed — sum delivered driver_earnings minus already-paid
   // payout_items (kind='driver', status='paid') minus already-paid
   // payout_requests (status='paid').
   const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString()
@@ -115,23 +99,13 @@ export async function GET() {
     .eq('kind', 'shop')
     .eq('status', 'paid')
     .then(r => (r.data ?? []).reduce((s, p) => s + Number(p.amount), 0))
-  // Note: Stripe Connect destination charges transfer shop payouts
-  // INSTANTLY to the shop's Connect account (not via our batch system).
-  // So the "shop owed" number tracked here is for pickup orders or any
-  // legacy non-Connect flow. With Connect on for all shops, this should
-  // stay near $0.
+  // Payments run through Square (no auto-transfer to shops), so shops are
+  // paid via the batch payout system: shop_owed = earned − paid-via-batches.
   const shopOwed = Math.max(0, +(totalShopEarned - totalShopPaidViaBatches).toFixed(2))
 
-  const stripeTotal = +(stripeAvailable + stripePending).toFixed(2)
-  const trueKeep = +(stripeTotal - driverOwed - taxOwed).toFixed(2)
+  const totalObligations = +(driverOwed + taxOwed + shopOwed).toFixed(2)
 
   return NextResponse.json({
-    stripe: {
-      available: stripeAvailable,
-      pending: stripePending,
-      total: stripeTotal,
-      error: stripeError,
-    },
     obligations: {
       driver_owed: driverOwed,
       driver_total_earned: +totalDriverEarned.toFixed(2),
@@ -142,8 +116,8 @@ export async function GET() {
       shop_owed: shopOwed, // Should be ~$0 for Connect-enabled shops
     },
     net_position: {
-      stripe_minus_obligations: trueKeep,
-      note: 'True platform cash on Stripe after earmarking driver payouts and tax remittance. Mercury balance is separate — once Stripe payouts land at Mercury, the same obligations get paid out from there.',
+      total_obligations: totalObligations,
+      note: 'Total earmarked against platform cash (driver payouts + tax remittance + shop payouts). Live platform cash is held in the Square account — check the Square dashboard for the balance.',
     },
   })
 }

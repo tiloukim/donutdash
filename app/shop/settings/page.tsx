@@ -16,8 +16,6 @@ export default function ShopSettings() {
   const [bankSaved, setBankSaved] = useState(false)
   const [shopReferral, setShopReferral] = useState<any>(null)
   const [referralCopied, setReferralCopied] = useState(false)
-  const [stripeStatus, setStripeStatus] = useState<{ connected: boolean; onboarding_complete: boolean; charges_enabled?: boolean; payouts_enabled?: boolean } | null>(null)
-  const [stripeLoading, setStripeLoading] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
 
@@ -36,9 +34,6 @@ export default function ShopSettings() {
       if (d.bankInfo) setBankInfo(d.bankInfo)
     }).catch(() => {})
     fetch('/api/shop/referral').then(r => r.json()).then(setShopReferral).catch(() => {})
-    fetch('/api/stripe/connect').then(r => r.json()).then(d => {
-      if (!d.error) setStripeStatus(d)
-    }).catch(() => {})
   }, [])
 
   const save = async () => {
@@ -395,8 +390,8 @@ export default function ShopSettings() {
 
       {/* Bank Account for Payouts */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Bank Account (legacy — use Stripe instead)</h3>
-        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>You don&apos;t need to fill this in if you&apos;ve completed Stripe onboarding above — Stripe handles your weekly payouts to the bank account you connected during KYC. You keep 80% of food sales after our 20% commission.</p>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Bank Account for Payouts</h3>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>DonutDash pays out your food-sales earnings to this bank account. You keep 80% of the food subtotal after our 20% commission; tax, delivery fee, service fee, and tip are handled separately and aren&apos;t part of your payout.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label style={labelStyle}>Account Holder Name</label>
@@ -439,92 +434,6 @@ export default function ShopSettings() {
           {bankSaved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Bank info saved!</span>}
         </div>
       </div>
-      {/* Stripe Connect */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Stripe Payments</h3>
-        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>
-          Connect your Stripe account to receive customer payments directly. DonutDash takes a 20% commission on the food subtotal — you keep 80% of food sales. Tax, delivery fee, service fee, and tip are handled by DonutDash separately and are not part of your payout.
-        </p>
-
-        {stripeStatus?.onboarding_complete ? (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            background: '#D1FAE5', borderRadius: 10, padding: '12px 16px',
-          }}>
-            <span style={{ fontSize: 20 }}>&#x2705;</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#065F46' }}>Stripe Connected</div>
-              <div style={{ fontSize: 12, color: '#047857' }}>
-                Your account is active and receiving payments.
-                {stripeStatus.charges_enabled && stripeStatus.payouts_enabled && ' Charges and payouts enabled.'}
-              </div>
-            </div>
-          </div>
-        ) : stripeStatus?.connected ? (
-          <div>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: '#FEF3C7', borderRadius: 10, padding: '12px 16px', marginBottom: 12,
-            }}>
-              <span style={{ fontSize: 20 }}>&#x26A0;&#xFE0F;</span>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#92400E' }}>Onboarding Incomplete</div>
-                <div style={{ fontSize: 12, color: '#B45309' }}>
-                  Your Stripe account was created but onboarding is not complete. Please finish the setup.
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={async () => {
-                setStripeLoading(true)
-                try {
-                  const res = await fetch('/api/stripe/connect', { method: 'POST' })
-                  const data = await res.json()
-                  if (data.url) window.location.href = data.url
-                } catch { /* ignore */ }
-                setStripeLoading(false)
-              }}
-              disabled={stripeLoading}
-              style={{
-                padding: '10px 24px', borderRadius: 8, border: 'none',
-                background: stripeLoading ? '#CCC' : '#6772E5', color: '#fff',
-                fontSize: 14, fontWeight: 700, cursor: stripeLoading ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {stripeLoading ? 'Loading...' : 'Complete Stripe Setup'}
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={async () => {
-              setStripeLoading(true)
-              try {
-                const res = await fetch('/api/stripe/connect', { method: 'POST' })
-                const data = await res.json()
-                if (data.url) {
-                  window.location.href = data.url
-                } else {
-                  alert(data.error || 'Failed to create Stripe Connect account. Please try again.')
-                }
-              } catch (err) {
-                alert('Network error. Please try again.')
-              }
-              setStripeLoading(false)
-            }}
-            disabled={stripeLoading}
-            style={{
-              padding: '12px 28px', borderRadius: 8, border: 'none',
-              background: stripeLoading ? '#CCC' : '#6772E5', color: '#fff',
-              fontSize: 15, fontWeight: 700, cursor: stripeLoading ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}
-          >
-            <span style={{ fontSize: 18 }}>&#x1F4B3;</span>
-            {stripeLoading ? 'Setting up...' : 'Connect Stripe Account'}
-          </button>
-        )}
-      </div>
-
       {/* Shop Referral Program */}
       {shopReferral && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>

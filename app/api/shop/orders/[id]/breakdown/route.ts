@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { canAccessAdminPortal } from '@/lib/admin-auth'
-import { getStripe } from '@/lib/stripe'
 import { resolveCommissionRate } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
@@ -114,42 +113,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json(shopPayload)
   }
 
-  // Admin viewers get the platform slice too — live Stripe processing
-  // fee when possible, falling back to the published US rate so the
-  // waterfall always renders.
-  let stripeFee = 0
-  let stripeFeeSource: 'live' | 'estimated' | 'none' = 'none'
-  if (order.payment_method === 'stripe' && order.payment_id) {
-    if (order.payment_id.startsWith('pi_')) {
-      try {
-        const stripe = getStripe()
-        const pi = await stripe.paymentIntents.retrieve(order.payment_id, {
-          expand: ['latest_charge.balance_transaction'],
-        })
-        const charge = pi.latest_charge as { balance_transaction?: { fee?: number } } | null
-        if (charge?.balance_transaction?.fee != null) {
-          stripeFee = +((charge.balance_transaction.fee || 0) / 100).toFixed(2)
-          stripeFeeSource = 'live'
-        }
-      } catch (err) {
-        console.warn('Stripe lookup failed for', order.payment_id, err)
-      }
-    }
-    if (stripeFeeSource === 'none') {
-      stripeFee = +(total * 0.029 + 0.30).toFixed(2)
-      stripeFeeSource = 'estimated'
-    }
-  }
-
+  // Platform slice (admin viewers). Processing fees settle inside the Square
+  // account and aren't broken out per order, so platform_gross is the
+  // pre-processing-fee application fee.
   const applicationFee = +(total - shopGross).toFixed(2)
-  const platformGross = +(applicationFee - stripeFee).toFixed(2)
+  const platformGross = applicationFee
 
   return NextResponse.json({
     ...shopPayload,
     platform: {
       application_fee: applicationFee,
-      stripe_fee: stripeFee,
-      stripe_fee_source: stripeFeeSource,
       platform_gross: platformGross,
       effective_delivery_fee: effDelivery,
       effective_service_fee: effService,

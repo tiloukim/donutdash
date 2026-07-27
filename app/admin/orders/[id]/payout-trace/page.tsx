@@ -43,20 +43,10 @@ interface Trace {
     driver_base_pay: number
     driver_distance_miles: number
     driver_tip_passthrough: number
-    stripe_fee: number
-    stripe_fee_source: 'live' | 'estimated' | 'none'
     application_fee: number
     platform_gross: number
     platform_net_keep: number
   }
-  stripe: {
-    payment_id: string | null
-    charge_id: string | null
-    transfer_id: string | null
-    connected_account: string | null
-    balance_available_at: string | null
-    dashboard_url: string | null
-  } | null
   payouts: {
     items: Array<{
       id: string
@@ -156,39 +146,12 @@ export default function PayoutTracePage({ params }: { params: Promise<{ id: stri
               color="#6366F1"
               big
             />
-            {trace.order.payment_method === 'stripe' && (
-              <>
-                <WaterfallRow
-                  label={`Stripe processing fee (${s.stripe_fee_source})`}
-                  value={`−${fmt(s.stripe_fee)}`}
-                  icon="🏦"
-                  color="#9CA3AF"
-                  indent
-                  note={s.stripe_fee_source === 'estimated' ? 'Live fee not available — estimated at 2.9% + $0.30' : 'Deducted by Stripe before settling to platform'}
-                />
-                <WaterfallRow
-                  label="Net to platform Stripe balance"
-                  value={fmt(trace.customer.paid - s.stripe_fee)}
-                  color="#374151"
-                  indent
-                  divider
-                />
-                <WaterfallRow
-                  label={`Transferred to ${shopName} Connect account`}
-                  value={fmt(s.effective_shop + s.effective_commission)}
-                  icon="🏪"
-                  color="#0EA5E9"
-                  indent
-                  note="Stripe destination charge — shop sees this in their own Stripe dashboard"
-                />
-              </>
-            )}
             <WaterfallRow
               label="Shop nets (subtotal − commission)"
               value={fmt(s.effective_shop)}
               icon="🍩"
               color="#10B981"
-              indent={trace.order.payment_method === 'stripe'}
+              indent={false}
               note={s.refund_amount > 0 ? `After ${s.refund_ratio_pct.toFixed(1)}% refund haircut` : `${s.commission_rate_pct}% platform commission`}
             />
             <WaterfallRow
@@ -226,36 +189,6 @@ export default function PayoutTracePage({ params }: { params: Promise<{ id: stri
         )}
       </Card>
 
-      {/* Stripe IDs + dashboard links */}
-      {trace.stripe && (
-        <Card title="Stripe references">
-          <KV label="Payment ID" value={trace.stripe.payment_id} copyable mono />
-          {trace.stripe.charge_id && <KV label="Charge ID" value={trace.stripe.charge_id} copyable mono />}
-          {trace.stripe.transfer_id && <KV label="Transfer ID (→ shop)" value={trace.stripe.transfer_id} copyable mono />}
-          {trace.stripe.connected_account && <KV label="Shop Connected account" value={trace.stripe.connected_account} copyable mono />}
-          {trace.stripe.balance_available_at && (
-            <KV label="Platform balance available" value={new Date(trace.stripe.balance_available_at).toLocaleString()} />
-          )}
-          {trace.stripe.dashboard_url && (
-            <div style={{ marginTop: 12 }}>
-              <a
-                href={trace.stripe.dashboard_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '8px 14px', borderRadius: 8,
-                  background: '#635BFF', color: '#fff',
-                  textDecoration: 'none', fontSize: 13, fontWeight: 600,
-                }}
-              >
-                Open in Stripe Dashboard ↗
-              </a>
-            </div>
-          )}
-        </Card>
-      )}
-
       {/* Downstream payouts */}
       <Card title="Downstream payout status">
         {trace.payouts.items.length === 0 ? (
@@ -288,10 +221,6 @@ export default function PayoutTracePage({ params }: { params: Promise<{ id: stri
         )}
       </Card>
 
-      <div style={{ marginTop: 20, fontSize: 12, color: '#9CA3AF', lineHeight: 1.6 }}>
-        Stripe processing fees are {s.stripe_fee_source === 'live' ? 'pulled live from Stripe BalanceTransaction' : 'estimated — Stripe lookup failed'}.
-        Refresh the page to retry the live lookup.
-      </div>
     </div>
   )
 }

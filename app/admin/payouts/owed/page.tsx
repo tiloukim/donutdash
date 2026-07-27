@@ -4,12 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
 interface Owed {
-  stripe: {
-    available: number
-    pending: number
-    total: number
-    error: string | null
-  }
   obligations: {
     driver_owed: number
     driver_total_earned: number
@@ -20,7 +14,7 @@ interface Owed {
     shop_owed: number
   }
   net_position: {
-    stripe_minus_obligations: number
+    total_obligations: number
     note: string
   }
 }
@@ -49,48 +43,42 @@ export default function OwedPage() {
   )
   if (!data) return null
 
-  const trueKeep = data.net_position.stripe_minus_obligations
-  const keepIsNegative = trueKeep < 0
+  const totalObligations = data.net_position.total_obligations
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Platform Cash Reconciliation</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Platform Obligations</h1>
         <p style={{ fontSize: 13, color: '#6B7280' }}>
-          What&apos;s actually yours after earmarking driver payouts + tax remittance.
+          Earmarked against platform cash: driver payouts + tax remittance + shop payouts.
         </p>
       </div>
 
-      {/* Hero card — true keep */}
+      {/* Hero card — total obligations */}
       <div style={{
-        background: keepIsNegative
-          ? 'linear-gradient(135deg, #FEE2E2 0%, #FCA5A5 100%)'
-          : 'linear-gradient(135deg, #DCFCE7 0%, #86EFAC 100%)',
+        background: 'linear-gradient(135deg, #FEF3C7 0%, #FCD34D 100%)',
         borderRadius: 16, padding: 32, marginBottom: 24,
-        border: `2px solid ${keepIsNegative ? '#DC2626' : '#10B981'}`,
+        border: '2px solid #F59E0B',
       }}>
-        <div style={{ fontSize: 12, fontWeight: 800, color: keepIsNegative ? '#991B1B' : '#065F46', letterSpacing: 1, marginBottom: 8 }}>
-          TRUE PLATFORM KEEP (STRIPE − OBLIGATIONS)
+        <div style={{ fontSize: 12, fontWeight: 800, color: '#92400E', letterSpacing: 1, marginBottom: 8 }}>
+          TOTAL OBLIGATIONS (DRIVERS + TAX + SHOPS)
         </div>
-        <div style={{ fontSize: 44, fontWeight: 900, color: keepIsNegative ? '#991B1B' : '#065F46', fontFamily: 'monospace' }}>
-          {fmt(trueKeep)}
+        <div style={{ fontSize: 44, fontWeight: 900, color: '#92400E', fontFamily: 'monospace' }}>
+          {fmt(totalObligations)}
         </div>
-        <div style={{ fontSize: 12, color: keepIsNegative ? '#7F1D1D' : '#047857', marginTop: 8, lineHeight: 1.5 }}>
-          {keepIsNegative
-            ? `⚠️ Negative — Stripe balance is short of what's owed to drivers + TX Comptroller by ${fmt(-trueKeep)}. New incoming orders need to cover the gap before any payouts to Mercury are spendable.`
-            : data.net_position.note}
+        <div style={{ fontSize: 12, color: '#B45309', marginTop: 8, lineHeight: 1.5 }}>
+          {data.net_position.note}
         </div>
       </div>
 
       {/* Three-column breakdown */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         <StatCard
-          label="On Stripe"
-          value={fmt(data.stripe.total)}
-          sub={`${fmt(data.stripe.available)} avail · ${fmt(data.stripe.pending)} pending`}
-          color="#6366F1"
-          icon="💳"
-          error={data.stripe.error}
+          label="Owed to shops"
+          value={fmt(data.obligations.shop_owed)}
+          sub="Food-sales earnings − batch payouts"
+          color="#10B981"
+          icon="🏪"
         />
         <StatCard
           label="Owed to drivers"
@@ -129,19 +117,20 @@ export default function OwedPage() {
         </div>
       </Card>
 
-      {/* Shop payouts (Connect-instant, should be ~0) */}
+      {/* Shop payouts owed (batch model) */}
       {data.obligations.shop_owed > 0.01 && (
         <Card title="🏪 Shop payouts owed">
           <Row label="Outstanding to shops" value={fmt(data.obligations.shop_owed)} bold color="#10B981" />
           <div style={{ marginTop: 12, fontSize: 12, color: '#9CA3AF' }}>
-            For Stripe Connect destination charges, shops are paid INSTANTLY at charge time — this number should be ~$0. If it&apos;s not, you have non-Connect orders (pickup-only or legacy) that need manual payout.
+            Payments run through Square, so shops are paid via the batch payout system.{' '}
+            <Link href="/admin/payouts" style={{ color: '#6366F1' }}>View payouts dashboard →</Link>
           </div>
         </Card>
       )}
 
       {/* Footnotes */}
       <div style={{ marginTop: 24, padding: 16, background: '#F9FAFB', borderRadius: 8, fontSize: 12, color: '#6B7280', lineHeight: 1.6 }}>
-        <strong>What this page doesn&apos;t show:</strong> your Mercury bank balance. Past Stripe payouts that already landed at Mercury aren&apos;t counted here — but neither are the driver/tax payouts you&apos;ve already paid out from Mercury. The math reconciles either way: <strong>cash anywhere</strong> minus <strong>obligations anywhere</strong> = true keep. This page only shows the Stripe-side slice.
+        <strong>Platform cash</strong> is held in your Square account (check the Square dashboard for the live balance). This page tracks the <strong>obligations</strong> earmarked against it — what you still owe drivers, the TX Comptroller, and shops.
       </div>
     </div>
   )
