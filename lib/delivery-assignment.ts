@@ -1,15 +1,17 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
 import { sendEmail, sendSMS } from './sms'
-import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS } from './constants'
+import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS, DRIVER_STALE_MS } from './constants'
 
 export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = [], shopId?: string) {
   const svc = createServiceClient()
 
-  // 2 min matches the offline-stale-drivers cron threshold — drivers whose
-  // last ping is older than this are treated as offline even if is_online=true,
-  // so a force-quit / lost-network app doesn't keep getting offers.
-  const staleCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+  // Matches the offline-stale-drivers cron threshold (DRIVER_STALE_MS) — a
+  // driver whose last ping is older than this is treated as gone even if
+  // is_online is still true, so a force-quit / lost-network app doesn't keep
+  // getting offers. Keeping the two thresholds equal avoids the gap where a
+  // driver shows "online" but is silently excluded from dispatch.
+  const staleCutoff = new Date(Date.now() - DRIVER_STALE_MS).toISOString()
 
   const { data: onlineDrivers } = await svc
     .from('dd_driver_locations')
@@ -148,7 +150,7 @@ export async function createDeliveryOffer(deliveryId: string, driverId: string) 
 // Max number of individual driver offers before leaving it in Available Deliveries
 const MAX_OFFER_ATTEMPTS = 3
 
-export async function assignNextDriver(deliveryId: string) {
+export async function assignNextDriver(deliveryId: string, opts: { force?: boolean } = {}) {
   const svc = createServiceClient()
 
   // Get the delivery with shop location
@@ -183,8 +185,10 @@ export async function assignNextDriver(deliveryId: string) {
 
   const excludeIds = (prevOffers || []).map(o => o.driver_id)
 
-  // Stop auto-offering after MAX_OFFER_ATTEMPTS — let it sit in Available Deliveries
-  if (excludeIds.length >= MAX_OFFER_ATTEMPTS) {
+  // Stop auto-offering after MAX_OFFER_ATTEMPTS — let it sit in Available
+  // Deliveries. `force` bypasses the cap for a fresh urgent round (e.g. the
+  // order was just marked ready for pickup and still has no driver).
+  if (!opts.force && excludeIds.length >= MAX_OFFER_ATTEMPTS) {
     console.log(`[ASSIGN] Reached ${MAX_OFFER_ATTEMPTS} offer attempts for delivery ${deliveryId}, moving to Available Deliveries`)
     return null
   }
