@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
 import { sendOrderEmail, buildOrderEmailHtml, sendSMS } from '@/lib/sms'
+import { sendPushToUser } from '@/lib/push-server'
 import { refundSquareOrder } from '@/lib/square-refund'
 import { resolveCommissionRate } from '@/lib/constants'
 import { getPayConfig } from '@/lib/pay-config'
@@ -305,6 +306,12 @@ export async function PATCH(req: NextRequest) {
         // A driver already accepted — tell them the food is ready to grab.
         const { data: shopInfo } = await svc.from('dd_shops').select('name').eq('id', order.shop_id).single()
         const sName = shopInfo?.name || 'the shop'
+        sendPushToUser(delivery.driver_id, {
+          title: 'Order Ready for Pickup!',
+          body: `Head to ${sName} now to pick up and deliver.`,
+          url: '/driver/active',
+          tag: 'order-ready',
+        }).catch(() => {})
         const { data: drv } = await svc.from('dd_users').select('phone').eq('id', delivery.driver_id).single()
         if (drv?.phone) {
           const p = drv.phone.startsWith('+') ? drv.phone : `+1${drv.phone.replace(/\D/g, '')}`

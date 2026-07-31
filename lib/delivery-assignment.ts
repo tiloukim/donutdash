@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
 import { sendEmail, sendSMS } from './sms'
+import { sendPushToUser } from './push-server'
 import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS, DRIVER_STALE_MS } from './constants'
 
 export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = [], shopId?: string) {
@@ -116,6 +117,14 @@ export async function createDeliveryOffer(deliveryId: string, driverId: string) 
         const shopName = order?.shop?.name || 'Shop'
         const address = [order?.delivery_address, order?.delivery_city].filter(Boolean).join(', ') || 'Customer address'
         const earnings = delivery.driver_earnings ? `$${Number(delivery.driver_earnings).toFixed(2)}` : 'See app'
+
+        // Web push (reaches a backgrounded/closed app; loudest + fastest channel)
+        sendPushToUser(driverId, {
+          title: 'New Delivery Offer!',
+          body: `${shopName} — Earn ${earnings}. Tap to accept before it expires.`,
+          url: '/driver',
+          tag: 'delivery-offer',
+        }).catch(() => {})
 
         // SMS to driver
         if (driver.phone) {
