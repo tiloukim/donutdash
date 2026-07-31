@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 import PendingReferralApplier from '@/components/PendingReferralApplier'
+import { subscribeToPush } from '@/lib/push-notifications'
 
 const NAV_ITEMS = [
   { href: '/driver', label: 'Home', icon: '📍' },
@@ -202,6 +203,13 @@ function GlobalDriverAlert() {
 
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
+  }, [])
+
+  // Register this device for web push so dispatch can reach the driver even
+  // when the app is backgrounded or closed — new offers and order-ready
+  // alerts arrive as OS notifications, not just in-app while the tab is open.
+  useEffect(() => {
+    subscribeToPush().catch(() => {})
   }, [])
 
   const respond = async (action: 'accept' | 'decline') => {
