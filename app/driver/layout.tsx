@@ -177,17 +177,19 @@ function GlobalDriverAlert() {
       try {
         const res = await fetch('/api/driver/offer')
         if (!res.ok) return
+        // GET /api/driver/offer returns the offer object directly (top-level
+        // `id`), or null when there's none — not a { offer } wrapper.
         const data = await res.json()
-        if (data.offer && data.offer.id !== prevOfferIdRef.current) {
-          prevOfferIdRef.current = data.offer.id
-          setOffer(data.offer)
+        if (data && data.id !== prevOfferIdRef.current) {
+          prevOfferIdRef.current = data.id
+          setOffer(data)
           playSound()
           if ('Notification' in window && Notification.permission === 'granted') {
-            const shopName = data.offer.delivery?.order?.shop?.name || 'New Order'
-            const earnings = (data.offer.delivery?.driver_earnings ?? 0).toFixed(2)
+            const shopName = data.delivery?.order?.shop?.name || 'New Order'
+            const earnings = (data.delivery?.driver_earnings ?? 0).toFixed(2)
             new Notification('New Delivery Offer!', { body: `${shopName} — Earn $${earnings}`, icon: '/logo.png', tag: 'delivery-offer', requireInteraction: true })
           }
-        } else if (!data.offer) {
+        } else if (!data) {
           setOffer(null)
           stopSound()
         }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
-import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
+import { sendOrderEmail, buildOrderEmailHtml, sendSMS } from '@/lib/sms'
 import { refundSquareOrder } from '@/lib/square-refund'
 import { resolveCommissionRate } from '@/lib/constants'
 import { getPayConfig } from '@/lib/pay-config'
@@ -284,6 +284,39 @@ export async function PATCH(req: NextRequest) {
       }
     } catch (err) {
       console.error('[SHOP ORDER ACCEPT] Auto-assign driver error:', err)
+    }
+  }
+
+  // When a delivery order is marked ready for pickup, actively alert a driver
+  // NOW. The accept-time offer may have been declined/expired or never found a
+  // driver, and nothing else re-triggers dispatch — so without this, a "ready"
+  // order can sit unnoticed until a driver happens to spot it in Available
+  // Deliveries. Pickup orders (customer collects) and POS walk-ins don't apply.
+  if (status === 'ready_for_pickup' && order.fulfillment_type !== 'pickup' && order.order_type !== 'pos_walkin') {
+    try {
+      const { data: delivery } = await svc
+        .from('dd_deliveries')
+        .select('id, driver_id')
+        .eq('order_id', order_id)
+        .neq('status', 'cancelled')
+        .maybeSingle()
+
+      if (delivery?.driver_id) {
+        // A driver already accepted — tell them the food is ready to grab.
+        const { data: shopInfo } = await svc.from('dd_shops').select('name').eq('id', order.shop_id).single()
+        const sName = shopInfo?.name || 'the shop'
+        const { data: drv } = await svc.from('dd_users').select('phone').eq('id', delivery.driver_id).single()
+        if (drv?.phone) {
+          const p = drv.phone.startsWith('+') ? drv.phone : `+1${drv.phone.replace(/\D/g, '')}`
+          sendSMS(p, `Order ready at ${sName}! Head over now to pick up and deliver. donutdash.app/driver`).catch(() => {})
+        }
+      } else if (delivery) {
+        // Still no driver — push a fresh offer now, bypassing the attempt cap
+        // (the food is ready, so this is urgent even if earlier offers lapsed).
+        await assignNextDriver(delivery.id, { force: true })
+      }
+    } catch (err) {
+      console.error('[SHOP ORDER READY] Driver ready-alert error:', err)
     }
   }
 

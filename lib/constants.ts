@@ -85,6 +85,12 @@ export const DELIVERY_STATUS_LABELS: Record<string, string> = {
 
 // Delivery logistics
 export const OFFER_TIMEOUT_SECONDS = 45
+// How long a driver's last GPS ping can be stale before we treat them as
+// gone. Used BOTH by dispatch (skip stale drivers when offering) and by the
+// offline-stale-drivers cron (flip is_online=false). Keeping them equal means
+// any driver shown "online" is also dispatch-eligible — otherwise a driver
+// with a few throttled pings stays "online" but silently receives no offers.
+export const DRIVER_STALE_MS = 5 * 60 * 1000
 export const MAX_DRIVER_DISTANCE_MILES = 10
 export const MAX_DELIVERY_MILES = 3
 export const BASE_DELIVERY_PAY = 3.00

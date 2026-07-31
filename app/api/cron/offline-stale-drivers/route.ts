@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { DRIVER_STALE_MS } from '@/lib/constants'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -10,10 +11,11 @@ export async function GET(req: NextRequest) {
   const svc = createServiceClient()
 
   // Drivers ping every ~30s while the app is alive (even backgrounded/stationary).
-  // A 5-minute window tolerates a run of dropped pings / OS throttling so an
+  // DRIVER_STALE_MS tolerates a run of dropped pings / OS throttling so an
   // active-but-idle driver is not wrongly offlined, while still cleaning up
-  // genuinely closed or killed apps within a few minutes.
-  const staleBefore = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  // genuinely closed or killed apps within a few minutes. The dispatch path
+  // uses the same threshold so "online" and "dispatch-eligible" stay in sync.
+  const staleBefore = new Date(Date.now() - DRIVER_STALE_MS).toISOString()
 
   const { data, error } = await svc
     .from('dd_driver_locations')
