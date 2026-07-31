@@ -279,14 +279,16 @@ export async function POST(request: NextRequest) {
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     const square = getSquareClient()
 
-    // Build line items for Square
-    const squareLineItems = items.map((item: { name: string; price: number; quantity: number }) => ({
+    // Build line items for Square (itemized so the merchant dashboard and
+    // Square receipts show each product, not just a single lump total).
+    const squareLineItems: any[] = items.map((item: { name: string; price: number; quantity: number; special_instructions?: string | null }) => ({
       name: item.name,
       quantity: String(item.quantity),
       basePriceMoney: {
         amount: BigInt(Math.round(item.price * 100)),
         currency: 'USD',
       },
+      ...(item.special_instructions ? { note: String(item.special_instructions).slice(0, 500) } : {}),
     }))
 
     // Add tax
@@ -362,10 +364,33 @@ export async function POST(request: NextRequest) {
     if (sourceId) {
       let paymentId: string | undefined
       try {
+        // Create an itemized Square order first, then attach the payment to it.
+        // Without an order, the charge posts as a single lump sum and the
+        // Square dashboard/receipt can't break out the individual line items.
+        let squareOrderId: string | undefined
+        let chargeAmount = BigInt(Math.round(total * 100))
+        try {
+          const orderRes = await square.orders.create({
+            order: squareOrder,
+            idempotencyKey: crypto.randomUUID(),
+          })
+          squareOrderId = orderRes.order?.id
+          // Charge the order's own computed total so the payment and order
+          // totals always match (attaching a mismatched amount is rejected).
+          if (orderRes.order?.totalMoney?.amount != null) {
+            chargeAmount = orderRes.order.totalMoney.amount
+          }
+        } catch (orderErr) {
+          // Non-fatal: if order creation fails, fall back to a plain lump-sum
+          // charge so checkout still succeeds (just without itemization).
+          console.error('[checkout] Square order create failed — charging without itemization', { orderId: order.id, orderErr })
+        }
+
         const paymentResult = await square.payments.create({
           sourceId,
           idempotencyKey: crypto.randomUUID(),
-          amountMoney: { amount: BigInt(Math.round(total * 100)), currency: 'USD' },
+          amountMoney: { amount: chargeAmount, currency: 'USD' },
+          ...(squareOrderId ? { orderId: squareOrderId } : {}),
           locationId: process.env.SQUARE_LOCATION_ID!,
           referenceId: order.id,
           note: `DonutDash Order #${order.id.slice(0, 8)} - ${shop?.name || 'Order'}`,
