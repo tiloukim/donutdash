@@ -309,12 +309,16 @@ export default function HomePage() {
     ? `/shops?lat=${gpsLocation.lat}&lng=${gpsLocation.lng}&sort=nearest`
     : '/shops'
 
-  // When GPS is available, filter all shops within 2 miles + sort nearest first.
-  // Otherwise fall back to first 8 shops in default order.
+  // When GPS is available, prefer shops within the near-me radius, sorted
+  // nearest first. In a small market nothing may fall inside that radius — in
+  // that case fall back to the nearest shops overall rather than showing an
+  // empty storefront. Without GPS, show the first 8 in default order.
   const mobileDisplayShops = (gpsLocation && shops.length > 0)
-    ? shops
-        .filter(s => s.distance_miles != null && s.distance_miles <= NEAR_ME_RADIUS_MILES)
-        .sort((a, b) => (a.distance_miles ?? 999) - (b.distance_miles ?? 999))
+    ? (() => {
+        const byDistance = [...shops].sort((a, b) => (a.distance_miles ?? 999) - (b.distance_miles ?? 999))
+        const within = byDistance.filter(s => s.distance_miles != null && s.distance_miles <= NEAR_ME_RADIUS_MILES)
+        return within.length > 0 ? within : byDistance.slice(0, 8)
+      })()
     : shops.slice(0, 8)
 
   const promoBanners = [
