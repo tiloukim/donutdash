@@ -28,6 +28,12 @@ export default function CheckoutPage() {
   const [deliveryTiming, setDeliveryTiming] = useState<'asap' | 'scheduled'>('asap')
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
+  const [hoursInfo, setHoursInfo] = useState<{
+    open: boolean
+    message: string
+    schedule: { day_of_week: number; open_time: string; close_time: string; is_closed: boolean }[]
+    nextOpen: { date: string; time: string; label: string } | null
+  } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
@@ -111,6 +117,80 @@ export default function CheckoutPage() {
       .catch(() => {})
   }, [shopId])
 
+  // Shop hours: if the shop is closed right now, we can't take an ASAP order —
+  // so we flip the customer into "schedule for later" and pre-fill the next
+  // opening slot instead of dead-ending them.
+  useEffect(() => {
+    if (!shopId) return
+    fetch(`/api/shops/${shopId}/hours`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data || typeof data.open !== 'boolean') return
+        setHoursInfo(data)
+        if (data.open === false && data.nextOpen) {
+          setDeliveryTiming('scheduled')
+          setScheduledDate(data.nextOpen.date)
+          setScheduledTime(data.nextOpen.time)
+        }
+      })
+      .catch(() => {})
+  }, [shopId])
+
+  const isClosedNow = hoursInfo?.open === false
+  const hasHours = !!hoursInfo?.schedule?.length
+
+  // 30-min slots that fall inside a given date's open window. When no hours are
+  // configured, fall back to the full 6 AM–9 PM range.
+  const slotsForDate = (dateStr: string): { value: string; label: string }[] => {
+    const fmt = (mins: number) => {
+      const h = Math.floor(mins / 60), m = mins % 60
+      const ampm = h >= 12 ? 'PM' : 'AM'
+      const dh = h > 12 ? h - 12 : h === 0 ? 12 : h
+      return { value: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`, label: `${dh}:${m.toString().padStart(2, '0')} ${ampm}` }
+    }
+    if (!hasHours) return Array.from({ length: 31 }, (_, i) => fmt(6 * 60 + i * 30))
+    if (!dateStr) return []
+    const dow = new Date(`${dateStr}T12:00:00`).getDay()
+    const dh = hoursInfo!.schedule.find(h => h.day_of_week === dow)
+    if (!dh || dh.is_closed) return []
+    const [oh, om] = dh.open_time.split(':').map(Number)
+    const [ch, cm] = dh.close_time.split(':').map(Number)
+    let start = oh * 60 + om
+    const end = ch * 60 + cm
+    // Don't offer past slots for today.
+    const now = new Date()
+    const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
+    if (dateStr === todayStr) {
+      const nowMins = Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30
+      start = Math.max(start, nowMins)
+    }
+    const slots: { value: string; label: string }[] = []
+    for (let t = start; t < end; t += 30) slots.push(fmt(t))
+    return slots
+  }
+
+  // Date choices: next 8 days, limited to days the shop is actually open.
+  const dateOptions = Array.from({ length: 8 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() + i)
+    const value = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`
+    const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    return { value, label }
+  }).filter(opt => (!hasHours ? true : slotsForDate(opt.value).length > 0))
+
+  const timeOptions = slotsForDate(scheduledDate)
+
+  // Keep the selected time valid when the date (or hours) change: if the current
+  // pick isn't a real slot for the chosen day, snap to the first available one.
+  useEffect(() => {
+    if (deliveryTiming !== 'scheduled' || !scheduledDate) return
+    const slots = slotsForDate(scheduledDate)
+    if (slots.length && !slots.some(s => s.value === scheduledTime)) {
+      setScheduledTime(slots[0].value)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduledDate, hoursInfo, deliveryTiming])
+
   const deliveryFee = isPickup ? 0 : shopFees.delivery_fee
   const serviceFee = Math.round(total * (shopFees.service_fee_pct / 100) * 100) / 100
   const smallOrderFee = total < MIN_ORDER_AMOUNT ? SMALL_ORDER_FEE : 0
@@ -122,28 +202,8 @@ export default function CheckoutPage() {
   const promoDiscount = promo?.discount || 0
   const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + smallOrderFee + tip - promoDiscount) * 100) / 100
 
-  // Generate date options: today + next 6 days
-  const dateOptions = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
-    const value = d.toISOString().split('T')[0]
-    const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-    return { value, label }
-  })
-
-  // Generate 30-min time slots from 6:00 AM to 9:00 PM
-  const timeOptions = Array.from({ length: 31 }, (_, i) => {
-    const totalMinutes = 6 * 60 + i * 30
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-    const ampm = hours >= 12 ? 'PM' : 'AM'
-    const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
-    const label = `${displayHour}:${minutes.toString().padStart(2, '0')} ${ampm}`
-    const value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
-    return { value, label }
-  })
-
-  // Build ISO datetime for scheduled delivery
+  // Build ISO datetime for the scheduled slot (dateOptions/timeOptions are
+  // derived above from the shop's real open hours).
   const scheduledFor = deliveryTiming === 'scheduled' && scheduledDate && scheduledTime
     ? new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString()
     : null
@@ -187,6 +247,14 @@ export default function CheckoutPage() {
   }
 
   const handleTokenize = async (token: string) => {
+    if (isClosedNow && deliveryTiming === 'asap') {
+      setError(`${shopName || 'This shop'} is closed right now — please schedule your order for later.`)
+      return
+    }
+    if (deliveryTiming === 'scheduled' && (!scheduledDate || !scheduledTime)) {
+      setError('Please choose a date and time for your order.')
+      return
+    }
     if (!isPickup) {
       if (!address.trim()) {
         setError('Please enter a delivery address.')
@@ -523,16 +591,33 @@ export default function CheckoutPage() {
             <h3 style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '1rem', color: '#1A1A2E' }}>
               {isPickup ? 'Pickup Time' : 'Delivery Time'}
             </h3>
+            {isClosedNow && (
+              <div style={{
+                display: 'flex', gap: '0.6rem', alignItems: 'flex-start',
+                background: '#FFF8F0', border: '1px solid #FFD8A8', borderRadius: '10px',
+                padding: '0.85rem 1rem', marginBottom: '1rem',
+              }}>
+                <span style={{ fontSize: '1.15rem', lineHeight: 1.2 }}>🌙</span>
+                <div style={{ fontSize: '0.9rem', color: '#8A5A00', lineHeight: 1.45 }}>
+                  <strong style={{ color: '#B45309' }}>{shopName || 'This shop'} is closed right now.</strong>{' '}
+                  {hoursInfo?.nextOpen
+                    ? <>You can schedule your order — it{"’"}ll be ready {hoursInfo.nextOpen.label}.</>
+                    : <>{hoursInfo?.message || 'Please schedule your order for later.'}</>}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: deliveryTiming === 'scheduled' ? '1rem' : 0 }}>
               <button
                 type="button"
-                onClick={() => setDeliveryTiming('asap')}
+                disabled={isClosedNow}
+                onClick={() => !isClosedNow && setDeliveryTiming('asap')}
+                title={isClosedNow ? 'The shop is closed right now' : undefined}
                 style={{
                   flex: 1, padding: '0.75rem 1rem', borderRadius: '10px',
                   border: deliveryTiming === 'asap' ? '2px solid #FF8C00' : '1px solid #ddd',
-                  background: deliveryTiming === 'asap' ? '#FFF8F0' : 'white',
-                  color: deliveryTiming === 'asap' ? '#FF8C00' : '#333',
-                  fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
+                  background: isClosedNow ? '#F5F5F5' : deliveryTiming === 'asap' ? '#FFF8F0' : 'white',
+                  color: isClosedNow ? '#BBB' : deliveryTiming === 'asap' ? '#FF8C00' : '#333',
+                  fontWeight: 600, fontSize: '0.95rem', cursor: isClosedNow ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
                 }}
               >

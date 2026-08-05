@@ -3,7 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { SquareClient, SquareEnvironment } from 'square'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
-import { isShopOpen } from '@/lib/shop-hours'
+import { isShopOpen, isShopOpenAt } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { awardLoyaltyPoints } from '@/lib/loyalty'
@@ -73,11 +73,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Check if shop is currently open (skip for scheduled orders)
+    // ASAP orders require the shop to be open now. Scheduled orders are allowed
+    // while closed, but the chosen slot must be in the future and land within
+    // the shop's posted hours — otherwise the order can't actually be fulfilled.
     if (!scheduled_for) {
       const shopStatus = await isShopOpen(shopId)
       if (!shopStatus.open) {
         return NextResponse.json({ error: `Sorry, this shop is currently closed. ${shopStatus.message}` }, { status: 400 })
+      }
+    } else {
+      const when = new Date(scheduled_for)
+      if (isNaN(when.getTime()) || when.getTime() < Date.now() - 60_000) {
+        return NextResponse.json({ error: 'Please pick a pickup or delivery time in the future.' }, { status: 400 })
+      }
+      const openThen = await isShopOpenAt(shopId, scheduled_for)
+      if (!openThen) {
+        return NextResponse.json({ error: 'Please choose a time when the shop is open.' }, { status: 400 })
       }
     }
 
