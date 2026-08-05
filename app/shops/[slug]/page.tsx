@@ -29,7 +29,7 @@ export default function ShopDetailPage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [loading, setLoading] = useState(true)
   const [menuLoading, setMenuLoading] = useState(true)
-  const [shopOpen, setShopOpen] = useState<{ open: boolean; message: string } | null>(null)
+  const [shopOpen, setShopOpen] = useState<{ open: boolean; message: string; nextOpen?: { date: string; time: string; label: string } | null } | null>(null)
   const [groupOrderLoading, setGroupOrderLoading] = useState(false)
   const [groupOrderLink, setGroupOrderLink] = useState<string | null>(null)
   const [groupOrderCode, setGroupOrderCode] = useState<string | null>(null)
@@ -189,12 +189,17 @@ export default function ShopDetailPage() {
       {/* Open/Closed Banner */}
       {shopOpen && !shopOpen.open && (
         <div style={{
-          background: '#FEF2F2', borderBottom: '1px solid #FECACA',
-          padding: '12px 1.5rem', textAlign: 'center',
+          background: '#FFF8F0', borderBottom: '1px solid #FFD8A8',
+          padding: '10px 1.5rem', textAlign: 'center',
         }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#DC2626' }}>
-            🔴 {shopOpen.message}
-          </span>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#B45309' }}>
+            🌙 {shopOpen.message}
+          </div>
+          {shopOpen.nextOpen && (
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#C2670A', marginTop: 2 }}>
+              ✅ You can still order — schedule it for {shopOpen.nextOpen.label} at checkout
+            </div>
+          )}
         </div>
       )}
       {shopOpen && shopOpen.open && (
