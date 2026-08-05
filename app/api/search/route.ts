@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
       .ilike('name', `%${q}%`)
       .eq('is_available', true)
       .eq('dd_shops.is_active', true)
+      // Only surface orderable shops — skip unclaimed listings a customer
+      // can't actually order from (consistent with the storefront lists).
+      .eq('dd_shops.is_claimed', true)
       .limit(20)
 
     if (error) {

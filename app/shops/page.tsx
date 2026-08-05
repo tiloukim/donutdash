@@ -82,7 +82,11 @@ function ShopsPageInner() {
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        setShops(data.shops || [])
+        // Customer storefront shows only orderable shops — hide unclaimed
+        // Google-imported listings (is_claimed === false) that have no owner
+        // to accept or fulfill an order. Those stay reachable by direct link
+        // and in the claim flow; they're just not browsable dead-ends here.
+        setShops((data.shops || []).filter((s: Shop) => s.is_claimed !== false))
         setSurgeActive(data.surge_active || false)
       })
       .catch(() => setShops([]))
