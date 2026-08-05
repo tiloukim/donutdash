@@ -11,6 +11,7 @@ interface Shop {
   name: string
   slug: string
   image_url: string | null
+  is_claimed?: boolean
 }
 
 interface CateringRequest {
@@ -61,7 +62,7 @@ export default function CateringPage() {
   useEffect(() => {
     fetch('/api/shops')
       .then(r => r.json())
-      .then(data => setShops(data.shops || []))
+      .then(data => setShops((data.shops || []).filter((s: Shop) => s.is_claimed !== false)))
       .catch(() => {})
   }, [])
 

@@ -209,7 +209,10 @@ export default function HomePage() {
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        setShops(data.shops || [])
+        // Only show orderable shops on the storefront — hide unclaimed
+        // Google-imported listings (is_claimed === false) with no owner to
+        // accept or fulfill an order, so customers never hit a dead end.
+        setShops((data.shops || []).filter((s: Shop) => s.is_claimed !== false))
         setSurgeActive(data.surge_active || false)
       })
       .catch(() => setShops([]))
