@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { isShopOpen } from '@/lib/shop-hours'
+import { getShopHoursInfo } from '@/lib/shop-hours'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const status = await isShopOpen(id)
-  return NextResponse.json(status)
+  // Returns open/closed status plus the weekly schedule and the next opening
+  // slot, so the checkout scheduler can offer a valid time when closed.
+  const info = await getShopHoursInfo(id)
+  return NextResponse.json(info)
 }
