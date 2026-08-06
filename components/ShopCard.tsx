@@ -1,11 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { Shop } from '@/lib/types'
 import DonutIcon from './DonutIcon'
-
-const DESKTOP_BREAKPOINT = 768
 
 function StarRating({ rating }: { rating: number }) {
   const stars = []
@@ -28,18 +25,11 @@ interface ShopCardProps {
 }
 
 export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCardProps) {
-  // Show the unclaimed badge / claim CTA only on desktop. Mobile customers
-  // see unclaimed shops as regular cards that link to the shop detail page.
-  const [isDesktop, setIsDesktop] = useState(false)
-  useEffect(() => {
-    const check = () => setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
-
+  // Unclaimed shops are "claimable" marketplace listings, not orderable — show
+  // the claim CTA and route to the claim page on every device so a customer
+  // never lands on an order page with no menu (a dead end).
   const isUnclaimed = shop.is_claimed === false
-  const showClaimUI = isUnclaimed && isDesktop
+  const showClaimUI = isUnclaimed
   const href = showClaimUI ? `/shops/claim/${shop.slug}` : `/shops/${shop.slug}`
 
   return (

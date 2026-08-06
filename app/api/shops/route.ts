@@ -137,6 +137,12 @@ export async function GET(request: NextRequest) {
         return b.sponsor_rank - a.sponsor_rank
       }
 
+      // Orderable (claimed) shops rank above unclaimed "claimable" listings,
+      // so customers see shops they can actually order from first.
+      const aClaimed = a.is_claimed !== false
+      const bClaimed = b.is_claimed !== false
+      if (aClaimed !== bClaimed) return aClaimed ? -1 : 1
+
       // Pinned shops always appear first in the listed order
       {
         const aPinIdx = PINNED_IDS.indexOf(a.id)
