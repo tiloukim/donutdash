@@ -100,6 +100,10 @@ export async function GET(request: NextRequest) {
         review_count = baseCount
       }
 
+      // A sponsor is "live" only while flagged and un-expired.
+      const sponsored = !!shop.is_sponsored &&
+        (!shop.sponsor_expires_at || new Date(shop.sponsor_expires_at) > new Date())
+
       return {
         ...shop,
         estimated_delivery_min,
@@ -109,6 +113,10 @@ export async function GET(request: NextRequest) {
         review_count,
         is_busy: busynessMap[shop.id] || false,
         is_claimed: shop.is_claimed ?? true,
+        sponsored,
+        sponsor_rank: shop.sponsor_rank ?? 0,
+        sponsor_headline: shop.sponsor_headline ?? null,
+        sponsor_banner_url: shop.sponsor_banner_url ?? null,
       }
     })
 
@@ -122,6 +130,13 @@ export async function GET(request: NextRequest) {
       'b36b8595-4fc3-4c1a-9124-8f184c080b7c', // 6. SUNRISE DONUTS
     ]
     shopsWithEta.sort((a, b) => {
+      // Live sponsors outrank everything else (paid placement), highest
+      // sponsor_rank first.
+      if (a.sponsored !== b.sponsored) return a.sponsored ? -1 : 1
+      if (a.sponsored && b.sponsored && a.sponsor_rank !== b.sponsor_rank) {
+        return b.sponsor_rank - a.sponsor_rank
+      }
+
       // Pinned shops always appear first in the listed order
       {
         const aPinIdx = PINNED_IDS.indexOf(a.id)

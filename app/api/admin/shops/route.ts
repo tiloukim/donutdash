@@ -148,6 +148,15 @@ export async function PATCH(request: NextRequest) {
       }
       allowed.pricing_mode = mode
     }
+    // Sponsored / featured placement (admin-curated marketplace promotion).
+    if ('is_sponsored' in fields) allowed.is_sponsored = !!fields.is_sponsored
+    if ('sponsor_rank' in fields) {
+      const r = Number(fields.sponsor_rank)
+      allowed.sponsor_rank = Number.isFinite(r) ? Math.trunc(r) : 0
+    }
+    if ('sponsor_headline' in fields) allowed.sponsor_headline = fields.sponsor_headline ? String(fields.sponsor_headline).slice(0, 120) : null
+    if ('sponsor_banner_url' in fields) allowed.sponsor_banner_url = fields.sponsor_banner_url ? String(fields.sponsor_banner_url) : null
+    if ('sponsor_expires_at' in fields) allowed.sponsor_expires_at = fields.sponsor_expires_at || null
 
     const { data: shop, error } = await svc
       .from('dd_shops')

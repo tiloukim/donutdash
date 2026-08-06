@@ -20,11 +20,16 @@ interface Shop {
   tax_rate: number
   cash_discount_pct: number
   pricing_mode: 'standard' | 'cash_discount' | 'dual_pricing'
+  is_sponsored?: boolean
+  sponsor_rank?: number
+  sponsor_headline?: string | null
+  sponsor_banner_url?: string | null
+  sponsor_expires_at?: string | null
   created_at: string
   owner: { name: string; email: string } | null
 }
 
-const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pricing_mode', 'delivery_fee', 'min_order'] as const
+const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pricing_mode', 'delivery_fee', 'min_order', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
 
 export default function AdminShops() {
   const [shops, setShops] = useState<Shop[]>([])
@@ -64,13 +69,13 @@ export default function AdminShops() {
     .map(s => {
       const orig = originalShops.find(o => o.id === s.id)
       if (!orig) return null
-      const changes: Record<string, number | string> = {}
+      const changes: Record<string, number | string | boolean | null> = {}
       for (const f of EDITABLE_FIELDS) {
-        if (s[f] !== orig[f]) changes[f] = s[f] as number | string
+        if (s[f] !== orig[f]) changes[f] = s[f] as number | string | boolean | null
       }
       return Object.keys(changes).length ? { id: s.id, name: s.name, changes } : null
     })
-    .filter((x): x is { id: string; name: string; changes: Record<string, number | string> } => x !== null)
+    .filter((x): x is { id: string; name: string; changes: Record<string, number | string | boolean | null> } => x !== null)
 
   const hasChanges = dirtyShops.length > 0
 
@@ -511,6 +516,44 @@ export default function AdminShops() {
                           />
                         </span>
                       </label>
+                    </div>
+
+                    {/* Sponsored / featured placement */}
+                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #eee' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, fontWeight: 600, color: '#B45309', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={!!shop.is_sponsored}
+                          onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, is_sponsored: e.target.checked } : s))}
+                        />
+                        ⭐ Feature this shop — front-page banner, top placement &amp; “Sponsored” badge
+                      </label>
+                      {shop.is_sponsored && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                          <label style={cfgLabel}>Priority (higher shows first)
+                            <input type="number" step="1" value={shop.sponsor_rank ?? 0}
+                              onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, sponsor_rank: parseInt(e.target.value) || 0 } : s))}
+                              style={numStyle}
+                            />
+                          </label>
+                          <label style={cfgLabel}>Ends (blank = no expiry)
+                            <input type="date" value={(shop.sponsor_expires_at || '').slice(0, 10)}
+                              onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, sponsor_expires_at: e.target.value ? new Date(`${e.target.value}T23:59:59`).toISOString() : null } : s))}
+                              style={inputStyle}
+                            />
+                          </label>
+                          <label style={{ ...cfgLabel, gridColumn: '1 / -1' }}>Banner headline
+                            <input type="text" maxLength={120} placeholder="Fresh hot donuts — 20% off your first order!" value={shop.sponsor_headline ?? ''}
+                              onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, sponsor_headline: e.target.value } : s))}
+                              style={inputStyle}
+                            />
+                          </label>
+                          <label style={{ ...cfgLabel, gridColumn: '1 / -1' }}>Banner image URL (optional — falls back to the shop banner)
+                            <input type="text" placeholder="https://…/banner.jpg" value={shop.sponsor_banner_url ?? ''}
+                              onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, sponsor_banner_url: e.target.value } : s))}
+                              style={inputStyle}
+                            />
+                          </label>
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
