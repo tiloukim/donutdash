@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
       }}>
         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
           <Link href="/">
-            <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} /><sup style={{ fontSize: 12, fontWeight: 800, marginLeft: 1, position: 'relative', top: 6 }}>™</sup></span>
+            <img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} />
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1A1A2E', margin: '1rem 0 0.25rem' }}>
             Reset Password

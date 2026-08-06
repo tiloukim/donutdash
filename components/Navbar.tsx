@@ -26,7 +26,7 @@ export default function Navbar() {
     <nav className="nav-container">
       <div className="nav-inner">
         <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" className="nav-logo-img" style={{ height: '100px', width: 'auto', position: 'relative', zIndex: 101, marginTop: '20px' }} /><sup style={{ fontSize: 20, fontWeight: 800, marginLeft: 2, position: 'relative', top: 10 }}>™</sup></span>
+          <img src="/logo.png" alt="DonutDash" className="nav-logo-img" style={{ height: '100px', width: 'auto', position: 'relative', zIndex: 101, marginTop: '20px' }} />
         </Link>
 
         <div className="nav-links">

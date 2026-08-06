@@ -94,7 +94,7 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <>
       <div style={{ padding: '16px 14px 10px' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" style={{ height: 32, width: 'auto', filter: 'brightness(10)' }} /><sup style={{ fontSize: 6, fontWeight: 800, marginLeft: 1, position: 'relative', top: 3, color: '#fff' }}>™</sup></span>
+        <img src="/logo.png" alt="DonutDash" style={{ height: 32, width: 'auto', filter: 'brightness(10)' }} />
         <div style={{ marginTop: 4 }}>
           <span style={{ background: '#fff', color: '#FF1493', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>
             {shopName || 'SHOP'}
