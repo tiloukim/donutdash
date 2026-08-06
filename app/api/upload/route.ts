@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   if (!allowed.includes(file.type)) return NextResponse.json({ error: 'Invalid file type' }, { status: 400 })
 
   const ext = file.name.split('.').pop() || 'jpg'
-  const prefix = type === 'avatar' ? 'avatars' : 'menu'
+  const prefix = type === 'avatar' ? 'avatars' : type === 'sponsor' ? 'sponsors' : 'menu'
   const fileName = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
   const buffer = Buffer.from(await file.arrayBuffer())
