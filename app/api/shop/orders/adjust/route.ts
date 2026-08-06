@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
   if (customer?.email) {
     await sendEmail(customer.email, `Your DonutDash order was adjusted — please confirm`,
       `<div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:40px 20px;">
-        <div style="text-align:center;margin-bottom:24px"><img src="https://donutdash.app/logo.png" style="height:48px" /></div>
+        <div style="text-align:center;margin-bottom:24px"><img src="https://donutdash.app/logo.png" style="height:48px" /><sup style="font-size:11px;font-weight:700;">&trade;</sup></div>
         <h2 style="color:#1A1A2E;text-align:center">Order Adjusted</h2>
         <p style="color:#555;font-size:15px;line-height:1.6;text-align:center">
           <strong>${shopName}</strong> made some changes to your order #${orderShort} due to item availability.

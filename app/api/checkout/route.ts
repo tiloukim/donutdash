@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
     const smsMsg = `New DonutDash Order!\n$${total.toFixed(2)} - ${itemCount} item${itemCount > 1 ? 's' : ''} from ${shopName}\nDelivery: ${delivery_address}\nOrder #${order.id.slice(0, 8)}`
     const emailHtml = `
       <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
-        <h2 style="color:#FF8C00;margin-bottom:4px;">New DonutDash Order!</h2>
+        <h2 style="color:#FF8C00;margin-bottom:4px;">New DonutDash&trade; Order!</h2>
         <p style="color:#666;font-size:13px;margin-top:0;">Order #${order.id.slice(0, 8)}</p>
         <div style="background:#FFF8F0;border:1px solid #FFE8D6;border-radius:12px;padding:16px;margin:16px 0;">
           <div style="font-size:28px;font-weight:800;color:#10B981;">$${total.toFixed(2)}</div>

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       from: process.env.RESEND_FROM_EMAIL || 'DonutDash <notifications@donutdash.app>',
       to,
       subject,
-      html: `<div style="font-family:Arial,sans-serif;padding:20px"><h2 style="color:#FF1493">DonutDash</h2><p>Please find your <b>${filename || 'document.pdf'}</b> attached to this email.</p></div>`,
+      html: `<div style="font-family:Arial,sans-serif;padding:20px"><h2 style="color:#FF1493">DonutDash&trade;</h2><p>Please find your <b>${filename || 'document.pdf'}</b> attached to this email.</p></div>`,
       attachments: [{
         filename: filename || 'document.pdf',
         content: pdfBase64,

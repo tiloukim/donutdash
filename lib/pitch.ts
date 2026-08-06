@@ -168,7 +168,7 @@ export function buildPitchEmailHtml(pitch: PitchAggregate, unsubscribeUrl: strin
 
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;margin-top:16px;">
         <tr><td style="text-align:center;font-size:11px;color:#9CA3AF;line-height:1.6;padding:0 12px;">
-          DonutDash · Tyler, TX · <a href="mailto:hello@donutdash.app" style="color:#9CA3AF;">hello@donutdash.app</a><br>
+          DonutDash&trade; · Tyler, TX · <a href="mailto:hello@donutdash.app" style="color:#9CA3AF;">hello@donutdash.app</a><br>
           You're receiving this because you operate a donut shop listed on DonutDash.<br>
           <a href="${unsubscribeUrl}" style="color:#9CA3AF;text-decoration:underline;">Unsubscribe from future outreach</a>
         </td></tr>

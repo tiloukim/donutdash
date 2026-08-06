@@ -173,7 +173,7 @@ export async function POST(req: Request) {
     const emailHtml = `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;">
         <div style="background:#FF1493;padding:20px;text-align:center;border-radius:12px 12px 0 0;">
-          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;">DonutDash Admin</h1>
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;">DonutDash&trade; Admin</h1>
         </div>
         <div style="padding:24px 20px;border:1px solid #eee;border-top:none;border-radius:0 0 12px 12px;">
           <h2 style="margin:0 0 12px 0;color:#222;font-size:18px;">New shop claim request</h2>

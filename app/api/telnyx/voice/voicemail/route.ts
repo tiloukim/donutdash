@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
       adminEmail,
       subject,
       `<div style="font-family:sans-serif;padding:20px;">
-        <h2 style="color:#FF8C00;">DonutDash Voicemail</h2>
+        <h2 style="color:#FF8C00;">DonutDash&trade; Voicemail</h2>
         ${forExtension ? `<p><strong>For:</strong> Extension ${forExtension}${extOwnerName ? ` (${extOwnerName})` : ''}</p>` : ''}
         <p><strong>From:</strong> ${callerNumber}</p>
         <p><strong>Duration:</strong> ${duration} seconds</p>
