@@ -5,15 +5,20 @@ import { sendSMS, sendEmail } from '@/lib/sms'
 
 export const dynamic = 'force-dynamic'
 
-const GROUPS = ['drivers', 'customers', 'admins'] as const
+const GROUPS = ['drivers', 'customers', 'shop_owners', 'managers'] as const
 type Group = typeof GROUPS[number]
 
-const ADMIN_ROLES = ['admin', 'general_manager', 'field_manager', 'marketing_manager']
+const MANAGER_ROLES = ['admin', 'general_manager', 'field_manager', 'marketing_manager']
+
+const GROUP_ROLES: Record<Group, string[]> = {
+  drivers: ['driver'],
+  customers: ['customer'],
+  shop_owners: ['shop_owner'],
+  managers: MANAGER_ROLES,
+}
 
 function rolesFor(group: Group): string[] {
-  if (group === 'drivers') return ['driver']
-  if (group === 'customers') return ['customer']
-  return ADMIN_ROLES
+  return GROUP_ROLES[group]
 }
 
 function rolesForGroups(groups: Group[]): string[] {
@@ -47,10 +52,10 @@ export async function GET() {
       phone: active.filter(u => u.phone).length,
     }
   }
-  const [drivers, customers, admins] = await Promise.all([
-    tally(['driver']), tally(['customer']), tally(ADMIN_ROLES),
+  const [drivers, customers, shop_owners, managers] = await Promise.all([
+    tally(['driver']), tally(['customer']), tally(['shop_owner']), tally(MANAGER_ROLES),
   ])
-  return NextResponse.json({ drivers, customers, admins })
+  return NextResponse.json({ drivers, customers, shop_owners, managers })
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

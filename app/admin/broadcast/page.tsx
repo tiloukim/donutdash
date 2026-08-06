@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 
 type Counts = { total: number; email: number; phone: number }
-type Group = 'drivers' | 'customers' | 'admins'
-const GROUP_LABELS: Record<Group, string> = { drivers: 'Drivers', customers: 'Customers', admins: 'Admins' }
+type Group = 'drivers' | 'customers' | 'shop_owners' | 'managers'
+const GROUPS: Group[] = ['drivers', 'customers', 'shop_owners', 'managers']
+const GROUP_LABELS: Record<Group, string> = { drivers: 'Drivers', customers: 'Customers', shop_owners: 'Shop Owners', managers: 'Managers' }
 
 export default function BroadcastPage() {
   const [counts, setCounts] = useState<Record<Group, Counts> | null>(null)
-  const [groups, setGroups] = useState<Record<Group, boolean>>({ drivers: true, customers: false, admins: false })
+  const [groups, setGroups] = useState<Record<Group, boolean>>({ drivers: true, customers: false, shop_owners: false, managers: false })
   const [email, setEmail] = useState(true)
   const [sms, setSms] = useState(false)
   const [subject, setSubject] = useState('')
@@ -21,7 +22,7 @@ export default function BroadcastPage() {
     fetch('/api/admin/broadcast').then(r => r.json()).then(d => { if (d.drivers) setCounts(d) }).catch(() => {})
   }, [])
 
-  const selected = (Object.keys(groups) as Group[]).filter(g => groups[g])
+  const selected = GROUPS.filter(g => groups[g])
 
   const reach = (() => {
     if (!counts) return null
@@ -75,11 +76,11 @@ export default function BroadcastPage() {
   return (
     <div style={{ maxWidth: 640 }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>📢 Broadcast</h1>
-      <p style={{ color: '#888', fontSize: 14, marginBottom: 20 }}>Send a one-time message to drivers, customers, and/or admins by email and/or text.</p>
+      <p style={{ color: '#888', fontSize: 14, marginBottom: 20 }}>Send a one-time message to drivers, customers, shop owners, and/or managers by email and/or text.</p>
 
       <label style={{ display: 'block', fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Audience</label>
       <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-        {groupBox('drivers')}{groupBox('customers')}{groupBox('admins')}
+        {GROUPS.map(g => <span key={g}>{groupBox(g)}</span>)}
       </div>
 
       <label style={{ display: 'block', fontWeight: 700, fontSize: 13, margin: '16px 0 8px' }}>Channels</label>
