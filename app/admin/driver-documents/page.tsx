@@ -23,6 +23,7 @@ const DOC_LABELS: Record<string, string> = {
   drivers_license_back: "Driver's License (Back)",
   insurance: 'Vehicle Insurance',
   vehicle_registration: 'Vehicle Registration',
+  vehicle_photo: 'Vehicle Photo',
   contractor_agreement: 'Contractor Agreement',
 }
 

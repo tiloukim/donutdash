@@ -50,14 +50,14 @@ export async function PATCH(req: NextRequest) {
   const { error } = await svc.from('dd_driver_documents').update(updates).eq('id', documentId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Check if all 7 documents are now approved — auto-update driver_status to pending_approval
+  // Check if all required documents are now approved — auto-update driver_status to pending_approval
   if (status === 'approved') {
     const { data: allDocs } = await svc.from('dd_driver_documents')
       .select('doc_type, status')
       .eq('driver_id', doc.driver_id)
       .eq('status', 'approved')
     const approvedTypes = new Set((allDocs || []).map((d: any) => d.doc_type))
-    const requiredTypes = ['selfie', 'drivers_license', 'drivers_license_back', 'w9', 'insurance', 'vehicle_registration', 'contractor_agreement']
+    const requiredTypes = ['selfie', 'drivers_license', 'drivers_license_back', 'w9', 'insurance', 'vehicle_registration', 'vehicle_photo', 'contractor_agreement']
     const allApproved = requiredTypes.every(t => approvedTypes.has(t))
     // Only transition pending_documents → pending_approval. If the
     // driver is already 'approved' (re-uploaded a doc for refresh),
