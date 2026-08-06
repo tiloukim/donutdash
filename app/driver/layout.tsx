@@ -86,7 +86,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
         <aside className="driver-sidebar">
           <div style={{ padding: '24px 20px 16px' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <span style={{ display: 'inline-flex', alignItems: 'flex-start' }}><img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} /><sup style={{ fontSize: 11, fontWeight: 700, marginLeft: 1, color: '#fff' }}>™</sup></span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} /><sup style={{ fontSize: 11, fontWeight: 700, marginLeft: 1, color: '#fff' }}>™</sup></span>
             <span style={{ background: '#FF8C00', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block' }}>DRIVER</span>
           </div>
           <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>

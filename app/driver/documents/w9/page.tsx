@@ -544,7 +544,7 @@ export default function W9Form() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', marginTop: 6 }}>
             {TAX_CLASSIFICATIONS.map(c => (
               <label key={c.key} style={{
-                display: 'inline-flex', alignItems: 'flex-start', gap: 4,
+                display: 'inline-flex', alignItems: 'center', gap: 4,
                 fontSize: 11, cursor: 'pointer', lineHeight: 1.3,
               }}>
                 <input type="checkbox" checked={form.taxClassification === c.key}
