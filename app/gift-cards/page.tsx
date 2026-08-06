@@ -135,7 +135,7 @@ export default function GiftCardsPage() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: '3rem', marginBottom: 8 }}>🎁</div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1A1A2E', marginBottom: 4 }}>DonutDash Gift Cards</h1>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1A1A2E', marginBottom: 4 }}>DonutDash™ Gift Cards</h1>
           <p style={{ color: '#666', fontSize: '1.05rem' }}>Share the sweetness with someone special</p>
         </div>
 

@@ -75,7 +75,7 @@ export default function PassPage() {
       {/* Header */}
       <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-          <img src="/logo.png" alt="DonutDash" style={{ height: 40 }} />
+          <span style={{ display: 'inline-flex', alignItems: 'flex-start' }}><img src="/logo.png" alt="DonutDash" style={{ height: 40 }} /><sup style={{ fontSize: 11, fontWeight: 700, marginLeft: 1 }}>™</sup></span>
         </Link>
         <Link href="/" style={{ color: '#fff', fontWeight: 600, textDecoration: 'none', fontSize: 14, opacity: 0.8 }}>Back</Link>
       </div>
@@ -99,7 +99,7 @@ export default function PassPage() {
 
         {/* Title */}
         <h1 style={{ fontSize: 36, fontWeight: 800, color: '#fff', margin: '0 0 8px 0', lineHeight: 1.2 }}>
-          DonutDash Pass
+          DonutDash™ Pass
         </h1>
         <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', margin: '0 0 40px 0' }}>
           Unlock the best delivery experience

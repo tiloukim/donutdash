@@ -95,7 +95,7 @@ export default function PublicClaimLandingPage() {
         {/* Brand bar */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <Link href="/" style={{ color: '#FF8C00', fontSize: 18, fontWeight: 900, textDecoration: 'none', letterSpacing: -0.5 }}>
-            🍩 DonutDash
+            🍩 DonutDash™
           </Link>
         </div>
 

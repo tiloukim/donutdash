@@ -296,7 +296,7 @@ export default function RoleAuthForm({
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ fontSize: '48px', marginBottom: '8px' }}>{icon}</div>
           <Link href="/" style={{ display: 'inline-block', textDecoration: 'none' }}>
-            <img src="/logo.png" alt="DonutDash" style={{ height: '50px', width: 'auto' }} />
+            <span style={{ display: 'inline-flex', alignItems: 'flex-start' }}><img src="/logo.png" alt="DonutDash" style={{ height: '50px', width: 'auto' }} /><sup style={{ fontSize: 11, fontWeight: 700, marginLeft: 1 }}>™</sup></span>
           </Link>
           <div style={{
             display: 'inline-block',

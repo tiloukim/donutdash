@@ -149,7 +149,7 @@ export default function ProfilePage() {
       {/* Header */}
       <div style={{ background: '#fff', borderBottom: '1px solid #f0f0f0', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/logo.png" alt="DonutDash" style={{ height: 40 }} />
+          <span style={{ display: 'inline-flex', alignItems: 'flex-start' }}><img src="/logo.png" alt="DonutDash" style={{ height: 40 }} /><sup style={{ fontSize: 11, fontWeight: 700, marginLeft: 1 }}>™</sup></span>
         </Link>
         <h1 style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E' }}>My Profile</h1>
         <Link href="/" style={{ color: '#FF1493', fontWeight: 600, textDecoration: 'none', fontSize: 14 }}>Back</Link>

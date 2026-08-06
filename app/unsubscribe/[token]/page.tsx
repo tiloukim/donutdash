@@ -42,7 +42,7 @@ export default async function UnsubscribePage({ params }: PageProps) {
   return (
     <main style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #FFF8F0 0%, #FFFFFF 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 480, width: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', textAlign: 'center' }}>
-        <div style={{ fontSize: 18, fontWeight: 900, color: '#FF8C00', marginBottom: 24 }}>🍩 DonutDash</div>
+        <div style={{ fontSize: 18, fontWeight: 900, color: '#FF8C00', marginBottom: 24 }}>🍩 DonutDash™</div>
 
         {state === 'ok' && (
           <>

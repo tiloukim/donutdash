@@ -125,7 +125,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const sidebar = (
     <>
       <div style={{ padding: '16px 20px 10px' }}>
-        <img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} />
+        <span style={{ display: 'inline-flex', alignItems: 'flex-start' }}><img src="/logo.png" alt="DonutDash" style={{ height: 40, width: 'auto', filter: 'brightness(10)' }} /><sup style={{ fontSize: 11, fontWeight: 700, marginLeft: 1, color: '#fff' }}>™</sup></span>
         {badge && (
           <span style={{ background: badge.color, color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block', letterSpacing: 1 }}>
             {badge.label}

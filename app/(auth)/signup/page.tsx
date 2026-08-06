@@ -301,7 +301,7 @@ export default function SignupPage() {
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <Link href="/" style={{ display: 'inline-block', textDecoration: 'none' }}>
-            <img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} />
+            <span style={{ display: 'inline-flex', alignItems: 'flex-start' }}><img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} /><sup style={{ fontSize: 11, fontWeight: 700, marginLeft: 1 }}>™</sup></span>
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1A1A2E', marginTop: '1rem' }}>
             {claimShopId ? 'Claim your shop' : 'Create an account'}

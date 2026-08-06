@@ -88,7 +88,7 @@ export default function RewardsPage() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1A1A2E', margin: 0 }}>
-            DonutDash Rewards
+            DonutDash™ Rewards
           </h1>
           <p style={{ color: '#888', marginTop: '0.25rem' }}>Earn points. Get treats.</p>
         </div>

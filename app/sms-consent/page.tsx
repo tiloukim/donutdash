@@ -14,7 +14,7 @@ export default function SmsConsentPage() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <Link href="/" style={{ textDecoration: 'none' }}>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#FF8C00', margin: 0 }}>DonutDash</h1>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#FF8C00', margin: 0 }}>DonutDash™</h1>
           </Link>
           <div style={{ fontSize: 14, color: '#888', marginTop: 4 }}>donutdash.app</div>
         </div>
