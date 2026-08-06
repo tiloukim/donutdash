@@ -5,13 +5,19 @@ import { sendSMS, sendEmail } from '@/lib/sms'
 
 export const dynamic = 'force-dynamic'
 
-const AUDIENCES = ['drivers', 'customers', 'both'] as const
-type Audience = typeof AUDIENCES[number]
+const GROUPS = ['drivers', 'customers', 'admins'] as const
+type Group = typeof GROUPS[number]
 
-function rolesFor(audience: Audience): string[] {
-  if (audience === 'drivers') return ['driver']
-  if (audience === 'customers') return ['customer']
-  return ['driver', 'customer']
+const ADMIN_ROLES = ['admin', 'general_manager', 'field_manager', 'marketing_manager']
+
+function rolesFor(group: Group): string[] {
+  if (group === 'drivers') return ['driver']
+  if (group === 'customers') return ['customer']
+  return ADMIN_ROLES
+}
+
+function rolesForGroups(groups: Group[]): string[] {
+  return [...new Set(groups.flatMap(rolesFor))]
 }
 
 async function requireBroadcaster() {
@@ -32,19 +38,19 @@ export async function GET() {
   if ('error' in gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
   const { svc } = gate
 
-  const counts: Record<string, { total: number; email: number; phone: number }> = {}
-  for (const role of ['driver', 'customer']) {
-    const { data } = await svc.from('dd_users')
-      .select('email, phone, is_active')
-      .eq('role', role)
+  const tally = async (roles: string[]) => {
+    const { data } = await svc.from('dd_users').select('email, phone, is_active').in('role', roles)
     const active = (data || []).filter(u => u.is_active !== false)
-    counts[role] = {
+    return {
       total: active.length,
       email: active.filter(u => u.email).length,
       phone: active.filter(u => u.phone).length,
     }
   }
-  return NextResponse.json({ drivers: counts.driver, customers: counts.customer })
+  const [drivers, customers, admins] = await Promise.all([
+    tally(['driver']), tally(['customer']), tally(ADMIN_ROLES),
+  ])
+  return NextResponse.json({ drivers, customers, admins })
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -76,14 +82,15 @@ export async function POST(req: NextRequest) {
   if ('error' in gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
   const { svc } = gate
 
-  const { audience, channels, subject, message } = await req.json() as {
-    audience: Audience
+  const { groups, channels, subject, message } = await req.json() as {
+    groups: Group[]
     channels: { email?: boolean; sms?: boolean }
     subject?: string
     message?: string
   }
 
-  if (!AUDIENCES.includes(audience)) return NextResponse.json({ error: 'Invalid audience' }, { status: 400 })
+  const selected = Array.isArray(groups) ? groups.filter((g): g is Group => GROUPS.includes(g as Group)) : []
+  if (selected.length === 0) return NextResponse.json({ error: 'Pick at least one audience' }, { status: 400 })
   const sendEmailCh = !!channels?.email
   const sendSmsCh = !!channels?.sms
   if (!sendEmailCh && !sendSmsCh) return NextResponse.json({ error: 'Pick at least one channel' }, { status: 400 })
@@ -92,7 +99,7 @@ export async function POST(req: NextRequest) {
 
   const { data: users } = await svc.from('dd_users')
     .select('email, phone, is_active')
-    .in('role', rolesFor(audience))
+    .in('role', rolesForGroups(selected))
   const recipients = (users || []).filter(u => u.is_active !== false)
 
   const result: { recipients: number; email?: { sent: number; failed: number }; sms?: { sent: number; failed: number } } = {

@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react'
 
 type Counts = { total: number; email: number; phone: number }
+type Group = 'drivers' | 'customers' | 'admins'
+const GROUP_LABELS: Record<Group, string> = { drivers: 'Drivers', customers: 'Customers', admins: 'Admins' }
 
 export default function BroadcastPage() {
-  const [counts, setCounts] = useState<{ drivers: Counts; customers: Counts } | null>(null)
-  const [audience, setAudience] = useState<'drivers' | 'customers' | 'both'>('drivers')
+  const [counts, setCounts] = useState<Record<Group, Counts> | null>(null)
+  const [groups, setGroups] = useState<Record<Group, boolean>>({ drivers: true, customers: false, admins: false })
   const [email, setEmail] = useState(true)
   const [sms, setSms] = useState(false)
   const [subject, setSubject] = useState('')
@@ -19,18 +21,21 @@ export default function BroadcastPage() {
     fetch('/api/admin/broadcast').then(r => r.json()).then(d => { if (d.drivers) setCounts(d) }).catch(() => {})
   }, [])
 
+  const selected = (Object.keys(groups) as Group[]).filter(g => groups[g])
+
   const reach = (() => {
     if (!counts) return null
-    const groups = audience === 'both' ? [counts.drivers, counts.customers] : audience === 'drivers' ? [counts.drivers] : [counts.customers]
+    const gs = selected.map(g => counts[g])
     return {
-      total: groups.reduce((s, g) => s + g.total, 0),
-      email: groups.reduce((s, g) => s + g.email, 0),
-      phone: groups.reduce((s, g) => s + g.phone, 0),
+      total: gs.reduce((s, g) => s + g.total, 0),
+      email: gs.reduce((s, g) => s + g.email, 0),
+      phone: gs.reduce((s, g) => s + g.phone, 0),
     }
   })()
 
   const send = async () => {
     setError(''); setResult(null)
+    if (selected.length === 0) return setError('Pick at least one audience.')
     if (!email && !sms) return setError('Pick at least one channel.')
     if (!message.trim()) return setError('Message is required.')
     if (email && !subject.trim()) return setError('Email subject is required.')
@@ -38,14 +43,15 @@ export default function BroadcastPage() {
     const parts: string[] = []
     if (email && reach) parts.push(`${reach.email} email${reach.email === 1 ? '' : 's'}`)
     if (sms && reach) parts.push(`${reach.phone} text${reach.phone === 1 ? '' : 's'}`)
-    if (!confirm(`Send this message to ${audience === 'both' ? 'drivers + customers' : audience} — ${parts.join(' and ')}?\n\nThis cannot be undone.`)) return
+    const who = selected.map(g => GROUP_LABELS[g].toLowerCase()).join(' + ')
+    if (!confirm(`Send this message to ${who} — ${parts.join(' and ')}?\n\nThis cannot be undone.`)) return
 
     setSending(true)
     try {
       const res = await fetch('/api/admin/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audience, channels: { email, sms }, subject, message }),
+        body: JSON.stringify({ groups: selected, channels: { email, sms }, subject, message }),
       })
       const d = await res.json()
       if (!res.ok) { setError(d.error || 'Send failed'); return }
@@ -58,24 +64,22 @@ export default function BroadcastPage() {
     finally { setSending(false) }
   }
 
-  const audienceBtn = (key: 'drivers' | 'customers' | 'both', label: string) => (
-    <button onClick={() => setAudience(key)} style={{
-      padding: '8px 16px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-      border: audience === key ? '2px solid #FF8C00' : '1px solid #ddd',
-      background: audience === key ? '#FFF5E6' : '#fff', color: audience === key ? '#FF8C00' : '#444',
-    }}>{label}</button>
+  const groupBox = (g: Group) => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600,
+      border: groups[g] ? '2px solid #FF8C00' : '1px solid #ddd', background: groups[g] ? '#FFF5E6' : '#fff' }}>
+      <input type="checkbox" checked={groups[g]} onChange={e => setGroups(prev => ({ ...prev, [g]: e.target.checked }))} />
+      {GROUP_LABELS[g]}{counts ? ` (${counts[g].total})` : ''}
+    </label>
   )
 
   return (
     <div style={{ maxWidth: 640 }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>📢 Broadcast</h1>
-      <p style={{ color: '#888', fontSize: 14, marginBottom: 20 }}>Send a one-time message to drivers and/or customers by email and/or text.</p>
+      <p style={{ color: '#888', fontSize: 14, marginBottom: 20 }}>Send a one-time message to drivers, customers, and/or admins by email and/or text.</p>
 
       <label style={{ display: 'block', fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Audience</label>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        {audienceBtn('drivers', `Drivers${counts ? ` (${counts.drivers.total})` : ''}`)}
-        {audienceBtn('customers', `Customers${counts ? ` (${counts.customers.total})` : ''}`)}
-        {audienceBtn('both', 'Both')}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+        {groupBox('drivers')}{groupBox('customers')}{groupBox('admins')}
       </div>
 
       <label style={{ display: 'block', fontWeight: 700, fontSize: 13, margin: '16px 0 8px' }}>Channels</label>
@@ -109,7 +113,7 @@ export default function BroadcastPage() {
         marginTop: 20, padding: '12px 28px', borderRadius: 10, border: 'none',
         background: sending ? '#ccc' : '#FF8C00', color: '#fff', fontSize: 15, fontWeight: 700,
         cursor: sending ? 'default' : 'pointer',
-      }}>{sending ? 'Sending…' : `Send broadcast${reach ? ` to ${audience === 'both' ? reach.total : (audience === 'drivers' ? counts?.drivers.total : counts?.customers.total) ?? reach.total}` : ''}`}</button>
+      }}>{sending ? 'Sending…' : `Send broadcast${reach ? ` to ${reach.total}` : ''}`}</button>
     </div>
   )
 }
