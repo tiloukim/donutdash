@@ -75,7 +75,7 @@ export default function PassPage() {
       {/* Header */}
       <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" style={{ height: 40 }} /><sup style={{ fontSize: 20, fontWeight: 800, marginLeft: 2, position: 'relative', top: 10 }}>™</sup></span>
+          <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" style={{ height: 40 }} /><sup style={{ fontSize: 8, fontWeight: 800, marginLeft: 1, position: 'relative', top: 4 }}>™</sup></span>
         </Link>
         <Link href="/" style={{ color: '#fff', fontWeight: 600, textDecoration: 'none', fontSize: 14, opacity: 0.8 }}>Back</Link>
       </div>

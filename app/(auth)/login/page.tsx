@@ -125,7 +125,7 @@ export default function LoginPage() {
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <Link href="/" style={{ display: 'inline-block', textDecoration: 'none' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} /><sup style={{ fontSize: 20, fontWeight: 800, marginLeft: 2, position: 'relative', top: 10 }}>™</sup></span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" style={{ height: '60px', width: 'auto' }} /><sup style={{ fontSize: 12, fontWeight: 800, marginLeft: 1, position: 'relative', top: 6 }}>™</sup></span>
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1A1A2E', marginTop: '1rem' }}>
             {claimShopId ? 'Sign in to claim your shop' : 'Welcome back'}
