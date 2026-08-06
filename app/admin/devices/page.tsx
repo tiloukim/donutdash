@@ -15,6 +15,8 @@ interface Device {
   platform: string | null
   app_version: string | null
   card_terminal_tpn: string | null
+  card_terminal_connected: boolean | null
+  card_terminal_checked_at: string | null
   last_seen_at: string
   online: boolean
   shop: { name: string | null } | null
@@ -34,6 +36,23 @@ function timeAgo(iso: string): string {
 
 function shortId(id: string): string {
   return id.replace(/-/g, '').slice(0, 8)
+}
+
+const pill: React.CSSProperties = { padding: '1px 7px', borderRadius: 999, fontSize: 11, fontWeight: 700 }
+
+// Live reachability of the card terminal this register is bound to. The app
+// probes SPIn every few minutes; null means it hasn't reported one yet.
+function TerminalBadge({ device }: { device: Device }) {
+  const connected = device.card_terminal_connected
+  const age = device.card_terminal_checked_at ? ` · ${timeAgo(device.card_terminal_checked_at)}` : ''
+  if (connected === null || connected === undefined) {
+    return <span style={{ ...pill, background: '#F3F4F6', color: '#6B7280' }}>not checked</span>
+  }
+  return connected ? (
+    <span style={{ ...pill, background: '#D1FAE5', color: '#065F46' }}>terminal online{age}</span>
+  ) : (
+    <span style={{ ...pill, background: '#FEE2E2', color: '#991B1B' }}>terminal unreachable{age}</span>
+  )
 }
 
 export default function AdminDevices() {
@@ -141,10 +160,18 @@ export default function AdminDevices() {
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
                     {d.register_label || `Register ${shortId(d.device_id)}`}
                   </div>
-                  <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                    {d.card_terminal_tpn ? `Terminal ${d.card_terminal_tpn}` : 'No card terminal'}
-                    {d.app_version ? ` · v${d.app_version}` : ''}
-                    {d.platform ? ` · ${d.platform}` : ''}
+                  <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {d.card_terminal_tpn ? (
+                      <>
+                        <span>Terminal {d.card_terminal_tpn}</span>
+                        <TerminalBadge device={d} />
+                      </>
+                    ) : (
+                      <span>No card terminal</span>
+                    )}
+                    <span style={{ color: '#D1D5DB' }}>·</span>
+                    {d.app_version ? <span>v{d.app_version}</span> : null}
+                    {d.platform ? <span>{d.platform}</span> : null}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>

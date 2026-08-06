@@ -49,6 +49,8 @@ interface HeartbeatBody {
   platform?: string | null
   app_version?: string | null
   card_terminal_tpn?: string | null
+  card_terminal_connected?: boolean | null
+  card_terminal_checked_at?: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -77,6 +79,8 @@ export async function POST(req: NextRequest) {
         platform: body.platform?.trim() || null,
         app_version: body.app_version?.trim() || null,
         card_terminal_tpn: body.card_terminal_tpn?.trim() || null,
+        card_terminal_connected: body.card_terminal_connected ?? null,
+        card_terminal_checked_at: body.card_terminal_checked_at || null,
         last_seen_at: new Date().toISOString(),
       },
       { onConflict: 'shop_id,device_id' },
