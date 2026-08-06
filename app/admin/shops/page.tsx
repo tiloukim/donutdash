@@ -38,6 +38,8 @@ export default function AdminShops() {
   const [toggling, setToggling] = useState<string | null>(null)
   const [togglingPos, setTogglingPos] = useState<string | null>(null)
   const [savingAll, setSavingAll] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [search, setSearch] = useState('')
   // Which shop's fee/config panel is expanded (only one open at a time).
@@ -115,6 +117,29 @@ export default function AdminShops() {
       setOriginalShops(prev => shops.map(s => failedIds.has(s.id) ? (prev.find(o => o.id === s.id) ?? s) : s))
     }
     setSavingAll(false)
+  }
+
+  // Upload a sponsor banner image → returns a public URL we drop into
+  // sponsor_banner_url (still saved via the normal "Save changes" bar).
+  const uploadBanner = async (shopId: string, file: File) => {
+    setUploadError('')
+    setUploadingBanner(shopId)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('type', 'sponsor')
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        setUploadError(data.error || 'Upload failed')
+        return
+      }
+      setShops(prev => prev.map(s => s.id === shopId ? { ...s, sponsor_banner_url: data.url } : s))
+    } catch {
+      setUploadError('Upload failed — please try again.')
+    } finally {
+      setUploadingBanner(null)
+    }
   }
 
   const toggleShop = async (id: string, currentActive: boolean) => {
@@ -546,14 +571,53 @@ export default function AdminShops() {
                               style={inputStyle}
                             />
                           </label>
-                          <label style={{ ...cfgLabel, gridColumn: '1 / -1' }}>Banner image URL (optional — falls back to the shop banner)
-                            <input type="text" placeholder="https://…/banner.jpg" value={shop.sponsor_banner_url ?? ''}
-                              onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, sponsor_banner_url: e.target.value } : s))}
-                              style={inputStyle}
-                            />
-                          </label>
+                          <div style={{ ...cfgLabel, gridColumn: '1 / -1' }}>
+                            Banner image (optional — falls back to the shop banner)
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginTop: 4, textTransform: 'none', letterSpacing: 0 }}>
+                              {/* Preview */}
+                              <div style={{
+                                width: 132, height: 66, flexShrink: 0, borderRadius: 8, overflow: 'hidden',
+                                border: '1px solid #E5E7EB', background: shop.sponsor_banner_url
+                                  ? `linear-gradient(90deg, rgba(0,0,0,0.5), rgba(0,0,0,0.1)), url(${shop.sponsor_banner_url}) center/cover no-repeat`
+                                  : '#F3F4F6',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#9CA3AF', fontSize: 11, fontWeight: 600,
+                              }}>
+                                {!shop.sponsor_banner_url && 'No image'}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <label style={{
+                                    padding: '8px 14px', borderRadius: 8, background: '#111827', color: '#fff',
+                                    fontSize: 13, fontWeight: 600, cursor: uploadingBanner === shop.id ? 'default' : 'pointer',
+                                    opacity: uploadingBanner === shop.id ? 0.6 : 1, whiteSpace: 'nowrap',
+                                  }}>
+                                    {uploadingBanner === shop.id ? 'Uploading…' : '⬆ Upload image'}
+                                    <input type="file" accept="image/*" style={{ display: 'none' }}
+                                      disabled={uploadingBanner === shop.id}
+                                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadBanner(shop.id, f); e.target.value = '' }}
+                                    />
+                                  </label>
+                                  {shop.sponsor_banner_url && (
+                                    <button type="button"
+                                      onClick={() => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, sponsor_banner_url: null } : s))}
+                                      style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', fontSize: 13, cursor: 'pointer' }}
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
+                                </div>
+                                <input type="text" placeholder="…or paste an image URL" value={shop.sponsor_banner_url ?? ''}
+                                  onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, sponsor_banner_url: e.target.value } : s))}
+                                  style={{ ...inputStyle, fontSize: 12 }}
+                                />
+                                <span style={{ fontSize: 11, color: '#9CA3AF' }}>Wide image works best (~1200×400). JPG/PNG/WebP, max 5MB.</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       )}
+                      {uploadError && <div style={{ marginTop: 8, fontSize: 12, color: '#DC2626' }}>{uploadError}</div>}
                     </div>
                   </td>
                 </tr>
