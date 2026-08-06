@@ -71,6 +71,30 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
               <DonutIcon size={90} />
             )}
 
+            {/* Sponsored badge — paid featured placement */}
+            {shop.sponsored && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  background: 'linear-gradient(135deg, #FF8C00, #FFB300)',
+                  color: '#fff',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: '12px',
+                  letterSpacing: '0.3px',
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                  zIndex: 1,
+                }}
+              >
+                ⭐ Sponsored
+              </div>
+            )}
+
             {/* Unclaimed badge — desktop only */}
             {showClaimUI && (
               <div

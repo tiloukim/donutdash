@@ -56,6 +56,11 @@ export interface Shop {
    *  both cash + card prices upfront on every menu item; 'cash_discount'
    *  shows the card price with a popup at checkout. */
   pricing_mode?: 'standard' | 'cash_discount' | 'dual_pricing'
+  /** Live sponsor (admin-curated featured placement, un-expired). */
+  sponsored?: boolean
+  sponsor_rank?: number
+  sponsor_headline?: string | null
+  sponsor_banner_url?: string | null
 }
 
 export interface VariantOption {

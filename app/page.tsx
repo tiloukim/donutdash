@@ -12,7 +12,7 @@ import type { Shop } from '@/lib/types'
 import DonutIcon from '@/components/DonutIcon'
 import RunningDonut from '@/components/RunningDonut'
 
-function PromoBannerCarousel({ banners }: { banners: { title: string; subtitle: string; bg: string; emoji?: string; icon?: React.ReactNode }[] }) {
+function PromoBannerCarousel({ banners }: { banners: { title: string; subtitle: string; bg: string; emoji?: string; icon?: React.ReactNode; image?: string | null; href?: string; sponsored?: boolean }[] }) {
   const [active, setActive] = useState(0)
   const touchStartX = useRef(0)
 
@@ -35,42 +35,64 @@ function PromoBannerCarousel({ banners }: { banners: { title: string; subtitle: 
           }
         }}
       >
-        {banners.map((promo, i) => (
-          <div key={i} style={{
+        {banners.map((promo, i) => {
+          const Tag = (promo.href ? 'a' : 'div') as 'a'
+          return (
+          <Tag key={i} href={promo.href} style={{
             position: 'absolute',
             inset: 0,
             borderRadius: '16px',
-            background: promo.bg,
+            // A sponsor's own banner image (darkened for legible text) takes
+            // priority; house promos keep their gradient.
+            background: promo.image
+              ? `linear-gradient(90deg, rgba(0,0,0,0.6), rgba(0,0,0,0.15)), url(${promo.image}) center/cover no-repeat`
+              : promo.bg,
             padding: '18px 20px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             overflow: 'hidden',
+            textDecoration: 'none',
             opacity: i === active ? 1 : 0,
             transform: i === active ? 'translateX(0)' : i > active ? 'translateX(40px)' : 'translateX(-40px)',
             transition: 'opacity 0.5s ease, transform 0.5s ease',
             pointerEvents: i === active ? 'auto' : 'none',
           }}>
-            <span style={{
-              position: 'absolute', right: '8px', bottom: '4px',
-              fontSize: '3rem', opacity: promo.icon ? 0.9 : 0.3,
-            }}>
-              {promo.icon || promo.emoji}
-            </span>
+            {promo.sponsored && (
+              <span style={{
+                position: 'absolute', top: 10, left: 12, zIndex: 2,
+                fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.06em',
+                color: '#fff', background: 'rgba(0,0,0,0.4)',
+                padding: '2px 7px', borderRadius: 20, textTransform: 'uppercase',
+              }}>
+                ⭐ Sponsored
+              </span>
+            )}
+            {!promo.image && (
+              <span style={{
+                position: 'absolute', right: '8px', bottom: '4px',
+                fontSize: '3rem', opacity: promo.icon ? 0.9 : 0.3,
+              }}>
+                {promo.icon || promo.emoji}
+              </span>
+            )}
             <h3 style={{
               color: 'white', fontSize: '1.2rem', fontWeight: 800,
               margin: '0 0 4px', position: 'relative', zIndex: 1,
+              textShadow: promo.image ? '0 1px 3px rgba(0,0,0,0.5)' : 'none',
             }}>
               {promo.title}
             </h3>
             <p style={{
-              color: 'rgba(255,255,255,0.9)', fontSize: '0.8rem',
+              color: 'rgba(255,255,255,0.92)', fontSize: '0.8rem',
               margin: 0, position: 'relative', zIndex: 1,
+              textShadow: promo.image ? '0 1px 3px rgba(0,0,0,0.5)' : 'none',
             }}>
               {promo.subtitle}
             </p>
-          </div>
-        ))}
+          </Tag>
+          )
+        })}
       </div>
       {/* Dots */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '10px' }}>
@@ -321,7 +343,7 @@ export default function HomePage() {
       })()
     : shops.slice(0, 8)
 
-  const promoBanners = [
+  const houseBanners = [
     {
       title: 'EARN Rewards!',
       subtitle: 'Earn points with every order',
@@ -341,6 +363,22 @@ export default function HomePage() {
       icon: <RunningDonut size={90} />,
     },
   ]
+
+  // Paid front-page placement: live sponsors lead the carousel with their own
+  // banner image, tapping through to the shop. House promos fill the rest.
+  const sponsorBanners = shops
+    .filter(s => s.sponsored)
+    .sort((a, b) => (b.sponsor_rank ?? 0) - (a.sponsor_rank ?? 0))
+    .map(s => ({
+      title: s.name,
+      subtitle: s.sponsor_headline || 'Featured shop — order now',
+      bg: `linear-gradient(135deg, ${ORANGE}, #FFA500)`,
+      image: s.sponsor_banner_url || s.banner_url || s.image_url,
+      href: `/shops/${s.slug}`,
+      sponsored: true,
+    }))
+
+  const promoBanners = [...sponsorBanners, ...houseBanners]
 
   const homeJsonLd = {
     '@context': 'https://schema.org',
