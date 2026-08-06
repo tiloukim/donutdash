@@ -231,10 +231,10 @@ export default function HomePage() {
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        // Only show orderable shops on the storefront — hide unclaimed
-        // Google-imported listings (is_claimed === false) with no owner to
-        // accept or fulfill an order, so customers never hit a dead end.
-        setShops((data.shops || []).filter((s: Shop) => s.is_claimed !== false))
+        // Marketplace view: show orderable shops AND unclaimed "claimable"
+        // listings (rendered by ShopCard as coming-soon / claim cards, so
+        // they're discovery, not dead ends). Orderable shops sort first.
+        setShops(data.shops || [])
         setSurgeActive(data.surge_active || false)
       })
       .catch(() => setShops([]))
