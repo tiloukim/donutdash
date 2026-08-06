@@ -41,7 +41,7 @@ export default async function TeamCard({ params }: { params: Promise<{ slug: str
           padding: '24px 24px 56px', textAlign: 'center',
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: 64, width: 'auto', maxWidth: '90%' }} /><sup style={{ fontSize: 11, fontWeight: 700, marginLeft: 1 }}>™</sup></span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><img src="/DonutDashfooterlogo.png" alt="DonutDash" style={{ height: 64, width: 'auto', maxWidth: '90%' }} /><sup style={{ fontSize: 20, fontWeight: 800, marginLeft: 2 }}>™</sup></span>
         </div>
 
         {/* Profile — avatar straddles the header/white boundary cleanly. */}

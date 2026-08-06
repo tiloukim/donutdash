@@ -92,7 +92,7 @@ export default function Footer() {
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
           <Link href="/">
-            <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/DonutDashfooterlogo.png" alt="DonutDash" className="dd-footer-logo" style={{ width: 'auto', filter: 'brightness(1.1)', display: 'block', margin: '0 auto' }} /><sup style={{ fontSize: 11, fontWeight: 700, marginLeft: 1 }}>™</sup></span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/DonutDashfooterlogo.png" alt="DonutDash" className="dd-footer-logo" style={{ width: 'auto', filter: 'brightness(1.1)', display: 'block', margin: '0 auto' }} /><sup style={{ fontSize: 20, fontWeight: 800, marginLeft: 2 }}>™</sup></span>
           </Link>
           <p className="dd-footer-tagline" style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 1.4, maxWidth: '320px', margin: '0.5rem auto 0' }}>
             Delicious donuts delivered fast to your door.
