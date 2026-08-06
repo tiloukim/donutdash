@@ -48,6 +48,7 @@ const ALL_NAV_ITEMS: { href: keyof typeof PAGE_ROLES; label: string; icon: strin
   { href: '/admin/team',             label: 'Team Cards',      icon: '🪪' },
   { href: '/admin/analytics',        label: 'Live Analytics',  icon: '📈' },
   { href: '/admin/pitch-campaign',   label: 'Pitch Campaign',  icon: '📣' },
+  { href: '/admin/broadcast',        label: 'Broadcast',       icon: '📢' },
   { href: '/admin/access-matrix',    label: 'Role Access',     icon: '🎨' },
   { href: '/admin/tax',              label: 'Tax Center',      icon: '🧾' },
   { href: '/admin/settings',         label: 'Settings',        icon: '⚙️' },
