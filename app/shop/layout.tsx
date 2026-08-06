@@ -15,6 +15,7 @@ const NAV_ITEMS: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: '/shop', labelKey: 'nav.dashboard', icon: '📊' },
   { href: '/shop/orders', labelKey: 'nav.orders', icon: '📋' },
   { href: '/shop/earnings', labelKey: 'nav.earnings', icon: '💰' },
+  { href: '/shop/promote', labelKey: 'nav.promote', icon: '⭐' },
   { href: '/shop/menu', labelKey: 'nav.menu', icon: '🍩' },
   { href: '/shop/analytics', labelKey: 'nav.analytics', icon: '📈' },
   { href: '/shop/hours', labelKey: 'nav.hours', icon: '🕐' },
