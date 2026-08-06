@@ -31,6 +31,7 @@ const ALL_NAV_ITEMS: { href: keyof typeof PAGE_ROLES; label: string; icon: strin
   { href: '/admin/shops',            label: 'Shops',           icon: '🏪' },
   { href: '/admin/users',            label: 'Users',           icon: '👥' },
   { href: '/admin/orders',           label: 'Orders',          icon: '📦' },
+  { href: '/admin/devices',          label: 'POS Devices',     icon: '🖥️' },
   { href: '/admin/drivers',          label: 'Drivers',         icon: '🚗' },
   { href: '/admin/driver-documents', label: 'Driver Docs',     icon: '📋' },
   { href: '/admin/shop-documents',   label: 'Shop Docs',       icon: '📑' },
