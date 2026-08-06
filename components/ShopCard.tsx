@@ -85,7 +85,7 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
               </div>
             )}
 
-            {/* Unclaimed badge — desktop only */}
+            {/* Coming-soon badge for unclaimed (not-yet-onboarded) shops */}
             {showClaimUI && (
               <div
                 style={{
@@ -106,7 +106,7 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
                   zIndex: 1,
                 }}
               >
-                Unclaimed
+                Coming soon
               </div>
             )}
           </div>
@@ -193,7 +193,7 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
                   textAlign: 'center',
                   letterSpacing: '0.2px',
                 }}>
-                  Claim this shop
+                  Coming soon
                 </div>
               </div>
             ) : (
