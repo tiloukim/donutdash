@@ -202,7 +202,7 @@ function FlyerTemplate({ shop }: { shop: Shop }) {
         borderRadius: '14px', padding: '24px 28px', textAlign: 'center',
         marginBottom: '0.25in', color: '#fff',
       }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" style={{ height: '50px', width: 'auto', marginBottom: 8, filter: 'brightness(10)' }} /><sup style={{ fontSize: 20, fontWeight: 800, marginLeft: 2, color: '#fff' }}>™</sup></span>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}><img src="/logo.png" alt="DonutDash" style={{ height: '50px', width: 'auto', marginBottom: 8, filter: 'brightness(10)' }} /><sup style={{ fontSize: 20, fontWeight: 800, marginLeft: 2, position: 'relative', top: 10, color: '#fff' }}>™</sup></span>
         <h1 style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 4px 0', lineHeight: 1.2 }}>
           Your Shop Is Already on DonutDash!
         </h1>
