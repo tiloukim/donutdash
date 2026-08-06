@@ -36,6 +36,7 @@ const ALL_NAV_ITEMS: { href: keyof typeof PAGE_ROLES; label: string; icon: strin
   { href: '/admin/shop-documents',   label: 'Shop Docs',       icon: '📑' },
   { href: '/admin/claim-requests',   label: 'Claim Requests',  icon: '🏷️' },
   { href: '/admin/payouts',          label: 'Payouts',         icon: '💰' },
+  { href: '/admin/sponsorships',     label: 'Sponsorships',    icon: '⭐' },
   { href: '/admin/catering',         label: 'Catering',        icon: '🎂' },
   { href: '/admin/support',          label: 'Support Chat',    icon: '💬' },
   { href: '/admin/voicemails',       label: 'Voicemails',      icon: '📞' },
