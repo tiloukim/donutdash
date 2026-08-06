@@ -24,7 +24,9 @@ const DOC_TYPES = [
   { key: 'w9', label: 'W-9 Form', description: 'IRS tax form (required for 1099)', icon: '📄', downloadUrl: '/driver/documents/w9', downloadLabel: 'Fill out W-9 online', isInternal: true },
   { key: 'insurance', label: 'Vehicle Insurance', description: 'Proof of active auto insurance', icon: '🛡️' },
   { key: 'vehicle_registration', label: 'Vehicle Registration', description: 'Current vehicle registration', icon: '🚗' },
-  { key: 'vehicle_photo', label: 'Vehicle Photo', description: 'A clear photo of the vehicle you deliver with', icon: '📸' },
+  { key: 'vehicle_front', label: 'Vehicle — Front', description: 'Front of your vehicle with the license plate clearly visible', icon: '🚗' },
+  { key: 'vehicle_back', label: 'Vehicle — Back', description: 'Back of your vehicle — license plate must be clearly readable', icon: '🚙' },
+  { key: 'vehicle_side', label: 'Vehicle — Side', description: 'Full side profile of the vehicle you deliver with', icon: '🚐' },
   { key: 'contractor_agreement', label: 'Contractor Agreement', description: 'Sign the independent contractor agreement', icon: '📝', downloadUrl: '/driver/sign-agreement', downloadLabel: 'Sign agreement' },
 ]
 

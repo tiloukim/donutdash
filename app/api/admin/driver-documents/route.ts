@@ -57,7 +57,7 @@ export async function PATCH(req: NextRequest) {
       .eq('driver_id', doc.driver_id)
       .eq('status', 'approved')
     const approvedTypes = new Set((allDocs || []).map((d: any) => d.doc_type))
-    const requiredTypes = ['selfie', 'drivers_license', 'drivers_license_back', 'w9', 'insurance', 'vehicle_registration', 'vehicle_photo', 'contractor_agreement']
+    const requiredTypes = ['selfie', 'drivers_license', 'drivers_license_back', 'w9', 'insurance', 'vehicle_registration', 'vehicle_front', 'vehicle_back', 'vehicle_side', 'contractor_agreement']
     const allApproved = requiredTypes.every(t => approvedTypes.has(t))
     // Only transition pending_documents → pending_approval. If the
     // driver is already 'approved' (re-uploaded a doc for refresh),
