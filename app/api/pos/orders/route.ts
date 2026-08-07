@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeForShop } from '@/lib/pos-shop-auth'
 import { awardLoyaltyPoints, type LoyaltyAward } from '@/lib/loyalty'
+import { POS_CARD_TRANSACTION_FEE } from '@/lib/constants'
 
 // Create a POS walk-in order. Writes go through the service role
 // (matches how customer checkout and driver flows work today).
@@ -165,6 +166,19 @@ export async function POST(req: NextRequest) {
 
   if (error || !order) {
     return NextResponse.json({ error: error?.message ?? 'Insert failed' }, { status: 500 })
+  }
+
+  // Bill the shop owner the flat per-card-transaction fee. Card only (cash
+  // is exempt), logged in its own ledger — NOT added to the order total, so
+  // the customer never sees or pays it. Best-effort: a failed fee log must
+  // not fail the sale (the order already committed + the customer paid).
+  if (body.payment_method !== 'cash') {
+    await svc.from('dd_pos_card_fees').insert({
+      shop_id: body.shop_id,
+      order_id: order.id,
+      amount: POS_CARD_TRANSACTION_FEE,
+      payment_method: body.payment_method,
+    })
   }
 
   const items = body.lines.map((l) => ({

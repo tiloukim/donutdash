@@ -28,6 +28,11 @@ export function resolveCommissionRate(input: { commission_pct?: number | null } 
 
 export const DEFAULT_DELIVERY_FEE = 3.99
 
+// Flat fee DonutDash bills the SHOP OWNER for each in-store POS card
+// transaction (not charged to the customer — separate from cash discount).
+// Logged per card sale in dd_pos_card_fees and summed in the shop's report.
+export const POS_CARD_TRANSACTION_FEE = 0.15
+
 // Distance-based pricing: shops charge a base fee that covers the first
 // BASE_DELIVERY_RADIUS_MILES of driving, then PER_EXTRA_MILE_FEE per mile after.
 // Driver is paid per mile of one-way distance (PER_MILE_PAY); the gap between
