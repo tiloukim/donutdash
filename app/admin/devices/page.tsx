@@ -68,6 +68,9 @@ export default function AdminDevices() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  // Default to online-only — a stale/retired register offline for hours is
+  // just noise. Owners can flip this on to check "is a register down?".
+  const [showOffline, setShowOffline] = useState(false)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = useCallback(async () => {
@@ -94,9 +97,12 @@ export default function AdminDevices() {
     }
   }, [load])
 
+  // Online-only by default; the toggle reveals offline registers too.
+  const visible = showOffline ? devices : devices.filter((d) => d.online)
+
   // Group by shop, shops with any online device first.
   const byShop = new Map<string, Device[]>()
-  for (const d of devices) {
+  for (const d of visible) {
     const name = d.shop?.name ?? 'Unknown shop'
     if (!byShop.has(name)) byShop.set(name, [])
     byShop.get(name)!.push(d)
@@ -119,15 +125,28 @@ export default function AdminDevices() {
             {refreshing && !loading ? ' · refreshing…' : ''}
           </div>
         </div>
-        <button
-          onClick={() => void load()}
-          style={{
-            background: '#111827', color: '#fff', border: 'none', borderRadius: 8,
-            padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          }}
-        >
-          Refresh
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => setShowOffline((v) => !v)}
+            style={{
+              background: showOffline ? '#111827' : '#fff',
+              color: showOffline ? '#fff' : '#374151',
+              border: '1px solid #D1D5DB', borderRadius: 8,
+              padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            {showOffline ? 'Showing all' : 'Online only'}
+          </button>
+          <button
+            onClick={() => void load()}
+            style={{
+              background: '#111827', color: '#fff', border: 'none', borderRadius: 8,
+              padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -136,9 +155,11 @@ export default function AdminDevices() {
         </div>
       ) : null}
 
-      {!loading && devices.length === 0 && !error ? (
+      {!loading && visible.length === 0 && !error ? (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 32, textAlign: 'center', color: '#6B7280' }}>
-          No POS devices have checked in yet. A register appears here after it signs in and sends its first heartbeat.
+          {devices.length === 0
+            ? 'No POS devices have checked in yet. A register appears here after it signs in and sends its first heartbeat.'
+            : `No registers are online right now. ${devices.length} offline — tap “Showing all” to see them.`}
         </div>
       ) : null}
 
