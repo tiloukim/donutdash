@@ -19,6 +19,8 @@ export interface ReceiptOrder {
   card_brand: string | null
   card_last4: string | null
   cash_discount_amount: number | null
+  discount_amount: number | null
+  discount_label: string | null
   created_at: string
 }
 
@@ -38,6 +40,7 @@ export interface ReceiptShop {
   state: string | null
   zip: string | null
   phone: string | null
+  tax_rate: number | null
 }
 
 export interface ReceiptData {
@@ -117,6 +120,18 @@ export function buildReceiptHtml(
     })
     .join('')
 
+  // Cashier-applied (manual) discount — shown above the cash discount, same
+  // order as the printed receipt. Label is operator text, so escape it.
+  const hasManualDiscount = order.discount_amount != null && Number(order.discount_amount) > 0
+  const manualDiscountRow = hasManualDiscount
+    ? `
+      <tr>
+        <td style="padding:4px 0;color:#EC1B7E;font-weight:600">${escapeHtml(order.discount_label || 'Discount')}</td>
+        <td style="padding:4px 0;text-align:right;color:#EC1B7E;font-weight:600">−${fmtMoney(order.discount_amount)}</td>
+      </tr>
+    `
+    : ''
+
   const hasDiscount = order.cash_discount_amount != null && Number(order.cash_discount_amount) > 0
   const discountRow = hasDiscount
     ? `
@@ -126,6 +141,12 @@ export function buildReceiptHtml(
       </tr>
     `
     : ''
+
+  // Tax row shows the shop's rate when known — "Tax (8.25%)", matching the
+  // printed receipt. tax_rate is stored as a percentage (8.25, not 0.0825).
+  const taxLabel = shop.tax_rate != null && Number(shop.tax_rate) > 0
+    ? `Tax (${Number(shop.tax_rate) % 1 === 0 ? Number(shop.tax_rate).toFixed(0) : Number(shop.tax_rate).toFixed(2)}%)`
+    : 'Tax'
 
   const tipRow = order.tip && Number(order.tip) > 0
     ? `
@@ -222,9 +243,10 @@ export function buildReceiptHtml(
                     <td style="padding:4px 0;color:#6B7280">Subtotal</td>
                     <td style="padding:4px 0;text-align:right;color:#1F2937">${fmtMoney(order.subtotal)}</td>
                   </tr>
+                  ${manualDiscountRow}
                   ${discountRow}
                   <tr>
-                    <td style="padding:4px 0;color:#6B7280">Tax</td>
+                    <td style="padding:4px 0;color:#6B7280">${taxLabel}</td>
                     <td style="padding:4px 0;text-align:right;color:#1F2937">${fmtMoney(order.tax)}</td>
                   </tr>
                   ${tipRow}
@@ -287,7 +309,8 @@ export async function fetchReceiptData(
     .select(`
       id, shop_id, short_code, subtotal, tax, tip, total,
       payment_method, cash_received, change_given,
-      card_brand, card_last4, cash_discount_amount, created_at
+      card_brand, card_last4, cash_discount_amount,
+      discount_amount, discount_label, created_at
     `)
     .eq('id', orderId)
     .maybeSingle<ReceiptOrder>()
@@ -300,7 +323,7 @@ export async function fetchReceiptData(
       .eq('order_id', orderId),
     svc
       .from('dd_shops')
-      .select('id, name, slug, address, city, state, zip, phone')
+      .select('id, name, slug, address, city, state, zip, phone, tax_rate')
       .eq('id', order.shop_id)
       .single<ReceiptShop>(),
   ])
