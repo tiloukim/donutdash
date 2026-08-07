@@ -17,9 +17,17 @@ interface Device {
   card_terminal_tpn: string | null
   card_terminal_connected: boolean | null
   card_terminal_checked_at: string | null
+  last_ip: string | null
   last_seen_at: string
   online: boolean
-  shop: { name: string | null } | null
+  shop: { name: string | null; address: string | null; city: string | null; state: string | null; zip: string | null } | null
+}
+
+// "7205 South Broadway Ave, Tyler, TX 75703" from the parts that exist.
+function shopAddress(s: Device['shop']): string | null {
+  if (!s) return null
+  const line = [s.address, [s.city, s.state].filter(Boolean).join(', '), s.zip].filter(Boolean).join(', ')
+  return line || null
 }
 
 const REFRESH_MS = 20_000
@@ -136,8 +144,13 @@ export default function AdminDevices() {
 
       {shops.map(([shopName, list]) => (
         <div key={shopName} style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6B7280', marginBottom: 8 }}>
-            {shopName}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6B7280' }}>
+              {shopName}
+            </div>
+            {shopAddress(list[0]?.shop) ? (
+              <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{shopAddress(list[0].shop)}</div>
+            ) : null}
           </div>
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
             {list.map((d, i) => (
@@ -172,6 +185,12 @@ export default function AdminDevices() {
                     <span style={{ color: '#D1D5DB' }}>·</span>
                     {d.app_version ? <span>v{d.app_version}</span> : null}
                     {d.platform ? <span>{d.platform}</span> : null}
+                    {d.last_ip ? (
+                      <>
+                        <span style={{ color: '#D1D5DB' }}>·</span>
+                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>IP {d.last_ip}</span>
+                      </>
+                    ) : null}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>

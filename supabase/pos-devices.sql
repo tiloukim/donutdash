@@ -21,14 +21,18 @@ create table if not exists dd_pos_devices (
   -- / no terminal configured. checked_at ages the reading in the admin UI.
   card_terminal_connected  boolean,
   card_terminal_checked_at timestamptz,
+  -- Public IP the last heartbeat came from (captured server-side from the
+  -- request headers) — shows which network/shop a register is reporting from.
+  last_ip                  text,
   last_seen_at             timestamptz not null default now(),
   created_at               timestamptz not null default now(),
   primary key (shop_id, device_id)
 );
 
--- Idempotent add for tables created before Phase 3.
+-- Idempotent adds for tables created before these columns existed.
 alter table dd_pos_devices add column if not exists card_terminal_connected  boolean;
 alter table dd_pos_devices add column if not exists card_terminal_checked_at timestamptz;
+alter table dd_pos_devices add column if not exists last_ip                  text;
 
 -- List a shop's devices most-recently-seen first.
 create index if not exists dd_pos_devices_shop_last_seen_idx
