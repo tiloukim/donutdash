@@ -48,7 +48,9 @@ interface HeartbeatBody {
   register_label?: string | null
   platform?: string | null
   app_version?: string | null
+  device_model?: string | null
   card_terminal_tpn?: string | null
+  card_terminal_model?: string | null
   card_terminal_connected?: boolean | null
   card_terminal_checked_at?: string | null
 }
@@ -86,16 +88,38 @@ export async function POST(req: NextRequest) {
         register_label: body.register_label?.trim() || null,
         platform: body.platform?.trim() || null,
         app_version: body.app_version?.trim() || null,
+        device_model: body.device_model?.trim() || null,
         card_terminal_tpn: body.card_terminal_tpn?.trim() || null,
+        card_terminal_model: body.card_terminal_model?.trim() || null,
         card_terminal_connected: body.card_terminal_connected ?? null,
         card_terminal_checked_at: body.card_terminal_checked_at || null,
         last_ip: lastIp,
         last_seen_at: new Date().toISOString(),
+        // NOTE: pending_command is intentionally NOT in this set, so the
+        // beat's upsert never clobbers a command an admin just queued.
       },
       { onConflict: 'shop_id,device_id' },
     )
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+
+  // Hand back any queued one-shot command, then clear it so it fires once.
+  // Read-then-clear is racy only against another admin queuing in the same
+  // ~45s window (rare + harmless — worst case the command waits one beat).
+  const { data: row } = await a.svc
+    .from('dd_pos_devices')
+    .select('pending_command')
+    .eq('shop_id', body.shop_id)
+    .eq('device_id', body.device_id)
+    .maybeSingle()
+  const command = row?.pending_command ?? null
+  if (command) {
+    await a.svc
+      .from('dd_pos_devices')
+      .update({ pending_command: null })
+      .eq('shop_id', body.shop_id)
+      .eq('device_id', body.device_id)
+  }
+  return NextResponse.json({ ok: true, command })
 }
 
 // Stamp each row with an `online` flag from its last_seen_at.

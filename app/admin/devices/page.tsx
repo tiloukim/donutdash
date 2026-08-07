@@ -14,13 +14,21 @@ interface Device {
   register_label: string | null
   platform: string | null
   app_version: string | null
+  device_model: string | null
   card_terminal_tpn: string | null
+  card_terminal_model: string | null
   card_terminal_connected: boolean | null
   card_terminal_checked_at: string | null
   last_ip: string | null
   last_seen_at: string
   online: boolean
   shop: { name: string | null; address: string | null; city: string | null; state: string | null; zip: string | null } | null
+}
+
+// 'p8' → 'Dejavoo P8', 'p18' → 'Dejavoo P18', etc. Falls back to the raw key.
+function terminalModelLabel(key: string | null): string | null {
+  if (!key) return null
+  return /^[pz]\d/i.test(key) ? `Dejavoo ${key.toUpperCase()}` : key
 }
 
 // "7205 South Broadway Ave, Tyler, TX 75703" from the parts that exist.
@@ -115,6 +123,24 @@ export default function AdminDevices() {
 
   const onlineCount = devices.filter((d) => d.online).length
 
+  // Queue a reboot for a device. It picks the command up on its next
+  // heartbeat (~45s) and reboots — Device Owner (kiosk) devices only.
+  async function reboot(d: Device) {
+    const who = d.register_label || `Register ${shortId(d.device_id)}`
+    if (!confirm(`Reboot ${who}? It will go down for ~30–60s and pick this up within a minute.`)) return
+    try {
+      const res = await fetch('/api/pos/device-command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop_id: d.shop_id, device_id: d.device_id, command: 'reboot' }),
+      })
+      if (!res.ok) throw new Error((await res.text()) || `Failed (${res.status})`)
+      alert(`Reboot queued for ${who} — it'll restart within ~1 min.`)
+    } catch (e) {
+      alert(`Couldn't queue reboot: ${e instanceof Error ? e.message : 'error'}`)
+    }
+  }
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '8px 0 48px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -195,9 +221,18 @@ export default function AdminDevices() {
                     {d.register_label || `Register ${shortId(d.device_id)}`}
                   </div>
                   <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {d.device_model ? (
+                      <>
+                        <span style={{ fontWeight: 600, color: '#374151' }}>{d.device_model}</span>
+                        <span style={{ color: '#D1D5DB' }}>·</span>
+                      </>
+                    ) : null}
                     {d.card_terminal_tpn ? (
                       <>
-                        <span>Terminal {d.card_terminal_tpn}</span>
+                        <span>
+                          {terminalModelLabel(d.card_terminal_model) ? `${terminalModelLabel(d.card_terminal_model)} · ` : ''}
+                          Terminal {d.card_terminal_tpn}
+                        </span>
                         <TerminalBadge device={d} />
                       </>
                     ) : (
@@ -221,6 +256,16 @@ export default function AdminDevices() {
                   <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
                     seen {timeAgo(d.last_seen_at)}
                   </div>
+                  <button
+                    onClick={() => void reboot(d)}
+                    title="Queue a reboot — Device Owner (kiosk) devices only"
+                    style={{
+                      marginTop: 8, background: '#fff', color: '#B91C1C', border: '1px solid #FCA5A5',
+                      borderRadius: 8, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    Reboot
+                  </button>
                 </div>
               </div>
             ))}
