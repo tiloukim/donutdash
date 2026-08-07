@@ -104,7 +104,7 @@ export async function PATCH(request: NextRequest) {
     // shouldn't be able to flip commission rates or service fees. UI
     // surface for these fields is already admin-gated, this is the
     // matching server enforcement.
-    const REVENUE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'delivery_fee', 'min_order', 'cash_discount_pct']
+    const REVENUE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'delivery_fee', 'min_order', 'cash_discount_pct', 'pos_card_fee']
     const callerIsAdmin = ddUser.role === 'admin'
     const touchesRevenue = REVENUE_FIELDS.some(k => k in fields)
     if (touchesRevenue && !callerIsAdmin) {
@@ -119,6 +119,13 @@ export async function PATCH(request: NextRequest) {
     if ('delivery_fee' in fields) allowed.delivery_fee = fields.delivery_fee
     if ('min_order' in fields) allowed.min_order = fields.min_order
     if ('tax_rate' in fields) allowed.tax_rate = fields.tax_rate
+    if ('pos_card_fee' in fields) {
+      const fee = Number(fields.pos_card_fee)
+      if (!Number.isFinite(fee) || fee < 0 || fee > 5) {
+        return NextResponse.json({ error: 'POS card fee must be between $0 and $5' }, { status: 400 })
+      }
+      allowed.pos_card_fee = fee
+    }
     if ('commission_pct' in fields) {
       const pct = Number(fields.commission_pct)
       if (!Number.isFinite(pct) || pct < MIN_COMMISSION_PCT || pct > MAX_COMMISSION_PCT) {

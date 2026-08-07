@@ -168,15 +168,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? 'Insert failed' }, { status: 500 })
   }
 
-  // Bill the shop owner the flat per-card-transaction fee. Card only (cash
-  // is exempt), logged in its own ledger — NOT added to the order total, so
-  // the customer never sees or pays it. Best-effort: a failed fee log must
-  // not fail the sale (the order already committed + the customer paid).
+  // Bill the shop owner the per-card-transaction fee. Card only (cash is
+  // exempt), logged in its own ledger — NOT added to the order total, so the
+  // customer never sees or pays it. The rate is per-shop (dd_shops.pos_card_fee,
+  // default $0.15); we store the amount actually charged so historical bills
+  // stay right if the rate changes. Best-effort: a failed fee log must not
+  // fail the sale (the order already committed + the customer paid).
   if (body.payment_method !== 'cash') {
+    const { data: shopFee } = await svc
+      .from('dd_shops')
+      .select('pos_card_fee')
+      .eq('id', body.shop_id)
+      .maybeSingle()
+    const fee = shopFee?.pos_card_fee != null ? Number(shopFee.pos_card_fee) : POS_CARD_TRANSACTION_FEE
     await svc.from('dd_pos_card_fees').insert({
       shop_id: body.shop_id,
       order_id: order.id,
-      amount: POS_CARD_TRANSACTION_FEE,
+      amount: fee,
       payment_method: body.payment_method,
     })
   }

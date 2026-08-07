@@ -16,6 +16,7 @@ interface Shop {
   commission_pct: number
   service_fee_pct: number
   delivery_fee: number
+  pos_card_fee: number
   min_order: number
   tax_rate: number
   cash_discount_pct: number
@@ -29,7 +30,7 @@ interface Shop {
   owner: { name: string; email: string } | null
 }
 
-const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pricing_mode', 'delivery_fee', 'min_order', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
+const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pos_card_fee', 'pricing_mode', 'delivery_fee', 'min_order', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
 
 export default function AdminShops() {
   const [shops, setShops] = useState<Shop[]>([])
@@ -531,6 +532,15 @@ export default function AdminShops() {
                             onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, delivery_fee: parseFloat(e.target.value) || 0 } : s))}
                             style={numStyle}
                           />
+                        </span>
+                      </label>
+                      <label style={cfgLabel}>POS Card Fee
+                        <span>
+                          $ <input type="number" step="0.01" min="0" max="5" value={shop.pos_card_fee ?? 0.15}
+                            onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, pos_card_fee: parseFloat(e.target.value) || 0 } : s))}
+                            title="Flat fee billed to the shop owner per in-store card transaction (not charged to the customer)."
+                            style={numStyle}
+                          /> / card
                         </span>
                       </label>
                       <label style={cfgLabel}>Min Order
