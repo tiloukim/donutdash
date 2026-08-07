@@ -67,6 +67,14 @@ export async function POST(req: NextRequest) {
   const a = await authorizeForShop(body.shop_id)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
 
+  // Public IP the beat came from — the first entry of x-forwarded-for is the
+  // originating client (Vercel appends its own proxy hops after it). Shows
+  // which network a register is reporting from. Best-effort; null if absent.
+  const lastIp =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    null
+
   // Upsert bumps last_seen_at to now on every beat; created_at only sticks
   // on the first insert (it's a column default, left out of the update set).
   const { error } = await a.svc
@@ -81,6 +89,7 @@ export async function POST(req: NextRequest) {
         card_terminal_tpn: body.card_terminal_tpn?.trim() || null,
         card_terminal_connected: body.card_terminal_connected ?? null,
         card_terminal_checked_at: body.card_terminal_checked_at || null,
+        last_ip: lastIp,
         last_seen_at: new Date().toISOString(),
       },
       { onConflict: 'shop_id,device_id' },
@@ -131,7 +140,7 @@ export async function GET(req: NextRequest) {
   }
   const { data, error } = await svc
     .from('dd_pos_devices')
-    .select('*, shop:dd_shops(name)')
+    .select('*, shop:dd_shops(name, address, city, state, zip)')
     .order('last_seen_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ devices: withOnline(data) })
