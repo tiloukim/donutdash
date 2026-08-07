@@ -24,6 +24,13 @@ create table if not exists dd_pos_devices (
   -- Public IP the last heartbeat came from (captured server-side from the
   -- request headers) — shows which network/shop a register is reporting from.
   last_ip                  text,
+  -- Physical POS device model (Elo / P18 / tablet) and the card terminal
+  -- model (P8 / P1 / …) this register is bound to — reported by the app.
+  device_model             text,
+  card_terminal_model      text,
+  -- One-shot command the app picks up on its next heartbeat and clears
+  -- (e.g. 'reboot'). Set by an admin from the POS Devices view.
+  pending_command          text,
   last_seen_at             timestamptz not null default now(),
   created_at               timestamptz not null default now(),
   primary key (shop_id, device_id)
@@ -33,6 +40,9 @@ create table if not exists dd_pos_devices (
 alter table dd_pos_devices add column if not exists card_terminal_connected  boolean;
 alter table dd_pos_devices add column if not exists card_terminal_checked_at timestamptz;
 alter table dd_pos_devices add column if not exists last_ip                  text;
+alter table dd_pos_devices add column if not exists device_model             text;
+alter table dd_pos_devices add column if not exists card_terminal_model      text;
+alter table dd_pos_devices add column if not exists pending_command          text;
 
 -- List a shop's devices most-recently-seen first.
 create index if not exists dd_pos_devices_shop_last_seen_idx
