@@ -115,34 +115,57 @@ export async function POST(request: NextRequest) {
     let deliveryLat: number | null = null
     let deliveryLng: number | null = null
     if (!isPickup) {
-      try {
-        const fullAddress = `${delivery_address}, ${delivery_city || ''}`
-        const geoRes = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
-          { headers: { 'User-Agent': 'DonutDash/1.0' } }
-        )
-        const geoData = await geoRes.json()
-        if (geoData?.[0]) {
-          deliveryLat = parseFloat(geoData[0].lat)
-          deliveryLng = parseFloat(geoData[0].lon)
+      const fullAddress = `${delivery_address}, ${delivery_city || ''}`
+
+      // Geocode with Google (reliable) first, then fall back to Nominatim.
+      const gKey = process.env.GOOGLE_PLACES_API_KEY
+      if (gKey) {
+        try {
+          const gRes = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${gKey}`
+          )
+          const gData = await gRes.json()
+          if (gData.status === 'OK' && gData.results?.[0]) {
+            deliveryLat = gData.results[0].geometry.location.lat
+            deliveryLng = gData.results[0].geometry.location.lng
+          }
+        } catch {
+          // fall through to Nominatim
         }
-      } catch {
-        // Geocoding failed — continue without coordinates
+      }
+      if (deliveryLat == null || deliveryLng == null) {
+        try {
+          const geoRes = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
+            { headers: { 'User-Agent': 'DonutDash/1.0' } }
+          )
+          const geoData = await geoRes.json()
+          if (geoData?.[0]) {
+            deliveryLat = parseFloat(geoData[0].lat)
+            deliveryLng = parseFloat(geoData[0].lon)
+          }
+        } catch {
+          // handled by the fail-closed check below
+        }
       }
 
-      if (deliveryLat != null && deliveryLng != null) {
-        // Per-shop delivery radius, falling back to the platform default.
-        // Queried separately so this stays safe if the column isn't present yet.
-        let maxMiles = MAX_DELIVERY_MILES
-        const { data: radiusRow, error: radiusErr } = await svc
-          .from('dd_shops').select('delivery_radius_miles').eq('id', shopId).single()
-        if (!radiusErr && radiusRow?.delivery_radius_miles != null) {
-          maxMiles = Number(radiusRow.delivery_radius_miles)
-        }
-        const dist = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
-        if (dist > maxMiles) {
-          return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${maxMiles} miles from the shop.` }, { status: 400 })
-        }
+      // Fail closed: an address we can't locate can't be range-checked, so we
+      // must not silently accept it as an in-range delivery.
+      if (deliveryLat == null || deliveryLng == null) {
+        return NextResponse.json({ error: "We couldn't verify that delivery address. Please check the street, city, and ZIP and try again." }, { status: 400 })
+      }
+
+      // Per-shop delivery radius, falling back to the platform default.
+      // Queried separately so this stays safe if the column isn't present yet.
+      let maxMiles = MAX_DELIVERY_MILES
+      const { data: radiusRow, error: radiusErr } = await svc
+        .from('dd_shops').select('delivery_radius_miles').eq('id', shopId).single()
+      if (!radiusErr && radiusRow?.delivery_radius_miles != null) {
+        maxMiles = Number(radiusRow.delivery_radius_miles)
+      }
+      const dist = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
+      if (dist > maxMiles) {
+        return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${maxMiles} miles from the shop.` }, { status: 400 })
       }
     }
 
