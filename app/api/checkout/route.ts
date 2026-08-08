@@ -131,9 +131,17 @@ export async function POST(request: NextRequest) {
       }
 
       if (deliveryLat != null && deliveryLng != null) {
+        // Per-shop delivery radius, falling back to the platform default.
+        // Queried separately so this stays safe if the column isn't present yet.
+        let maxMiles = MAX_DELIVERY_MILES
+        const { data: radiusRow, error: radiusErr } = await svc
+          .from('dd_shops').select('delivery_radius_miles').eq('id', shopId).single()
+        if (!radiusErr && radiusRow?.delivery_radius_miles != null) {
+          maxMiles = Number(radiusRow.delivery_radius_miles)
+        }
         const dist = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
-        if (dist > MAX_DELIVERY_MILES) {
-          return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
+        if (dist > maxMiles) {
+          return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${maxMiles} miles from the shop.` }, { status: 400 })
         }
       }
     }
