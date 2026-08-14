@@ -252,7 +252,7 @@ export default function EarningsPage() {
                 <div style={{ flex: '1 1 140px', minWidth: 120 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#065F46' }}>You Earn {fmt(order.earnings)}</div>
                   <div style={{ fontSize: 11, color: '#999' }}>
-                    {fmt(order.subtotal)} sale - {fmt(order.fee)} DonutDash fee
+                    {fmt(order.subtotal)} sale − {fmt(order.fee)} DonutDash commission
                   </div>
                 </div>
 
@@ -271,7 +271,7 @@ export default function EarningsPage() {
         textAlign: 'center', padding: '16px 20px', marginTop: 16,
         fontSize: 12, color: '#999', lineHeight: 1.5,
       }}>
-        DonutDash fee is taken from each order&apos;s subtotal at the rate on your merchant agreement (default {(SHOP_COMMISSION_RATE * 100).toFixed(0)}%). This covers payment processing, customer support, and the platform.
+        DonutDash commission is taken from each order&apos;s subtotal at the rate on your merchant agreement (default {(SHOP_COMMISSION_RATE * 100).toFixed(0)}%). This covers payment processing, customer support, and the platform.
       </div>
 
       {/* Breakdown modal — opens when a Recent Orders row is clicked. */}
