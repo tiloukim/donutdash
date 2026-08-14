@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
+import DriverPushBanner from '@/components/DriverPushBanner'
 import {
   applyPermissionGuards,
   canAccessAdminPortal,
@@ -240,6 +241,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span style={{ fontSize: 14, color: '#666' }}>{user.name}</span>
         </header>
         <div style={{ padding: 24 }}>
+          {isAllowedHere && <DriverPushBanner />}
           {isAllowedHere ? children : (
             <div style={{
               maxWidth: 480, margin: '60px auto', background: '#fff',

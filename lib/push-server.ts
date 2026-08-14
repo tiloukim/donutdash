@@ -62,3 +62,14 @@ export async function sendPushToUser(userId: string, msg: PushMessage): Promise<
   if (stale.length) await svc.from('dd_push_subscriptions').delete().in('endpoint', stale)
   return sent
 }
+
+// Web push to the admin team — the same people who get the SMS heads-up
+// (matched by their phone in ADMIN_PHONE_NUMBERS). No-ops for anyone who
+// hasn't enabled push yet.
+export async function pushAdmins(title: string, body: string, url = '/admin/orders'): Promise<void> {
+  const phones = process.env.ADMIN_PHONE_NUMBERS?.split(',').map(p => p.trim()).filter(Boolean) ?? []
+  if (!phones.length) return
+  const svc = createServiceClient()
+  const { data: users } = await svc.from('dd_users').select('id').in('phone', phones)
+  await Promise.all((users ?? []).map(u => sendPushToUser(u.id, { title, body, url, tag: 'admin-order' })))
+}
