@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
-import { sendEmail, sendSMS } from './sms'
+import { sendEmail } from './sms'
 import { sendPushToUser } from './push-server'
 import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS, DRIVER_STALE_MS } from './constants'
 
@@ -126,11 +126,7 @@ export async function createDeliveryOffer(deliveryId: string, driverId: string) 
           tag: 'delivery-offer',
         }).catch(() => {})
 
-        // SMS to driver
-        if (driver.phone) {
-          const driverPhone = driver.phone.startsWith('+') ? driver.phone : `+1${driver.phone.replace(/\D/g, '')}`
-          sendSMS(driverPhone, `New delivery offer! ${shopName} — earn ${earnings}. Tap to view & accept: https://donutdash.app/driver`).catch(() => {})
-        }
+        // Drivers are alerted in the app (web push + in-app), not by SMS.
 
         // Email to driver
         if (driver.email) await sendEmail(
