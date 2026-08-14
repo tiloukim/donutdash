@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
 import { sendEmail } from './sms'
 import { sendPushToUser } from './push-server'
+import { getPayConfig } from './pay-config'
 import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS, DRIVER_STALE_MS } from './constants'
 
 export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = [], shopId?: string) {
@@ -154,6 +155,39 @@ export async function createDeliveryOffer(deliveryId: string, driverId: string) 
 
 // Max number of individual driver offers before leaving it in Available Deliveries
 const MAX_OFFER_ATTEMPTS = 3
+
+// Create the dd_deliveries row for a delivery order (if it doesn't exist yet)
+// and dispatch the nearest driver. Idempotent — safe to call from checkout
+// (dispatch at placement), the shop confirm path, and the orphan-dispatch cron.
+export async function createDeliveryAndDispatch(order: {
+  id: string
+  shopLat: number | null
+  shopLng: number | null
+  dropLat: number | null
+  dropLng: number | null
+  tip: number | null
+}): Promise<void> {
+  const svc = createServiceClient()
+  const { data: existing } = await svc
+    .from('dd_deliveries').select('id').eq('order_id', order.id).maybeSingle()
+  let deliveryId = existing?.id
+  if (!existing) {
+    const dist = (order.shopLat && order.shopLng && order.dropLat && order.dropLng)
+      ? haversineDistance(order.shopLat, order.shopLng, order.dropLat, order.dropLng) : 0
+    const cfg = await getPayConfig()
+    const tip = Number(order.tip) || 0
+    const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
+    const { data: delivery, error } = await svc.from('dd_deliveries').insert({
+      order_id: order.id, status: 'pending',
+      pickup_lat: order.shopLat, pickup_lng: order.shopLng,
+      dropoff_lat: order.dropLat, dropoff_lng: order.dropLng,
+      distance_miles: dist, driver_earnings: earnings, base_pay: cfg.driverBasePay,
+    }).select('id').single()
+    if (error) { console.error('[dispatch] delivery insert failed for order', order.id, error.message); return }
+    deliveryId = delivery?.id
+  }
+  if (deliveryId) await assignNextDriver(deliveryId)
+}
 
 export async function assignNextDriver(deliveryId: string, opts: { force?: boolean } = {}) {
   const svc = createServiceClient()

@@ -6,6 +6,7 @@ import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen, isShopOpenAt } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { pushAdmins } from '@/lib/push-server'
+import { createDeliveryAndDispatch } from '@/lib/delivery-assignment'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { awardLoyaltyPoints } from '@/lib/loyalty'
 import { computeWelcomePromo } from '@/lib/promo'
@@ -472,6 +473,16 @@ export async function POST(request: NextRequest) {
         .eq('id', order.id)
       if (confirmErr) {
         console.error('[checkout] PAID but confirm update failed — reconcile', { orderId: order.id, paymentId, confirmErr })
+      }
+      // Dispatch a driver immediately for ASAP delivery orders so a driver gets
+      // the order the moment it's placed (held scheduled orders dispatch when
+      // they're released ~2h before the slot). The orphan-dispatch cron remains
+      // a backstop if this ever fails.
+      if (!isFarScheduled && !isPickup) {
+        createDeliveryAndDispatch({
+          id: order.id, shopLat: shop.lat, shopLng: shop.lng,
+          dropLat: deliveryLat, dropLng: deliveryLng, tip: tipAmount,
+        }).catch(e => console.error('[checkout] dispatch failed', order.id, e))
       }
     } else {
       const checkoutResponse = await square.checkout.paymentLinks.create({
