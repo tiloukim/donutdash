@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
 import { quoteDriverEarnings, ensureDriverEarnings } from '@/lib/pay-config'
 import { haversineDistance } from '@/lib/osrm'
+import { MAX_DRIVER_DISTANCE_MILES } from '@/lib/constants'
 
 // GET - get current pending offer for this driver
 export async function GET() {
@@ -99,7 +100,7 @@ export async function GET() {
       for (const d of unassigned) {
         if (d.pickup_lat && d.pickup_lng) {
           const dist = haversineDistance(d.pickup_lat, d.pickup_lng, driverLoc.lat, driverLoc.lng)
-          if (dist <= 10) {
+          if (dist <= MAX_DRIVER_DISTANCE_MILES) {
             // Check this driver hasn't already been offered/declined this delivery
             const { data: prevOffer } = await svc
               .from('dd_delivery_offers')

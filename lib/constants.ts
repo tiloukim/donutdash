@@ -96,7 +96,7 @@ export const OFFER_TIMEOUT_SECONDS = 45
 // any driver shown "online" is also dispatch-eligible — otherwise a driver
 // with a few throttled pings stays "online" but silently receives no offers.
 export const DRIVER_STALE_MS = 5 * 60 * 1000
-export const MAX_DRIVER_DISTANCE_MILES = 10
+export const MAX_DRIVER_DISTANCE_MILES = 7
 export const MAX_DELIVERY_MILES = 3
 export const BASE_DELIVERY_PAY = 3.00
 export const PER_MILE_PAY = 0.75
