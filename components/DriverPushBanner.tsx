@@ -86,7 +86,7 @@ export default function DriverPushBanner() {
     <div style={wrap} role="alert">
       {state === 'prompt' && (
         <>
-          <div style={text}>🔔 Turn on notifications so you never miss an order offer.</div>
+          <div style={text}>🔔 Turn on notifications so you never miss a new order.</div>
           <button style={btn} onClick={enable} disabled={busy}>{busy ? 'Enabling…' : 'Enable alerts'}</button>
         </>
       )}

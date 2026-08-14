@@ -4,7 +4,8 @@ import { SquareClient, SquareEnvironment } from 'square'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen, isShopOpenAt } from '@/lib/shop-hours'
-import { notifyAdmins, sendEmail, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
+import { notifyAdmins, sendEmail, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
+import { pushAdmins } from '@/lib/push-server'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { awardLoyaltyPoints } from '@/lib/loyalty'
 import { computeWelcomePromo } from '@/lib/promo'
@@ -285,13 +286,20 @@ export async function POST(request: NextRequest) {
     `
     // Held scheduled orders are announced 2h before the slot (when they
     // re-enter the shop feed), not at checkout time.
-    if (!isFarScheduled) notifyAdmins(smsMsg, `New Order: $${total.toFixed(2)} from ${shopName}`, emailHtml).catch(() => {})
+    if (!isFarScheduled) {
+      notifyAdmins(smsMsg, `New Order: $${total.toFixed(2)} from ${shopName}`, emailHtml).catch(() => {})
+      pushAdmins(`New Order — $${total.toFixed(2)}`, `${itemCount} item${itemCount > 1 ? 's' : ''} from ${shopName}`).catch(() => {})
+    }
 
-    // Notify shop owner via email (SMS heads-up goes only to the admin team;
-    // the shop is alerted in-app + email).
+    // Notify shop owner via SMS + email (fire and forget) — every order alerts
+    // the owner's phone.
     if (!isFarScheduled && shop?.owner_id) {
       (async () => {
         const { data: owner } = await svc.from('dd_users').select('email, phone').eq('id', shop.owner_id).single()
+        if (owner?.phone) {
+          const shopSms = `New DonutDash order! ${itemCount} item${itemCount > 1 ? 's' : ''} - $${total.toFixed(2)}. Open your shop app to accept: donutdash.app/shop/orders`
+          sendSMS(owner.phone.startsWith('+') ? owner.phone : `+1${owner.phone.replace(/\D/g, '')}`, shopSms).catch(() => {})
+        }
         if (owner?.email) {
           const ownerEmailHtml = `
             <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
