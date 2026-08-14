@@ -331,15 +331,11 @@ export default function EarningsPage() {
                     <div>{new Date(b.order.created_at).toLocaleString()}</div>
                   </div>
 
-                  {/* Customer paid */}
+                  {/* Food sale — the amount the shop's commission is based on.
+                      Delivery/service/tax/tip/promo aren't the shop's money, so
+                      they're intentionally not shown in the shop's breakdown. */}
                   <div style={{ borderTop: '1px solid #F0F0F0', paddingTop: 10 }}>
-                    <Row label="Customer paid" amount={b.customer.paid} bold />
-                    <Row label="Subtotal (food)" amount={b.customer.composition.subtotal} indent />
-                    {b.customer.composition.delivery_fee > 0 && <Row label="Delivery fee" amount={b.customer.composition.delivery_fee} indent />}
-                    {b.customer.composition.service_fee > 0 && <Row label="Service fee" amount={b.customer.composition.service_fee} indent />}
-                    {b.customer.composition.tax > 0 && <Row label="Sales tax" amount={b.customer.composition.tax} indent />}
-                    {b.customer.composition.tip > 0 && <Row label="Driver tip" amount={b.customer.composition.tip} indent />}
-                    {b.customer.composition.promo_discount > 0 && <Row label="Promo discount" amount={-b.customer.composition.promo_discount} indent color="#065F46" />}
+                    <Row label="Order total (food)" amount={b.customer.composition.subtotal} bold />
                   </div>
 
                   {/* Shop slice */}
