@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 import PendingReferralApplier from '@/components/PendingReferralApplier'
+import DriverPushBanner from '@/components/DriverPushBanner'
 import { subscribeToPush } from '@/lib/push-notifications'
 
 const NAV_ITEMS = [
@@ -125,7 +126,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
               </button>
             </div>
           </header>
-          <div className="driver-content">{children}</div>
+          <div className="driver-content"><DriverPushBanner />{children}</div>
         </main>
 
         {/* Mobile Bottom Tab Bar */}
