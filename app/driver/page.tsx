@@ -314,6 +314,10 @@ export default function DriverDashboard() {
   const respondToOffer = async (action: 'accept' | 'decline') => {
     if (!offer) return
     setResponding(true)
+    // Reserve a tab inside this click gesture so we can launch turn-by-turn
+    // navigation to the shop the instant the accept succeeds — opening it after
+    // the await would otherwise be blocked by mobile popup blockers.
+    const navWin = action === 'accept' ? window.open('', '_blank') : null
     // Stop alert sound
     import('@/lib/alert-sound').then(({ stopUrgentAlert }) => stopUrgentAlert()).catch(() => {})
     const res = await fetch('/api/driver/offer', {
@@ -325,11 +329,21 @@ export default function DriverDashboard() {
     if (res.ok) {
       const data = await res.json()
       if (data.accepted) {
+        // Send the driver to the shop right away.
+        const shop = offer.delivery?.order?.shop
+        const dest = shop?.lat && shop?.lng
+          ? `${shop.lat},${shop.lng}`
+          : encodeURIComponent([shop?.address, shop?.city, shop?.state].filter(Boolean).join(', '))
+        const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}`
+        if (navWin) navWin.location.href = mapsUrl
+        else window.open(mapsUrl, '_blank')
         window.location.href = '/driver/active'
         return
       }
+      navWin?.close()
       setOffer(null)
     } else {
+      navWin?.close()
       setOffer(null)
     }
     setResponding(false)
