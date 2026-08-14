@@ -256,6 +256,14 @@ export default function ActiveDelivery() {
   const custLat = delivery.dropoff_lat || delivery.order?.delivery_lat
   const custLng = delivery.dropoff_lng || delivery.order?.delivery_lng
 
+  // Turn-by-turn destinations (coords preferred, address fallback).
+  const shopMapsUrl = shopLat && shopLng
+    ? `https://www.google.com/maps/dir/?api=1&destination=${shopLat},${shopLng}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${delivery.order?.shop?.address}, ${delivery.order?.shop?.city}, ${delivery.order?.shop?.state}`)}`
+  const customerMapsUrl = custLat && custLng
+    ? `https://www.google.com/maps/dir/?api=1&destination=${custLat},${custLng}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${delivery.order?.delivery_address}, ${delivery.order?.delivery_city}`)}`
+
   return (
     <div>
       {/* Delivery Tabs (shown when batching) */}
@@ -320,11 +328,11 @@ export default function ActiveDelivery() {
 
         <div style={{ textAlign: 'center' }}>
           {delivery.status === 'assigned' && (
-            <button onClick={() => updateStatus('picked_up')} disabled={updating} style={{
+            <button onClick={() => { window.open(customerMapsUrl, '_blank'); updateStatus('picked_up') }} disabled={updating} style={{
               padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 700,
               background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer',
             }}>
-              {updating ? 'Updating...' : 'Picked Up Order'}
+              {updating ? 'Updating...' : 'Picked Up — Navigate to Customer'}
             </button>
           )}
           {delivery.status === 'picked_up' && (
@@ -432,16 +440,7 @@ export default function ActiveDelivery() {
             </div>
             {(delivery.status === 'assigned') && (
               <button
-                onClick={() => {
-                  const addr = encodeURIComponent(`${delivery.order?.shop?.address}, ${delivery.order?.shop?.city}, ${delivery.order?.shop?.state}`)
-                  const lat = shopLat
-                  const lng = shopLng
-                  // Try Google Maps first, falls back to Apple Maps on iOS
-                  const url = lat && lng
-                    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-                    : `https://www.google.com/maps/dir/?api=1&destination=${addr}`
-                  window.open(url, '_blank')
-                }}
+                onClick={() => window.open(shopMapsUrl, '_blank')}
                 style={{
                   padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
                   background: '#3B82F6', color: '#fff', border: 'none', cursor: 'pointer',
@@ -530,15 +529,7 @@ export default function ActiveDelivery() {
             </div>
             {(delivery.status === 'picked_up' || delivery.status === 'delivering') && (
               <button
-                onClick={() => {
-                  const addr = encodeURIComponent(`${delivery.order?.delivery_address}, ${delivery.order?.delivery_city}`)
-                  const lat = custLat
-                  const lng = custLng
-                  const url = lat && lng
-                    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-                    : `https://www.google.com/maps/dir/?api=1&destination=${addr}`
-                  window.open(url, '_blank')
-                }}
+                onClick={() => window.open(customerMapsUrl, '_blank')}
                 style={{
                   padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
                   background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer',
