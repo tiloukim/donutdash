@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
-import { sendOrderEmail, buildOrderEmailHtml, sendSMS } from '@/lib/sms'
+import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { sendPushToUser } from '@/lib/push-server'
 import { refundSquareOrder } from '@/lib/square-refund'
 import { resolveCommissionRate } from '@/lib/constants'
@@ -307,7 +307,8 @@ export async function PATCH(req: NextRequest) {
         .maybeSingle()
 
       if (delivery?.driver_id) {
-        // A driver already accepted — tell them the food is ready to grab.
+        // A driver already accepted — alert them in-app (push only; drivers
+        // are notified through the app, not SMS).
         const { data: shopInfo } = await svc.from('dd_shops').select('name').eq('id', order.shop_id).single()
         const sName = shopInfo?.name || 'the shop'
         sendPushToUser(delivery.driver_id, {
@@ -316,11 +317,6 @@ export async function PATCH(req: NextRequest) {
           url: '/driver/active',
           tag: 'order-ready',
         }).catch(() => {})
-        const { data: drv } = await svc.from('dd_users').select('phone').eq('id', delivery.driver_id).single()
-        if (drv?.phone) {
-          const p = drv.phone.startsWith('+') ? drv.phone : `+1${drv.phone.replace(/\D/g, '')}`
-          sendSMS(p, `Order ready at ${sName}! Head over now to pick up and deliver. donutdash.app/driver`).catch(() => {})
-        }
       } else if (delivery) {
         // Still no driver — push a fresh offer now, bypassing the attempt cap
         // (the food is ready, so this is urgent even if earlier offers lapsed).
