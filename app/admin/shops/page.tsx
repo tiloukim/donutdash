@@ -17,6 +17,7 @@ interface Shop {
   service_fee_pct: number
   delivery_fee: number
   min_order: number
+  delivery_radius_miles?: number | null
   tax_rate: number
   cash_discount_pct: number
   pricing_mode: 'standard' | 'cash_discount' | 'dual_pricing'
@@ -29,7 +30,7 @@ interface Shop {
   owner: { name: string; email: string } | null
 }
 
-const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pricing_mode', 'delivery_fee', 'min_order', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
+const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pricing_mode', 'delivery_fee', 'min_order', 'delivery_radius_miles', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
 
 export default function AdminShops() {
   const [shops, setShops] = useState<Shop[]>([])
@@ -539,6 +540,14 @@ export default function AdminShops() {
                             onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, min_order: parseFloat(e.target.value) || 0 } : s))}
                             style={numStyle}
                           />
+                        </span>
+                      </label>
+                      <label style={cfgLabel}>Delivery Radius
+                        <span>
+                          <input type="number" step="0.5" min="0" placeholder="3" value={shop.delivery_radius_miles ?? ''}
+                            onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, delivery_radius_miles: e.target.value === '' ? null : parseFloat(e.target.value) } : s))}
+                            style={numStyle}
+                          /> mi
                         </span>
                       </label>
                     </div>

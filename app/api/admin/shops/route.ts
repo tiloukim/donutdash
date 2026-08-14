@@ -118,6 +118,10 @@ export async function PATCH(request: NextRequest) {
     if ('service_fee_pct' in fields) allowed.service_fee_pct = fields.service_fee_pct
     if ('delivery_fee' in fields) allowed.delivery_fee = fields.delivery_fee
     if ('min_order' in fields) allowed.min_order = fields.min_order
+    if ('delivery_radius_miles' in fields) {
+      const r = Number(fields.delivery_radius_miles)
+      allowed.delivery_radius_miles = Number.isFinite(r) && r > 0 ? r : null
+    }
     if ('tax_rate' in fields) allowed.tax_rate = fields.tax_rate
     if ('commission_pct' in fields) {
       const pct = Number(fields.commission_pct)

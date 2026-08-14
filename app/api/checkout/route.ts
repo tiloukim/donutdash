@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch shop info including coordinates
     const svc = createServiceClient()
-    const { data: shop } = await svc.from('dd_shops').select('name, service_fee_pct, delivery_fee, min_order, tax_rate, lat, lng, owner_id, paused, pause_reason, pause_until').eq('id', shopId).single()
+    const { data: shop } = await svc.from('dd_shops').select('name, service_fee_pct, delivery_fee, min_order, tax_rate, lat, lng, owner_id, paused, pause_reason, pause_until, delivery_radius_miles').eq('id', shopId).single()
 
     // Check if shop has paused orders (auto-unpause if timer expired)
     if (shop?.paused) {
@@ -130,10 +130,13 @@ export async function POST(request: NextRequest) {
         // Geocoding failed — continue without coordinates
       }
 
+      // Each shop can set its own delivery radius; fall back to the platform
+      // default when it hasn't.
+      const maxDeliveryMiles = shop.delivery_radius_miles != null ? Number(shop.delivery_radius_miles) : MAX_DELIVERY_MILES
       if (deliveryLat != null && deliveryLng != null) {
         const dist = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
-        if (dist > MAX_DELIVERY_MILES) {
-          return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${MAX_DELIVERY_MILES} miles from the shop.` }, { status: 400 })
+        if (dist > maxDeliveryMiles) {
+          return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${maxDeliveryMiles} miles from the shop.` }, { status: 400 })
         }
       }
     }
