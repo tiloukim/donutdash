@@ -261,7 +261,7 @@ export async function PATCH(req: NextRequest) {
         const tip = updated.tip || 0
         const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
 
-        const { data: delivery } = await svc
+        const { data: delivery, error: deliveryErr } = await svc
           .from('dd_deliveries')
           .insert({
             order_id,
@@ -277,6 +277,10 @@ export async function PATCH(req: NextRequest) {
           .select()
           .single()
 
+        // Don't swallow this — a silent failure here means the order is confirmed
+        // but no driver is ever dispatched. Logged so it's visible; the
+        // dispatch-orphan-deliveries cron is the backstop that recovers it.
+        if (deliveryErr) console.error('[shop/orders] delivery insert failed for order', order_id, deliveryErr.message)
         if (delivery) deliveryId = delivery.id
       }
 

@@ -9,6 +9,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/dispatch-orphan-deliveries",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/weekly-payout",
       "schedule": "0 11 * * 1"
     },
