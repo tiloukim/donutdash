@@ -31,6 +31,10 @@
     {
       "path": "/api/cron/sponsorship-expiry",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/call-unaccepted-orders",
+      "schedule": "* * * * *"
     }
   ]
 }
