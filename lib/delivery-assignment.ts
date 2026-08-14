@@ -129,7 +129,7 @@ export async function createDeliveryOffer(deliveryId: string, driverId: string) 
         // SMS to driver
         if (driver.phone) {
           const driverPhone = driver.phone.startsWith('+') ? driver.phone : `+1${driver.phone.replace(/\D/g, '')}`
-          sendSMS(driverPhone, `New delivery offer! ${shopName} - Earn ${earnings}. Open your driver app: donutdash.app/driver`).catch(() => {})
+          sendSMS(driverPhone, `New delivery offer! ${shopName} — earn ${earnings}. Tap to view & accept: https://donutdash.app/driver`).catch(() => {})
         }
 
         // Email to driver
