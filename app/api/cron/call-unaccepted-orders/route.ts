@@ -3,9 +3,11 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { callShopToAccept } from '@/lib/voice'
 
 // If a shop hasn't accepted a new delivery order (still 'confirmed', not moved
-// to preparing/cancelled) ~60s after it was placed, phone the shop and run the
-// press-1-accept / press-2-reject IVR. One call per order (accept_call_at).
-// Runs every minute (so calls land ~60–120s after the order, cron-granular).
+// to preparing/cancelled) ~2 minutes after it was placed, phone the shop and
+// run the press-1-accept / press-2-reject IVR. One call per order
+// (accept_call_at). Runs every minute (cron-granular, so ~2–3 min in practice).
+const ACCEPT_WINDOW_MS = 2 * 60 * 1000
+
 export async function GET(req: NextRequest) {
   if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -13,8 +15,8 @@ export async function GET(req: NextRequest) {
 
   const svc = createServiceClient()
   const now = Date.now()
-  const olderThan = new Date(now - 60 * 1000).toISOString()     // placed >60s ago
-  const notAncient = new Date(now - 30 * 60 * 1000).toISOString() // and within 30 min
+  const olderThan = new Date(now - ACCEPT_WINDOW_MS).toISOString()  // placed >2 min ago
+  const notAncient = new Date(now - 30 * 60 * 1000).toISOString()   // and within 30 min
 
   const { data: orders } = await svc
     .from('dd_orders')
