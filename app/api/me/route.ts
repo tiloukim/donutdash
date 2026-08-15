@@ -25,6 +25,12 @@ export async function GET() {
       .single()
 
     if (dbError || !user) {
+      // Anonymous (guest) sessions have no email, so the email-based auto-create
+      // below can't run. A guest's dd_users row is provisioned explicitly by
+      // /api/auth/guest during checkout; until then they simply have no profile.
+      if (authUser.is_anonymous || !authUser.email) {
+        return NextResponse.json({ user: null }, { status: 200 })
+      }
       // User exists in auth but not in dd_users table - auto-create
       const meta = authUser.user_metadata || {}
       const role = meta.role || 'customer'

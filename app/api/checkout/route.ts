@@ -61,7 +61,16 @@ export async function POST(request: NextRequest) {
       sourceId,
       verificationToken,
       idempotencyKey,
+      customer_email,
     } = body
+
+    // Where the customer receipt goes. Guests (anonymous sessions) have a
+    // synthesized, non-deliverable dd_users.email, so use the email they typed
+    // at checkout (if any); logged-in customers use their account email.
+    const receiptEmail: string | null =
+      (typeof customer_email === 'string' && customer_email.trim()) ||
+      (authUser.is_anonymous ? null : ddUser.email) ||
+      null
 
     const fulfillmentType: 'delivery' | 'pickup' = fulfillment_type === 'pickup' ? 'pickup' : 'delivery'
     const isPickup = fulfillmentType === 'pickup'
@@ -239,6 +248,7 @@ export async function POST(request: NextRequest) {
         // so the order stays self-contained if the account is later removed.
         customer_name: ddUser.name ?? null,
         customer_phone: ddUser.phone ?? null,
+        customer_email: receiptEmail,
         shop_id: shopId,
         status: 'pending',
         subtotal,
@@ -564,7 +574,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send order confirmation email to customer (fire and forget)
-    if (ddUser.email) {
+    if (receiptEmail) {
       const itemsList = items.map((item: { name: string; quantity: number; price: number }) =>
         `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:14px;color:#444;"><span>${item.quantity}x ${item.name}</span><span>$${(item.price * item.quantity).toFixed(2)}</span></div>`
       ).join('')
@@ -590,7 +600,7 @@ export async function POST(request: NextRequest) {
         'Thank you for your order! We\'ve received it and the shop will start preparing it soon.',
         extraHtml
       )
-      sendOrderEmail(ddUser.email, `Order Confirmed - DonutDash #${order.id.slice(0, 8).toUpperCase()}`, confirmHtml).catch(() => {})
+      sendOrderEmail(receiptEmail, `Order Confirmed - DonutDash #${order.id.slice(0, 8).toUpperCase()}`, confirmHtml).catch(() => {})
     }
 
     // Embedded flow: order is already charged + confirmed → { ok, orderId }.

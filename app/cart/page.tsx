@@ -6,13 +6,11 @@ import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import { useCart } from '@/lib/cart-context'
-import { useAuth } from '@/lib/auth-context'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
 
 export default function CartPage() {
   const router = useRouter()
   const { items, total, count, updateQty, removeItem, clearCart, shopName, shopId } = useCart()
-  const { user } = useAuth()
   const [shopMinOrder, setShopMinOrder] = useState<number>(0)
   const [shopTaxRate, setShopTaxRate] = useState<number>(0)
   const [shopDeliveryFee, setShopDeliveryFee] = useState<number>(DEFAULT_DELIVERY_FEE)
@@ -553,10 +551,8 @@ export default function CartPage() {
           <div style={{ padding: '16px' }} className="desktop-only">
             <button
               onClick={() => {
-                if (!user) {
-                  router.push('/login')
-                  return
-                }
+                // Guests continue too — the checkout page offers guest checkout
+                // (no account needed) or sign-in.
                 if (meetsMinimum) {
                   const params = new URLSearchParams({ tip: String(tip), fulfillment: fulfillmentType })
                   router.push(`/checkout?${params.toString()}`)
@@ -597,10 +593,8 @@ export default function CartPage() {
       }}>
         <button
           onClick={() => {
-            if (!user) {
-              router.push('/login')
-              return
-            }
+            // Guests continue too — the checkout page offers guest checkout
+            // (no account needed) or sign-in.
             if (meetsMinimum) {
               const params = new URLSearchParams({ tip: String(tip), fulfillment: fulfillmentType })
               router.push(`/checkout?${params.toString()}`)
