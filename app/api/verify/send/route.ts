@@ -5,10 +5,13 @@ import { getClientIp } from '@/lib/client-ip'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  const { phone } = await req.json()
+  const { phone, channel } = await req.json()
   if (!phone?.trim()) {
     return NextResponse.json({ error: 'Phone number is required.' }, { status: 400 })
   }
+  // Fallback for when the SMS never arrives: a voice call that reads the code
+  // aloud. Anything other than an explicit 'call' stays on SMS.
+  const verifyChannel = channel === 'call' ? 'call' : 'sms'
 
   // SMS-pump defense. Twilio charges per send — without these caps,
   // someone can burn the Verify quota and bombard a victim's phone.
@@ -18,9 +21,11 @@ export async function POST(req: NextRequest) {
   if (!ipLimit.allowed) {
     return NextResponse.json({ error: 'Too many verification requests. Try again in 15 minutes.' }, { status: 429 })
   }
-  const phoneLimit = await checkRateLimit(`verify-send:phone:${normalizedPhone}`, 3, 60 * 60_000)
+  // Separate per-channel buckets so someone who exhausted SMS attempts can
+  // still fall back to a voice call (and vice-versa).
+  const phoneLimit = await checkRateLimit(`verify-send:phone:${verifyChannel}:${normalizedPhone}`, 3, 60 * 60_000)
   if (!phoneLimit.allowed) {
-    return NextResponse.json({ error: 'Too many codes sent to this number. Try again in an hour.' }, { status: 429 })
+    return NextResponse.json({ error: `Too many ${verifyChannel === 'call' ? 'calls' : 'codes'} sent to this number. Try again in an hour.` }, { status: 429 })
   }
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID
@@ -35,7 +40,7 @@ export async function POST(req: NextRequest) {
     const url = `https://verify.twilio.com/v2/Services/${serviceSid}/Verifications`
     const params = new URLSearchParams({
       To: phone.trim(),
-      Channel: 'sms',
+      Channel: verifyChannel,
     })
     const res = await fetch(url, {
       method: 'POST',

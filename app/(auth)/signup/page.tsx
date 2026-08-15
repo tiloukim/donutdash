@@ -45,6 +45,7 @@ export default function SignupPage() {
   const [verifyCode, setVerifyCode] = useState('')
   const [verifySending, setVerifySending] = useState(false)
   const [verifyError, setVerifyError] = useState('')
+  const [verifyInfo, setVerifyInfo] = useState('')
 
   const formatPhoneForApi = (p: string) => {
     const digits = p.replace(/\D/g, '')
@@ -53,19 +54,23 @@ export default function SignupPage() {
     return p.startsWith('+') ? p : `+${digits}`
   }
 
-  const handleSendCode = async () => {
+  const handleSendCode = async (channel: 'sms' | 'call' = 'sms') => {
     if (!phone.trim()) { setVerifyError('Enter your phone number first.'); return }
     setVerifySending(true)
     setVerifyError('')
+    setVerifyInfo('')
     try {
       const res = await fetch('/api/verify/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formatPhoneForApi(phone) }),
+        body: JSON.stringify({ phone: formatPhoneForApi(phone), channel }),
       })
       const data = await res.json()
       if (!res.ok) { setVerifyError(data.error || 'Failed to send code.'); return }
       setVerifyStep('sent')
+      setVerifyInfo(channel === 'call'
+        ? "Calling you now — pick up and we'll read out your 6-digit code."
+        : 'Code sent by text. It can take a minute to arrive.')
     } catch { setVerifyError('Failed to send code.') }
     finally { setVerifySending(false) }
   }
@@ -84,6 +89,7 @@ export default function SignupPage() {
       if (data.verified) {
         setVerifyStep('verified')
         setPhoneVerified(true)
+        setVerifyInfo('')
       } else {
         setVerifyError(data.error || 'Invalid code.')
       }
@@ -396,7 +402,7 @@ export default function SignupPage() {
               {verifyStep !== 'verified' ? (
                 <button
                   type="button"
-                  onClick={handleSendCode}
+                  onClick={() => handleSendCode('sms')}
                   disabled={verifySending || !phone.trim()}
                   style={{
                     padding: '0 16px', borderRadius: '10px', border: 'none',
@@ -446,6 +452,27 @@ export default function SignupPage() {
               </div>
             )}
 
+            {verifyStep === 'sent' && (
+              <p style={{ fontSize: '0.8rem', margin: '8px 0 0', color: '#6B7280' }}>
+                Didn{"’"}t get the text?{' '}
+                <button
+                  type="button"
+                  onClick={() => handleSendCode('call')}
+                  disabled={verifySending}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, font: 'inherit',
+                    color: '#FF1493', fontWeight: 600, textDecoration: 'underline',
+                    cursor: verifySending ? 'wait' : 'pointer',
+                  }}
+                >
+                  Call me with the code instead
+                </button>
+              </p>
+            )}
+
+            {verifyInfo && (
+              <p style={{ color: '#2563EB', fontSize: '0.8rem', margin: '4px 0 0' }}>{verifyInfo}</p>
+            )}
             {verifyError && (
               <p style={{ color: '#DC2626', fontSize: '0.8rem', margin: '4px 0 0' }}>{verifyError}</p>
             )}
