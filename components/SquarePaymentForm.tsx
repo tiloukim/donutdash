@@ -95,7 +95,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
           const googlePay = await payments.googlePay(paymentRequest)
           // fill = span the container width (matches the full-width Apple Pay /
           // card buttons); black to match Apple Pay.
-          await googlePay.attach('#dd-google-pay', { buttonColor: 'black', buttonType: 'order', buttonSizeMode: 'fill' })
+          await googlePay.attach('#dd-google-pay', { buttonColor: 'black', buttonType: 'pay', buttonSizeMode: 'fill' })
           // Square renders its button INTO the div; the click must be handled on
           // the DOM element. The googlePay object has no addEventListener, so the
           // old `googlePay.addEventListener?.(...)` silently no-oped and the
@@ -139,29 +139,28 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-      {/* Apple Pay — Apple's official button style renders the  Pay mark
-          (with the Apple logo) per Apple's design guidelines. Only works in
-          Safari on Apple devices, which is exactly where applePayReady is true. */}
+      {/* Apple Pay — custom button so it can read "Pay with  Pay" (Apple's
+          official button has no "Pay with" type). The  glyph is the Apple
+          logo, which renders on Apple devices — exactly where applePayReady is
+          true. Only shows in Safari on Apple devices. */}
       {applePayReady && (
-        <>
-          <style>{`
-            .dd-apple-pay-button {
-              -webkit-appearance: -apple-pay-button;
-              appearance: -apple-pay-button;
-              -apple-pay-button-type: order;
-              -apple-pay-button-style: black;
-              width: 100%; height: 48px; border-radius: 12px; border: none; cursor: pointer;
-            }
-            .dd-apple-pay-button:disabled { opacity: 0.5; cursor: not-allowed; }
-          `}</style>
-          <button
-            type="button"
-            className="dd-apple-pay-button"
-            aria-label="Pay with Apple Pay"
-            onClick={() => applePayRef.current && walletTokenize(applePayRef.current)}
-            disabled={loading || disabled}
-          />
-        </>
+        <button
+          type="button"
+          aria-label="Pay with Apple Pay"
+          onClick={() => applePayRef.current && walletTokenize(applePayRef.current)}
+          disabled={loading || disabled}
+          style={{
+            width: '100%', height: 48, borderRadius: 12, border: 'none',
+            background: '#000', color: '#fff',
+            fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+            fontSize: 17, fontWeight: 500, letterSpacing: '-0.01em',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2,
+            cursor: loading || disabled ? 'not-allowed' : 'pointer',
+            opacity: loading || disabled ? 0.5 : 1,
+          }}
+        >
+          Pay with&nbsp;{''}Pay
+        </button>
       )}
       {/* Google Pay (Square renders its own button here). Fixed 48px height +
           rounded, clipped corners so it lines up with the Apple Pay / card
