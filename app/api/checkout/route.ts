@@ -515,12 +515,21 @@ export async function POST(request: NextRequest) {
       // Use the service client — RLS blocks the customer-scoped client from
       // updating order status/payment, which would silently leave a paid
       // order stuck 'pending' (and auto-cancelled as stale).
-      const { error: confirmErr } = await svc
-        .from('dd_orders')
-        .update({ status: isFarScheduled ? 'pending' : 'confirmed', payment_id: paymentId })
-        .eq('id', order.id)
+      // The card is already charged, so this write MUST land — otherwise the
+      // order stays 'pending' with no payment_id and the stale-order cron would
+      // cancel a paid order. Retry a few times before giving up on a reconcile.
+      let confirmErr: unknown = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { error } = await svc
+          .from('dd_orders')
+          .update({ status: isFarScheduled ? 'pending' : 'confirmed', payment_id: paymentId })
+          .eq('id', order.id)
+        if (!error) { confirmErr = null; break }
+        confirmErr = error
+        await new Promise(r => setTimeout(r, 400 * (attempt + 1)))
+      }
       if (confirmErr) {
-        console.error('[checkout] PAID but confirm update failed — reconcile', { orderId: order.id, paymentId, confirmErr })
+        console.error('[checkout] PAID but confirm update failed after retries — reconcile', { orderId: order.id, paymentId, confirmErr })
       }
       // Dispatch a driver immediately for ASAP delivery orders so a driver gets
       // the order the moment it's placed (held scheduled orders dispatch when
