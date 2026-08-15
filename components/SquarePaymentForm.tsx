@@ -94,7 +94,15 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
         try {
           const googlePay = await payments.googlePay(paymentRequest)
           await googlePay.attach('#dd-google-pay')
-          googlePay.addEventListener?.('click', () => walletTokenize(googlePay))
+          // Square renders its button INTO the div; the click must be handled on
+          // the DOM element. The googlePay object has no addEventListener, so the
+          // old `googlePay.addEventListener?.(...)` silently no-oped and the
+          // button did nothing when tapped.
+          const gpEl = document.getElementById('dd-google-pay')
+          gpEl?.addEventListener('click', async (e) => {
+            e.preventDefault()
+            await walletTokenize(googlePay)
+          })
           setGooglePayReady(true)
         } catch { /* Google Pay unavailable */ }
       } catch (e) {
