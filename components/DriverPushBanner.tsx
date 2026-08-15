@@ -67,40 +67,61 @@ export default function DriverPushBanner() {
   if (state === 'checking' || state === 'ok' || dismissed) return null
 
   const wrap: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-    background: 'linear-gradient(135deg, #FF8C00, #FF7A00)', color: '#fff',
-    padding: '12px 16px', margin: '0 0 12px', borderRadius: 12,
-    boxShadow: '0 2px 10px rgba(255,140,0,0.25)',
+    display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+    background: 'linear-gradient(135deg, #FF7A00, #F43F5E)', color: '#fff',
+    padding: '16px 18px', margin: '0 0 14px', borderRadius: 14,
+    boxShadow: '0 4px 18px rgba(244,63,94,0.28)',
+    border: '1px solid rgba(255,255,255,0.15)',
   }
-  const text: React.CSSProperties = { flex: '1 1 220px', fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0 }
+  const headline: React.CSSProperties = { fontSize: 16, fontWeight: 800, marginBottom: 3, lineHeight: 1.25 }
+  const sub: React.CSSProperties = { fontSize: 13.5, fontWeight: 500, lineHeight: 1.45, opacity: 0.96 }
   const btn: React.CSSProperties = {
-    background: '#fff', color: '#B45309', border: 'none', borderRadius: 8,
-    padding: '9px 16px', fontSize: 14, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
+    background: '#fff', color: '#B4152F', border: 'none', borderRadius: 10,
+    padding: '13px 22px', fontSize: 15.5, fontWeight: 800, cursor: 'pointer',
+    whiteSpace: 'nowrap', flex: '1 1 auto', minWidth: 150,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
   }
   const closeBtn: React.CSSProperties = {
     background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)',
-    fontSize: 20, lineHeight: 1, cursor: 'pointer', padding: '0 2px', flexShrink: 0,
+    fontSize: 22, lineHeight: 1, cursor: 'pointer', padding: '0 2px', flexShrink: 0,
   }
 
   return (
     <div style={wrap} role="alert">
-      {state === 'prompt' && (
-        <>
-          <div style={text}>🔔 Turn on notifications so you never miss a new order.</div>
-          <button style={btn} onClick={enable} disabled={busy}>{busy ? 'Enabling…' : 'Enable alerts'}</button>
-        </>
+      <style>{`
+        @keyframes ddAlertPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+        @media (prefers-reduced-motion: no-preference) {
+          .dd-alert-btn { animation: ddAlertPulse 1.8s ease-in-out infinite; }
+        }
+      `}</style>
+      <div style={{ fontSize: 30, lineHeight: 1, flexShrink: 0 }}>🔔</div>
+      <div style={{ flex: '1 1 230px', minWidth: 0 }}>
+        {state === 'prompt' && (
+          <>
+            <div style={headline}>Turn on order alerts</div>
+            <div style={sub}>You won’t receive delivery offers until alerts are on — it only takes one tap.</div>
+          </>
+        )}
+        {state === 'ios-install' && (
+          <>
+            <div style={headline}>📲 Get order alerts on your iPhone</div>
+            <div style={sub}>Tap the <strong>Share</strong> icon, then <strong>“Add to Home Screen,”</strong> and open DonutDash from that icon to enable alerts. We’ll also text you offers in the meantime.</div>
+          </>
+        )}
+        {state === 'blocked' && (
+          <>
+            <div style={headline}>🔕 Your alerts are blocked</div>
+            <div style={sub}>Turn on notifications for donutdash.app in your browser settings so you don’t miss orders. We’ll text you offers in the meantime.</div>
+          </>
+        )}
+      </div>
+      {state === 'prompt' ? (
+        <button className="dd-alert-btn" style={btn} onClick={enable} disabled={busy}>
+          {busy ? 'Enabling…' : '🔔 Enable alerts'}
+        </button>
+      ) : (
+        <button style={closeBtn} onClick={() => setDismissed(true)} aria-label="Dismiss">×</button>
       )}
-      {state === 'ios-install' && (
-        <div style={text}>
-          📲 To get order alerts on iPhone, add DonutDash to your Home Screen: tap the <strong>Share</strong> icon, then <strong>“Add to Home Screen,”</strong> and open it from there.
-        </div>
-      )}
-      {state === 'blocked' && (
-        <div style={text}>
-          🔕 Notifications are blocked. Turn them on for donutdash.app in your browser settings so you don’t miss orders.
-        </div>
-      )}
-      <button style={closeBtn} onClick={() => setDismissed(true)} aria-label="Dismiss">×</button>
     </div>
   )
 }
