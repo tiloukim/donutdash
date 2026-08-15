@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       fulfillment_type,
       sourceId,
       verificationToken,
+      idempotencyKey,
     } = body
 
     const fulfillmentType: 'delivery' | 'pickup' = fulfillment_type === 'pickup' ? 'pickup' : 'delivery'
@@ -212,10 +213,26 @@ export async function POST(request: NextRequest) {
     const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100
 
+    // Idempotency: the browser sends a stable key per checkout attempt. If a
+    // response was lost AFTER the card was charged, the retry carries the same
+    // key — return the existing (live) order instead of charging again.
+    // Cancelled (declined) orders release their key, so a fixed-card retry with
+    // a fresh key still goes through.
+    if (idempotencyKey) {
+      const { data: dup } = await svc
+        .from('dd_orders')
+        .select('id')
+        .eq('checkout_key', idempotencyKey)
+        .neq('status', 'cancelled')
+        .maybeSingle()
+      if (dup) return NextResponse.json({ ok: true, orderId: dup.id })
+    }
+
     // Create the order in Supabase
     const { data: order, error: orderError } = await supabase
       .from('dd_orders')
       .insert({
+        checkout_key: idempotencyKey ?? null,
         customer_id: ddUser.id,
         // Denormalized so the POS/receipt can show who ordered without
         // reading dd_users (RLS blocks staff from other users' rows), and
@@ -245,6 +262,16 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (orderError) {
+      // A concurrent request with the same key won the unique index — return
+      // its order rather than surfacing a raw DB error (still no double charge).
+      if (idempotencyKey && (orderError.code === '23505' || /duplicate key/i.test(orderError.message))) {
+        const { data: dup } = await svc
+          .from('dd_orders')
+          .select('id')
+          .eq('checkout_key', idempotencyKey)
+          .maybeSingle()
+        if (dup) return NextResponse.json({ ok: true, orderId: dup.id })
+      }
       return NextResponse.json({ error: orderError.message }, { status: 500 })
     }
 
@@ -435,7 +462,7 @@ export async function POST(request: NextRequest) {
         try {
           const orderRes = await square.orders.create({
             order: squareOrder,
-            idempotencyKey: crypto.randomUUID(),
+            idempotencyKey: idempotencyKey ? `${idempotencyKey}-ord` : crypto.randomUUID(),
           })
           squareOrderId = orderRes.order?.id
           // Charge the order's own computed total so the payment and order
@@ -449,9 +476,12 @@ export async function POST(request: NextRequest) {
           console.error('[checkout] Square order create failed — charging without itemization', { orderId: order.id, orderErr })
         }
 
+        // Reuse the browser's stable key so a retried charge (same key) is
+        // de-duped by Square itself — the definitive backstop against a double
+        // charge even if the order-row dedup above is somehow bypassed.
         const paymentResult = await square.payments.create({
           sourceId,
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: idempotencyKey ?? crypto.randomUUID(),
           amountMoney: { amount: chargeAmount, currency: 'USD' },
           ...(squareOrderId ? { orderId: squareOrderId } : {}),
           locationId: process.env.SQUARE_LOCATION_ID!,
@@ -464,7 +494,9 @@ export async function POST(request: NextRequest) {
       } catch (payErr) {
         // Void the pending order and translate Square's decline codes into a
         // friendly message instead of surfacing the raw 400 body.
-        await svc.from('dd_orders').update({ status: 'cancelled', cancellation_reason: 'Payment declined' }).eq('id', order.id)
+        // Release the idempotency key so the customer can retry a fixed card as
+        // a fresh attempt (a declined charge never took the customer's money).
+        await svc.from('dd_orders').update({ status: 'cancelled', cancellation_reason: 'Payment declined', checkout_key: null }).eq('id', order.id)
         const e = payErr as { errors?: { code?: string }[]; body?: { errors?: { code?: string }[] } }
         const codes = [
           ...(Array.isArray(e?.errors) ? e.errors.map(x => x.code) : []),

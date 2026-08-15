@@ -42,6 +42,11 @@ export default function CheckoutPage() {
   // the server will charge). Null until we have a full address to quote.
   const [quote, setQuote] = useState<{ deliveryFee: number; distanceMiles: number; inRange: boolean } | null>(null)
   const [feesExpanded, setFeesExpanded] = useState(false)
+  // Stable per-attempt idempotency key: if a response is lost after the card is
+  // charged, the retry carries the same key so the server/Square de-dupe it
+  // (no double charge). Regenerated only after a server-returned error, where
+  // no charge went through and a fresh attempt is what the customer wants.
+  const [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID())
   const [fulfillmentType, setFulfillmentType] = useState<'delivery' | 'pickup'>(fulfillmentParam)
   const isPickup = fulfillmentType === 'pickup'
 
@@ -324,6 +329,7 @@ export default function CheckoutPage() {
       promo_discount: promo?.discount || 0,
       scheduled_for: scheduledFor,
       sourceId: token,
+      idempotencyKey: checkoutKey,
     }
 
     try {
@@ -335,12 +341,18 @@ export default function CheckoutPage() {
       const data = await res.json()
       if (!res.ok) {
         setError(data.error || 'Payment failed. Please try again.')
+        // The server responded with an error, so no charge went through —
+        // start the next attempt with a fresh key (a reused key would make
+        // Square replay the same decline instead of trying the fixed card).
+        setCheckoutKey(crypto.randomUUID())
         return
       }
       if (data.orderId) {
         window.location.href = `/checkout/success?order_id=${data.orderId}`
       }
     } catch {
+      // No response — the charge outcome is unknown. Keep the same key so a
+      // retry is de-duped rather than double-charged.
       setError('Something went wrong. Please try again.')
     } finally {
       setSubmitting(false)
