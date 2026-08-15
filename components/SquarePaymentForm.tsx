@@ -19,9 +19,10 @@ interface Props {
   onError: (message: string) => void
   loading: boolean
   total: number
+  disabled?: boolean
 }
 
-export default function SquarePaymentForm({ onTokenize, onError, loading, total }: Props) {
+export default function SquarePaymentForm({ onTokenize, onError, loading, total, disabled = false }: Props) {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const cardRef = useRef<any>(null)
   const applePayRef = useRef<any>(null)
@@ -116,7 +117,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
   }, [total, walletTokenize])
 
   async function payWithCard() {
-    if (!cardRef.current || loading) return
+    if (!cardRef.current || loading || disabled) return
     try {
       const result = await cardRef.current.tokenize()
       if (result.status === 'OK') onTokenize(result.token)
@@ -133,11 +134,11 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
         <button
           type="button"
           onClick={() => applePayRef.current && walletTokenize(applePayRef.current)}
-          disabled={loading}
+          disabled={loading || disabled}
           style={{
             width: '100%', minHeight: 48, borderRadius: 12, border: 'none',
             background: '#000', color: '#fff', fontSize: '1rem', fontWeight: 700,
-            cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1,
+            cursor: loading || disabled ? 'not-allowed' : 'pointer', opacity: loading || disabled ? 0.5 : 1,
           }}
         >
            Pay
@@ -163,16 +164,16 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
       <button
         type="button"
         onClick={payWithCard}
-        disabled={!ready || loading}
+        disabled={!ready || loading || disabled}
         style={{
           width: '100%', padding: '1rem',
-          background: !ready || loading ? '#ccc' : '#FF8C00',
+          background: !ready || loading || disabled ? '#ccc' : '#FF8C00',
           color: '#fff', border: 'none', borderRadius: 12,
           fontSize: '1.05rem', fontWeight: 700,
-          cursor: !ready || loading ? 'not-allowed' : 'pointer',
+          cursor: !ready || loading || disabled ? 'not-allowed' : 'pointer',
         }}
       >
-        {loading ? 'Processing…' : `Pay $${total.toFixed(2)}`}
+        {disabled ? 'Unavailable right now' : loading ? 'Processing…' : `Pay $${total.toFixed(2)}`}
       </button>
     </div>
   )

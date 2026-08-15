@@ -9,6 +9,24 @@ import { useCart } from '@/lib/cart-context'
 import { useAuth } from '@/lib/auth-context'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
 
+// Shop timezone (single-shop for now; mirrors SHOP_TZ in lib/shop-hours.ts).
+const SHOP_TZ = 'America/Chicago'
+
+// Convert a shop-local wall-clock (date "YYYY-MM-DD" + time "HH:MM") to a UTC
+// ISO instant, DST-aware, without a date library. Treat the wall time as if it
+// were UTC, then subtract the shop's actual UTC offset at that instant.
+function shopLocalToISO(dateStr: string, timeStr: string): string {
+  const [y, mo, d] = dateStr.split('-').map(Number)
+  const [h, mi] = timeStr.split(':').map(Number)
+  const asIfUTC = Date.UTC(y, mo - 1, d, h, mi)
+  // Offset (ms) between the shop timezone and UTC at that instant.
+  const probe = new Date(asIfUTC)
+  const shopWall = new Date(probe.toLocaleString('en-US', { timeZone: SHOP_TZ }))
+  const utcWall = new Date(probe.toLocaleString('en-US', { timeZone: 'UTC' }))
+  const offset = shopWall.getTime() - utcWall.getTime()
+  return new Date(asIfUTC - offset).toISOString()
+}
+
 export default function CheckoutPage() {
   const searchParams = useSearchParams()
   const tipParam = parseFloat(searchParams.get('tip') || '3')
@@ -205,6 +223,12 @@ export default function CheckoutPage() {
 
   const timeOptions = slotsForDate(scheduledDate)
 
+  // Dead-end guard: the shop is closed now AND has no bookable slot in the next
+  // 8 days (every day closed / hours misconfigured). ASAP is disabled and the
+  // date picker would be empty, so show a clear "not accepting orders" state
+  // and block checkout instead of trapping the customer at an empty dropdown.
+  const cannotOrder = isClosedNow && hasHours && dateOptions.length === 0
+
   // Keep the selected time valid when the date (or hours) change: if the current
   // pick isn't a real slot for the chosen day, snap to the first available one.
   useEffect(() => {
@@ -227,10 +251,13 @@ export default function CheckoutPage() {
   const promoDiscount = promo?.discount || 0
   const grandTotal = Math.round((total + tax + deliveryFee + serviceFee + smallOrderFee + tip - promoDiscount) * 100) / 100
 
-  // Build ISO datetime for the scheduled slot (dateOptions/timeOptions are
-  // derived above from the shop's real open hours).
+  // Build ISO datetime for the scheduled slot. The picker shows the shop's
+  // hours in SHOP-local time, so the chosen "8:00 AM" means 8:00 at the shop —
+  // interpret it in the shop timezone, NOT the customer's browser timezone, or
+  // an out-of-state customer would book an instant that maps to a different
+  // (possibly closed) shop-local time. Mirrors SHOP_TZ in lib/shop-hours.ts.
   const scheduledFor = deliveryTiming === 'scheduled' && scheduledDate && scheduledTime
-    ? new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString()
+    ? shopLocalToISO(scheduledDate, scheduledTime)
     : null
 
   if (count === 0) {
@@ -629,6 +656,20 @@ export default function CheckoutPage() {
             <h3 style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '1rem', color: '#1A1A2E' }}>
               {isPickup ? 'Pickup Time' : 'Delivery Time'}
             </h3>
+            {cannotOrder ? (
+              <div style={{
+                display: 'flex', gap: '0.6rem', alignItems: 'flex-start',
+                background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px',
+                padding: '0.85rem 1rem',
+              }}>
+                <span style={{ fontSize: '1.15rem', lineHeight: 1.2 }}>🚫</span>
+                <div style={{ fontSize: '0.9rem', color: '#991B1B', lineHeight: 1.45 }}>
+                  <strong>{shopName || 'This shop'} isn{"’"}t accepting orders right now.</strong>{' '}
+                  {hoursInfo?.message || 'Please check back during their open hours.'}
+                </div>
+              </div>
+            ) : (
+            <>
             {isClosedNow && (
               <div style={{
                 display: 'flex', gap: '0.6rem', alignItems: 'flex-start',
@@ -721,6 +762,8 @@ export default function CheckoutPage() {
                   </select>
                 </div>
               </div>
+            )}
+            </>
             )}
           </div>
 
@@ -848,6 +891,7 @@ export default function CheckoutPage() {
           <SquarePaymentForm
             total={grandTotal}
             loading={submitting}
+            disabled={cannotOrder}
             onError={setError}
             onTokenize={handleTokenize}
           />
