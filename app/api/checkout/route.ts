@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       shopId,
       items,
       delivery_address,
+      delivery_street,
       delivery_city,
       delivery_instructions,
       tip,
@@ -119,7 +120,11 @@ export async function POST(request: NextRequest) {
     let deliveryLng: number | null = null
     let deliveryDistanceMiles = 0
     if (!isPickup) {
-      const fullAddress = `${delivery_address}, ${delivery_city || ''}`
+      // Geocode the plain street + city — the same string the delivery-quote
+      // used — not the apt/bldg/floor-concatenated delivery_address, so the fee
+      // and range check match what the customer was quoted and unit suffixes
+      // can't trip up geocoding.
+      const fullAddress = `${delivery_street || delivery_address}, ${delivery_city || ''}`
 
       // Geocode with Google (reliable) first, then fall back to Nominatim.
       const gKey = process.env.GOOGLE_PLACES_API_KEY
