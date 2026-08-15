@@ -121,11 +121,11 @@ export default function SignupPage() {
         setLoading(false)
         return
       }
-    } else if (phone.trim() && !phoneVerified) {
-      setError('Please verify your phone number before signing up.')
-      setLoading(false)
-      return
     }
+    // Customers: phone is optional and NOT verification-gated. Blocking signup
+    // when they'd typed but not verified a phone (e.g. the SMS was slow or never
+    // arrived) silently trapped them — a real conversion killer. Let them
+    // through; the phone is still saved for order alerts.
     if (!isApp && !captchaToken) {
       setError('Please complete the CAPTCHA verification.')
       setLoading(false)

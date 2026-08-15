@@ -602,7 +602,8 @@ export default function CartPage() {
               return
             }
             if (meetsMinimum) {
-              router.push(`/checkout?tip=${tip}`)
+              const params = new URLSearchParams({ tip: String(tip), fulfillment: fulfillmentType })
+              router.push(`/checkout?${params.toString()}`)
             }
           }}
           disabled={!meetsMinimum}

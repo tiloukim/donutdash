@@ -288,6 +288,10 @@ export default function CheckoutPage() {
         setError('Please enter a ZIP code.')
         return
       }
+      if (quote && !quote.inRange) {
+        setError(`Sorry, that address is outside the delivery range (${quote.distanceMiles} mi). Please choose a closer address.`)
+        return
+      }
     }
 
     setSubmitting(true)
@@ -307,6 +311,8 @@ export default function CheckoutPage() {
       delivery_address: isPickup
         ? null
         : [address, apt && `Apt ${apt}`, building && `Bldg ${building}`, floor && `Floor ${floor}`].filter(Boolean).join(', '),
+      // Plain street (no unit) for server-side geocoding — matches the quote.
+      delivery_street: isPickup ? null : address,
       delivery_city: isPickup ? null : city,
       delivery_instructions: isPickup
         ? null
@@ -735,7 +741,7 @@ export default function CheckoutPage() {
               </div>
               {!isPickup && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-                  <span style={{ color: '#666' }}>Delivery Fee <span style={{ fontSize: '0.7rem', color: '#aaa' }}>(base — +$1.50/mi after 1 mi)</span></span>
+                  <span style={{ color: '#666' }}>Delivery Fee {quote?.distanceMiles != null && <span style={{ fontSize: '0.7rem', color: '#aaa' }}>({quote.distanceMiles} mi)</span>}</span>
                   <span>${deliveryFee.toFixed(2)}*</span>
                 </div>
               )}
