@@ -58,7 +58,7 @@ export default function CheckoutPage() {
   const [shopAddress, setShopAddress] = useState<{ address: string; city: string; state: string; zip: string } | null>(null)
   // Distance-based delivery fee quoted from the entered address (matches what
   // the server will charge). Null until we have a full address to quote.
-  const [quote, setQuote] = useState<{ deliveryFee: number; distanceMiles: number; inRange: boolean } | null>(null)
+  const [quote, setQuote] = useState<{ deliveryFee: number; distanceMiles: number; inRange: boolean; etaLabel?: string } | null>(null)
   const [feesExpanded, setFeesExpanded] = useState(false)
   // Guest checkout (anonymous session). Collected on the sign-in gate below.
   const [guestName, setGuestName] = useState('')
@@ -160,7 +160,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({ shopId, address, city }),
       })
         .then(r => r.json())
-        .then(d => { if (d.located) setQuote({ deliveryFee: d.deliveryFee, distanceMiles: d.distanceMiles, inRange: d.inRange }) })
+        .then(d => { if (d.located) setQuote({ deliveryFee: d.deliveryFee, distanceMiles: d.distanceMiles, inRange: d.inRange, etaLabel: d.etaLabel }) })
         .catch(() => {})
     }, 600)
     return () => { clearTimeout(timer); ctrl.abort() }
@@ -748,6 +748,17 @@ export default function CheckoutPage() {
             <h3 style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '1rem', color: '#1A1A2E' }}>
               {isPickup ? 'Pickup Time' : 'Delivery Time'}
             </h3>
+            {!isPickup && !isClosedNow && deliveryTiming === 'asap' && quote?.etaLabel && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '10px',
+                padding: '0.7rem 0.95rem', marginBottom: '1rem', fontSize: '0.92rem', color: '#166534', fontWeight: 600,
+              }}>
+                <span style={{ fontSize: '1.1rem' }}>🚴</span>
+                Estimated arrival: about {quote.etaLabel}
+                <span style={{ fontWeight: 400, color: '#4B9A6B', fontSize: '0.8rem' }}>({quote.distanceMiles} mi away)</span>
+              </div>
+            )}
             {cannotOrder ? (
               <div style={{
                 display: 'flex', gap: '0.6rem', alignItems: 'flex-start',

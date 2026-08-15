@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from '@/lib/osrm'
 import { getPayConfig } from '@/lib/pay-config'
 import { MAX_DELIVERY_MILES } from '@/lib/constants'
+import { estimateDeliveryEta } from '@/lib/eta'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,11 +51,13 @@ export async function POST(req: NextRequest) {
   const extraMiles = Math.max(0, distance - cfg.deliveryFreeMiles)
   const deliveryFee = Math.round((base + extraMiles * cfg.deliveryPerExtraMile) * 100) / 100
 
+  const eta = estimateDeliveryEta(distance)
   return NextResponse.json({
     located: true,
     distanceMiles: Math.round(distance * 10) / 10,
     deliveryFee,
     inRange: distance <= maxMiles,
     maxMiles,
+    etaLabel: eta.label,
   })
 }
