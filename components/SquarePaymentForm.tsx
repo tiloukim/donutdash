@@ -148,7 +148,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
             .dd-apple-pay-button {
               -webkit-appearance: -apple-pay-button;
               appearance: -apple-pay-button;
-              -apple-pay-button-type: plain;
+              -apple-pay-button-type: buy;
               -apple-pay-button-style: black;
               width: 100%; height: 48px; border-radius: 12px; border: none; cursor: pointer;
             }
