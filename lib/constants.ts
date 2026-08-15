@@ -33,11 +33,13 @@ export const DEFAULT_DELIVERY_FEE = 3.99
 // Logged per card sale in dd_pos_card_fees and summed in the shop's report.
 export const POS_CARD_TRANSACTION_FEE = 0.15
 
-// Distance-based pricing: shops charge a base fee that covers the first
-// BASE_DELIVERY_RADIUS_MILES of driving, then PER_EXTRA_MILE_FEE per mile after.
-// Driver is paid per mile of one-way distance (PER_MILE_PAY); the gap between
-// PER_EXTRA_MILE_FEE and PER_MILE_PAY is platform margin on each extra mile.
-export const BASE_DELIVERY_RADIUS_MILES = 1
+// Distance-based delivery pricing: the base delivery fee covers the first
+// BASE_DELIVERY_RADIUS_MILES (free radius), then PER_EXTRA_MILE_FEE per mile
+// after. Driver is paid PER_MILE_PAY per one-way mile; the gap between
+// PER_EXTRA_MILE_FEE and PER_MILE_PAY is platform margin on each extra mile,
+// which is what keeps long deliveries from going negative. Both are
+// admin-tunable in Settings (delivery_free_miles / delivery_per_extra_mile).
+export const BASE_DELIVERY_RADIUS_MILES = 5
 export const PER_EXTRA_MILE_FEE = 1.50
 
 export const MIN_ORDER_AMOUNT = 10
