@@ -32,7 +32,7 @@ export default function CheckoutPage() {
   const tipParam = parseFloat(searchParams.get('tip') || '3')
   const fulfillmentParam: 'delivery' | 'pickup' = searchParams.get('fulfillment') === 'pickup' ? 'pickup' : 'delivery'
   const { items, total, count, shopId, shopName } = useCart()
-  const { user } = useAuth()
+  const { user, supabase, refreshUser } = useAuth()
 
   const [address, setAddress] = useState('')
   const [apt, setApt] = useState('')
@@ -60,6 +60,12 @@ export default function CheckoutPage() {
   // the server will charge). Null until we have a full address to quote.
   const [quote, setQuote] = useState<{ deliveryFee: number; distanceMiles: number; inRange: boolean } | null>(null)
   const [feesExpanded, setFeesExpanded] = useState(false)
+  // Guest checkout (anonymous session). Collected on the sign-in gate below.
+  const [guestName, setGuestName] = useState('')
+  const [guestPhone, setGuestPhone] = useState('')
+  const [guestEmail, setGuestEmail] = useState('')
+  const [guestSubmitting, setGuestSubmitting] = useState(false)
+  const [guestError, setGuestError] = useState('')
   // Stable per-attempt idempotency key: if a response is lost after the card is
   // charged, the retry carries the same key so the server/Square de-dupe it
   // (no double charge). Regenerated only after a server-returned error, where
@@ -260,6 +266,41 @@ export default function CheckoutPage() {
     ? shopLocalToISO(scheduledDate, scheduledTime)
     : null
 
+  const handleContinueAsGuest = async () => {
+    if (!guestName.trim()) { setGuestError('Please enter your name.'); return }
+    if (!guestPhone.trim()) { setGuestError('Please enter a phone number so we can reach you about your order.'); return }
+    setGuestSubmitting(true)
+    setGuestError('')
+    try {
+      // A real but anonymous Supabase session — this makes the guest
+      // "authenticated" so the normal checkout, payment and order-tracking
+      // flow (and RLS) all work with no separate guest code path.
+      const { error: anonErr } = await supabase.auth.signInAnonymously()
+      if (anonErr) {
+        setGuestError('Guest checkout is unavailable right now. Please sign in instead.')
+        return
+      }
+      // Provision their dd_users profile from the name/phone they entered.
+      const res = await fetch('/api/auth/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: guestName.trim(), phone: guestPhone.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setGuestError(data.error || 'Could not start guest checkout. Please try again.')
+        return
+      }
+      // Force the auth context to re-read /api/me so `user` becomes set and the
+      // full checkout form renders (guestEmail stays in state for the receipt).
+      await refreshUser()
+    } catch {
+      setGuestError('Something went wrong. Please try again.')
+    } finally {
+      setGuestSubmitting(false)
+    }
+  }
+
   if (count === 0) {
     return (
       <div style={{ minHeight: '100vh' }}>
@@ -280,19 +321,67 @@ export default function CheckoutPage() {
   }
 
   if (!user) {
+    const guestInput = {
+      width: '100%', padding: '0.85rem 1rem', borderRadius: '10px',
+      border: '1px solid #ddd', fontSize: '1rem', outline: 'none',
+    } as const
     return (
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
-        <div style={{ textAlign: 'center', padding: '6rem 1rem' }}>
-          <span style={{ fontSize: '4rem', display: 'block', marginBottom: '1rem' }}>🔒</span>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Sign in required</h1>
-          <p style={{ color: '#888', marginBottom: '2rem' }}>Please sign in to complete your order.</p>
-          <Link href="/login" style={{
-            background: '#FF1493', color: 'white', padding: '0.75rem 2rem',
-            borderRadius: '10px', fontWeight: 600, display: 'inline-block',
-          }}>
-            Sign In
-          </Link>
+        <div style={{ maxWidth: 460, margin: '0 auto', padding: '2.5rem 1.25rem 4rem' }}>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.4rem', color: '#1A1A2E', textAlign: 'center' }}>
+            Almost there!
+          </h1>
+          <p style={{ color: '#888', marginBottom: '1.75rem', textAlign: 'center' }}>
+            Check out as a guest — no account needed. Just tell us where to reach you about your order.
+          </p>
+
+          <div style={{ background: 'white', borderRadius: 14, border: '1px solid #f0f0f0', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#444', marginBottom: '0.35rem' }}>Name</label>
+                <input value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Your name" style={guestInput}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')} onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#444', marginBottom: '0.35rem' }}>Mobile phone</label>
+                <input type="tel" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} placeholder="(903) 555-1234" style={guestInput}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')} onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
+                <p style={{ fontSize: '0.75rem', color: '#999', margin: '0.35rem 0 0' }}>So the shop and driver can reach you about your order.</p>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#444', marginBottom: '0.35rem' }}>
+                  Email <span style={{ color: '#999', fontWeight: 400 }}>(optional)</span>
+                </label>
+                <input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} placeholder="you@example.com" style={guestInput}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#FF1493')} onBlur={e => (e.currentTarget.style.borderColor = '#ddd')} />
+                <p style={{ fontSize: '0.75rem', color: '#999', margin: '0.35rem 0 0' }}>For your emailed receipt.</p>
+              </div>
+
+              {guestError && (
+                <p style={{ color: '#DC2626', fontSize: '0.85rem', margin: 0 }}>{guestError}</p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleContinueAsGuest}
+                disabled={guestSubmitting}
+                style={{
+                  width: '100%', padding: '0.95rem', borderRadius: 12, border: 'none',
+                  background: guestSubmitting ? '#ccc' : '#FF1493', color: 'white',
+                  fontWeight: 700, fontSize: '1.02rem', cursor: guestSubmitting ? 'wait' : 'pointer',
+                  marginTop: '0.25rem',
+                }}
+              >
+                {guestSubmitting ? 'One moment…' : 'Continue as guest'}
+              </button>
+            </div>
+          </div>
+
+          <p style={{ textAlign: 'center', color: '#888', fontSize: '0.9rem', marginTop: '1.5rem' }}>
+            Have an account?{' '}
+            <Link href="/login" style={{ color: '#FF1493', fontWeight: 600 }}>Sign in</Link>
+          </p>
         </div>
       </div>
     )
@@ -357,6 +446,9 @@ export default function CheckoutPage() {
       scheduled_for: scheduledFor,
       sourceId: token,
       idempotencyKey: checkoutKey,
+      // Guests: the email they entered on the gate, for their receipt. Empty
+      // for logged-in customers (server falls back to their account email).
+      customer_email: guestEmail.trim() || null,
     }
 
     try {
