@@ -26,7 +26,6 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const cardRef = useRef<any>(null)
   const applePayRef = useRef<any>(null)
-  const googlePayRef = useRef<any>(null)
   const paymentRequestRef = useRef<any>(null)
   const onTokenizeRef = useRef(onTokenize)
   const onErrorRef = useRef(onError)
@@ -94,10 +93,15 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
 
         try {
           const googlePay = await payments.googlePay(paymentRequest)
-          // We DON'T attach Square's rendered Google button — we render our own
-          // so it can share the exact font/size as the Apple Pay button. tokenize
-          // is triggered from our custom button's click (a real user gesture).
-          googlePayRef.current = googlePay
+          // Use Square's OFFICIAL rendered Google Pay button — a custom button +
+          // googlePay.tokenize() (no attach) fails ("Payment failed"), so the
+          // official button is required for Google Pay to actually work.
+          await googlePay.attach('#dd-google-pay', { buttonColor: 'black', buttonType: 'pay', buttonSizeMode: 'fill' })
+          const gpEl = document.getElementById('dd-google-pay')
+          gpEl?.addEventListener('click', async (e) => {
+            e.preventDefault()
+            await walletTokenize(googlePay)
+          })
           setGooglePayReady(true)
         } catch { /* Google Pay unavailable */ }
       } catch (e) {
@@ -158,26 +162,18 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
           Pay with&nbsp;{''}Pay
         </button>
       )}
-      {/* Google Pay — custom button matching the Apple one (same font/size).
-          tokenize() is triggered from this button's click gesture. */}
-      {googlePayReady && (
-        <button
-          type="button"
-          aria-label="Pay with Google Pay"
-          onClick={() => googlePayRef.current && walletTokenize(googlePayRef.current)}
-          disabled={loading || disabled}
-          style={walletBtnStyle}
-        >
-          Pay with&nbsp;
-          <svg width="20" height="20" viewBox="0 0 48 48" style={{ verticalAlign: 'middle' }} aria-hidden="true">
-            <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z" />
-            <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z" />
-            <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z" />
-            <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z" />
-          </svg>
-          &nbsp;Pay
-        </button>
-      )}
+      {/* Google Pay — Square's official rendered button (Google Sans font).
+          Fixed 48px height + rounded/clipped so it lines up with Apple Pay. */}
+      <div
+        id="dd-google-pay"
+        style={{
+          height: googlePayReady ? 48 : 0,
+          borderRadius: 12,
+          overflow: 'hidden',
+          opacity: loading || disabled ? 0.5 : 1,
+          pointerEvents: loading || disabled ? 'none' : 'auto',
+        }}
+      />
 
       {(applePayReady || googlePayReady) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#9CA3AF', fontSize: 13 }}>
