@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import { useCart } from '@/lib/cart-context'
 import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
+import { DEFAULT_ETA_LABEL } from '@/lib/eta'
 
 export default function CartPage() {
   const router = useRouter()
@@ -206,7 +207,7 @@ export default function CartPage() {
               </div>
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1A1A2E' }}>{shopName}</div>
-                <div style={{ fontSize: '0.75rem', color: '#999' }}>{isPickup ? 'Pickup at shop' : 'Delivery 25-35 min'}</div>
+                <div style={{ fontSize: '0.75rem', color: '#999' }}>{isPickup ? 'Pickup at shop' : `Delivery ${DEFAULT_ETA_LABEL}`}</div>
               </div>
             </div>
           )}

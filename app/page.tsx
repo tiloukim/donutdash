@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import type { Shop } from '@/lib/types'
 import DonutIcon from '@/components/DonutIcon'
+import { estimateDeliveryEta, DEFAULT_ETA_LABEL } from '@/lib/eta'
 import RunningDonut from '@/components/RunningDonut'
 
 function PromoBannerCarousel({ banners }: { banners: { title: string; subtitle: string; bg: string; emoji?: string; icon?: React.ReactNode; image?: string | null; href?: string; sponsored?: boolean }[] }) {
@@ -935,7 +936,7 @@ export default function HomePage() {
                           color: '#888',
                           flexWrap: 'wrap',
                         }}>
-                          <span>20-35 min</span>
+                          <span>{shop.distance_miles != null ? estimateDeliveryEta(shop.distance_miles).label : DEFAULT_ETA_LABEL}</span>
                           {shop.distance_miles != null && (
                             <>
                               <span style={{ color: '#ddd' }}>|</span>

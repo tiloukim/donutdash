@@ -14,7 +14,7 @@ const PINK = '#FF1493'
 
 const FAQS = [
   { q: 'How do I place an order?', a: 'Browse shops on the home page, add items to your cart, and checkout. You can pay with credit/debit card.' },
-  { q: 'How long does delivery take?', a: 'Most orders are delivered within 20-35 minutes depending on your distance from the shop and order volume.' },
+  { q: 'How long does delivery take?', a: 'Most orders are delivered within 15-30 minutes depending on your distance from the shop and order volume.' },
   { q: 'Can I cancel my order?', a: 'You can cancel before the shop starts preparing your order. Go to My Orders and tap the order to cancel.' },
   { q: 'How do I track my delivery?', a: 'Once your order is picked up by a driver, you can track their location in real-time from the order details page.' },
   { q: 'What if my order is wrong or missing items?', a: 'Contact us at help@donutdash.app with your order number and we\'ll make it right.' },

@@ -110,7 +110,7 @@ export default function DonutDeliveryTylerTX() {
             not chains.
           </li>
           <li style={{ marginBottom: '0.5rem' }}>
-            <strong>Fast delivery</strong> &mdash; Most orders arrive in 20-35 minutes.
+            <strong>Fast delivery</strong> &mdash; Most orders arrive in 15-30 minutes.
           </li>
           <li style={{ marginBottom: '0.5rem' }}>
             <strong>Real-time tracking</strong> &mdash; Know exactly where your donuts are.

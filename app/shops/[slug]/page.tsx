@@ -225,7 +225,7 @@ export default function ShopDetailPage() {
           fontSize: '0.9rem', color: '#666',
         }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            🕐 20-35 min
+            🕐 15-30 min
           </span>
         </div>
       </div>

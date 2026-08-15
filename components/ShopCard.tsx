@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import type { Shop } from '@/lib/types'
 import DonutIcon from './DonutIcon'
+import { estimateDeliveryEta, DEFAULT_ETA_LABEL } from '@/lib/eta'
 
 function StarRating({ rating }: { rating: number }) {
   const stars = []
@@ -207,9 +208,11 @@ export default function ShopCard({ shop, isFavorited, onToggleFavorite }: ShopCa
                 gap: '6px',
                 flexWrap: 'wrap',
               }}>
-                <span>🕐 {shop.estimated_delivery_min && shop.estimated_delivery_max
+                <span>🕐 {shop.distance_miles != null
+                  ? estimateDeliveryEta(shop.distance_miles).label
+                  : shop.estimated_delivery_min && shop.estimated_delivery_max
                   ? `${shop.estimated_delivery_min}-${shop.estimated_delivery_max} min`
-                  : '20-35 min'}</span>
+                  : DEFAULT_ETA_LABEL}</span>
                 {shop.distance_miles != null && (
                   <>
                     <span style={{ color: '#ddd' }}>•</span>
