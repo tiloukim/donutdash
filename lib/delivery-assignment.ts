@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from './osrm'
-import { sendEmail } from './sms'
+import { sendEmail, sendSMS } from './sms'
 import { sendPushToUser } from './push-server'
 import { getPayConfig } from './pay-config'
 import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS, DRIVER_STALE_MS } from './constants'
@@ -127,7 +127,22 @@ export async function createDeliveryOffer(deliveryId: string, driverId: string) 
           tag: 'delivery-offer',
         }).catch(() => {})
 
-        // Drivers are alerted in the app (web push + in-app), not by SMS.
+        // SMS fallback — ONLY for drivers with no working push subscription.
+        // iPhone drivers can't get web push unless they install the PWA to their
+        // Home Screen, so without this they'd never hear about an offer. Drivers
+        // who DO have push (e.g. Android) stay app-only and get no SMS.
+        if (driver.phone) {
+          const { count: pushCount } = await svc
+            .from('dd_push_subscriptions')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', driverId)
+          if (!pushCount) {
+            sendSMS(
+              driver.phone,
+              `New DonutDash delivery offer: ${shopName} — earn ${earnings}. Open your driver app to accept before it expires: https://donutdash.app/driver`,
+            ).catch(() => {})
+          }
+        }
 
         // Email to driver
         if (driver.email) await sendEmail(
