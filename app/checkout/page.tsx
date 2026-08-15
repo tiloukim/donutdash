@@ -975,7 +975,7 @@ export default function CheckoutPage() {
           </div>
 
           {!isPickup && (
-            <p style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: '1rem', marginTop: '-0.5rem' }}>
+            <p style={{ fontSize: '0.95rem', color: '#666', lineHeight: 1.5, marginBottom: '1rem', marginTop: '-0.5rem' }}>
               *Delivery fee is calculated based on distance from shop to your address. Final amount determined at order placement.
             </p>
           )}
