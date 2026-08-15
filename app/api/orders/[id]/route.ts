@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
 import { getPayConfig } from '@/lib/pay-config'
+import { refundSquareOrder } from '@/lib/square-refund'
 import { SquareClient, SquareEnvironment } from 'square'
 
 function getSquareClient() {
@@ -100,6 +101,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .from('dd_deliveries')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('order_id', id)
+
+    // Refund the customer if the order was already paid. Only pending/confirmed/
+    // adjusted orders are cancellable here — i.e. the shop hasn't started
+    // preparing — so a full refund is fair. payment_id is set once a Square
+    // payment (or hosted link) exists; unpaid orders skip this.
+    if (currentOrder.payment_id) {
+      const result = await refundSquareOrder({
+        orderId: id,
+        amountCents: Math.round(Number(currentOrder.total) * 100),
+        reason: body.cancellation_reason
+          ? `Cancelled by customer: ${body.cancellation_reason}`
+          : 'Cancelled by customer',
+        idempotencyKey: `refund-customer-cancel-${id}`,
+      })
+      if (result.success) {
+        await svc.from('dd_orders').update({ refund_amount: Number(currentOrder.total) }).eq('id', id)
+      } else {
+        console.error('[orders] customer-cancel refund failed — reconcile', id, result.error)
+      }
+    }
 
     return NextResponse.json({ order: cancelled, cancelled: true })
   }
