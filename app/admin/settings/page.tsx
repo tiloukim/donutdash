@@ -12,6 +12,8 @@ interface SettingField {
 const FIELDS: SettingField[] = [
   { key: 'service_fee_rate', label: 'Service Fee Rate', suffix: '%', defaultValue: '10' },
   { key: 'default_delivery_fee', label: 'Default Delivery Fee', suffix: '$', defaultValue: '3.99' },
+  { key: 'delivery_free_miles', label: 'Free Delivery Miles (base fee covers this radius)', suffix: 'mi', defaultValue: '5' },
+  { key: 'delivery_per_extra_mile', label: 'Delivery Fee — Per Extra Mile', suffix: '$', defaultValue: '1.50' },
   { key: 'driver_base_pay', label: 'Driver Base Pay (per delivery)', suffix: '$', defaultValue: '3.00' },
   { key: 'driver_per_mile', label: 'Driver Per-Mile Rate', suffix: '$', defaultValue: '0.75' },
   { key: 'shop_commission_rate', label: 'Shop Commission Rate', suffix: '%', defaultValue: '20' },

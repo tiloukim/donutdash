@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { SquareClient, SquareEnvironment } from 'square'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { SERVICE_FEE_RATE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 import { isShopOpen, isShopOpenAt } from '@/lib/shop-hours'
 import { notifyAdmins, sendEmail, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { pushAdmins } from '@/lib/push-server'
 import { createDeliveryAndDispatch } from '@/lib/delivery-assignment'
+import { getPayConfig } from '@/lib/pay-config'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { awardLoyaltyPoints } from '@/lib/loyalty'
 import { computeWelcomePromo } from '@/lib/promo'
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
     // Geocode delivery address + enforce delivery range (delivery orders only).
     let deliveryLat: number | null = null
     let deliveryLng: number | null = null
+    let deliveryDistanceMiles = 0
     if (!isPickup) {
       const fullAddress = `${delivery_address}, ${delivery_city || ''}`
 
@@ -166,13 +168,22 @@ export async function POST(request: NextRequest) {
         maxMiles = Number(radiusRow.delivery_radius_miles)
       }
       const dist = haversineDistance(shop.lat, shop.lng, deliveryLat, deliveryLng)
+      deliveryDistanceMiles = dist
       if (dist > maxMiles) {
         return NextResponse.json({ error: `Sorry, this address is outside our delivery range (${dist.toFixed(1)} mi). We deliver up to ${maxMiles} miles from the shop.` }, { status: 400 })
       }
     }
 
-    // Flat delivery fee for delivery; pickup is free.
-    const deliveryFee = isPickup ? 0 : (shop?.delivery_fee ?? DEFAULT_DELIVERY_FEE)
+    // Distance-based delivery fee: the base fee covers the free radius, then a
+    // per-mile charge applies beyond it. This keeps long deliveries from going
+    // negative (the driver is paid per mile), while short deliveries stay at the
+    // flat base fee. Free-miles + per-mile rate are admin-configurable.
+    const payCfg = await getPayConfig()
+    const baseDeliveryFee = shop?.delivery_fee ?? payCfg.defaultDeliveryFee
+    const extraMiles = Math.max(0, deliveryDistanceMiles - payCfg.deliveryFreeMiles)
+    const deliveryFee = isPickup
+      ? 0
+      : Math.round((baseDeliveryFee + extraMiles * payCfg.deliveryPerExtraMile) * 100) / 100
 
     // Calculate totals
     const subtotal = items.reduce(

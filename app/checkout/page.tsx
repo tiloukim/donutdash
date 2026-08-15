@@ -38,6 +38,9 @@ export default function CheckoutPage() {
   const [error, setError] = useState('')
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
   const [shopAddress, setShopAddress] = useState<{ address: string; city: string; state: string; zip: string } | null>(null)
+  // Distance-based delivery fee quoted from the entered address (matches what
+  // the server will charge). Null until we have a full address to quote.
+  const [quote, setQuote] = useState<{ deliveryFee: number; distanceMiles: number; inRange: boolean } | null>(null)
   const [feesExpanded, setFeesExpanded] = useState(false)
   const [fulfillmentType, setFulfillmentType] = useState<'delivery' | 'pickup'>(fulfillmentParam)
   const isPickup = fulfillmentType === 'pickup'
@@ -117,6 +120,23 @@ export default function CheckoutPage() {
       .catch(() => {})
   }, [shopId])
 
+  // Quote the distance-based delivery fee whenever the delivery address is
+  // complete, so the total shown matches what the server will charge.
+  useEffect(() => {
+    if (isPickup || !shopId || !address.trim() || !city.trim() || !zip.trim()) { setQuote(null); return }
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => {
+      fetch('/api/delivery-quote', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+        body: JSON.stringify({ shopId, address, city }),
+      })
+        .then(r => r.json())
+        .then(d => { if (d.located) setQuote({ deliveryFee: d.deliveryFee, distanceMiles: d.distanceMiles, inRange: d.inRange }) })
+        .catch(() => {})
+    }, 600)
+    return () => { clearTimeout(timer); ctrl.abort() }
+  }, [isPickup, shopId, address, city, zip])
+
   // Shop hours: if the shop is closed right now, we can't take an ASAP order —
   // so we flip the customer into "schedule for later" and pre-fill the next
   // opening slot instead of dead-ending them.
@@ -191,7 +211,7 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduledDate, hoursInfo, deliveryTiming])
 
-  const deliveryFee = isPickup ? 0 : shopFees.delivery_fee
+  const deliveryFee = isPickup ? 0 : (quote?.deliveryFee ?? shopFees.delivery_fee)
   const serviceFee = Math.round(total * (shopFees.service_fee_pct / 100) * 100) / 100
   const smallOrderFee = total < MIN_ORDER_AMOUNT ? SMALL_ORDER_FEE : 0
   // TX Comptroller Rule 3.293: separately-stated delivery + service fees on
