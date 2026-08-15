@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
     // marginCap (service fee + commission; tax/tip/delivery excluded) keeps the
     // discount inside platform earnings — never the shop payout.
     const platformMargin = serviceFee + subtotal * SHOP_COMMISSION_RATE
-    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, phone: ddUser.phone, subtotal, code: promo_code, marginCap: platformMargin })
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, phone: ddUser.phone, deliveryAddress: delivery_address, deliveryCity: delivery_city, subtotal, code: promo_code, marginCap: platformMargin })
     const promoDiscount = promo?.discount ?? 0
     const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100
@@ -463,6 +463,7 @@ export async function POST(request: NextRequest) {
     let paymentLinkUrl: string | null = null
     if (sourceId) {
       let paymentId: string | undefined
+      let cardFingerprint: string | null = null
       try {
         // Create an itemized Square order first, then attach the payment to it.
         // Without an order, the charge posts as a single lump sum and the
@@ -501,6 +502,10 @@ export async function POST(request: NextRequest) {
         })
         if (paymentResult.payment?.status !== 'COMPLETED') throw new Error('not completed')
         paymentId = paymentResult.payment.id
+        // Square's stable per-card id — recorded for post-hoc welcome-offer abuse
+        // detection (see below). Present for card payments; wallets may omit it.
+        cardFingerprint = (paymentResult.payment as { cardDetails?: { card?: { fingerprint?: string } } })
+          .cardDetails?.card?.fingerprint ?? null
       } catch (payErr) {
         // Void the pending order and translate Square's decline codes into a
         // friendly message instead of surfacing the raw 400 body.
@@ -532,7 +537,7 @@ export async function POST(request: NextRequest) {
       for (let attempt = 0; attempt < 3; attempt++) {
         const { error } = await svc
           .from('dd_orders')
-          .update({ status: isFarScheduled ? 'pending' : 'confirmed', payment_id: paymentId })
+          .update({ status: isFarScheduled ? 'pending' : 'confirmed', payment_id: paymentId, card_fingerprint: cardFingerprint })
           .eq('id', order.id)
         if (!error) { confirmErr = null; break }
         confirmErr = error
@@ -540,6 +545,21 @@ export async function POST(request: NextRequest) {
       }
       if (confirmErr) {
         console.error('[checkout] PAID but confirm update failed after retries — reconcile', { orderId: order.id, paymentId, confirmErr })
+      }
+      // Welcome-offer abuse DETECTION (not prevention): if a welcome discount was
+      // applied and this exact card has ordered before, flag it in the logs. We
+      // can't block pre-charge without breaking wallet payments, so surface it
+      // for review instead. Phone + address gates above are the hard blocks.
+      if (cardFingerprint && promoDiscount > 0) {
+        const { count: priorCardOrders } = await svc
+          .from('dd_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('card_fingerprint', cardFingerprint)
+          .neq('status', 'cancelled')
+          .neq('id', order.id)
+        if ((priorCardOrders ?? 0) > 0) {
+          console.warn('[promo] welcome discount claimed by a repeat card', { orderId: order.id, cardFingerprint, priorCardOrders, promoDiscount })
+        }
       }
       // Dispatch a driver immediately for ASAP delivery orders so a driver gets
       // the order the moment it's placed (held scheduled orders dispatch when

@@ -46,6 +46,13 @@ interface ComputeArgs {
    * disqualify anyone whose phone has already ordered.
    */
   phone?: string | null
+  /**
+   * Full delivery address + city (delivery orders only). Second abuse gate:
+   * an exact-normalized match to a prior order's address also disqualifies the
+   * welcome offer. Omitted for pickup (no address).
+   */
+  deliveryAddress?: string | null
+  deliveryCity?: string | null
   /** Order subtotal in dollars (food only — discount is computed off this). */
   subtotal: number
   /** Optional code the customer typed at checkout. */
@@ -71,7 +78,7 @@ interface ComputeArgs {
  *   3. a typed code, if the platform has one configured, must match
  *   4. the computed discount is > $0
  */
-export async function computeWelcomePromo({ svc, customerId, phone, subtotal, code, marginCap }: ComputeArgs): Promise<WelcomePromo | null> {
+export async function computeWelcomePromo({ svc, customerId, phone, deliveryAddress, deliveryCity, subtotal, code, marginCap }: ComputeArgs): Promise<WelcomePromo | null> {
   if (!customerId || !(subtotal > 0)) return null
 
   const { data: rows } = await svc
@@ -110,6 +117,17 @@ export async function computeWelcomePromo({ svc, customerId, phone, subtotal, co
   if ((phone || '').replace(/\D/g, '').length >= 10) {
     const { data: usedBefore } = await svc.rpc('has_prior_order_by_phone', { p: phone })
     if (usedBefore === true) return null
+  }
+
+  // Address gate: exact-normalized match to a prior order's delivery address
+  // (delivery orders only). Conservative on purpose — a genuinely new customer
+  // in the same building (different unit) still qualifies.
+  if (deliveryAddress && deliveryAddress.trim() && deliveryCity && deliveryCity.trim()) {
+    const { data: addrUsed } = await svc.rpc('has_prior_order_by_address', {
+      addr: deliveryAddress,
+      city: deliveryCity,
+    })
+    if (addrUsed === true) return null
   }
 
   const type = cfg.welcome_promo_type === 'amount' ? 'amount' : 'percent'
