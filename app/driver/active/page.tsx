@@ -328,12 +328,22 @@ export default function ActiveDelivery() {
 
         <div style={{ textAlign: 'center' }}>
           {delivery.status === 'assigned' && (
-            <button onClick={() => { window.open(customerMapsUrl, '_blank'); updateStatus('picked_up') }} disabled={updating} style={{
-              padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 700,
-              background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer',
-            }}>
+            // A real anchor tap launches the Maps app reliably even inside an
+            // installed PWA (where window.open can be swallowed), and the
+            // onClick marks the order picked up at the same time.
+            <a
+              href={customerMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => { if (!updating) updateStatus('picked_up') }}
+              style={{
+                display: 'inline-block', padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 700,
+                background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer',
+                textDecoration: 'none', opacity: updating ? 0.6 : 1,
+              }}
+            >
               {updating ? 'Updating...' : 'Picked Up — Navigate to Customer'}
-            </button>
+            </a>
           )}
           {delivery.status === 'picked_up' && (
             <button onClick={() => updateStatus('delivering')} disabled={updating} style={{
@@ -439,16 +449,19 @@ export default function ActiveDelivery() {
               )}
             </div>
             {(delivery.status === 'assigned') && (
-              <button
-                onClick={() => window.open(shopMapsUrl, '_blank')}
+              <a
+                href={shopMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
                   padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
                   background: '#3B82F6', color: '#fff', border: 'none', cursor: 'pointer',
                   whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
+                  textDecoration: 'none',
                 }}
               >
                 🧭 Navigate
-              </button>
+              </a>
             )}
           </div>
         </div>
@@ -528,16 +541,19 @@ export default function ActiveDelivery() {
               )}
             </div>
             {(delivery.status === 'picked_up' || delivery.status === 'delivering') && (
-              <button
-                onClick={() => window.open(customerMapsUrl, '_blank')}
+              <a
+                href={customerMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
                   padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
                   background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer',
                   whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
+                  textDecoration: 'none',
                 }}
               >
                 🧭 Navigate
-              </button>
+              </a>
             )}
           </div>
         </div>
