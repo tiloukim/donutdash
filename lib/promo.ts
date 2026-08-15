@@ -40,6 +40,12 @@ interface ComputeArgs {
   svc: SupabaseClient
   /** dd_users.id of the customer being charged. */
   customerId: string
+  /**
+   * Customer phone. Guest checkout mints a fresh customer_id per order, so
+   * customer_id alone can't tell a returning guest from a new one — we also
+   * disqualify anyone whose phone has already ordered.
+   */
+  phone?: string | null
   /** Order subtotal in dollars (food only — discount is computed off this). */
   subtotal: number
   /** Optional code the customer typed at checkout. */
@@ -65,7 +71,7 @@ interface ComputeArgs {
  *   3. a typed code, if the platform has one configured, must match
  *   4. the computed discount is > $0
  */
-export async function computeWelcomePromo({ svc, customerId, subtotal, code, marginCap }: ComputeArgs): Promise<WelcomePromo | null> {
+export async function computeWelcomePromo({ svc, customerId, phone, subtotal, code, marginCap }: ComputeArgs): Promise<WelcomePromo | null> {
   if (!customerId || !(subtotal > 0)) return null
 
   const { data: rows } = await svc
@@ -96,6 +102,15 @@ export async function computeWelcomePromo({ svc, customerId, subtotal, code, mar
     .neq('status', 'cancelled')
 
   if ((count ?? 0) > 0) return null
+
+  // Phone gate: a returning GUEST gets a brand-new customer_id each time, so the
+  // count above is always 0 for them. Disqualify anyone whose phone has already
+  // placed a (non-cancelled) order — the offer is once per person, not once per
+  // anonymous session. Needs ≥10 digits to match; no/short phone skips the gate.
+  if ((phone || '').replace(/\D/g, '').length >= 10) {
+    const { data: usedBefore } = await svc.rpc('has_prior_order_by_phone', { p: phone })
+    if (usedBefore === true) return null
+  }
 
   const type = cfg.welcome_promo_type === 'amount' ? 'amount' : 'percent'
   const value = parseFloat(cfg.welcome_promo_value || '0') || 0

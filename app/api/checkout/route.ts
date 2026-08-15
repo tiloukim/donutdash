@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
     // marginCap (service fee + commission; tax/tip/delivery excluded) keeps the
     // discount inside platform earnings — never the shop payout.
     const platformMargin = serviceFee + subtotal * SHOP_COMMISSION_RATE
-    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code: promo_code, marginCap: platformMargin })
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, phone: ddUser.phone, subtotal, code: promo_code, marginCap: platformMargin })
     const promoDiscount = promo?.discount ?? 0
     const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100

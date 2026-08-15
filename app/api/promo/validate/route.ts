@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const { data: ddUser } = await supabase
       .from('dd_users')
-      .select('id')
+      .select('id, phone')
       .eq('auth_id', authUser.id)
       .single()
     if (!ddUser) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const code: string | null = typeof body?.code === 'string' ? body.code : null
 
     const svc = createServiceClient()
-    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, subtotal, code })
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, phone: ddUser.phone, subtotal, code })
 
     if (!promo) {
       // A typed code that didn't resolve to a promo gets a clear message;
