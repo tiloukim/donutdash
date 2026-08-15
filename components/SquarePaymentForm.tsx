@@ -137,20 +137,29 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-      {/* Apple Pay */}
+      {/* Apple Pay — Apple's official button style renders the  Pay mark
+          (with the Apple logo) per Apple's design guidelines. Only works in
+          Safari on Apple devices, which is exactly where applePayReady is true. */}
       {applePayReady && (
-        <button
-          type="button"
-          onClick={() => applePayRef.current && walletTokenize(applePayRef.current)}
-          disabled={loading || disabled}
-          style={{
-            width: '100%', minHeight: 48, borderRadius: 12, border: 'none',
-            background: '#000', color: '#fff', fontSize: '1rem', fontWeight: 700,
-            cursor: loading || disabled ? 'not-allowed' : 'pointer', opacity: loading || disabled ? 0.5 : 1,
-          }}
-        >
-           Pay
-        </button>
+        <>
+          <style>{`
+            .dd-apple-pay-button {
+              -webkit-appearance: -apple-pay-button;
+              appearance: -apple-pay-button;
+              -apple-pay-button-type: plain;
+              -apple-pay-button-style: black;
+              width: 100%; height: 48px; border-radius: 12px; border: none; cursor: pointer;
+            }
+            .dd-apple-pay-button:disabled { opacity: 0.5; cursor: not-allowed; }
+          `}</style>
+          <button
+            type="button"
+            className="dd-apple-pay-button"
+            aria-label="Pay with Apple Pay"
+            onClick={() => applePayRef.current && walletTokenize(applePayRef.current)}
+            disabled={loading || disabled}
+          />
+        </>
       )}
       {/* Google Pay (Square renders its own button here) */}
       <div id="dd-google-pay" style={{ minHeight: googlePayReady ? 48 : 0 }} />
