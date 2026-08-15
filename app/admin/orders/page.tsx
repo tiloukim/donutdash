@@ -17,6 +17,7 @@ interface DeliveryInfo {
   driver_earnings: number
   driver_id: string | null
   status: string
+  distance_miles: number | null
   delivery_photo_url: string | null
   driver: { name: string; avatar_url?: string | null } | null
 }
@@ -399,6 +400,10 @@ export default function AdminOrders() {
                                 <div>
                                   <span style={{ color: '#6B7280' }}>Delivery Status: </span>
                                   <span style={{ fontWeight: 500 }}>{delivery?.status || '-'}</span>
+                                </div>
+                                <div>
+                                  <span style={{ color: '#6B7280' }}>Distance: </span>
+                                  <span style={{ fontWeight: 500 }}>{delivery?.distance_miles != null ? `${Number(delivery.distance_miles).toFixed(1)} mi` : '—'}</span>
                                 </div>
                                 <div>
                                   <span style={{ color: '#6B7280' }}>Driver Earnings: </span>
