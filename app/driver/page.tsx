@@ -314,10 +314,17 @@ export default function DriverDashboard() {
   const respondToOffer = async (action: 'accept' | 'decline') => {
     if (!offer) return
     setResponding(true)
-    // Reserve a tab inside this click gesture so we can launch turn-by-turn
-    // navigation to the shop the instant the accept succeeds — opening it after
-    // the await would otherwise be blocked by mobile popup blockers.
-    const navWin = action === 'accept' ? window.open('', '_blank') : null
+    // On accept, open turn-by-turn navigation to the shop synchronously inside
+    // the click gesture — the same clean path the "Picked Up" customer nav
+    // uses. (No blank-tab reservation → no white-screen flash on iOS.) The
+    // offer was exclusive to this driver, so accept virtually always succeeds.
+    if (action === 'accept') {
+      const shop = offer.delivery?.order?.shop
+      const dest = shop?.lat && shop?.lng
+        ? `${shop.lat},${shop.lng}`
+        : encodeURIComponent([shop?.address, shop?.city, shop?.state].filter(Boolean).join(', '))
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank')
+    }
     // Stop alert sound
     import('@/lib/alert-sound').then(({ stopUrgentAlert }) => stopUrgentAlert()).catch(() => {})
     const res = await fetch('/api/driver/offer', {
@@ -329,21 +336,11 @@ export default function DriverDashboard() {
     if (res.ok) {
       const data = await res.json()
       if (data.accepted) {
-        // Send the driver to the shop right away.
-        const shop = offer.delivery?.order?.shop
-        const dest = shop?.lat && shop?.lng
-          ? `${shop.lat},${shop.lng}`
-          : encodeURIComponent([shop?.address, shop?.city, shop?.state].filter(Boolean).join(', '))
-        const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}`
-        if (navWin) navWin.location.href = mapsUrl
-        else window.open(mapsUrl, '_blank')
         window.location.href = '/driver/active'
         return
       }
-      navWin?.close()
       setOffer(null)
     } else {
-      navWin?.close()
       setOffer(null)
     }
     setResponding(false)
