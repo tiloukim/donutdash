@@ -95,7 +95,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
           const googlePay = await payments.googlePay(paymentRequest)
           // fill = span the container width (matches the full-width Apple Pay /
           // card buttons); black to match Apple Pay.
-          await googlePay.attach('#dd-google-pay', { buttonColor: 'black', buttonType: 'long', buttonSizeMode: 'fill' })
+          await googlePay.attach('#dd-google-pay', { buttonColor: 'black', buttonType: 'order', buttonSizeMode: 'fill' })
           // Square renders its button INTO the div; the click must be handled on
           // the DOM element. The googlePay object has no addEventListener, so the
           // old `googlePay.addEventListener?.(...)` silently no-oped and the
@@ -148,7 +148,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total,
             .dd-apple-pay-button {
               -webkit-appearance: -apple-pay-button;
               appearance: -apple-pay-button;
-              -apple-pay-button-type: buy;
+              -apple-pay-button-type: order;
               -apple-pay-button-style: black;
               width: 100%; height: 48px; border-radius: 12px; border: none; cursor: pointer;
             }
