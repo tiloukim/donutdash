@@ -41,6 +41,7 @@ export interface Shop {
   service_fee_pct: number
   is_active: boolean
   created_at: string
+  opening_date?: string | null
   estimated_delivery_min?: number
   estimated_delivery_max?: number
   distance_miles?: number | null
