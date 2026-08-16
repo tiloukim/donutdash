@@ -21,6 +21,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     const deliveryId = formData.get('delivery_id') as string | null
+    // 'pickup' = proof photo of the order at the shop; 'delivery' = drop-off proof.
+    const photoType = formData.get('type') === 'pickup' ? 'pickup' : 'delivery'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ext = file.name.split('.').pop() || 'jpg'
-    const fileName = `${deliveryId}-${Date.now()}.${ext}`
+    const fileName = `${deliveryId}-${photoType}-${Date.now()}.${ext}`
 
     const buffer = Buffer.from(await file.arrayBuffer())
 
@@ -73,9 +75,9 @@ export async function POST(req: NextRequest) {
       .from('delivery-photos')
       .getPublicUrl(fileName)
 
-    // Update delivery record with photo URL
+    // Update delivery record with photo URL (pickup vs drop-off column)
     const { error: updateError } = await svc.from('dd_deliveries')
-      .update({ delivery_photo_url: publicUrl })
+      .update(photoType === 'pickup' ? { pickup_photo_url: publicUrl } : { delivery_photo_url: publicUrl })
       .eq('id', deliveryId)
 
     if (updateError) {

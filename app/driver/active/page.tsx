@@ -25,6 +25,10 @@ export default function ActiveDelivery() {
   const [photoPreview, setPhotoPreview] = useState<string>('')
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
+  // Proof-of-pickup photo (of the order at the shop), required before Picked Up.
+  const [pickupPhotoUrl, setPickupPhotoUrl] = useState<string>('')
+  const [uploadingPickup, setUploadingPickup] = useState(false)
+  const pickupInputRef = useRef<HTMLInputElement>(null)
 
   const delivery = deliveries[activeIdx] || null
 
@@ -210,6 +214,26 @@ export default function ActiveDelivery() {
     }
   }
 
+  const handlePickupPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !delivery) return
+    setUploadingPickup(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('delivery_id', delivery.id)
+      fd.append('type', 'pickup')
+      const res = await fetch('/api/driver/delivery-photo', { method: 'POST', body: fd })
+      if (res.ok) {
+        const d = await res.json()
+        setPickupPhotoUrl(d.url || 'saved')
+      }
+    } finally {
+      setUploadingPickup(false)
+      if (pickupInputRef.current) pickupInputRef.current.value = ''
+    }
+  }
+
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -288,6 +312,9 @@ export default function ActiveDelivery() {
     ? `https://www.google.com/maps/dir/?api=1&destination=${custLat},${custLng}`
     : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${delivery.order?.delivery_address}, ${delivery.order?.delivery_city}`)}`
 
+  // Required proof-of-pickup photo gates the "Picked Up" button.
+  const hasPickupPhoto = !!(delivery.pickup_photo_url || pickupPhotoUrl)
+
   return (
     <div>
       {/* Delivery Tabs (shown when batching) */}
@@ -352,22 +379,65 @@ export default function ActiveDelivery() {
 
         <div style={{ textAlign: 'center' }}>
           {delivery.status === 'assigned' && (
-            // A real anchor tap launches the Maps app reliably even inside an
-            // installed PWA (where window.open can be swallowed), and the
-            // onClick marks the order picked up at the same time.
-            <a
-              href={customerMapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => handlePickupAndDeliver()}
-              style={{
-                display: 'inline-block', padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 700,
-                background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer',
-                textDecoration: 'none', opacity: updating ? 0.6 : 1,
-              }}
-            >
-              {updating ? 'Updating...' : 'Picked Up — Navigate to Customer'}
-            </a>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Required proof-of-pickup photo (of the order) BEFORE Picked Up. */}
+              <input
+                ref={pickupInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePickupPhoto}
+                style={{ display: 'none' }}
+              />
+              {hasPickupPhoto ? (
+                <div style={{ color: '#0E9F6E', fontWeight: 700, fontSize: 14 }}>✓ Pickup photo saved</div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => pickupInputRef.current?.click()}
+                    disabled={uploadingPickup}
+                    style={{
+                      padding: '12px 24px', borderRadius: 8, fontSize: 15, fontWeight: 700,
+                      background: '#1A1A2E', color: '#fff', border: 'none',
+                      cursor: uploadingPickup ? 'wait' : 'pointer', opacity: uploadingPickup ? 0.6 : 1,
+                    }}
+                  >
+                    {uploadingPickup ? 'Uploading…' : '📷 Take pickup photo'}
+                  </button>
+                  <p style={{ fontSize: 12.5, color: '#888', margin: 0 }}>
+                    Required — snap a photo of the order before you head out.
+                  </p>
+                </>
+              )}
+              {/* A real anchor tap launches Maps reliably even in an installed PWA;
+                  the onClick marks picked_up AND delivering in one go. Locked until
+                  the pickup photo is taken. */}
+              {hasPickupPhoto ? (
+                <a
+                  href={customerMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => handlePickupAndDeliver()}
+                  style={{
+                    display: 'inline-block', padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 700,
+                    background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer',
+                    textDecoration: 'none', opacity: updating ? 0.6 : 1,
+                  }}
+                >
+                  {updating ? 'Updating...' : 'Picked Up — Navigate to Customer'}
+                </a>
+              ) : (
+                <button
+                  disabled
+                  style={{
+                    padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 700,
+                    background: '#ccc', color: '#fff', border: 'none', cursor: 'not-allowed',
+                  }}
+                >
+                  🔒 Picked Up — Navigate to Customer
+                </button>
+              )}
+            </div>
           )}
           {delivery.status === 'picked_up' && (
             <button onClick={() => updateStatus('delivering')} disabled={updating} style={{
