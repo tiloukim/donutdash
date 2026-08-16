@@ -163,8 +163,16 @@ export async function GET(request: NextRequest) {
       return (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
     })
 
+    // Never expose owner PII / financial internals on this public endpoint.
+    const SENSITIVE = ['owner_id', 'tax_id', 'commission_pct', 'owner_pin_hash', 'owner_pin_salt', 'owner_pin_failed_attempts', 'owner_pin_locked_until']
+    const publicShops = shopsWithEta.map(s => {
+      const c = { ...s } as Record<string, unknown>
+      for (const k of SENSITIVE) delete c[k]
+      return c
+    })
+
     return NextResponse.json({
-      shops: shopsWithEta,
+      shops: publicShops,
       surge_active: surge.isActive,
       surge_multiplier: surge.multiplier,
     })

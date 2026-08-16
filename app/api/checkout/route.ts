@@ -279,6 +279,7 @@ export async function POST(request: NextRequest) {
         total,
         payment_method: 'square',
         fulfillment_type: fulfillmentType,
+        order_type: fulfillmentType, // 'delivery' | 'pickup' — was defaulting to 'delivery'
         delivery_address: isPickup ? '' : delivery_address,
         delivery_city: isPickup ? '' : (delivery_city || ''),
         delivery_lat: deliveryLat,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { canAccessAdminPortal, isAdmin } from '@/lib/admin-auth'
+import { canAccessAdminPage, isAdmin } from '@/lib/admin-auth'
 
 // Roles a caller may assign via this endpoint. Mirrors the
 // dd_users_role_check constraint so a malformed value 400s
@@ -24,7 +24,7 @@ export async function GET() {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || !canAccessAdminPage(ddUser.role, '/admin/users')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { data: users, error } = await svc
       .from('dd_users')
@@ -33,7 +33,13 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    return NextResponse.json({ users: users || [] })
+    // SSN / bank details are admin-only — strip them for other manager tiers.
+    const SENSITIVE = ['w9_tax_id', 'w9_tax_id_type', 'w9_legal_name', 'w9_business_name', 'w9_address', 'w9_city', 'w9_state', 'w9_zip', 'bank_account_number', 'bank_routing_number', 'bank_account_holder']
+    const out = isAdmin(ddUser.role)
+      ? (users || [])
+      : (users || []).map(u => { const c = { ...u } as Record<string, unknown>; for (const k of SENSITIVE) delete c[k]; return c })
+
+    return NextResponse.json({ users: out })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -47,7 +53,7 @@ export async function PATCH(request: NextRequest) {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || !canAccessAdminPage(ddUser.role, '/admin/users')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await request.json()
     const { id, role, is_active, name, email, phone, new_password } = body
@@ -116,7 +122,7 @@ export async function DELETE(request: NextRequest) {
 
     const svc = createServiceClient()
     const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
-    if (!ddUser || !canAccessAdminPortal(ddUser.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!ddUser || !canAccessAdminPage(ddUser.role, '/admin/users')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     // Deleting a user is admin-only — a manager could otherwise
     // nuke the admin account and lock everyone out.

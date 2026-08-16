@@ -137,6 +137,13 @@ export async function GET(req: NextRequest) {
 
     refunded.push(order.id)
 
+    // Cancel any active delivery too, so an already-assigned driver isn't left
+    // with a "live" run for an order that's now refunded + cancelled.
+    await svc.from('dd_deliveries')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('order_id', order.id)
+      .neq('status', 'delivered')
+
     // Best-effort customer email — never block the cron on email delivery.
     if (order.customer_id) {
       svc.from('dd_users').select('email').eq('id', order.customer_id).maybeSingle().then(({ data }) => {

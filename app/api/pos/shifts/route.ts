@@ -118,6 +118,19 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'shift_id required' }, { status: 400 })
   }
 
+  // Cross-shop guard: a shop_owner may only edit shifts at their own shop.
+  const { data: shiftRow } = await a.svc.from('dd_shifts').select('shop_id').eq('id', body.shift_id).maybeSingle()
+  if (!shiftRow) return NextResponse.json({ error: 'Shift not found' }, { status: 404 })
+  if (a.caller.role === 'shop_owner') {
+    const { data: ownedShop } = await a.svc
+      .from('dd_shops')
+      .select('id')
+      .eq('id', (shiftRow as { shop_id: string }).shop_id)
+      .eq('owner_id', a.caller.id)
+      .maybeSingle()
+    if (!ownedShop) return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
+  }
+
   const patch: Record<string, unknown> = { clock_out: new Date().toISOString() }
   if (body.notes !== undefined) patch.notes = body.notes
 

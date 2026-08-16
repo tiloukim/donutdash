@@ -88,6 +88,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
+  // Only the order's own customer (or an admin) can read its review — don't let
+  // anyone enumerate order IDs and read others' reviews.
+  const { data: reviewOrder } = await svc.from('dd_orders').select('customer_id').eq('id', id).single()
+  if (!reviewOrder) return NextResponse.json({ review: null })
+  if (ddUser.role !== 'admin' && reviewOrder.customer_id !== ddUser.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     const { data: review, error } = await svc
       .from('dd_reviews')
