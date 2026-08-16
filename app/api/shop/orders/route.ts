@@ -235,11 +235,15 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // When shop accepts order (pending -> confirmed), create delivery and assign driver.
-  // Walk-in POS sales (order_type='pos_walkin') must never trigger driver dispatch —
-  // there's no customer to deliver to and no address. Defensive check: even if a
-  // future change inserts POS rows as 'pending', this block won't run for them.
-  if (order.status === 'pending' && status === 'confirmed' && updated && order.order_type !== 'pos_walkin') {
+  // Dispatch a driver when the shop starts fulfilling a DELIVERY order: the
+  // normal accept (pending -> confirmed), OR a released scheduled order the shop
+  // begins preparing (confirmed -> preparing). Scheduled orders are never
+  // dispatched at checkout, so without the second case they never get a driver.
+  // Walk-in POS sales and pickup orders never dispatch a driver.
+  const startsFulfillment =
+    (order.status === 'pending' && status === 'confirmed') ||
+    (order.status === 'confirmed' && status === 'preparing')
+  if (startsFulfillment && updated && order.order_type !== 'pos_walkin' && order.fulfillment_type !== 'pickup') {
     try {
       // Check if delivery record already exists
       const { data: existingDelivery } = await svc
@@ -248,6 +252,12 @@ export async function PATCH(req: NextRequest) {
         .eq('order_id', order_id)
         .maybeSingle()
 
+      // A normal order already has a delivery (dispatched at checkout/accept),
+      // so moving it to 'preparing' must NOT re-offer it. Only act on preparing
+      // when there's no delivery yet — i.e. a released scheduled order.
+      if (existingDelivery && status === 'preparing') {
+        // already dispatched — nothing to do
+      } else {
       let deliveryId = existingDelivery?.id || ''
 
       if (!existingDelivery) {
@@ -288,6 +298,7 @@ export async function PATCH(req: NextRequest) {
 
       if (deliveryId) {
         await assignNextDriver(deliveryId)
+      }
       }
     } catch (err) {
       console.error('[SHOP ORDER ACCEPT] Auto-assign driver error:', err)
