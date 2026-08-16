@@ -136,6 +136,17 @@ export async function PATCH(req: NextRequest) {
     .maybeSingle()
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
+  // Cross-shop guard: a shop_owner may only close their own shop's drawer.
+  if (a.caller.role === 'shop_owner') {
+    const { data: ownedShop } = await a.svc
+      .from('dd_shops')
+      .select('id')
+      .eq('id', (session as { shop_id: string }).shop_id)
+      .eq('owner_id', a.caller.id)
+      .maybeSingle()
+    if (!ownedShop) return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
+  }
+
   const { data: sales } = await a.svc
     .from('dd_orders')
     .select('total, refund_amount')

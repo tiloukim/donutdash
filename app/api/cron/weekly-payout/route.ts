@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
   // Verify cron secret to prevent unauthorized calls
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // Fail closed: if the secret is unset, reject rather than run this money-moving
+  // endpoint publicly.
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

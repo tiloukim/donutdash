@@ -35,6 +35,10 @@ export async function DELETE(req: NextRequest) {
   if (!endpoint) return NextResponse.json({ error: 'Missing endpoint' }, { status: 400 })
 
   const svc = createServiceClient()
-  await svc.from('dd_push_subscriptions').delete().eq('endpoint', endpoint)
+  const { data: ddUser } = await svc.from('dd_users').select('id').eq('auth_id', user.id).single()
+  if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  // Scope to the caller — otherwise anyone who learns another user's endpoint
+  // could delete their subscription and silence their notifications.
+  await svc.from('dd_push_subscriptions').delete().eq('endpoint', endpoint).eq('user_id', ddUser.id)
   return NextResponse.json({ success: true })
 }

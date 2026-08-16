@@ -41,12 +41,11 @@ export async function GET(req: NextRequest) {
   const shopId = req.nextUrl.searchParams.get('shop_id')
   if (!shopId) return NextResponse.json({ error: 'shop_id required' }, { status: 400 })
 
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Only staff/owner of THIS shop can query its PIN state.
+  const a = await authorizeForShop(shopId)
+  if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
 
-  const svc = createServiceClient()
-  const { data: shop } = await svc
+  const { data: shop } = await a.svc
     .from('dd_shops')
     .select('owner_pin_hash, owner_pin_locked_until')
     .eq('id', shopId)

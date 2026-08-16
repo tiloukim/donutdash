@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
   // Same cron-secret guard as the other Vercel crons.
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // Fail closed: reject when the secret is unset rather than running publicly.
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
