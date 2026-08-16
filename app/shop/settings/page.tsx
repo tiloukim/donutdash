@@ -388,42 +388,13 @@ export default function ShopSettings() {
         </div>
       </div>
 
-      {/* Payout Method */}
+      {/* Bank Account for Payouts (PayPal hidden until DonutDash has a real
+          payout account set up) */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Payout Method</h3>
-        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>How DonutDash pays out your food-sales earnings. You keep 80% of the food subtotal after our 20% commission; tax, delivery fee, service fee, and tip are handled separately and aren&apos;t part of your payout.</p>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Bank Account for Payouts</h3>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>DonutDash pays out your food-sales earnings to this bank account. You keep 80% of the food subtotal after our 20% commission; tax, delivery fee, service fee, and tip are handled separately and aren&apos;t part of your payout.</p>
 
-        {/* Method selector */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Preferred Payout Method</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-            {[
-              { key: 'ach', label: 'Bank ACH', icon: '🏦', desc: 'Free, 1-2 days' },
-              { key: 'paypal', label: 'PayPal', icon: '🅿️', desc: 'Instant to PayPal' },
-            ].map(m => (
-              <button key={m.key} type="button"
-                onClick={() => setBankInfo({ ...bankInfo, payout_method: m.key })}
-                style={{
-                  padding: '10px', borderRadius: 8, textAlign: 'center', cursor: 'pointer',
-                  border: bankInfo.payout_method === m.key ? '2px solid #10B981' : '1.5px solid #ddd',
-                  background: bankInfo.payout_method === m.key ? '#F0FDF4' : '#fff',
-                }}>
-                <div style={{ fontSize: 20, marginBottom: 2 }}>{m.icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: bankInfo.payout_method === m.key ? '#10B981' : '#333' }}>{m.label}</div>
-                <div style={{ fontSize: 10, color: '#999' }}>{m.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {bankInfo.payout_method === 'paypal' ? (
-          <div>
-            <label style={labelStyle}>PayPal Email</label>
-            <input style={inputStyle} type="email" placeholder="you@example.com"
-              value={bankInfo.paypal_email || ''}
-              onChange={e => setBankInfo({ ...bankInfo, paypal_email: e.target.value })} />
-          </div>
-        ) : (
+        {(
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={labelStyle}>Account Holder Name</label>
@@ -454,7 +425,8 @@ export default function ShopSettings() {
               const res = await fetch('/api/user/bank-info', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bankInfo),
+                // PayPal disabled for now — always save as bank/ACH.
+                body: JSON.stringify({ ...bankInfo, payout_method: 'ach' }),
               })
               if (res.ok) { setBankSaved(true); setTimeout(() => setBankSaved(false), 3000) }
               setSavingBank(false)
