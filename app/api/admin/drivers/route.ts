@@ -75,6 +75,18 @@ export async function GET() {
     const isFresh = (updatedAt: string | undefined) =>
       !!updatedAt && now - new Date(updatedAt).getTime() < STALE_MS
 
+    // Can this driver actually be paid? Payout info is complete for their chosen
+    // method. Surfaced so the admin can spot who to chase before payday.
+    const payoutReady = (d: { payout_method?: string | null; paypal_email?: string | null; venmo_handle?: string | null; cashapp_handle?: string | null; bank_account_holder?: string | null; bank_routing_number?: string | null; bank_account_number?: string | null }) => {
+      switch (d.payout_method) {
+        case 'paypal': return !!d.paypal_email
+        case 'venmo': return !!d.venmo_handle
+        case 'cashapp': return !!d.cashapp_handle
+        case 'ach': return !!(d.bank_account_holder && d.bank_routing_number && d.bank_account_number)
+        default: return false
+      }
+    }
+
     const driversWithStats = (drivers || []).map(driver => {
       const loc = locationMap[driver.id]
       const effectivelyOnline = !!loc?.is_online && isFresh(loc?.updated_at)
@@ -88,6 +100,7 @@ export async function GET() {
         lat: loc?.lat ?? null,
         lng: loc?.lng ?? null,
         last_seen: loc?.updated_at || null,
+        payout_ready: payoutReady(driver),
       }
     })
 
