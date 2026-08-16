@@ -21,7 +21,7 @@ interface PayoutItem {
   shop_id: string | null
   amount: number
   earnings_breakdown: any
-  bank_info: { method?: string | null; holder?: string | null; routing?: string | null; account?: string | null; paypal?: string | null; venmo?: string | null; cashapp?: string | null } | null
+  bank_info: { method?: string | null; holder?: string | null; routing?: string | null; account?: string | null; paypal?: string | null; venmo?: string | null; cashapp?: string | null; _live?: boolean } | null
   status: string
   notes: string | null
   paid_at: string | null
@@ -552,12 +552,13 @@ export default function PayoutsPage() {
                           const method = b?.method
                           // Full numbers here on purpose — this is the admin-only screen
                           // where you actually execute the transfer, so you need them.
-                          if (method === 'paypal' && b?.paypal) return <div><div style={{ fontWeight: 600 }}>PayPal</div><div style={{ color: '#374151', fontFamily: 'monospace', userSelect: 'all' }}>{b.paypal}</div></div>
-                          if (method === 'venmo' && b?.venmo) return <div><div style={{ fontWeight: 600 }}>Venmo</div><div style={{ color: '#374151', fontFamily: 'monospace', userSelect: 'all' }}>{b.venmo}</div></div>
-                          if (method === 'cashapp' && b?.cashapp) return <div><div style={{ fontWeight: 600 }}>Cash App</div><div style={{ color: '#374151', fontFamily: 'monospace', userSelect: 'all' }}>{b.cashapp}</div></div>
+                          const live = b?._live ? <span title="Pulled from the recipient's current settings (added after this batch was generated)" style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#0369A1', background: '#E0F2FE', borderRadius: 4, padding: '1px 5px', fontFamily: 'sans-serif' }}>current</span> : null
+                          if (method === 'paypal' && b?.paypal) return <div><div style={{ fontWeight: 600 }}>PayPal {live}</div><div style={{ color: '#374151', fontFamily: 'monospace', userSelect: 'all' }}>{b.paypal}</div></div>
+                          if (method === 'venmo' && b?.venmo) return <div><div style={{ fontWeight: 600 }}>Venmo {live}</div><div style={{ color: '#374151', fontFamily: 'monospace', userSelect: 'all' }}>{b.venmo}</div></div>
+                          if (method === 'cashapp' && b?.cashapp) return <div><div style={{ fontWeight: 600 }}>Cash App {live}</div><div style={{ color: '#374151', fontFamily: 'monospace', userSelect: 'all' }}>{b.cashapp}</div></div>
                           if (b?.holder && b?.routing && b?.account) return (
                             <div style={{ fontFamily: 'monospace' }}>
-                              <div style={{ fontWeight: 600, fontFamily: 'inherit' }}>{b.holder} <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(ACH)</span></div>
+                              <div style={{ fontWeight: 600, fontFamily: 'inherit' }}>{b.holder} <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(ACH)</span> {live}</div>
                               <div style={{ color: '#374151', userSelect: 'all' }}>Routing: {b.routing}</div>
                               <div style={{ color: '#374151', userSelect: 'all' }}>Account: {b.account}</div>
                             </div>
