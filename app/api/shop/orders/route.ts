@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 
   let query = svc
     .from('dd_orders')
-    .select('*, dd_order_items(*), customer:dd_users!customer_id(name, email, phone), delivery:dd_deliveries(delivery_photo_url)')
+    .select('*, dd_order_items(*), customer:dd_users!customer_id(name, email, phone), delivery:dd_deliveries(delivery_photo_url, pickup_photo_url)')
     .eq('shop_id', shop.id)
     .in('order_type', ['delivery', 'pickup'])
     .or(`scheduled_for.is.null,scheduled_for.lte.${scheduleCutoff}`)
@@ -76,6 +76,7 @@ export async function GET(req: Request) {
       cancellation_reason: o.cancellation_reason,
       customer: o.customer,
       delivery_photo_url: Array.isArray(o.delivery) ? (o.delivery as any)?.[0]?.delivery_photo_url : (o.delivery as any)?.delivery_photo_url || null,
+      pickup_photo_url: Array.isArray(o.delivery) ? (o.delivery as any)?.[0]?.pickup_photo_url : (o.delivery as any)?.pickup_photo_url || null,
       items: (o.dd_order_items || []).map((item: any) => ({
         name: item.name,
         price: item.price,

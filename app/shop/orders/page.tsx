@@ -438,11 +438,23 @@ export default function ShopOrders() {
                           </div>
                         )}
 
+                        {/* Pickup Proof Photo (the order the driver collected) */}
+                        {o.pickup_photo_url && (
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', marginBottom: 4 }}>PICKUP PROOF</div>
+                            <a href={o.pickup_photo_url} target="_blank" rel="noopener noreferrer">
+                              <img src={o.pickup_photo_url} alt="Pickup proof" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb', display: 'block' }} />
+                            </a>
+                          </div>
+                        )}
+
                         {/* Delivery Proof Photo */}
                         {o.status === 'delivered' && o.delivery_photo_url && (
                           <div>
                             <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', marginBottom: 4 }}>DELIVERY PROOF</div>
-                            <img src={o.delivery_photo_url} alt="Delivery proof" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb' }} />
+                            <a href={o.delivery_photo_url} target="_blank" rel="noopener noreferrer">
+                              <img src={o.delivery_photo_url} alt="Delivery proof" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb', display: 'block' }} />
+                            </a>
                           </div>
                         )}
 
