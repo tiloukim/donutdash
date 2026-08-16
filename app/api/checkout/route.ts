@@ -200,6 +200,26 @@ export async function POST(request: NextRequest) {
       ? 0
       : Math.round((baseDeliveryFee + extraMiles * payCfg.deliveryPerExtraMile) * 100) / 100
 
+    // SECURITY: never trust client-supplied prices. Look up the real price for
+    // each item from dd_menu_items for THIS shop and overwrite it — otherwise a
+    // caller could POST price:0.01 and pay a penny for any order. Unknown or
+    // unavailable items are rejected.
+    const menuIds = [...new Set(items.map((i: { menu_item_id: string }) => i.menu_item_id))]
+    const { data: menuRows } = await svc
+      .from('dd_menu_items')
+      .select('id, name, price, is_available')
+      .eq('shop_id', shopId)
+      .in('id', menuIds)
+    const priceMap = new Map((menuRows || []).map((m: { id: string; name: string; price: number; is_available: boolean }) => [m.id, m]))
+    for (const it of items as { menu_item_id: string; price: number; name: string; quantity: number }[]) {
+      const m = priceMap.get(it.menu_item_id) as { name: string; price: number; is_available: boolean } | undefined
+      if (!m || m.is_available === false) {
+        return NextResponse.json({ error: `"${it.name || 'An item'}" is no longer available. Please refresh your cart.` }, { status: 400 })
+      }
+      it.price = Number(m.price) // authoritative server price
+      it.name = m.name
+    }
+
     // Calculate totals
     const subtotal = items.reduce(
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
