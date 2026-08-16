@@ -21,7 +21,7 @@ interface PayoutItem {
   shop_id: string | null
   amount: number
   earnings_breakdown: any
-  bank_info: { holder: string; routing: string; account: string } | null
+  bank_info: { method?: string | null; holder?: string | null; routing?: string | null; account?: string | null; paypal?: string | null; venmo?: string | null; cashapp?: string | null } | null
   status: string
   notes: string | null
   paid_at: string | null
@@ -43,8 +43,30 @@ interface PeriodData {
 
 const fmt = (n: number) => `$${n.toFixed(2)}`
 
+// The last N weeks (Mon-Sun) the admin can generate a batch for — lets them
+// catch up on older weeks, not just the previous one.
+function recentWeeks(count = 12): { value: string; label: string }[] {
+  const now = new Date()
+  const dow = now.getDay()
+  const thisMonday = new Date(now)
+  thisMonday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
+  thisMonday.setHours(0, 0, 0, 0)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const out: { value: string; label: string }[] = []
+  for (let i = 0; i < count; i++) {
+    const ws = new Date(thisMonday); ws.setDate(thisMonday.getDate() - 7 * i)
+    const we = new Date(ws); we.setDate(ws.getDate() + 6)
+    const value = `${ws.getFullYear()}-${pad(ws.getMonth() + 1)}-${pad(ws.getDate())}`
+    const label = i === 0 ? `This week (${fmt(ws)}–${fmt(we)}, partial)` : i === 1 ? `Last week (${fmt(ws)}–${fmt(we)})` : `${fmt(ws)}–${fmt(we)}`
+    out.push({ value, label })
+  }
+  return out
+}
+
 export default function PayoutsPage() {
   const [tab, setTab] = useState<'overview' | 'requests' | 'batches'>('overview')
+  const [selectedWeek, setSelectedWeek] = useState<string>(() => recentWeeks()[1]?.value || '')
   const [period, setPeriod] = useState('week')
   const [periodData, setPeriodData] = useState<PeriodData | null>(null)
   const [batches, setBatches] = useState<PayoutBatch[]>([])
@@ -117,7 +139,7 @@ export default function PayoutsPage() {
     setBatchItems(data.items || [])
   }
 
-  const generateBatch = async () => {
+  const generateBatch = async (weekStart?: string) => {
     setGenerating(true)
     setError('')
     setMessage('')
@@ -125,7 +147,7 @@ export default function PayoutsPage() {
       const res = await fetch('/api/admin/payout-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'generate' }),
+        body: JSON.stringify({ action: 'generate', ...(weekStart ? { weekStart } : {}) }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -173,10 +195,6 @@ export default function PayoutsPage() {
     finally { setProcessing(null) }
   }
 
-  const maskAccount = (num: string | null | undefined) => {
-    if (!num || num.length < 4) return num || '—'
-    return '****' + num.slice(-4)
-  }
 
   return (
     <div>
@@ -387,12 +405,22 @@ export default function PayoutsPage() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Weekly Payout Batches</h3>
-            <button onClick={generateBatch} disabled={generating} style={{
-              padding: '10px 24px', borderRadius: 8, border: 'none', background: '#10B981', color: '#fff',
-              fontSize: 14, fontWeight: 700, cursor: 'pointer',
-            }}>
-              {generating ? 'Generating...' : 'Generate Last Week\'s Batch'}
-            </button>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <select
+                value={selectedWeek}
+                onChange={e => setSelectedWeek(e.target.value)}
+                disabled={generating}
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, background: '#fff', cursor: 'pointer' }}
+              >
+                {recentWeeks().map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+              </select>
+              <button onClick={() => generateBatch(selectedWeek || undefined)} disabled={generating} style={{
+                padding: '10px 24px', borderRadius: 8, border: 'none', background: '#10B981', color: '#fff',
+                fontSize: 14, fontWeight: 700, cursor: generating ? 'wait' : 'pointer', whiteSpace: 'nowrap',
+              }}>
+                {generating ? 'Generating...' : 'Generate Batch'}
+              </button>
+            </div>
           </div>
 
           {loading ? <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Loading...</div> : (
@@ -519,15 +547,23 @@ export default function PayoutsPage() {
                         {fmt(item.amount)}
                       </td>
                       <td style={{ ...tdStyle, fontSize: 12 }}>
-                        {item.bank_info?.holder ? (
-                          <div>
-                            <div style={{ fontWeight: 600 }}>{item.bank_info.holder}</div>
-                            <div style={{ color: '#9CA3AF' }}>Routing: {maskAccount(item.bank_info.routing)}</div>
-                            <div style={{ color: '#9CA3AF' }}>Account: {maskAccount(item.bank_info.account)}</div>
-                          </div>
-                        ) : (
-                          <span style={{ color: '#EF4444', fontWeight: 600 }}>No bank info</span>
-                        )}
+                        {(() => {
+                          const b = item.bank_info
+                          const method = b?.method
+                          // Full numbers here on purpose — this is the admin-only screen
+                          // where you actually execute the transfer, so you need them.
+                          if (method === 'paypal' && b?.paypal) return <div><div style={{ fontWeight: 600 }}>PayPal</div><div style={{ color: '#374151', fontFamily: 'monospace', userSelect: 'all' }}>{b.paypal}</div></div>
+                          if (method === 'venmo' && b?.venmo) return <div><div style={{ fontWeight: 600 }}>Venmo</div><div style={{ color: '#374151', fontFamily: 'monospace', userSelect: 'all' }}>{b.venmo}</div></div>
+                          if (method === 'cashapp' && b?.cashapp) return <div><div style={{ fontWeight: 600 }}>Cash App</div><div style={{ color: '#374151', fontFamily: 'monospace', userSelect: 'all' }}>{b.cashapp}</div></div>
+                          if (b?.holder && b?.routing && b?.account) return (
+                            <div style={{ fontFamily: 'monospace' }}>
+                              <div style={{ fontWeight: 600, fontFamily: 'inherit' }}>{b.holder} <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(ACH)</span></div>
+                              <div style={{ color: '#374151', userSelect: 'all' }}>Routing: {b.routing}</div>
+                              <div style={{ color: '#374151', userSelect: 'all' }}>Account: {b.account}</div>
+                            </div>
+                          )
+                          return <span style={{ color: '#EF4444', fontWeight: 600 }}>No payout info</span>
+                        })()}
                       </td>
                       <td style={tdStyle}>
                         <span style={{
