@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     if (order.payment_method === 'square') {
       const result = await refundSquareOrder({
         orderId,
+        paymentId: order.payment_id,
         amountCents: Math.round(Number(order.total) * 100),
         reason: 'Order rejected by shop (phone)',
         idempotencyKey: `reject-call-${orderId}`,

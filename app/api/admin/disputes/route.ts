@@ -62,13 +62,13 @@ export async function PATCH(req: NextRequest) {
     if (status === 'refunded') {
       const { data: existing } = await svc
         .from('dd_disputes')
-        .select('order_id, refund_amount, order:dd_orders!order_id(payment_method, total, refund_amount)')
+        .select('order_id, refund_amount, order:dd_orders!order_id(payment_method, total, refund_amount, payment_id)')
         .eq('id', dispute_id)
         .single()
 
       const orderRaw = existing?.order as unknown
       const order = (Array.isArray(orderRaw) ? orderRaw[0] : orderRaw) as
-        | { payment_method: string | null; total: number; refund_amount: number | null }
+        | { payment_method: string | null; total: number; refund_amount: number | null; payment_id: string | null }
         | undefined
       if (existing?.order_id && order?.payment_method === 'square') {
         const requested = Number(existing.refund_amount) || 0
@@ -79,6 +79,7 @@ export async function PATCH(req: NextRequest) {
         if (amount > 0) {
           refundResult = await refundSquareOrder({
             orderId: existing.order_id,
+            paymentId: order.payment_id,
             amountCents: Math.round(amount * 100),
             reason: 'Dispute resolved — refund issued',
             idempotencyKey: `refund-dispute-${dispute_id}`,

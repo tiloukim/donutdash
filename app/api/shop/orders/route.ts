@@ -218,6 +218,7 @@ export async function PATCH(req: NextRequest) {
       const refundCents = Math.round(Number(order.total) * 100)
       const result = await refundSquareOrder({
         orderId: order_id,
+        paymentId: order.payment_id,
         amountCents: refundCents,
         reason: cancellation_reason
           ? `Order cancelled by shop: ${cancellation_reason}`
