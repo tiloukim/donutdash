@@ -47,12 +47,14 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Update each item quantity, delete items with qty 0
+  // Update each item quantity, delete items with qty 0. Scope every write to
+  // THIS order_id — otherwise a shop could pass another order's line-item id and
+  // delete/alter items on an order they don't own (IDOR).
   for (const item of items) {
     if (item.quantity <= 0) {
-      await svc.from('dd_order_items').delete().eq('id', item.id)
+      await svc.from('dd_order_items').delete().eq('id', item.id).eq('order_id', order_id)
     } else {
-      await svc.from('dd_order_items').update({ quantity: item.quantity }).eq('id', item.id)
+      await svc.from('dd_order_items').update({ quantity: item.quantity }).eq('id', item.id).eq('order_id', order_id)
     }
   }
 

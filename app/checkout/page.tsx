@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar'
 import SquarePaymentForm from '@/components/SquarePaymentForm'
 import { useCart } from '@/lib/cart-context'
 import { useAuth } from '@/lib/auth-context'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
 
 // Shop timezone (single-shop for now; mirrors SHOP_TZ in lib/shop-hours.ts).
 const SHOP_TZ = 'America/Chicago'
@@ -248,7 +248,10 @@ export default function CheckoutPage() {
 
   const deliveryFee = isPickup ? 0 : (quote?.deliveryFee ?? shopFees.delivery_fee)
   const serviceFee = Math.round(total * (shopFees.service_fee_pct / 100) * 100) / 100
-  const smallOrderFee = total < MIN_ORDER_AMOUNT ? SMALL_ORDER_FEE : 0
+  // Small-order fee removed — the server never charged it, so showing it made
+  // the displayed total exceed the actual charge. Kept as 0 so the fee row hides
+  // and totals match what Square charges.
+  const smallOrderFee = 0
   // TX Comptroller Rule 3.293: separately-stated delivery + service fees on
   // prepared-food sales are part of the taxable base. Tip is excluded.
   const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * (shopFees.tax_rate / 100) * 100) / 100
