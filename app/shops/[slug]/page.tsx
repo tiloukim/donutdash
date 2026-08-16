@@ -186,49 +186,69 @@ export default function ShopDetailPage() {
         </div>
       </div>
 
-      {/* Open/Closed Banner */}
-      {shopOpen && !shopOpen.open && (
+      {/* Unclaimed shops aren't live yet — show "Opening soon" instead of the
+          hours-based open/closed banner. */}
+      {shop.is_claimed === false ? (
         <div style={{
-          background: '#FFF8F0', borderBottom: '1px solid #FFD8A8',
+          background: '#FFF7ED', borderBottom: '1px solid #FED7AA',
           padding: '10px 1.5rem', textAlign: 'center',
         }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#B45309' }}>
-            🌙 {shopOpen.message}
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#C2410C' }}>
+            🔜 Opening soon
           </div>
-          {shopOpen.nextOpen && (
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#C2670A', marginTop: 2 }}>
-              ✅ You can still order — schedule it for {shopOpen.nextOpen.label} at checkout
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: '#EA580C', marginTop: 2 }}>
+            This shop isn&rsquo;t taking orders yet — check back soon.
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Open/Closed Banner */}
+          {shopOpen && !shopOpen.open && (
+            <div style={{
+              background: '#FFF8F0', borderBottom: '1px solid #FFD8A8',
+              padding: '10px 1.5rem', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#B45309' }}>
+                🌙 {shopOpen.message}
+              </div>
+              {shopOpen.nextOpen && (
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: '#C2670A', marginTop: 2 }}>
+                  ✅ You can still order — schedule it for {shopOpen.nextOpen.label} at checkout
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
-      {shopOpen && shopOpen.open && (
-        <div style={{
-          background: '#F0FDF4', borderBottom: '1px solid #BBF7D0',
-          padding: '8px 1.5rem', textAlign: 'center',
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#16A34A' }}>
-            🟢 {shopOpen.message}
-          </span>
-        </div>
+          {shopOpen && shopOpen.open && (
+            <div style={{
+              background: '#F0FDF4', borderBottom: '1px solid #BBF7D0',
+              padding: '8px 1.5rem', textAlign: 'center',
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#16A34A' }}>
+                🟢 {shopOpen.message}
+              </span>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Shop Info Bar */}
-      <div style={{
-        background: 'white',
-        borderBottom: '1px solid #f0f0f0',
-        padding: '1rem 1.5rem',
-      }}>
+      {/* Shop Info Bar — delivery ETA only for live (claimed) shops */}
+      {shop.is_claimed !== false && (
         <div style={{
-          maxWidth: '1200px', margin: '0 auto',
-          display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center',
-          fontSize: '0.9rem', color: '#666',
+          background: 'white',
+          borderBottom: '1px solid #f0f0f0',
+          padding: '1rem 1.5rem',
         }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            🕐 15-30 min
-          </span>
+          <div style={{
+            maxWidth: '1200px', margin: '0 auto',
+            display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center',
+            fontSize: '0.9rem', color: '#666',
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              🕐 15-30 min
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Group Order Section */}
       <div style={{
