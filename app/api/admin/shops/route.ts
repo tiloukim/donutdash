@@ -19,12 +19,31 @@ export async function GET() {
 
     const { data: shops, error } = await svc
       .from('dd_shops')
-      .select('*, owner:dd_users!owner_id(name, email)')
+      .select('*, owner:dd_users!owner_id(name, email, payout_method, bank_account_holder, bank_routing_number, bank_account_number, paypal_email, venmo_handle, cashapp_handle)')
       .order('created_at', { ascending: false })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    return NextResponse.json({ shops: shops || [] })
+    // A shop is payout-ready when its OWNER has complete payout details (bank
+    // info lives on the owner's user record). Compute the flag and strip the raw
+    // bank numbers from the owner object so they never reach the shops UI.
+    type Owner = { name?: string; email?: string; payout_method?: string | null; paypal_email?: string | null; venmo_handle?: string | null; cashapp_handle?: string | null; bank_account_holder?: string | null; bank_routing_number?: string | null; bank_account_number?: string | null } | null
+    const ready = (o: Owner) => {
+      if (!o) return false
+      switch (o.payout_method) {
+        case 'paypal': return !!o.paypal_email
+        case 'venmo': return !!o.venmo_handle
+        case 'cashapp': return !!o.cashapp_handle
+        case 'ach': return !!(o.bank_account_holder && o.bank_routing_number && o.bank_account_number)
+        default: return !!(o.bank_account_holder && o.bank_routing_number && o.bank_account_number)
+      }
+    }
+    const out = (shops || []).map(s => {
+      const owner = (Array.isArray(s.owner) ? s.owner[0] : s.owner) as Owner
+      return { ...s, payout_ready: ready(owner), owner: owner ? { name: owner.name, email: owner.email } : null }
+    })
+
+    return NextResponse.json({ shops: out })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
