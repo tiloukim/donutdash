@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import MenuItemCard from '@/components/MenuItemCard'
+import OpeningCountdown from '@/components/OpeningCountdown'
 import { useCart } from '@/lib/cart-context'
 import { trackEngagement } from '@/lib/track'
 import type { Shop, MenuItem } from '@/lib/types'
@@ -185,6 +186,9 @@ export default function ShopDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Grand-opening countdown (only shows when opening_date is in the future) */}
+      <OpeningCountdown date={shop.opening_date} />
 
       {/* Open/Closed Banner */}
       {shopOpen && !shopOpen.open && (
