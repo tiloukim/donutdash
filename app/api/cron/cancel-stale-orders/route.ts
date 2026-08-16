@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
     if (order.payment_method === 'square') {
       result = await refundSquareOrder({
         orderId: order.id,
+        paymentId: order.payment_id,
         amountCents: Math.round(refundable * 100),
         reason: 'Auto-cancelled: shop closed',
         idempotencyKey: `cron-stale-refund-${order.id}`,

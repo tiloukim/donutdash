@@ -96,10 +96,12 @@ export async function POST(req: NextRequest) {
   const tip = (delivery.order as { tip?: number } | null)?.tip
   await ensureDriverEarnings(delivery_id, delivery.distance_miles, tip, delivery.driver_earnings)
 
-  // Update order status to confirmed
+  // Nudge the order to 'confirmed' only if it hasn't already advanced — never
+  // regress a preparing / ready_for_pickup order back to confirmed.
   await svc.from('dd_orders')
     .update({ status: 'confirmed' })
     .eq('id', delivery.order_id)
+    .in('status', ['pending', 'confirmed'])
 
   return NextResponse.json({ success: true, message: 'Delivery accepted!' })
 }

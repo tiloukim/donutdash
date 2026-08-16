@@ -4,16 +4,6 @@ import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
 import { getPayConfig } from '@/lib/pay-config'
 import { refundSquareOrder } from '@/lib/square-refund'
-import { SquareClient, SquareEnvironment } from 'square'
-
-function getSquareClient() {
-  return new SquareClient({
-    token: process.env.SQUARE_ACCESS_TOKEN!,
-    environment: process.env.SQUARE_ENVIRONMENT === 'production'
-      ? SquareEnvironment.Production
-      : SquareEnvironment.Sandbox,
-  })
-}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -110,6 +100,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (currentOrder.payment_id) {
       const result = await refundSquareOrder({
         orderId: id,
+        paymentId: currentOrder.payment_id,
         amountCents: Math.round(Number(currentOrder.total) * 100),
         reason: body.cancellation_reason
           ? `Cancelled by customer: ${body.cancellation_reason}`
@@ -143,66 +134,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         .single()
       if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
-      // Issue partial refund for the price difference
+      // Issue partial refund for the price difference (via the shared helper,
+      // which refunds by the stored payment_id — reliable at any scale).
       if (body.status === 'confirmed' && currentOrder.original_total && currentOrder.total < currentOrder.original_total) {
         const refundAmount = Math.round((currentOrder.original_total - currentOrder.total) * 100) // cents
-        try {
-          const square = getSquareClient()
-          // Find the Square payment for this order
-          const { data: payments } = await square.payments.list({
-            locationId: process.env.SQUARE_LOCATION_ID!,
-            sortOrder: 'DESC',
-            limit: 50,
-          })
-          // Match payment by amount (original total) and note containing order ID
-          const orderShort = id.slice(0, 8)
-          const payment = (payments || []).find((p: any) =>
-            p.note?.includes(orderShort) || p.orderId?.includes(id)
-          )
-          if (payment?.id) {
-            await square.refunds.refundPayment({
-              idempotencyKey: `refund-adjust-${id}`,
-              paymentId: payment.id,
-              amountMoney: { amount: BigInt(refundAmount), currency: 'USD' },
-              reason: 'Order adjusted — item(s) out of stock',
-            })
-            // Save refund info
-            await svc.from('dd_orders').update({
-              refund_amount: currentOrder.original_total - currentOrder.total,
-            }).eq('id', id)
-          }
-        } catch (refundErr) {
-          console.error('Partial refund failed:', refundErr)
-          // Don't block the confirmation — refund can be done manually
+        const r = await refundSquareOrder({
+          orderId: id,
+          paymentId: currentOrder.payment_id,
+          amountCents: refundAmount,
+          reason: 'Order adjusted — item(s) out of stock',
+          idempotencyKey: `refund-adjust-${id}`,
+        })
+        if (r.success) {
+          await svc.from('dd_orders').update({
+            refund_amount: currentOrder.original_total - currentOrder.total,
+          }).eq('id', id)
+        } else {
+          console.error('[orders] partial adjust refund failed — reconcile', id, r.error)
         }
       }
 
-      // Full refund if cancelled
+      // Full refund if the customer declined the adjusted order.
       if (body.status === 'cancelled') {
         await svc.from('dd_deliveries').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('order_id', id)
-        // Attempt full refund
-        try {
-          const square = getSquareClient()
-          const { data: payments } = await square.payments.list({
-            locationId: process.env.SQUARE_LOCATION_ID!,
-            sortOrder: 'DESC',
-            limit: 50,
-          })
-          const orderShort = id.slice(0, 8)
-          const payment = (payments || []).find((p: any) =>
-            p.note?.includes(orderShort) || p.orderId?.includes(id)
-          )
-          if (payment?.id) {
-            const refundTotal = Math.round((currentOrder.original_total || currentOrder.total) * 100)
-            await square.refunds.refundPayment({
-              idempotencyKey: `refund-cancel-${id}`,
-              paymentId: payment.id,
-              amountMoney: { amount: BigInt(refundTotal), currency: 'USD' },
-              reason: 'Customer declined adjusted order',
-            })
-          }
-        } catch (refundErr) {
-          console.error('Full refund failed:', refundErr)
+        const refundTotal = Math.round((currentOrder.original_total || currentOrder.total) * 100)
+        const r = await refundSquareOrder({
+          orderId: id,
+          paymentId: currentOrder.payment_id,
+          amountCents: refundTotal,
+          reason: 'Customer declined adjusted order',
+          idempotencyKey: `refund-cancel-${id}`,
+        })
+        if (r.success) {
+          await svc.from('dd_orders').update({ refund_amount: (currentOrder.original_total || currentOrder.total) }).eq('id', id)
+        } else {
+          console.error('[orders] declined-adjust refund failed — reconcile', id, r.error)
         }
       }
 

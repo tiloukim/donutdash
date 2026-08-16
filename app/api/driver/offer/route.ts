@@ -209,29 +209,40 @@ export async function POST(req: NextRequest) {
     earnings = await quoteDriverEarnings(dist, tip)
   }
 
-  // Update offer
-  await svc.from('dd_delivery_offers')
-    .update({ status: 'accepted', responded_at: new Date().toISOString() })
-    .eq('id', offer_id)
-
-  // Assign driver to delivery
-  const { error: deliveryError } = await svc.from('dd_deliveries')
+  // Assign the driver ATOMICALLY — only if the delivery is still unassigned.
+  // Prevents a second driver (who self-created a parallel offer) from
+  // overwriting an already-accepted run.
+  const { data: assigned, error: deliveryError } = await svc.from('dd_deliveries')
     .update({
       driver_id: ddUser.id,
       status: 'assigned',
       driver_earnings: earnings,
     })
     .eq('id', offer.delivery_id)
+    .is('driver_id', null)
+    .select('id')
 
   if (deliveryError) {
     console.error('[OFFER ACCEPT] Failed to assign driver to delivery:', deliveryError)
     return NextResponse.json({ error: 'Failed to assign delivery' }, { status: 500 })
   }
+  if (!assigned || assigned.length === 0) {
+    // Another driver grabbed it first — expire this offer, don't mark accepted.
+    await svc.from('dd_delivery_offers').update({ status: 'expired' }).eq('id', offer_id)
+    return NextResponse.json({ error: 'This delivery was just taken by another driver.' }, { status: 409 })
+  }
 
-  // Update order status
+  // Won the race — mark the offer accepted.
+  await svc.from('dd_delivery_offers')
+    .update({ status: 'accepted', responded_at: new Date().toISOString() })
+    .eq('id', offer_id)
+
+  // Nudge the order to 'confirmed' only if it hasn't already advanced — never
+  // regress a preparing / ready_for_pickup order back to confirmed.
   await svc.from('dd_orders')
     .update({ status: 'confirmed' })
     .eq('id', offer.delivery?.order_id)
+    .in('status', ['pending', 'confirmed'])
 
   return NextResponse.json({ accepted: true, delivery_id: offer.delivery_id })
 }
