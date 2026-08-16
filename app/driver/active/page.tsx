@@ -186,6 +186,30 @@ export default function ActiveDelivery() {
     setUpdating(false)
   }
 
+  // One tap at the shop = picked up AND on the way. The driver opens navigation
+  // to the customer immediately and never has to come back to the app to tap a
+  // second "Heading to Customer" button. Two sequential updates because the API
+  // only allows assigned->picked_up->delivering one step at a time.
+  const handlePickupAndDeliver = async () => {
+    if (!delivery || updating) return
+    setUpdating(true)
+    try {
+      const r1 = await fetch('/api/driver/update', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delivery_id: delivery.id, status: 'picked_up' }),
+      })
+      if (r1.ok) {
+        await fetch('/api/driver/update', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delivery_id: delivery.id, status: 'delivering' }),
+        })
+      }
+      await fetchActive()
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -335,7 +359,7 @@ export default function ActiveDelivery() {
               href={customerMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => { if (!updating) updateStatus('picked_up') }}
+              onClick={() => handlePickupAndDeliver()}
               style={{
                 display: 'inline-block', padding: '12px 32px', borderRadius: 8, fontSize: 15, fontWeight: 700,
                 background: '#FF8C00', color: '#fff', border: 'none', cursor: 'pointer',
