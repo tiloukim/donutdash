@@ -19,6 +19,7 @@ interface DeliveryInfo {
   status: string
   distance_miles: number | null
   delivery_photo_url: string | null
+  pickup_photo_url: string | null
   driver: { name: string; avatar_url?: string | null } | null
 }
 
@@ -410,14 +411,32 @@ export default function AdminOrders() {
                                   <span style={{ fontWeight: 600, color: '#059669' }}>${(delivery?.driver_earnings || 0).toFixed(2)}</span>
                                 </div>
                               </div>
-                              {delivery?.delivery_photo_url && (
-                                <div style={{ marginTop: 12 }}>
-                                  <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 6 }}>DELIVERY PROOF</div>
-                                  <img
-                                    src={delivery.delivery_photo_url}
-                                    alt="Delivery proof"
-                                    style={{ maxWidth: 280, borderRadius: 8, border: '1px solid #E5E7EB' }}
-                                  />
+                              {(delivery?.pickup_photo_url || delivery?.delivery_photo_url) && (
+                                <div style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                                  {delivery?.pickup_photo_url && (
+                                    <div>
+                                      <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 6 }}>PICKUP PROOF</div>
+                                      <a href={delivery.pickup_photo_url} target="_blank" rel="noopener noreferrer">
+                                        <img
+                                          src={delivery.pickup_photo_url}
+                                          alt="Pickup proof"
+                                          style={{ maxWidth: 240, borderRadius: 8, border: '1px solid #E5E7EB', display: 'block' }}
+                                        />
+                                      </a>
+                                    </div>
+                                  )}
+                                  {delivery?.delivery_photo_url && (
+                                    <div>
+                                      <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 6 }}>DELIVERY PROOF</div>
+                                      <a href={delivery.delivery_photo_url} target="_blank" rel="noopener noreferrer">
+                                        <img
+                                          src={delivery.delivery_photo_url}
+                                          alt="Delivery proof"
+                                          style={{ maxWidth: 240, borderRadius: 8, border: '1px solid #E5E7EB', display: 'block' }}
+                                        />
+                                      </a>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                               {/* Reassign button for stuck orders */}
