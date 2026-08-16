@@ -11,7 +11,7 @@ export default function ShopSettings() {
   const [error, setError] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
-  const [bankInfo, setBankInfo] = useState({ bank_account_holder: '', bank_routing_number: '', bank_account_number: '' })
+  const [bankInfo, setBankInfo] = useState<{ payout_method?: string; bank_account_holder?: string; bank_routing_number?: string; bank_account_number?: string; paypal_email?: string }>({ payout_method: 'ach', bank_account_holder: '', bank_routing_number: '', bank_account_number: '', paypal_email: '' })
   const [savingBank, setSavingBank] = useState(false)
   const [bankSaved, setBankSaved] = useState(false)
   const [shopReferral, setShopReferral] = useState<any>(null)
@@ -31,7 +31,7 @@ export default function ShopSettings() {
   useEffect(() => {
     fetch('/api/shop/settings').then(r => r.json()).then(setShop).finally(() => setLoading(false))
     fetch('/api/user/bank-info').then(r => r.json()).then(d => {
-      if (d.bankInfo) setBankInfo(d.bankInfo)
+      if (d.bankInfo) setBankInfo({ ...d.bankInfo, payout_method: d.bankInfo.payout_method || 'ach' })
     }).catch(() => {})
     fetch('/api/shop/referral').then(r => r.json()).then(setShopReferral).catch(() => {})
   }, [])
@@ -388,32 +388,65 @@ export default function ShopSettings() {
         </div>
       </div>
 
-      {/* Bank Account for Payouts */}
+      {/* Payout Method */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Bank Account for Payouts</h3>
-        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>DonutDash pays out your food-sales earnings to this bank account. You keep 80% of the food subtotal after our 20% commission; tax, delivery fee, service fee, and tip are handled separately and aren&apos;t part of your payout.</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <label style={labelStyle}>Account Holder Name</label>
-            <input style={inputStyle} placeholder="Business or personal name"
-              value={bankInfo.bank_account_holder || ''}
-              onChange={e => setBankInfo({ ...bankInfo, bank_account_holder: e.target.value })} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Routing Number</label>
-              <input style={inputStyle} placeholder="9 digits"
-                value={bankInfo.bank_routing_number || ''}
-                onChange={e => setBankInfo({ ...bankInfo, bank_routing_number: e.target.value })} />
-            </div>
-            <div>
-              <label style={labelStyle}>Account Number</label>
-              <input style={inputStyle} placeholder="Account number"
-                value={bankInfo.bank_account_number || ''}
-                onChange={e => setBankInfo({ ...bankInfo, bank_account_number: e.target.value })} />
-            </div>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Payout Method</h3>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>How DonutDash pays out your food-sales earnings. You keep 80% of the food subtotal after our 20% commission; tax, delivery fee, service fee, and tip are handled separately and aren&apos;t part of your payout.</p>
+
+        {/* Method selector */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Preferred Payout Method</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+            {[
+              { key: 'ach', label: 'Bank ACH', icon: '🏦', desc: 'Free, 1-2 days' },
+              { key: 'paypal', label: 'PayPal', icon: '🅿️', desc: 'Instant to PayPal' },
+            ].map(m => (
+              <button key={m.key} type="button"
+                onClick={() => setBankInfo({ ...bankInfo, payout_method: m.key })}
+                style={{
+                  padding: '10px', borderRadius: 8, textAlign: 'center', cursor: 'pointer',
+                  border: bankInfo.payout_method === m.key ? '2px solid #10B981' : '1.5px solid #ddd',
+                  background: bankInfo.payout_method === m.key ? '#F0FDF4' : '#fff',
+                }}>
+                <div style={{ fontSize: 20, marginBottom: 2 }}>{m.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: bankInfo.payout_method === m.key ? '#10B981' : '#333' }}>{m.label}</div>
+                <div style={{ fontSize: 10, color: '#999' }}>{m.desc}</div>
+              </button>
+            ))}
           </div>
         </div>
+
+        {bankInfo.payout_method === 'paypal' ? (
+          <div>
+            <label style={labelStyle}>PayPal Email</label>
+            <input style={inputStyle} type="email" placeholder="you@example.com"
+              value={bankInfo.paypal_email || ''}
+              onChange={e => setBankInfo({ ...bankInfo, paypal_email: e.target.value })} />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Account Holder Name</label>
+              <input style={inputStyle} placeholder="Business or personal name"
+                value={bankInfo.bank_account_holder || ''}
+                onChange={e => setBankInfo({ ...bankInfo, bank_account_holder: e.target.value })} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Routing Number</label>
+                <input style={inputStyle} placeholder="9 digits"
+                  value={bankInfo.bank_routing_number || ''}
+                  onChange={e => setBankInfo({ ...bankInfo, bank_routing_number: e.target.value })} />
+              </div>
+              <div>
+                <label style={labelStyle}>Account Number</label>
+                <input style={inputStyle} placeholder="Account number"
+                  value={bankInfo.bank_account_number || ''}
+                  onChange={e => setBankInfo({ ...bankInfo, bank_account_number: e.target.value })} />
+              </div>
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
           <button
             onClick={async () => {
@@ -429,9 +462,9 @@ export default function ShopSettings() {
             disabled={savingBank}
             style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: savingBank ? '#CCC' : '#10B981', color: '#fff', fontSize: 14, fontWeight: 700, cursor: savingBank ? 'not-allowed' : 'pointer' }}
           >
-            {savingBank ? 'Saving...' : 'Save Bank Info'}
+            {savingBank ? 'Saving...' : 'Save Payout Info'}
           </button>
-          {bankSaved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Bank info saved!</span>}
+          {bankSaved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Payout info saved!</span>}
         </div>
       </div>
       {/* Shop Referral Program */}
