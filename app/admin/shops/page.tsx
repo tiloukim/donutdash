@@ -10,6 +10,8 @@ interface Shop {
   name: string
   city: string
   is_active: boolean
+  is_claimed?: boolean
+  payout_ready?: boolean
   pos_enabled?: boolean
   rating: number
   review_count: number
@@ -403,6 +405,15 @@ export default function AdminShops() {
                   <td style={{ padding: '9px 10px', fontWeight: 600, fontSize: 14 }}>
                     {shop.name}
                     {isDirty && <span style={{ marginLeft: 6, display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }} title="Unsaved changes" />}
+                    {shop.is_active && shop.is_claimed !== false && shop.payout_ready === false && (
+                      <div title="This shop's owner hasn't entered payout details — you can't pay them yet" style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 8,
+                        background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA',
+                        borderRadius: 6, padding: '1px 6px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                      }}>
+                        ⚠️ No payout info
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '9px 10px', fontSize: 13, color: '#6B7280' }}>{shop.owner?.name || '-'}</td>
                   <td style={{ padding: '9px 10px', fontSize: 13, color: '#6B7280' }}>{shop.city}</td>
