@@ -21,6 +21,8 @@ interface Driver {
   created_at: string
   deliveryCount: number
   totalEarnings: number
+  payout_ready?: boolean
+  payout_method?: string | null
 }
 
 export default function AdminDrivers() {
@@ -48,6 +50,7 @@ export default function AdminDrivers() {
 
   const onlineDrivers = drivers.filter(d => d.is_online && d.lat && d.lng && d.lat !== 0 && d.lng !== 0)
   const onlineCount = drivers.filter(d => d.is_online).length
+  const missingPayout = drivers.filter(d => d.is_active && d.payout_ready === false)
 
   return (
     <div>
@@ -56,6 +59,10 @@ export default function AdminDrivers() {
         <div style={{ background: '#fff', borderRadius: 10, padding: '14px 20px', border: '1px solid #E5E7EB', flex: '1 1 150px' }}>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#1A1A2E' }}>{drivers.length}</div>
           <div style={{ fontSize: 12, color: '#6B7280' }}>Total Drivers</div>
+        </div>
+        <div style={{ background: missingPayout.length > 0 ? '#FEF2F2' : '#fff', borderRadius: 10, padding: '14px 20px', border: `1px solid ${missingPayout.length > 0 ? '#FECACA' : '#E5E7EB'}`, flex: '1 1 150px' }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: missingPayout.length > 0 ? '#B91C1C' : '#10B981' }}>{missingPayout.length}</div>
+          <div style={{ fontSize: 12, color: '#6B7280' }}>Missing payout info</div>
         </div>
         <div style={{ background: '#fff', borderRadius: 10, padding: '14px 20px', border: '1px solid #E5E7EB', flex: '1 1 150px' }}>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#10B981' }}>{onlineCount}</div>
@@ -148,7 +155,18 @@ export default function AdminDrivers() {
                   <td style={{ padding: '8px 16px' }}>
                     <DriverAvatar name={driver.name} url={driver.avatar_url} selfieUrl={driver.selfie_url} size={36} />
                   </td>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>{driver.name}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14 }}>
+                    {driver.name}
+                    {driver.payout_ready === false && (
+                      <div title="This driver hasn't entered payout details — you can't pay them yet" style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 8,
+                        background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA',
+                        borderRadius: 6, padding: '1px 6px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                      }}>
+                        ⚠️ No payout info
+                      </div>
+                    )}
+                  </td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{driver.email}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280' }}>{driver.phone || '-'}</td>
                   <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 600 }}>{driver.deliveryCount}</td>
