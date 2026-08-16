@@ -317,32 +317,9 @@ export default function DriverSettings() {
           Choose how you want to receive your weekly earnings.
         </div>
 
-        {/* Payout method selector */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Preferred Payout Method</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-            {[
-              { key: 'ach', label: 'Bank ACH', icon: '🏦', desc: 'Free, 1-2 days' },
-              { key: 'paypal', label: 'PayPal', icon: '🅿️', desc: 'Instant to PayPal' },
-            ].map(m => (
-              <button key={m.key} type="button"
-                onClick={() => setBankInfo({ ...bankInfo, payout_method: m.key })}
-                style={{
-                  padding: '10px', borderRadius: 8, textAlign: 'center', cursor: 'pointer',
-                  border: bankInfo.payout_method === m.key ? '2px solid #10B981' : '1.5px solid #ddd',
-                  background: bankInfo.payout_method === m.key ? '#F0FDF4' : '#fff',
-                }}>
-                <div style={{ fontSize: 20, marginBottom: 2 }}>{m.icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: bankInfo.payout_method === m.key ? '#10B981' : '#333' }}>{m.label}</div>
-                <div style={{ fontSize: 10, color: '#999' }}>{m.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ACH fields */}
-        {bankInfo.payout_method === 'ach' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Bank (ACH) is the only payout method for now — PayPal/Venmo/CashApp
+            are hidden until DonutDash has a real payout account set up. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={labelStyle}>Account Holder Name</label>
               <input style={inputStyle} placeholder="John Doe"
@@ -376,48 +353,18 @@ export default function DriverSettings() {
               )}
             </div>
           </div>
-        )}
-
-        {/* PayPal field */}
-        {bankInfo.payout_method === 'paypal' && (
-          <div>
-            <label style={labelStyle}>PayPal Email</label>
-            <input style={inputStyle} placeholder="you@email.com" type="email"
-              value={bankInfo.paypal_email || ''}
-              onChange={e => setBankInfo({ ...bankInfo, paypal_email: e.target.value })} />
-          </div>
-        )}
-
-        {/* Venmo field */}
-        {bankInfo.payout_method === 'venmo' && (
-          <div>
-            <label style={labelStyle}>Venmo Username</label>
-            <input style={inputStyle} placeholder="@username"
-              value={bankInfo.venmo_handle || ''}
-              onChange={e => setBankInfo({ ...bankInfo, venmo_handle: e.target.value })} />
-          </div>
-        )}
-
-        {/* Cash App field */}
-        {bankInfo.payout_method === 'cashapp' && (
-          <div>
-            <label style={labelStyle}>Cash App Tag</label>
-            <input style={inputStyle} placeholder="$cashtag"
-              value={bankInfo.cashapp_handle || ''}
-              onChange={e => setBankInfo({ ...bankInfo, cashapp_handle: e.target.value })} />
-          </div>
-        )}
 
         <button
           onClick={async () => {
-            if (bankInfo.payout_method === 'ach' && bankInfo.bank_account_number && confirmAccountNumber !== bankInfo.bank_account_number) {
+            if (bankInfo.bank_account_number && confirmAccountNumber !== bankInfo.bank_account_number) {
               alert('Account numbers do not match.'); return
             }
             setSavingBank(true); setBankSaved(false)
             const res = await fetch('/api/user/bank-info', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(bankInfo),
+              // PayPal disabled for now — always save as bank/ACH.
+              body: JSON.stringify({ ...bankInfo, payout_method: 'ach' }),
             })
             if (res.ok) { setBankSaved(true); setTimeout(() => setBankSaved(false), 3000) }
             setSavingBank(false)
