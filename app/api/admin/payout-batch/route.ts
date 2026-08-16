@@ -41,13 +41,27 @@ export async function POST(req: NextRequest) {
 
   // Generate new batch for a specific week
   if (action === 'generate') {
-    // Calculate current week (Mon-Sun)
-    const now = new Date()
-    const dayOfWeek = now.getDay()
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-    const weekStart = new Date(now)
-    weekStart.setDate(now.getDate() + mondayOffset - 7) // Previous week's Monday
+    // Week to pay out. If the caller picked one (YYYY-MM-DD), snap it to that
+    // week's Monday; otherwise default to the previous completed week (Mon-Sun).
+    const weekParam: string | null = typeof requestBody?.weekStart === 'string' ? requestBody.weekStart : null
+    let weekStart: Date
+    if (weekParam) {
+      const picked = new Date(weekParam + 'T00:00:00')
+      if (isNaN(picked.getTime())) return NextResponse.json({ error: 'Invalid week' }, { status: 400 })
+      const pd = picked.getDay()
+      weekStart = new Date(picked)
+      weekStart.setDate(picked.getDate() + (pd === 0 ? -6 : 1 - pd)) // snap to Monday
+    } else {
+      const now = new Date()
+      const dayOfWeek = now.getDay()
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+      weekStart = new Date(now)
+      weekStart.setDate(now.getDate() + mondayOffset - 7) // Previous week's Monday
+    }
     weekStart.setHours(0, 0, 0, 0)
+    if (weekStart.getTime() > Date.now()) {
+      return NextResponse.json({ error: 'Cannot generate a batch for a future week.' }, { status: 400 })
+    }
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekStart.getDate() + 6)
     weekEnd.setHours(23, 59, 59, 999)
@@ -81,9 +95,10 @@ export async function POST(req: NextRequest) {
       .gte('delivered_at', weekStart.toISOString())
       .lte('delivered_at', weekEnd.toISOString())
 
-    // Fetch all drivers and shop owners with bank info
+    // Fetch all drivers and shop owners with their payout details (all methods,
+    // not just bank — a PayPal/Venmo recipient must not show as "no info").
     const { data: allUsers } = await svc.from('dd_users')
-      .select('id, name, email, role, bank_account_holder, bank_routing_number, bank_account_number')
+      .select('id, name, email, role, payout_method, bank_account_holder, bank_routing_number, bank_account_number, paypal_email, venmo_handle, cashapp_handle')
       .in('role', ['driver', 'shop_owner'])
 
     // Fetch shops
@@ -163,9 +178,13 @@ export async function POST(req: NextRequest) {
         amount: Math.round(data.amount * 100) / 100,
         earnings_breakdown: { deliveries: data.deliveries, basePay: data.basePay, tips: data.tips },
         bank_info: driverUser ? {
+          method: driverUser.payout_method || 'ach',
           holder: driverUser.bank_account_holder,
           routing: driverUser.bank_routing_number,
           account: driverUser.bank_account_number,
+          paypal: driverUser.paypal_email,
+          venmo: driverUser.venmo_handle,
+          cashapp: driverUser.cashapp_handle,
         } : null,
         status: 'pending',
       })
@@ -185,9 +204,13 @@ export async function POST(req: NextRequest) {
         amount: Math.round(data.amount * 100) / 100,
         earnings_breakdown: { orders: data.orders, subtotal: data.subtotal, commission: data.commission, refunded: data.refunded },
         bank_info: ownerUser ? {
+          method: ownerUser.payout_method || 'ach',
           holder: ownerUser.bank_account_holder,
           routing: ownerUser.bank_routing_number,
           account: ownerUser.bank_account_number,
+          paypal: ownerUser.paypal_email,
+          venmo: ownerUser.venmo_handle,
+          cashapp: ownerUser.cashapp_handle,
         } : null,
         status: 'pending',
       })
