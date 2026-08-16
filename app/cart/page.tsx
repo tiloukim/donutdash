@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import { useCart } from '@/lib/cart-context'
-import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, SMALL_ORDER_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
+import { SERVICE_FEE_RATE, DEFAULT_DELIVERY_FEE, MIN_ORDER_AMOUNT } from '@/lib/constants'
 import { DEFAULT_ETA_LABEL } from '@/lib/eta'
 
 export default function CartPage() {
@@ -51,7 +51,9 @@ export default function CartPage() {
   // address is beyond 1 mile (computed server-side at checkout). Pickup is free.
   const deliveryFee = isPickup ? 0 : (count > 0 ? shopDeliveryFee : 0)
   const serviceFee = Math.round(total * (shopServiceFeeRate / 100) * 100) / 100
-  const smallOrderFee = count > 0 && total < MIN_ORDER_AMOUNT ? SMALL_ORDER_FEE : 0
+  // Small-order fee removed — the server never charged it (see checkout). 0 so
+  // the fee row hides and the displayed total matches the actual charge.
+  const smallOrderFee = 0
   const tip = isPickup
     ? 0
     : showCustomTip

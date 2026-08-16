@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { capturePayPalOrder } from '@/lib/paypal'
 
 export async function POST(request: NextRequest) {
@@ -13,12 +13,25 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+    // Bind the capture to the caller's own order before moving any money — never
+    // let a logged-in user capture/confirm an order they don't own.
+    const svc = createServiceClient()
+    const { data: ddUser } = await svc.from('dd_users').select('id').eq('auth_id', user.id).single()
+    const { data: order } = await svc.from('dd_orders').select('id, customer_id, payment_id').eq('id', orderId).single()
+    if (!ddUser || !order || order.customer_id !== ddUser.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    // Already captured — idempotent, don't double-capture.
+    if (order.payment_id) {
+      return NextResponse.json({ success: true, status: 'COMPLETED' })
+    }
+
     // Capture payment
     const captureData = await capturePayPalOrder(paypalOrderId)
 
     if (captureData.status === 'COMPLETED') {
-      // Update order status
-      await supabase.from('dd_orders').update({
+      // Update order status (service client — customer has no UPDATE policy)
+      await svc.from('dd_orders').update({
         status: 'confirmed',
         payment_id: paypalOrderId,
       }).eq('id', orderId)
