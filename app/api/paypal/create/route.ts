@@ -82,6 +82,24 @@ export async function POST(request: NextRequest) {
     // Use shop's flat delivery fee (or platform default); pickup orders are free.
     const deliveryFee = isPickup ? 0 : (shop?.delivery_fee ?? DEFAULT_DELIVERY_FEE)
 
+    // SECURITY: never trust client-supplied prices — look up the real price for
+    // each item from dd_menu_items for this shop (else a caller could pay 1¢).
+    const menuIds = [...new Set(items.map((i: { menu_item_id: string }) => i.menu_item_id))]
+    const { data: menuRows } = await svc
+      .from('dd_menu_items')
+      .select('id, name, price, is_available')
+      .eq('shop_id', shopId)
+      .in('id', menuIds)
+    const priceMap = new Map((menuRows || []).map((m: { id: string; name: string; price: number; is_available: boolean }) => [m.id, m]))
+    for (const it of items as { menu_item_id: string; price: number; name: string; quantity: number }[]) {
+      const m = priceMap.get(it.menu_item_id) as { name: string; price: number; is_available: boolean } | undefined
+      if (!m || m.is_available === false) {
+        return NextResponse.json({ error: `"${it.name || 'An item'}" is no longer available. Please refresh your cart.` }, { status: 400 })
+      }
+      it.price = Number(m.price)
+      it.name = m.name
+    }
+
     const subtotal = items.reduce(
       (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity, 0
     )
