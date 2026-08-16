@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data: order } = await svc
     .from('dd_orders')
-    .select('*, dd_order_items(*), shop:dd_shops(name, address, city, lat, lng), delivery:dd_deliveries(delivery_photo_url)')
+    .select('*, dd_order_items(*), shop:dd_shops(name, address, city, lat, lng), delivery:dd_deliveries(delivery_photo_url, pickup_photo_url)')
     .eq('id', id)
     .single()
 
@@ -40,14 +40,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   // delivery can be an array or single object depending on Supabase join
   const delivery = order.delivery as any
-  const deliveryPhotoUrl = Array.isArray(delivery)
-    ? delivery[0]?.delivery_photo_url || null
-    : delivery?.delivery_photo_url || null
+  const deliveryRow = Array.isArray(delivery) ? delivery[0] : delivery
+  const deliveryPhotoUrl = deliveryRow?.delivery_photo_url || null
+  const pickupPhotoUrl = deliveryRow?.pickup_photo_url || null
 
   return NextResponse.json({
     ...order,
     items: order.dd_order_items,
     delivery_photo_url: deliveryPhotoUrl,
+    pickup_photo_url: pickupPhotoUrl,
   })
 }
 

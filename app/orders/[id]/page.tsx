@@ -699,6 +699,23 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
+      {/* Pickup Proof Photo — shown once the driver has collected the order */}
+      {order.pickup_photo_url && order.status !== 'cancelled' && (
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: 16,
+          border: '1px solid #FDE68A', marginTop: 20,
+        }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#92400E', marginBottom: 12 }}>PICKED UP FROM THE SHOP</h3>
+          <a href={order.pickup_photo_url} target="_blank" rel="noopener noreferrer">
+            <img
+              src={order.pickup_photo_url}
+              alt="Your order at pickup"
+              style={{ maxWidth: 400, width: '100%', borderRadius: 10, border: '1px solid #E5E7EB', display: 'block' }}
+            />
+          </a>
+        </div>
+      )}
+
       {/* Delivery Proof Photo */}
       {order.status === 'delivered' && order.delivery_photo_url && (
         <div style={{
@@ -706,11 +723,13 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           border: '1px solid #D1FAE5', marginTop: 20,
         }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#065F46', marginBottom: 12 }}>DELIVERY PROOF</h3>
-          <img
-            src={order.delivery_photo_url}
-            alt="Delivery proof photo"
-            style={{ maxWidth: 400, width: '100%', borderRadius: 10, border: '1px solid #E5E7EB' }}
-          />
+          <a href={order.delivery_photo_url} target="_blank" rel="noopener noreferrer">
+            <img
+              src={order.delivery_photo_url}
+              alt="Delivery proof photo"
+              style={{ maxWidth: 400, width: '100%', borderRadius: 10, border: '1px solid #E5E7EB', display: 'block' }}
+            />
+          </a>
         </div>
       )}
 
