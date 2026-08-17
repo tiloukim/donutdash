@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type CSSProperties } from 'react'
+
+const selStyle: CSSProperties = { display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: '1px solid #FDBA74', background: '#fff', fontSize: 13, color: '#7C2D12', minWidth: 150 }
 
 interface DriverTax {
   id: string
@@ -71,10 +73,24 @@ function fmt(n: number) {
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+interface MercuryState {
+  configured: boolean
+  accounts: Array<{ id: string; name: string; availableBalance: number }>
+  transferredTotal: number
+  error?: string
+}
+
 export default function AdminTax() {
   const [data, setData] = useState<TaxData | null>(null)
   const [loading, setLoading] = useState(true)
   const [year, setYear] = useState(new Date().getFullYear())
+
+  const [mercury, setMercury] = useState<MercuryState | null>(null)
+  const [srcId, setSrcId] = useState('')
+  const [destId, setDestId] = useState('')
+  const [amountStr, setAmountStr] = useState('')
+  const [transferring, setTransferring] = useState(false)
+  const [xferMsg, setXferMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -85,10 +101,45 @@ export default function AdminTax() {
       .finally(() => setLoading(false))
   }, [year])
 
+  const loadMercury = () => fetch('/api/admin/mercury/accounts').then(r => r.json()).then((m: MercuryState) => {
+    setMercury(m)
+    // Restore last-used accounts.
+    const savedSrc = localStorage.getItem('dd_tax_src'); const savedDest = localStorage.getItem('dd_tax_dest')
+    if (savedSrc && m.accounts?.some(a => a.id === savedSrc)) setSrcId(savedSrc)
+    if (savedDest && m.accounts?.some(a => a.id === savedDest)) setDestId(savedDest)
+  }).catch(() => {})
+  useEffect(() => { loadMercury() }, [])
+
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading tax data...</div>
   if (!data) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Failed to load</div>
 
   const { platformIncome: pi, salesTaxToRemit: stax, quarters, drivers, shops, summary } = data
+  const transferred = mercury?.transferredTotal ?? 0
+  const remaining = Math.max(0, Math.round((stax.allTime - transferred) * 100) / 100)
+
+  const doTransfer = async () => {
+    setXferMsg(null)
+    const amt = Number(amountStr || remaining)
+    if (!srcId || !destId) return setXferMsg({ ok: false, text: 'Pick both accounts.' })
+    if (!(amt >= 0.01)) return setXferMsg({ ok: false, text: 'Enter an amount ≥ $0.01.' })
+    const srcName = mercury?.accounts.find(a => a.id === srcId)?.name
+    const destName = mercury?.accounts.find(a => a.id === destId)?.name
+    if (!confirm(`Transfer ${fmt(amt)} from "${srcName}" to "${destName}"?\n\nThis moves real money between your Mercury accounts.`)) return
+    setTransferring(true)
+    try {
+      localStorage.setItem('dd_tax_src', srcId); localStorage.setItem('dd_tax_dest', destId)
+      const res = await fetch('/api/admin/mercury/transfer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceAccountId: srcId, destinationAccountId: destId, amount: amt, note: 'DonutDash sales tax set-aside' }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setXferMsg({ ok: false, text: d.error || 'Transfer failed' }); return }
+      setXferMsg({ ok: true, text: `Transferred ${fmt(amt)} to your tax account.` })
+      setAmountStr('')
+      await loadMercury()
+    } catch { setXferMsg({ ok: false, text: 'Transfer failed' }) }
+    finally { setTransferring(false) }
+  }
 
   return (
     <div>
@@ -130,6 +181,44 @@ export default function AdminTax() {
         </div>
         <div style={{ fontSize: 12.5, color: '#9A3412', marginTop: 12, lineHeight: 1.5 }}>
           Sales tax (8.25%) collected from customers on delivery-service orders. This is held on behalf of Texas — move it to your tax account to remit. It is <strong>not</strong> platform income. Confirm remittance filing with your accountant.
+        </div>
+
+        {/* One-click transfer to the Mercury tax account (internal transfer only). */}
+        <div style={{ borderTop: '1px solid #FDBA74', marginTop: 16, paddingTop: 16 }}>
+          {mercury && !mercury.configured ? (
+            <div style={{ fontSize: 12.5, color: '#9A3412', lineHeight: 1.5 }}>
+              <strong>Connect Mercury</strong> to move this with one click: create a Mercury API token, add it as <code>MERCURY_API_TOKEN</code> in the project environment, then reload.
+            </div>
+          ) : mercury && mercury.configured && mercury.accounts.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: '#B91C1C' }}>Mercury connected, but couldn&apos;t load accounts{mercury.error ? `: ${mercury.error}` : ''}.</div>
+          ) : mercury && mercury.configured ? (
+            <>
+              <div style={{ fontSize: 12.5, color: '#9A3412', marginBottom: 10 }}>
+                Transferred to date: <strong>{fmt(transferred)}</strong> · Remaining to set aside: <strong>{fmt(remaining)}</strong>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+                <label style={{ fontSize: 11, color: '#7C2D12', fontWeight: 700 }}>From
+                  <select value={srcId} onChange={e => setSrcId(e.target.value)} style={selStyle}>
+                    <option value="">Operating account…</option>
+                    {mercury.accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({fmt(a.availableBalance)})</option>)}
+                  </select>
+                </label>
+                <label style={{ fontSize: 11, color: '#7C2D12', fontWeight: 700 }}>To (tax)
+                  <select value={destId} onChange={e => setDestId(e.target.value)} style={selStyle}>
+                    <option value="">Tax account…</option>
+                    {mercury.accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({fmt(a.availableBalance)})</option>)}
+                  </select>
+                </label>
+                <label style={{ fontSize: 11, color: '#7C2D12', fontWeight: 700 }}>Amount
+                  <input value={amountStr} onChange={e => setAmountStr(e.target.value)} placeholder={remaining.toFixed(2)} inputMode="decimal" style={{ ...selStyle, minWidth: 110, width: 110 }} />
+                </label>
+                <button onClick={doTransfer} disabled={transferring} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: transferring ? '#ccc' : '#EA580C', color: '#fff', fontSize: 14, fontWeight: 800, cursor: transferring ? 'default' : 'pointer' }}>
+                  {transferring ? 'Transferring…' : `Transfer ${fmt(Number(amountStr || remaining) || 0)}`}
+                </button>
+              </div>
+              {xferMsg && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: xferMsg.ok ? '#15803D' : '#B91C1C' }}>{xferMsg.text}</div>}
+            </>
+          ) : null}
         </div>
       </div>
 
