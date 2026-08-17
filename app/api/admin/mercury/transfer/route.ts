@@ -44,6 +44,12 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ success: true, ...result })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Transfer failed' }, { status: 502 })
+    const msg = e instanceof Error ? e.message : 'Transfer failed'
+    // A read-only token (or one missing send/IP permission) returns 403 on the
+    // write. The accounts list still works, so explain instead of showing a code.
+    const friendly = /403|forbidden/i.test(msg)
+      ? 'This Mercury token can view accounts but is not allowed to move money (it is read-only, or missing send permission / an allowlisted IP). Make the transfer inside Mercury, or set up a Read+Write token to enable this button.'
+      : msg
+    return NextResponse.json({ error: friendly }, { status: 502 })
   }
 }

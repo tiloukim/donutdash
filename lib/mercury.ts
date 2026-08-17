@@ -32,7 +32,7 @@ export async function listMercuryAccounts(): Promise<MercuryAccount[]> {
   const data = await mercury('/accounts') as { accounts?: Array<Record<string, unknown>> }
   return (data?.accounts || []).map((a) => ({
     id: String(a.id),
-    name: String(a.name ?? a.nickname ?? 'Account'),
+    name: String(a.nickname ?? a.name ?? 'Account'),
     availableBalance: Number(a.availableBalance ?? a.currentBalance ?? 0),
     kind: (a.kind as string) ?? null,
   }))
