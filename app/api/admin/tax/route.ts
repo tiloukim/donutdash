@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const yearEnd = `${year + 1}-01-01T00:00:00.000Z`
 
   // Fetch all data in parallel
-  const [driversRes, deliveriesRes, ordersRes, payoutsRes, docsRes, shopsRes, shopDocsRes] = await Promise.all([
+  const [driversRes, deliveriesRes, ordersRes, payoutsRes, docsRes, shopsRes, shopDocsRes, salesTaxRes] = await Promise.all([
     svc.from('dd_users').select('id, name, email, phone, created_at, w9_legal_name, w9_address, w9_city, w9_state, w9_zip, w9_tax_id_type, w9_tax_id, w9_submitted_at').eq('role', 'driver'),
     svc.from('dd_deliveries')
       .select('id, driver_id, driver_earnings, base_pay, distance_miles, status, delivered_at, order:dd_orders(tip)')
@@ -44,6 +44,11 @@ export async function GET(req: NextRequest) {
     svc.from('dd_shop_documents')
       .select('shop_id, doc_type, status')
       .eq('doc_type', 'w9'),
+    // All-time delivery-service sales tax (for the "set aside to remit" card).
+    svc.from('dd_orders')
+      .select('tax, refund_amount, created_at')
+      .neq('status', 'cancelled')
+      .in('order_type', ['delivery', 'pickup']),
   ])
 
   const drivers = driversRes.data || []
@@ -53,6 +58,18 @@ export async function GET(req: NextRequest) {
   const w9Docs = docsRes.data || []
   const shops = shopsRes.data || []
   const shopW9Docs = shopDocsRes.data || []
+
+  // Sales tax collected on delivery-service orders — the amount to set aside and
+  // remit to the state. Excludes refunded orders (the tax was refunded too).
+  const monthStartIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+  const taxRows = (salesTaxRes.data || []) as Array<{ tax: number | null; refund_amount: number | null; created_at: string }>
+  const taxSum = (rows: typeof taxRows) =>
+    Math.round(rows.reduce((s, o) => s + (Number(o.refund_amount) > 0 ? 0 : (Number(o.tax) || 0)), 0) * 100) / 100
+  const salesTaxToRemit = {
+    thisMonth: taxSum(taxRows.filter(o => o.created_at >= monthStartIso)),
+    thisYear: taxSum(taxRows.filter(o => o.created_at >= yearStart && o.created_at < yearEnd)),
+    allTime: taxSum(taxRows),
+  }
 
   // Per-driver earnings breakdown
   const driverSummaries = drivers.map(driver => {
@@ -189,6 +206,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     year,
+    salesTaxToRemit,
     platformIncome: {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       shopCommissions,

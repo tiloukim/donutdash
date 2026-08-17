@@ -42,6 +42,7 @@ interface ShopTax {
 
 interface TaxData {
   year: number
+  salesTaxToRemit: { thisMonth: number; thisYear: number; allTime: number }
   platformIncome: {
     totalRevenue: number
     shopCommissions: number
@@ -87,7 +88,7 @@ export default function AdminTax() {
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading tax data...</div>
   if (!data) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Failed to load</div>
 
-  const { platformIncome: pi, quarters, drivers, shops, summary } = data
+  const { platformIncome: pi, salesTaxToRemit: stax, quarters, drivers, shops, summary } = data
 
   return (
     <div>
@@ -104,6 +105,31 @@ export default function AdminTax() {
               {y}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Sales tax to set aside — money collected on behalf of the state (delivery service). */}
+      <div style={{ background: 'linear-gradient(135deg, #FFF7ED, #FFEDD5)', border: '1px solid #FDBA74', borderRadius: 16, padding: '20px 22px', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: 18 }}>💰</span>
+          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9A3412' }}>Sales Tax to Set Aside</span>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, marginTop: 12 }}>
+          <div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: '#7C2D12' }}>{fmt(stax.thisMonth)}</div>
+            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>This month</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: '#7C2D12' }}>{fmt(stax.thisYear)}</div>
+            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>{year}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: '#7C2D12' }}>{fmt(stax.allTime)}</div>
+            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>All time</div>
+          </div>
+        </div>
+        <div style={{ fontSize: 12.5, color: '#9A3412', marginTop: 12, lineHeight: 1.5 }}>
+          Sales tax (8.25%) collected from customers on delivery-service orders. This is held on behalf of Texas — move it to your tax account to remit. It is <strong>not</strong> platform income. Confirm remittance filing with your accountant.
         </div>
       </div>
 
