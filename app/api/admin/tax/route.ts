@@ -76,6 +76,24 @@ export async function GET(req: NextRequest) {
     allTime: taxSum(taxRows),
   }
 
+  // Per-week ledger — one row per weekly batch (Sunday-start, Central time) with
+  // the tax collected to set aside. Refunded orders owe no tax and are skipped.
+  const weekMap = new Map<string, { tax: number; orders: number }>()
+  for (const o of taxRows) {
+    if (Number(o.refund_amount) > 0) continue
+    const ymd = new Date(o.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }) // YYYY-MM-DD Central
+    const wd = new Date(`${ymd}T12:00:00Z`); wd.setUTCDate(wd.getUTCDate() - wd.getUTCDay()) // back to Sunday
+    const wk = wd.toISOString().slice(0, 10)
+    const cur = weekMap.get(wk) || { tax: 0, orders: 0 }
+    cur.tax += Number(o.tax) || 0
+    cur.orders += 1
+    weekMap.set(wk, cur)
+  }
+  const salesTaxByWeek = [...weekMap.entries()]
+    .map(([weekStart, v]) => ({ weekStart, tax: Math.round(v.tax * 100) / 100, orders: v.orders }))
+    .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
+    .slice(0, 26)
+
   // Per-driver earnings breakdown
   const driverSummaries = drivers.map(driver => {
     const driverDeliveries = deliveries.filter(d => d.driver_id === driver.id)
@@ -212,6 +230,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     year,
     salesTaxToRemit,
+    salesTaxByWeek,
     platformIncome: {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       shopCommissions,

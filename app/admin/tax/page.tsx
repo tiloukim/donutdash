@@ -45,6 +45,7 @@ interface ShopTax {
 interface TaxData {
   year: number
   salesTaxToRemit: { thisWeek: number; thisMonth: number; thisYear: number; allTime: number }
+  salesTaxByWeek: Array<{ weekStart: string; tax: number; orders: number }>
   platformIncome: {
     totalRevenue: number
     shopCommissions: number
@@ -113,7 +114,11 @@ export default function AdminTax() {
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading tax data...</div>
   if (!data) return <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Failed to load</div>
 
-  const { platformIncome: pi, salesTaxToRemit: stax, quarters, drivers, shops, summary } = data
+  const { platformIncome: pi, salesTaxToRemit: stax, salesTaxByWeek: taxWeeks, quarters, drivers, shops, summary } = data
+  const weekLabel = (ymd: string) => {
+    const d = new Date(`${ymd}T12:00:00Z`)
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+  }
   const transferred = mercury?.transferredTotal ?? 0
   const remaining = Math.max(0, Math.round((stax.allTime - transferred) * 100) / 100)
 
@@ -225,6 +230,33 @@ export default function AdminTax() {
           ) : null}
         </div>
       </div>
+
+      {/* Per-week ledger — the tax collected in each weekly batch, to set aside. */}
+      {taxWeeks && taxWeeks.length > 0 && (
+        <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: 20, marginBottom: 24 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#374151', marginBottom: 12 }}>Sales Tax by Week — set aside each batch</div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <thead>
+                <tr style={{ color: '#6B7280', fontSize: 12 }}>
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid #E5E7EB', textAlign: 'left' }}>Week of (Sun)</th>
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid #E5E7EB', textAlign: 'left' }}>Orders</th>
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid #E5E7EB', textAlign: 'right' }}>Tax to set aside</th>
+                </tr>
+              </thead>
+              <tbody>
+                {taxWeeks.map(w => (
+                  <tr key={w.weekStart}>
+                    <td style={{ padding: '10px', borderBottom: '1px solid #F3F4F6', fontWeight: 600, color: '#1A1A2E' }}>{weekLabel(w.weekStart)}</td>
+                    <td style={{ padding: '10px', borderBottom: '1px solid #F3F4F6', color: '#6B7280' }}>{w.orders}</td>
+                    <td style={{ padding: '10px', borderBottom: '1px solid #F3F4F6', textAlign: 'right', fontWeight: 800, color: '#7C2D12' }}>{fmt(w.tax)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Alerts */}
       {summary.driversMissingW9 > 0 && (
