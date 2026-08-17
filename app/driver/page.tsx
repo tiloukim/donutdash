@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { enablePushOnGesture } from '@/lib/push-notifications'
 
 export default function DriverDashboard() {
   const [isOnline, setIsOnline] = useState(false)
@@ -270,8 +271,11 @@ export default function DriverDashboard() {
 
   const toggleOnline = async () => {
     const newState = !isOnline
-    // Unlock audio on Go Online tap (user gesture required for mobile)
+    // Unlock audio + enable push on Go Online tap — both need a user gesture,
+    // and going on shift is exactly when a driver needs alerts. Called before
+    // any await so the permission prompt stays inside the gesture.
     if (newState) {
+      enablePushOnGesture()
       import('@/lib/alert-sound').then(({ unlockAudio }) => unlockAudio('/order-alert.wav'))
     }
     // When going online, get GPS first so driver isn't at (0,0)

@@ -7,7 +7,6 @@ import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 import PendingReferralApplier from '@/components/PendingReferralApplier'
 import DriverPushBanner from '@/components/DriverPushBanner'
-import { subscribeToPush } from '@/lib/push-notifications'
 
 const NAV_ITEMS = [
   { href: '/driver', label: 'Home', icon: '📍' },
@@ -202,16 +201,12 @@ function GlobalDriverAlert() {
     return () => { clearInterval(i); stopSound() }
   }, [playSound, stopSound])
 
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
-  }, [])
-
-  // Register this device for web push so dispatch can reach the driver even
-  // when the app is backgrounded or closed — new offers and order-ready
-  // alerts arrive as OS notifications, not just in-app while the tab is open.
-  useEffect(() => {
-    subscribeToPush().catch(() => {})
-  }, [])
+  // Push permission + subscription are handled by <DriverPushBanner/>, which
+  // only requests permission from an explicit "Enable alerts" tap. We must NOT
+  // call Notification.requestPermission() on mount: a context-free prompt gets
+  // reflexively blocked, and 'denied' can only be undone in browser settings —
+  // which quietly kills push for that driver forever. The banner also re-subscribes
+  // silently when permission is already granted, so no mount-time subscribe here.
 
   const respond = async (action: 'accept' | 'decline') => {
     if (!offer) return
