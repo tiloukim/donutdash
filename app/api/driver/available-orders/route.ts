@@ -21,7 +21,7 @@ export async function GET() {
 
   // Find deliveries with no driver assigned (pending status)
   const { data: unassigned } = await svc.from('dd_deliveries')
-    .select('id, order_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, distance_miles, driver_earnings, created_at, order:dd_orders(id, total, tip, subtotal, delivery_address, delivery_city, shop:dd_shops(name, address, city))')
+    .select('id, order_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, distance_miles, driver_earnings, created_at, order:dd_orders(id, total, tip, subtotal, delivery_address, delivery_city, dd_order_items(quantity), shop:dd_shops(name, address, city))')
     .is('driver_id', null)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })

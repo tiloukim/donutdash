@@ -498,10 +498,17 @@ export default function DriverDashboard() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div>
-              <span style={{ fontSize: 13, color: '#888' }}>Order total: </span>
-              <span style={{ fontWeight: 700 }}>${offer.delivery?.order?.total?.toFixed(2)}</span>
-            </div>
+            {(() => {
+              const order = offer.delivery?.order as { items?: Array<{ quantity?: number }>; dd_order_items?: Array<{ quantity?: number }> } | undefined
+              const items = order?.items ?? order?.dd_order_items ?? []
+              const count = items.reduce((n, it) => n + (it.quantity || 0), 0)
+              return (
+                <div>
+                  <span style={{ fontWeight: 700, fontSize: 16 }}>{count}</span>
+                  <span style={{ fontSize: 13, color: '#888' }}> item{count === 1 ? '' : 's'}</span>
+                </div>
+              )
+            })()}
             <div style={{ fontSize: 22, fontWeight: 800, color: '#10B981' }}>
               ${(offer.delivery?.driver_earnings ?? 0).toFixed(2)}
             </div>
@@ -598,7 +605,7 @@ function AvailableDeliveries() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
                   <div style={{ fontSize: 13, color: '#888' }}>
-                    Order: ${order?.total?.toFixed(2) || '0.00'}
+                    {(() => { const c = (order?.dd_order_items ?? []).reduce((n: number, it: any) => n + (it.quantity || 0), 0); return `${c} item${c === 1 ? '' : 's'}` })()}
                     {d.distance_miles ? ` • ${d.distance_miles.toFixed(1)} mi` : ''}
                   </div>
                   <button
