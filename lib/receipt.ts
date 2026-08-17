@@ -66,7 +66,9 @@ function escapeHtml(s: string): string {
 // Card network badge for the Payment row — a brand-colored pill (works in
 // every email client, unlike SVG/remote logos) plus the masked last 4.
 function cardBrandHtml(brand: string | null, last4: string | null): string {
-  const key = (brand ?? '').trim().toLowerCase().replace(/\s+/g, '')
+  // Strip non-letters so Square's "AMERICAN_EXPRESS" / "american express" both
+  // match the "americanexpress" key.
+  const key = (brand ?? '').toLowerCase().replace(/[^a-z]/g, '')
   const brands: Record<string, { label: string; bg: string }> = {
     visa: { label: 'VISA', bg: '#1A1F71' },
     mastercard: { label: 'Mastercard', bg: '#EB001B' },

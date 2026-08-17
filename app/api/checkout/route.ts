@@ -485,6 +485,8 @@ export async function POST(request: NextRequest) {
     if (sourceId) {
       let paymentId: string | undefined
       let cardFingerprint: string | null = null
+      let cardBrand: string | null = null
+      let cardLast4: string | null = null
       try {
         // Create an itemized Square order first, then attach the payment to it.
         // Without an order, the charge posts as a single lump sum and the
@@ -525,8 +527,11 @@ export async function POST(request: NextRequest) {
         paymentId = paymentResult.payment.id
         // Square's stable per-card id — recorded for post-hoc welcome-offer abuse
         // detection (see below). Present for card payments; wallets may omit it.
-        cardFingerprint = (paymentResult.payment as { cardDetails?: { card?: { fingerprint?: string } } })
-          .cardDetails?.card?.fingerprint ?? null
+        // Also grab brand + last 4 so the receipt shows "Visa •••• 1234".
+        const cardInfo = (paymentResult.payment as { cardDetails?: { card?: { fingerprint?: string; cardBrand?: string; last4?: string } } }).cardDetails?.card
+        cardFingerprint = cardInfo?.fingerprint ?? null
+        cardBrand = cardInfo?.cardBrand ?? null
+        cardLast4 = cardInfo?.last4 ?? null
       } catch (payErr) {
         // Void the pending order and translate Square's decline codes into a
         // friendly message instead of surfacing the raw 400 body.
@@ -558,7 +563,7 @@ export async function POST(request: NextRequest) {
       for (let attempt = 0; attempt < 3; attempt++) {
         const { error } = await svc
           .from('dd_orders')
-          .update({ status: isFarScheduled ? 'pending' : 'confirmed', payment_id: paymentId, card_fingerprint: cardFingerprint })
+          .update({ status: isFarScheduled ? 'pending' : 'confirmed', payment_id: paymentId, card_fingerprint: cardFingerprint, card_brand: cardBrand, card_last4: cardLast4 })
           .eq('id', order.id)
         if (!error) { confirmErr = null; break }
         confirmErr = error
