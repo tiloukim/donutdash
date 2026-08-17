@@ -61,11 +61,16 @@ export async function GET(req: NextRequest) {
 
   // Sales tax collected on delivery-service orders — the amount to set aside and
   // remit to the state. Excludes refunded orders (the tax was refunded too).
-  const monthStartIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+  const nowD = new Date()
+  const monthStartIso = new Date(nowD.getFullYear(), nowD.getMonth(), 1).toISOString()
+  // Current week, starting Sunday (the natural "weekly batch" window).
+  const weekStart = new Date(nowD); weekStart.setHours(0, 0, 0, 0); weekStart.setDate(nowD.getDate() - nowD.getDay())
+  const weekStartIso = weekStart.toISOString()
   const taxRows = (salesTaxRes.data || []) as Array<{ tax: number | null; refund_amount: number | null; created_at: string }>
   const taxSum = (rows: typeof taxRows) =>
     Math.round(rows.reduce((s, o) => s + (Number(o.refund_amount) > 0 ? 0 : (Number(o.tax) || 0)), 0) * 100) / 100
   const salesTaxToRemit = {
+    thisWeek: taxSum(taxRows.filter(o => o.created_at >= weekStartIso)),
     thisMonth: taxSum(taxRows.filter(o => o.created_at >= monthStartIso)),
     thisYear: taxSum(taxRows.filter(o => o.created_at >= yearStart && o.created_at < yearEnd)),
     allTime: taxSum(taxRows),

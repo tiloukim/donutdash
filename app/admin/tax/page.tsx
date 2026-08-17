@@ -44,7 +44,7 @@ interface ShopTax {
 
 interface TaxData {
   year: number
-  salesTaxToRemit: { thisMonth: number; thisYear: number; allTime: number }
+  salesTaxToRemit: { thisWeek: number; thisMonth: number; thisYear: number; allTime: number }
   platformIncome: {
     totalRevenue: number
     shopCommissions: number
@@ -166,6 +166,10 @@ export default function AdminTax() {
           <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9A3412' }}>Sales Tax to Set Aside</span>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, marginTop: 12 }}>
+          <div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: '#7C2D12' }}>{fmt(stax.thisWeek)}</div>
+            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 700 }}>This week</div>
+          </div>
           <div>
             <div style={{ fontSize: 30, fontWeight: 800, color: '#7C2D12' }}>{fmt(stax.thisMonth)}</div>
             <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>This month</div>
