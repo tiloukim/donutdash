@@ -4,6 +4,7 @@
 // Keeping one source of truth means the emailed and web receipts always match.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { timeZoneForState } from './timezone'
 
 export interface ReceiptOrder {
   id: string
@@ -100,6 +101,7 @@ export function buildReceiptHtml(
   const shopUrl = `https://donutdash.app/shops/${encodeURIComponent(shop.slug)}`
   const placed = new Date(order.created_at).toLocaleString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    timeZone: timeZoneForState(shop.state),
   })
 
   const itemRows = items
