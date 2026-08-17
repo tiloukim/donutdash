@@ -45,15 +45,35 @@ export async function mercuryInternalTransfer(args: {
   note?: string
   idempotencyKey: string
 }): Promise<{ debitId: string | null; creditId: string | null }> {
-  const data = await mercury('/transfer', {
-    method: 'POST',
-    body: JSON.stringify({
-      sourceAccountId: args.sourceAccountId,
-      destinationAccountId: args.destinationAccountId,
-      amount: Math.round(args.amount * 100) / 100,
-      idempotencyKey: args.idempotencyKey,
-      ...(args.note ? { note: args.note } : {}),
-    }),
-  }) as { debitTransaction?: { id?: string }; creditTransaction?: { id?: string } }
+  const payload = {
+    sourceAccountId: args.sourceAccountId,
+    destinationAccountId: args.destinationAccountId,
+    amount: Math.round(args.amount * 100) / 100,
+    idempotencyKey: args.idempotencyKey,
+    ...(args.note ? { note: args.note } : {}),
+  }
+
+  // Route the WRITE through the static-IP VPS proxy when configured — Mercury
+  // allowlists that IP, and the write-scoped token lives only on the VPS.
+  const proxyUrl = process.env.MERCURY_TRANSFER_PROXY_URL
+  const proxySecret = process.env.MERCURY_PROXY_SECRET
+  let data: { debitTransaction?: { id?: string }; creditTransaction?: { id?: string } }
+  if (proxyUrl && proxySecret) {
+    const res = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${proxySecret}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const text = await res.text()
+    let body: unknown = null
+    try { body = text ? JSON.parse(text) : null } catch { body = { raw: text } }
+    if (!res.ok) {
+      const b = body as { errors?: Array<{ message?: string }>; error?: string; message?: string } | null
+      throw new Error(b?.errors?.[0]?.message || b?.error || b?.message || `Mercury API error (${res.status})`)
+    }
+    data = body as typeof data
+  } else {
+    data = await mercury('/transfer', { method: 'POST', body: JSON.stringify(payload) }) as typeof data
+  }
   return { debitId: data?.debitTransaction?.id ?? null, creditId: data?.creditTransaction?.id ?? null }
 }
