@@ -39,7 +39,34 @@ export async function GET() {
       ? (users || [])
       : (users || []).map(u => { const c = { ...u } as Record<string, unknown>; for (const k of SENSITIVE) delete c[k]; return c })
 
-    return NextResponse.json({ users: out })
+    // Attach each user's address for the admin detail view. Saved addresses live
+    // in dd_addresses; guests usually only have an address on their latest order.
+    const userIds = out.map((u: { id: string }) => u.id)
+    const savedByUser = new Map<string, { address: string; city: string; state: string; zip: string }>()
+    const orderByUser = new Map<string, { delivery_address: string; delivery_city: string | null }>()
+    if (userIds.length > 0) {
+      const { data: addrs } = await svc.from('dd_addresses')
+        .select('user_id, address, city, state, zip, is_default')
+        .in('user_id', userIds)
+      for (const a of addrs || []) {
+        if (a.is_default || !savedByUser.has(a.user_id)) savedByUser.set(a.user_id, { address: a.address, city: a.city, state: a.state, zip: a.zip })
+      }
+      const { data: orders } = await svc.from('dd_orders')
+        .select('customer_id, delivery_address, delivery_city, created_at')
+        .in('customer_id', userIds)
+        .not('delivery_address', 'is', null)
+        .order('created_at', { ascending: false })
+      for (const o of orders || []) {
+        if (o.customer_id && !orderByUser.has(o.customer_id)) orderByUser.set(o.customer_id, { delivery_address: o.delivery_address, delivery_city: o.delivery_city })
+      }
+    }
+    const enriched = out.map((u: { id: string }) => ({
+      ...u,
+      saved_address: savedByUser.get(u.id) || null,
+      last_order_address: orderByUser.get(u.id) || null,
+    }))
+
+    return NextResponse.json({ users: enriched })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
