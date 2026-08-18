@@ -373,9 +373,6 @@ export default function HomePage() {
   // Live trust stats for the hero — all derived from real shop data, never
   // fabricated. A stat is only shown when it's meaningful.
   const orderableShops = shops.filter(s => s.is_claimed !== false)
-  // Featured shows ONLY orderable shops — never unclaimed "coming soon" listings.
-  // orderableShops preserves the API sort (sponsored/nearest first).
-  const featuredShops = orderableShops.slice(0, 12)
   // Clicking a featured item opens the customer's NEAREST active shop (order from
   // the closest one), falling back to the item's own shop when we don't know it.
   const nearestActiveShopSlug: string | null = orderableShops.length
@@ -1225,40 +1222,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Featured Donut Shops — active shops only (ShopCard marks unclaimed as coming-soon) */}
-        <section style={{ padding: '4rem 1.5rem', background: '#fff' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
-                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', fontWeight: 800, color: '#1A1A2E', margin: 0 }}>
-                  Featured donut shops
-                </h2>
-                <p style={{ color: '#888', fontSize: '0.95rem', margin: '0.25rem 0 0' }}>
-                  {gpsLocation ? 'Order fresh donuts from these local shops, nearest first' : 'Order fresh donuts from these local shops'}
-                </p>
-              </div>
-              <Link href={viewMoreNearestHref} style={{ color: PINK, fontWeight: 700, fontSize: '0.95rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                View all donut shops &rarr;
-              </Link>
-            </div>
-            {loading ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
-                {[1, 2, 3, 4].map(i => <div key={i} style={{ background: '#f5f5f5', borderRadius: '14px', height: '280px' }} />)}
-              </div>
-            ) : featuredShops.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gridAutoRows: '1fr', gap: '1rem' }}>
-                {featuredShops.map(shop => (
-                  <ShopCard key={shop.id} shop={shop} isFavorited={favoriteIds.has(shop.id)} onToggleFavorite={user ? toggleFavorite : undefined} />
-                ))}
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>
-                <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>🍩</span>
-                <p>No shops available yet. Check back soon!</p>
-              </div>
-            )}
-          </div>
-        </section>
 
         {/* Popular Categories — the real menu categories (donuts/coffee/breakfast/drinks) */}
         <section style={{ padding: '3.5rem 1.5rem', background: '#FFF9F3' }}>
