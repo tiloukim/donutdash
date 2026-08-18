@@ -14,6 +14,10 @@ interface UserRow {
   created_at: string
   saved_address?: { address: string; city: string; state: string; zip: string } | null
   last_order_address?: { delivery_address: string; delivery_city: string | null } | null
+  w9_address?: string | null
+  w9_city?: string | null
+  w9_state?: string | null
+  w9_zip?: string | null
 }
 
 // Display order + labels for the role dropdown. The labels are
@@ -275,6 +279,11 @@ export default function AdminUsers() {
                   <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', fontSize: 14, color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <span>{[editing.last_order_address.delivery_address, editing.last_order_address.delivery_city].filter(Boolean).join(', ')}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', background: '#F3F4F6', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>From last order</span>
+                  </div>
+                ) : (editing?.w9_address || editing?.w9_city) ? (
+                  <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', fontSize: 14, color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span>{[editing.w9_address, editing.w9_city, editing.w9_state, editing.w9_zip].filter(Boolean).join(', ')}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', background: '#EDE9FE', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>From W-9</span>
                   </div>
                 ) : (
                   <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', fontSize: 14, color: '#9CA3AF' }}>No address on file</div>
