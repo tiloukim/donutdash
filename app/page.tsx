@@ -1038,7 +1038,7 @@ export default function HomePage() {
         <section style={{
           position: 'relative',
           overflow: 'hidden',
-          background: 'linear-gradient(115deg, #FFF6EE 0%, #FFE7F1 55%, #FFD9E7 100%)',
+          background: 'linear-gradient(120deg, #D4F0DE 0%, #EAF2E6 22%, #FBDFEC 60%, #F177B0 100%)',
           minHeight: '540px',
           display: 'flex',
           alignItems: 'center',
@@ -1046,8 +1046,8 @@ export default function HomePage() {
         }}>
           {/* Soft warm glow behind the app image */}
           <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
-            <div style={{ position: 'absolute', right: '-6%', top: '-22%', width: '640px', height: '640px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,140,0,0.18), rgba(255,140,0,0) 70%)' }} />
-            <div style={{ position: 'absolute', right: '10%', bottom: '-28%', width: '540px', height: '540px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,20,147,0.16), rgba(255,20,147,0) 70%)' }} />
+            <div style={{ position: 'absolute', left: '-4%', top: '-24%', width: '620px', height: '620px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(52,168,102,0.16), rgba(52,168,102,0) 70%)' }} />
+            <div style={{ position: 'absolute', right: '4%', bottom: '-28%', width: '560px', height: '560px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,20,147,0.22), rgba(255,20,147,0) 70%)' }} />
           </div>
 
           <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '2.5rem', flexWrap: 'wrap' }}>
