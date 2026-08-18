@@ -168,24 +168,27 @@ export default function AdminTax() {
       <div style={{ background: 'linear-gradient(135deg, #FFF7ED, #FFEDD5)', border: '1px solid #FDBA74', borderRadius: 16, padding: '20px 22px', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 18 }}>💰</span>
-          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9A3412' }}>Sales Tax to Set Aside</span>
+          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9A3412' }}>Sales Tax Collected</span>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, marginTop: 12 }}>
+        <div style={{ fontSize: 11.5, color: '#9A3412', marginTop: 2, marginBottom: 10 }}>
+          Running total collected in each period — <strong>not</strong> the amount still owed. What still needs moving is the <strong>Remaining to set aside</strong> figure below.
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, marginTop: 4 }}>
           <div>
             <div style={{ fontSize: 30, fontWeight: 800, color: '#7C2D12' }}>{fmt(stax.thisWeek)}</div>
-            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 700 }}>This week</div>
+            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 700 }}>Collected this week</div>
           </div>
           <div>
             <div style={{ fontSize: 30, fontWeight: 800, color: '#7C2D12' }}>{fmt(stax.thisMonth)}</div>
-            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>This month</div>
+            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>Collected this month</div>
           </div>
           <div>
             <div style={{ fontSize: 30, fontWeight: 800, color: '#7C2D12' }}>{fmt(stax.thisYear)}</div>
-            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>{year}</div>
+            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>Collected in {year}</div>
           </div>
           <div>
             <div style={{ fontSize: 30, fontWeight: 800, color: '#7C2D12' }}>{fmt(stax.allTime)}</div>
-            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>All time</div>
+            <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>Collected all-time</div>
           </div>
         </div>
         <div style={{ fontSize: 12.5, color: '#9A3412', marginTop: 12, lineHeight: 1.5 }}>
@@ -202,8 +205,13 @@ export default function AdminTax() {
             <div style={{ fontSize: 12.5, color: '#B91C1C' }}>Mercury connected, but couldn&apos;t load accounts{mercury.error ? `: ${mercury.error}` : ''}.</div>
           ) : mercury && mercury.configured ? (
             <>
-              <div style={{ fontSize: 12.5, color: '#9A3412', marginBottom: 10 }}>
-                Transferred to date: <strong>{fmt(transferred)}</strong> · Remaining to set aside: <strong>{fmt(remaining)}</strong>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{ background: remaining > 0 ? '#FEF3C7' : '#DCFCE7', border: `1px solid ${remaining > 0 ? '#FCD34D' : '#86EFAC'}`, borderRadius: 8, padding: '6px 12px' }}>
+                  <span style={{ fontSize: 12, color: remaining > 0 ? '#92400E' : '#166534', fontWeight: 700 }}>
+                    {remaining > 0 ? `Remaining to set aside: ${fmt(remaining)}` : `✓ Caught up — all collected tax is in your tax account`}
+                  </span>
+                </div>
+                <span style={{ fontSize: 11.5, color: '#9A3412' }}>Transferred to date: {fmt(transferred)} of {fmt(stax.allTime)} collected</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
                 <label style={{ fontSize: 11, color: '#7C2D12', fontWeight: 700 }}>From
@@ -234,14 +242,15 @@ export default function AdminTax() {
       {/* Per-week ledger — the tax collected in each weekly batch, to set aside. */}
       {taxWeeks && taxWeeks.length > 0 && (
         <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: 20, marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#374151', marginBottom: 12 }}>Sales Tax by Week — set aside each batch</div>
+          <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#374151', marginBottom: 4 }}>Sales Tax Collected by Week</div>
+          <div style={{ fontSize: 11.5, color: '#9CA3AF', marginBottom: 12 }}>Tax collected in each weekly batch. Amounts already moved to your tax account are reflected in &ldquo;Transferred to date&rdquo; above, not here.</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
                 <tr style={{ color: '#6B7280', fontSize: 12 }}>
                   <th style={{ padding: '8px 10px', borderBottom: '1px solid #E5E7EB', textAlign: 'left' }}>Week of (Sun)</th>
                   <th style={{ padding: '8px 10px', borderBottom: '1px solid #E5E7EB', textAlign: 'left' }}>Orders</th>
-                  <th style={{ padding: '8px 10px', borderBottom: '1px solid #E5E7EB', textAlign: 'right' }}>Tax to set aside</th>
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid #E5E7EB', textAlign: 'right' }}>Tax collected</th>
                 </tr>
               </thead>
               <tbody>
