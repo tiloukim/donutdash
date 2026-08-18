@@ -194,15 +194,20 @@ export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed, 
           width: '100%',
           height: '120px',
           minHeight: '80px',
-          background: item.image_url
-            ? `url(${item.image_url}) center/cover no-repeat`
-            : 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
+          background: item.image_url ? '#FFF7FB' : 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
         }}>
-          {!item.image_url && <span style={{ fontSize: '2.5rem' }}>🍩</span>}
+          {item.image_url
+            ? <img
+                src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/shop-images/item-cutouts/${item.id}.png`}
+                onError={e => { const t = e.currentTarget; if (t.src.includes('item-cutouts')) t.src = item.image_url! }}
+                alt={item.name}
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: '8px', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.12))' }}
+              />
+            : <span style={{ fontSize: '2.5rem' }}>🍩</span>}
           {isSoldOut && (
             <div style={{
               position: 'absolute',
@@ -300,12 +305,17 @@ export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed, 
           >
             <div style={{
               height: '220px',
-              background: item.image_url
-                ? `url(${item.image_url}) center/cover no-repeat`
-                : 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
+              background: item.image_url ? '#FFF7FB' : 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {!item.image_url && <span style={{ fontSize: '4rem' }}>🍩</span>}
+              {item.image_url
+                ? <img
+                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/shop-images/item-cutouts/${item.id}.png`}
+                    onError={e => { const t = e.currentTarget; if (t.src.includes('item-cutouts')) t.src = item.image_url! }}
+                    alt={item.name}
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: '16px', filter: 'drop-shadow(0 8px 14px rgba(0,0,0,0.14))' }}
+                  />
+                : <span style={{ fontSize: '4rem' }}>🍩</span>}
             </div>
             <div style={{ padding: '1.5rem' }}>
               <h3 style={{ fontWeight: 700, fontSize: '1.3rem', marginBottom: '0.5rem' }}>{item.name}</h3>
