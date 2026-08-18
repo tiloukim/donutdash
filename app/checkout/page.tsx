@@ -246,6 +246,26 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduledDate, hoursInfo, deliveryTiming])
 
+  // Honor the "Schedule" choice made on the landing-page hero. Closed shops are
+  // already forced into scheduling above; this covers an OPEN shop where the
+  // visitor chose "Schedule" in the hero — default to Schedule-for-Later and
+  // prefill the earliest bookable slot. One-time: the intent clears once applied.
+  useEffect(() => {
+    if (!hoursInfo || hoursInfo.open === false) return
+    let pref: string | null = null
+    try { pref = sessionStorage.getItem('dd_deliver_when') } catch {}
+    if (pref !== 'schedule') return
+    try { sessionStorage.removeItem('dd_deliver_when') } catch {}
+    const firstDate = dateOptions[0]?.value
+    if (!firstDate) return
+    const slots = slotsForDate(firstDate)
+    if (!slots.length) return
+    setDeliveryTiming('scheduled')
+    setScheduledDate(firstDate)
+    setScheduledTime(slots[0].value)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoursInfo])
+
   const deliveryFee = isPickup ? 0 : (quote?.deliveryFee ?? shopFees.delivery_fee)
   const serviceFee = Math.round(total * (shopFees.service_fee_pct / 100) * 100) / 100
   // Small-order fee removed — the server never charged it, so showing it made

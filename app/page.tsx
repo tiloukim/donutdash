@@ -192,6 +192,15 @@ export default function HomePage() {
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported'>('idle')
 
+  // Keep the hero "Deliver now / Schedule" dropdown in sync with a choice made
+  // earlier this session, so it never disagrees with what checkout will do.
+  useEffect(() => {
+    try {
+      const p = sessionStorage.getItem('dd_deliver_when')
+      if (p === 'schedule' || p === 'now') setDeliverWhen(p)
+    } catch {}
+  }, [])
+
   const requestGps = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setGpsStatus('unsupported')
@@ -1091,7 +1100,12 @@ export default function HomePage() {
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#12121C" strokeWidth="2" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" strokeLinecap="round" /></svg>
                   <select
                     value={deliverWhen}
-                    onChange={e => setDeliverWhen(e.target.value as 'now' | 'schedule')}
+                    onChange={e => {
+                      const v = e.target.value as 'now' | 'schedule'
+                      setDeliverWhen(v)
+                      // Carry the choice to checkout (survives shop → cart → checkout nav)
+                      try { sessionStorage.setItem('dd_deliver_when', v) } catch {}
+                    }}
                     aria-label="When to deliver"
                     style={{ appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', border: 'none', outline: 'none', background: 'transparent', fontSize: '0.95rem', fontWeight: 600, color: '#12121C', cursor: 'pointer', paddingRight: '2px' }}
                   >
