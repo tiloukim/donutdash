@@ -364,6 +364,9 @@ export default function HomePage() {
   // Live trust stats for the hero — all derived from real shop data, never
   // fabricated. A stat is only shown when it's meaningful.
   const orderableShops = shops.filter(s => s.is_claimed !== false)
+  // Featured shows ONLY orderable shops — never unclaimed "coming soon" listings.
+  // orderableShops preserves the API sort (sponsored/nearest first).
+  const featuredShops = orderableShops.slice(0, 12)
   // Real, currently-served markets — derived from active shops, never faked.
   const availableMarkets = [...new Set(
     orderableShops.map(s => [s.city, s.state].filter(Boolean).join(', ')).filter(m => m && !m.toLowerCase().includes('null'))
@@ -1185,11 +1188,10 @@ export default function HomePage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', fontWeight: 800, color: '#1A1A2E', margin: 0 }}>
-                  {gpsLocation ? `Donut shops within ${NEAR_ME_RADIUS_MILES} miles` : 'Featured donut shops'}
-                  {gpsLocation && ` (${mobileDisplayShops.length})`}
+                  Featured donut shops
                 </h2>
                 <p style={{ color: '#888', fontSize: '0.95rem', margin: '0.25rem 0 0' }}>
-                  {gpsLocation ? 'Sorted by nearest to you' : 'Order fresh donuts from these local shops'}
+                  {gpsLocation ? 'Order fresh donuts from these local shops, nearest first' : 'Order fresh donuts from these local shops'}
                 </p>
               </div>
               <Link href={viewMoreNearestHref} style={{ color: PINK, fontWeight: 700, fontSize: '0.95rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
@@ -1200,9 +1202,9 @@ export default function HomePage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
                 {[1, 2, 3, 4].map(i => <div key={i} style={{ background: '#f5f5f5', borderRadius: '14px', height: '280px' }} />)}
               </div>
-            ) : mobileDisplayShops.length > 0 ? (
+            ) : featuredShops.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gridAutoRows: '1fr', gap: '1rem' }}>
-                {mobileDisplayShops.map(shop => (
+                {featuredShops.map(shop => (
                   <ShopCard key={shop.id} shop={shop} isFavorited={favoriteIds.has(shop.id)} onToggleFavorite={user ? toggleFavorite : undefined} />
                 ))}
               </div>
@@ -1304,7 +1306,7 @@ export default function HomePage() {
                   <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#1E9E5A', background: '#E7F7EE', padding: '3px 9px', borderRadius: '999px', whiteSpace: 'nowrap' }}>● Available</span>
                 </div>
               ))}
-              {['Dallas, TX', 'Houston, TX', 'Austin, TX', 'Phoenix, AZ'].map(m => (
+              {['Lindale, TX', 'Dallas, TX', 'Houston, TX', 'Austin, TX', 'Phoenix, AZ'].map(m => (
                 <div key={m} style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '14px', padding: '1.1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', opacity: 0.75 }}>
                   <span style={{ fontWeight: 700, color: '#77778A' }}>{m}</span>
                   <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#9A9AA8', background: '#F1F1F4', padding: '3px 9px', borderRadius: '999px', whiteSpace: 'nowrap' }}>Coming soon</span>
