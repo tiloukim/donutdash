@@ -364,6 +364,10 @@ export default function HomePage() {
   // Live trust stats for the hero — all derived from real shop data, never
   // fabricated. A stat is only shown when it's meaningful.
   const orderableShops = shops.filter(s => s.is_claimed !== false)
+  // Real, currently-served markets — derived from active shops, never faked.
+  const availableMarkets = [...new Set(
+    orderableShops.map(s => [s.city, s.state].filter(Boolean).join(', ')).filter(m => m && !m.toLowerCase().includes('null'))
+  )]
   // Hero shows a single neutral delivery-time chip. Shop-count and rating chips
   // were removed — weak social proof for a young marketplace.
   const heroStats: { icon: string; value: string; label: string; gold?: boolean }[] = [
@@ -1059,13 +1063,16 @@ export default function HomePage() {
                 color: '#12121C',
                 lineHeight: 1.02,
                 letterSpacing: '-1.5px',
-                margin: '0 0 1.5rem',
+                margin: '0 0 1rem',
               }}>
                 {user
                   ? <>{getGreeting()}, {user.name.split(' ')[0]}.<br />Order donuts near you</>
-                  : <>Donut delivery,<br />near you</>
+                  : <>Fresh Donuts.<br />Delivered.</>
                 }
               </h1>
+              <p style={{ fontSize: 'clamp(1rem, 2vw, 1.15rem)', color: '#3A3A48', lineHeight: 1.5, margin: '0 0 1.75rem', maxWidth: '520px' }}>
+                Find local donut shops near you and order fresh donuts, breakfast, coffee, kolaches, and more.
+              </p>
 
               {/* Uber-style search row: address · deliver-when · button */}
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'stretch', maxWidth: '760px' }}>
@@ -1118,13 +1125,22 @@ export default function HomePage() {
                     boxShadow: '0 8px 22px rgba(255,20,147,0.34)',
                   }}
                 >
-                  {addressLoading ? 'Searching…' : 'Find shops'}
+                  {addressLoading ? 'Searching…' : 'Find Donuts'}
                 </button>
               </div>
 
               {addressError && (
                 <p style={{ color: '#C0264E', fontSize: '0.85rem', marginTop: '0.6rem' }}>{addressError}</p>
               )}
+
+              <button onClick={requestGps} style={{
+                marginTop: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '7px',
+                background: '#fff', border: '1px solid #ECECEC', borderRadius: '10px', padding: '10px 16px',
+                fontWeight: 700, fontSize: '0.9rem', color: '#12121C', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+              }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={PINK} strokeWidth="2" aria-hidden><circle cx="12" cy="12" r="8" /><line x1="12" y1="1.5" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22.5" /><line x1="1.5" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22.5" y2="12" /></svg>
+                {gpsStatus === 'requesting' ? 'Locating…' : gpsStatus === 'denied' ? 'Location blocked — type your address' : 'Use current location'}
+              </button>
 
               <div style={{ marginTop: '1.1rem', fontSize: '0.95rem', color: '#5A5A68' }}>
                 {user
@@ -1163,89 +1179,91 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Why DonutDash — differentiators (not a chain) */}
-        <section style={{ padding: '3rem 1.5rem', background: '#fff' }}>
-          <div style={{
-            maxWidth: '1000px', margin: '0 auto',
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem',
-          }}>
-            {[
-              { name: 'local' as const, title: 'Local shops, not chains', desc: 'Order from the independent donut shops in your neighborhood — the ones you actually love.' },
-              { name: 'fresh' as const, title: 'Fresh & made to order', desc: 'Donuts, kolaches, and coffee prepared that morning — never sitting in a warehouse.' },
-              { name: 'fast' as const, title: 'Delivered fast & hot', desc: `Local drivers get your order to your door in about ${DEFAULT_ETA_LABEL}.` },
-            ].map((v, i) => (
-              <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                <div style={{
-                  flexShrink: 0, width: '46px', height: '46px', borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #FFF0F5, #FFE1EE)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <LineIcon name={v.name} color={PINK} size={24} />
-                </div>
-                <div>
-                  <h3 style={{ fontWeight: 700, fontSize: '1rem', color: '#1A1A2E', margin: '0 0 0.25rem' }}>{v.title}</h3>
-                  <p style={{ color: '#77778A', fontSize: '0.88rem', lineHeight: 1.5, margin: 0 }}>{v.desc}</p>
-                </div>
+        {/* Featured Donut Shops — active shops only (ShopCard marks unclaimed as coming-soon) */}
+        <section style={{ padding: '4rem 1.5rem', background: '#fff' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', fontWeight: 800, color: '#1A1A2E', margin: 0 }}>
+                  {gpsLocation ? `Donut shops within ${NEAR_ME_RADIUS_MILES} miles` : 'Featured donut shops'}
+                  {gpsLocation && ` (${mobileDisplayShops.length})`}
+                </h2>
+                <p style={{ color: '#888', fontSize: '0.95rem', margin: '0.25rem 0 0' }}>
+                  {gpsLocation ? 'Sorted by nearest to you' : 'Order fresh donuts from these local shops'}
+                </p>
               </div>
-            ))}
+              <Link href={viewMoreNearestHref} style={{ color: PINK, fontWeight: 700, fontSize: '0.95rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                View all donut shops &rarr;
+              </Link>
+            </div>
+            {loading ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
+                {[1, 2, 3, 4].map(i => <div key={i} style={{ background: '#f5f5f5', borderRadius: '14px', height: '280px' }} />)}
+              </div>
+            ) : mobileDisplayShops.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gridAutoRows: '1fr', gap: '1rem' }}>
+                {mobileDisplayShops.map(shop => (
+                  <ShopCard key={shop.id} shop={shop} isFavorited={favoriteIds.has(shop.id)} onToggleFavorite={user ? toggleFavorite : undefined} />
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>
+                <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>🍩</span>
+                <p>No shops available yet. Check back soon!</p>
+              </div>
+            )}
           </div>
         </section>
 
-        {/* How It Works */}
-        <section style={{ padding: '4rem 1.5rem', background: '#FFFAF0' }}>
-          <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
-            <h2 style={{
-              fontFamily: 'var(--font-playfair), Georgia, serif',
-              fontSize: 'clamp(1.75rem, 3vw, 2.25rem)',
-              fontWeight: 800,
-              color: '#1A1A2E',
-              marginBottom: '0.5rem',
-            }}>
-              How It Works
+        {/* Popular Categories — the real menu categories (donuts/coffee/breakfast/drinks) */}
+        <section style={{ padding: '3.5rem 1.5rem', background: '#FFF9F3' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.1rem)', fontWeight: 800, color: '#1A1A2E', margin: '0 0 1.5rem' }}>
+              Browse by category
             </h2>
-            <p style={{ color: '#888', marginBottom: '2.5rem', fontSize: '1rem' }}>
-              Getting your favorite donuts is easy
-            </p>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '2rem',
-            }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
               {[
-                { icon: 'browse' as const, title: 'Browse', desc: 'Explore local donut shops and their menus near you' },
-                { icon: 'order' as const, title: 'Order', desc: 'Add your favorites to cart and checkout securely' },
-                { icon: 'enjoy' as const, title: 'Enjoy', desc: 'Sit back and enjoy fresh donuts delivered to your door' },
-              ].map((step, i) => (
-                <div key={i} style={{
-                  position: 'relative',
-                  background: 'white',
-                  borderRadius: '14px',
-                  padding: '2rem 1.5rem',
-                  textAlign: 'center',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+                { key: 'donuts', label: 'Donuts', emoji: '🍩' },
+                { key: 'coffee', label: 'Coffee', emoji: '☕' },
+                { key: 'breakfast', label: 'Breakfast', emoji: '🥐' },
+                { key: 'drinks', label: 'Drinks', emoji: '🥤' },
+              ].map(cat => (
+                <Link key={cat.key} href={`/shops?category=${cat.key}`} style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem',
+                  background: '#fff', border: '1px solid #F1E3EA', borderRadius: '16px',
+                  padding: '1.5rem 1rem', textDecoration: 'none', textAlign: 'center',
                 }}>
-                  <span style={{
-                    position: 'absolute', top: '14px', right: '18px',
-                    fontFamily: 'var(--font-playfair), Georgia, serif',
-                    fontSize: '1.1rem', fontWeight: 800, color: '#FFD1E4',
-                  }}>{i + 1}</span>
-                  <div style={{
-                    width: '64px', height: '64px', borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    margin: '0 auto 1rem',
-                  }}>
-                    <LineIcon name={step.icon} color={PINK} size={28} />
-                  </div>
-                  <h3 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem', color: '#1A1A2E' }}>
-                    {step.title}
-                  </h3>
-                  <p style={{ color: '#888', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                    {step.desc}
-                  </p>
-                </div>
+                  <span style={{ fontSize: '2rem', lineHeight: 1 }}>{cat.emoji}</span>
+                  <span style={{ fontWeight: 700, color: '#1A1A2E', fontSize: '0.95rem' }}>{cat.label}</span>
+                </Link>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Find Donuts Near You */}
+        <section style={{ padding: '4rem 1.5rem', background: '#fff' }}>
+          <div style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center' }}>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.1rem)', fontWeight: 800, color: '#1A1A2E', margin: '0 0 0.5rem' }}>
+              Find donuts near you
+            </h2>
+            <p style={{ color: '#888', margin: '0 0 1.5rem' }}>Enter your address, city, or ZIP to see shops that deliver to you.</p>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <input
+                type="text"
+                placeholder="Address, city, or ZIP"
+                value={addressInput}
+                onChange={e => setAddressInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddressSearch() }}
+                style={{ flex: '1 1 320px', height: '52px', border: '1px solid #E4E4EC', borderRadius: '10px', padding: '0 16px', fontSize: '1rem', color: '#12121C', outline: 'none' }}
+              />
+              <button onClick={handleAddressSearch} disabled={addressLoading} style={{ height: '52px', background: PINK, color: '#fff', fontWeight: 700, border: 'none', borderRadius: '10px', padding: '0 26px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {addressLoading ? 'Searching…' : 'Search donut shops'}
+              </button>
+            </div>
+            <button onClick={requestGps} style={{ marginTop: '1rem', background: 'none', border: 'none', color: PINK, fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}>
+              {gpsStatus === 'requesting' ? 'Locating…' : gpsStatus === 'denied' ? 'Location blocked — enter address above' : '📍 Use my location'}
+            </button>
           </div>
         </section>
 
@@ -1272,133 +1290,99 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Featured Shops */}
-        <section style={{ padding: '4rem 1.5rem' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem',
-            }}>
-              <div>
-                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', fontWeight: 800, color: '#1A1A2E' }}>
-                  {gpsLocation ? `Shops Within ${NEAR_ME_RADIUS_MILES} Miles` : 'Featured Shops'}
-                  {gpsLocation && ` (${mobileDisplayShops.length})`}
-                </h2>
-                <p style={{ color: '#888', fontSize: '0.95rem' }}>
-                  {gpsLocation ? 'Sorted by nearest to you' : 'Popular donut shops near you'}
-                </p>
-              </div>
-              <Link href={viewMoreNearestHref} style={{
-                color: PINK, fontWeight: 600, fontSize: '0.95rem',
-                display: 'flex', alignItems: 'center', gap: '0.25rem',
-              }}>
-                View All &rarr;
-              </Link>
-            </div>
-
-            {loading ? (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                gridAutoRows: '1fr',
-                gap: '1rem',
-              }}>
-                {[1, 2, 3].map(i => (
-                  <div key={i} style={{
-                    background: '#f5f5f5', borderRadius: '14px', height: '280px',
-                  }} />
-                ))}
-              </div>
-            ) : mobileDisplayShops.length > 0 ? (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                gridAutoRows: '1fr',
-                gap: '1rem',
-              }}>
-                {mobileDisplayShops.map(shop => (
-                  <ShopCard
-                    key={shop.id}
-                    shop={shop}
-                    isFavorited={favoriteIds.has(shop.id)}
-                    onToggleFavorite={user ? toggleFavorite : undefined}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div style={{
-                textAlign: 'center', padding: '3rem', color: '#888',
-              }}>
-                <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>🍩</span>
-                <p>No shops available yet. Check back soon!</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Partner / Driver recruitment band */}
-        <section style={{ padding: '3.5rem 1.5rem', background: '#FFF7FB' }}>
-          <div style={{
-            maxWidth: '1000px', margin: '0 auto',
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem',
-          }}>
-            {[
-              { icon: 'local' as const, eyebrow: 'For shop owners', title: 'List your donut shop', desc: 'Reach new customers in your area with zero upfront cost. We handle delivery.', cta: 'Partner with us', href: '/signup?role=shop_owner' },
-              { icon: 'fast' as const, eyebrow: 'For drivers', title: 'Earn on your schedule', desc: 'Deliver donuts around your own hours and get paid weekly. Sign up in minutes.', cta: 'Become a driver', href: '/signup?role=driver' },
-            ].map((c, i) => (
-              <div key={i} style={{
-                background: '#fff', borderRadius: '16px', border: '1px solid #FFE4EF',
-                padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <LineIcon name={c.icon} color={PINK} size={22} />
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: PINK }}>{c.eyebrow}</span>
+        {/* Cities / Markets Served — honest: only real active markets are "Available" */}
+        <section style={{ padding: '4rem 1.5rem', background: '#FFF7FB' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.1rem)', fontWeight: 800, color: '#1A1A2E', margin: '0 0 0.5rem' }}>
+              DonutDash near you
+            </h2>
+            <p style={{ color: '#888', margin: '0 0 1.75rem' }}>Now delivering in East Texas — with more markets on the way.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+              {availableMarkets.map(m => (
+                <div key={m} style={{ background: '#fff', border: '1px solid #E7F3EA', borderRadius: '14px', padding: '1.1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 700, color: '#1A1A2E' }}>{m}</span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#1E9E5A', background: '#E7F7EE', padding: '3px 9px', borderRadius: '999px', whiteSpace: 'nowrap' }}>● Available</span>
                 </div>
-                <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: '1.4rem', fontWeight: 800, color: '#1A1A2E', margin: '0.25rem 0 0' }}>{c.title}</h3>
-                <p style={{ color: '#77778A', fontSize: '0.9rem', lineHeight: 1.5, margin: 0, flex: 1 }}>{c.desc}</p>
-                <Link href={c.href} style={{
-                  alignSelf: 'flex-start', marginTop: '0.75rem',
-                  color: PINK, fontWeight: 700, fontSize: '0.92rem', textDecoration: 'none',
-                }}>
-                  {c.cta} &rarr;
-                </Link>
-              </div>
-            ))}
+              ))}
+              {['Dallas, TX', 'Houston, TX', 'Austin, TX', 'Phoenix, AZ'].map(m => (
+                <div key={m} style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '14px', padding: '1.1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', opacity: 0.75 }}>
+                  <span style={{ fontWeight: 700, color: '#77778A' }}>{m}</span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#9A9AA8', background: '#F1F1F4', padding: '3px 9px', borderRadius: '999px', whiteSpace: 'nowrap' }}>Coming soon</span>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section style={{
-          padding: '4.5rem 1.5rem',
-          background: 'linear-gradient(135deg, #1A1A2E 0%, #2D2D44 100%)',
-          textAlign: 'center',
-        }}>
-          <h2 style={{
-            fontFamily: 'var(--font-playfair), Georgia, serif',
-            fontSize: 'clamp(1.75rem, 3vw, 2.4rem)',
-            fontWeight: 800,
-            color: 'white',
-            marginBottom: '1rem',
-          }}>
-            Ready for some donuts?
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '2rem', fontSize: '1.05rem' }}>
-            {orderableShops.length > 0
-              ? `Browse ${orderableShops.length} local donut ${orderableShops.length === 1 ? 'shop' : 'shops'} and order your favorites.`
-              : 'Browse our selection of local donut shops and order your favorites.'}
-          </p>
-          <Link href="/shops" style={{
-            display: 'inline-block',
-            background: PINK,
-            color: 'white',
-            padding: '0.95rem 2.75rem',
-            borderRadius: '10px',
-            fontWeight: 700,
-            fontSize: '1.05rem',
-            boxShadow: '0 6px 20px rgba(255,20,147,0.35)',
-          }}>
-            Browse Shops
-          </Link>
+        {/* Why DonutDash */}
+        <section style={{ padding: '3.5rem 1.5rem', background: '#fff' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.1rem)', fontWeight: 800, color: '#1A1A2E', margin: '0 0 1.75rem' }}>Why DonutDash</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+              {[
+                { name: 'local' as const, title: 'Made for donut lovers', desc: 'Discover independent donut shops near you, all in one place.' },
+                { name: 'fresh' as const, title: 'Fresh morning delivery', desc: 'Order donuts, kolaches, coffee, and breakfast — made that morning.' },
+                { name: 'fast' as const, title: 'Support local shops', desc: 'Order directly from local donut businesses in your community.' },
+              ].map((v, i) => (
+                <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                  <div style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '12px', background: 'linear-gradient(135deg, #FFF0F5, #FFE1EE)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <LineIcon name={v.name} color={PINK} size={24} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontWeight: 700, fontSize: '1rem', color: '#1A1A2E', margin: '0 0 0.25rem' }}>{v.title}</h3>
+                    <p style={{ color: '#77778A', fontSize: '0.88rem', lineHeight: 1.5, margin: 0 }}>{v.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* App promotion */}
+        <section style={{ padding: '4rem 1.5rem', background: '#FFFAF0' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '2.5rem', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 340px' }}>
+              <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.1rem)', fontWeight: 800, color: '#1A1A2E', margin: '0 0 0.75rem' }}>
+                Your favorite donut shops, in your pocket
+              </h2>
+              <p style={{ color: '#77778A', fontSize: '1rem', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
+                Order fresh donuts, track your delivery in real time, and reorder your favorites in a tap.
+              </p>
+              <a href="https://apps.apple.com/us/app/donutdash-donut-delivery/id6762573707" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block' }}>
+                <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" style={{ height: '48px' }} />
+              </a>
+              <p style={{ color: '#9A9AA8', fontSize: '0.82rem', margin: '0.75rem 0 0' }}>Android coming soon</p>
+            </div>
+            <div style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center' }}>
+              <img src="/hero-app.png" alt="DonutDash mobile app" style={{ width: '100%', maxWidth: '380px', height: 'auto', filter: 'drop-shadow(0 16px 26px rgba(0,0,0,0.12))' }} />
+            </div>
+          </div>
+        </section>
+
+        {/* Merchant + Driver + POS */}
+        <section style={{ padding: '4.5rem 1.5rem', background: 'linear-gradient(135deg, #1A1A2E 0%, #2D2D44 100%)' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '640px', marginBottom: '2rem' }}>
+              <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.75rem, 3vw, 2.4rem)', fontWeight: 800, color: '#fff', margin: '0 0 0.75rem' }}>
+                Own a donut shop?
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: '1.05rem', lineHeight: 1.6, margin: 0 }}>
+                Grow your business with DonutDash — online ordering, local delivery, and our POS in one platform.
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 24px', marginBottom: '2rem' }}>
+              {['Online ordering', 'Local delivery', 'DonutDash POS', 'Lower delivery fees', 'Customer marketing', 'Order & menu management', 'Reporting'].map(b => (
+                <span key={b} style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>
+                  <span style={{ color: '#FF6FB0', fontWeight: 800 }}>✓</span> {b}
+                </span>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <Link href="/signup?role=shop_owner" style={{ background: PINK, color: '#fff', fontWeight: 700, padding: '0.9rem 2rem', borderRadius: '10px', textDecoration: 'none' }}>Join DonutDash</Link>
+              <Link href="/partner-setup" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', fontWeight: 700, padding: '0.9rem 2rem', borderRadius: '10px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.2)' }}>Learn about DonutDash for Shops</Link>
+              <Link href="/signup?role=driver" style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700, padding: '0.9rem 0.5rem', textDecoration: 'underline' }}>Become a driver</Link>
+            </div>
+          </div>
         </section>
       </div>
 
