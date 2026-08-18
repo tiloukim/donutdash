@@ -376,6 +376,13 @@ export default function HomePage() {
   // Featured shows ONLY orderable shops — never unclaimed "coming soon" listings.
   // orderableShops preserves the API sort (sponsored/nearest first).
   const featuredShops = orderableShops.slice(0, 12)
+  // Clicking a featured item opens the customer's NEAREST active shop (order from
+  // the closest one), falling back to the item's own shop when we don't know it.
+  const nearestActiveShopSlug: string | null = orderableShops.length
+    ? ((gpsLocation
+        ? [...orderableShops].sort((a, b) => (a.distance_miles ?? 9999) - (b.distance_miles ?? 9999))[0]?.slug
+        : orderableShops[0]?.slug) ?? null)
+    : null
   // Real, currently-served markets — derived from active shops, never faked.
   const availableMarkets = [...new Set(
     orderableShops.map(s => [s.city, s.state].filter(Boolean).join(', ')).filter(m => m && !m.toLowerCase().includes('null'))
@@ -776,7 +783,7 @@ export default function HomePage() {
             </div>
             <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '0 20px 4px', WebkitOverflowScrolling: 'touch' }}>
               {featuredItems.map(item => (
-                <Link key={item.id} href={`/shops/${item.shop_slug}`} style={{ flexShrink: 0, width: '140px', textDecoration: 'none', borderRadius: '14px', overflow: 'hidden', border: '1px solid #F1E3EA', background: '#fff' }}>
+                <Link key={item.id} href={`/shops/${nearestActiveShopSlug || item.shop_slug}`} style={{ flexShrink: 0, width: '140px', textDecoration: 'none', borderRadius: '14px', overflow: 'hidden', border: '1px solid #F1E3EA', background: '#fff' }}>
                   <div style={{ width: '100%', height: '110px', background: '#FFF7FB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px' }}>
                     <img
                       src={item.cutout_url || item.image_url}
@@ -1298,7 +1305,7 @@ export default function HomePage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1rem' }}>
                 {featuredItems.map(item => (
-                  <Link key={item.id} href={`/shops/${item.shop_slug}`} style={{ textDecoration: 'none', display: 'block', borderRadius: '14px', overflow: 'hidden', border: '1px solid #F1E3EA', background: '#fff' }}>
+                  <Link key={item.id} href={`/shops/${nearestActiveShopSlug || item.shop_slug}`} style={{ textDecoration: 'none', display: 'block', borderRadius: '14px', overflow: 'hidden', border: '1px solid #F1E3EA', background: '#fff' }}>
                     <div style={{ width: '100%', aspectRatio: '1 / 1', background: '#FFF7FB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
                       <img
                         src={item.cutout_url || item.image_url}
