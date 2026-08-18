@@ -26,6 +26,22 @@ export function resolveCommissionRate(input: { commission_pct?: number | null } 
   return Number(pct) / 100
 }
 
+// Accounts owned by the platform operator (paying themselves) or seed/test
+// data. Excluded from weekly payout batch generation so the run never creates
+// "money owed" lines for internal shops/drivers or demo accounts. Real external
+// recipients (e.g. driver Eli Love) are unaffected. Matched case-insensitively
+// by email. Keep in sync with the project_donutdash_accounts note.
+export const PAYOUT_EXCLUDED_EMAILS = new Set<string>([
+  'tiloukim@gmail.com',    // owner / admin, shop_owner "tilou kim"
+  'gotopdonuts@gmail.com', // owner's account, shop_owner "Tony Kim" (Top Donuts)
+  'tonykim168@gmail.com',  // owner's own driver account "Tony Kim"
+  'demo-driver@donutdash.app', // seed/test driver
+])
+
+export function isPayoutExcluded(email?: string | null): boolean {
+  return !!email && PAYOUT_EXCLUDED_EMAILS.has(email.trim().toLowerCase())
+}
+
 export const DEFAULT_DELIVERY_FEE = 3.99
 
 // Flat fee DonutDash bills the SHOP OWNER for each in-store POS card

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate } from '@/lib/constants'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate, isPayoutExcluded } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -179,6 +179,8 @@ export async function POST(req: NextRequest) {
     const driverEarnings = new Map<string, { amount: number; deliveries: number; basePay: number; tips: number }>()
     for (const del of deliveries || []) {
       if (!del.driver_id) continue
+      // Skip the operator's own / demo driver accounts — no self-payouts.
+      if (isPayoutExcluded(userMap.get(del.driver_id)?.email)) continue
       const stored = Number(del.driver_earnings) || 0
       const tip = Number((del.order as any)?.tip) || 0
       const basePay = Number(del.base_pay) || BASE_DELIVERY_PAY
@@ -200,6 +202,8 @@ export async function POST(req: NextRequest) {
     const shopEarnings = new Map<string, { amount: number; orders: number; subtotal: number; commission: number; refunded: number }>()
     for (const order of orders || []) {
       const shopId = order.shop_id
+      // Skip the operator's own shops — the platform owner doesn't pay themselves.
+      if (isPayoutExcluded(userMap.get(shopsById.get(shopId)?.owner_id)?.email)) continue
       const subtotal = Number(order.subtotal || 0)
       const total = Number(order.total || 0)
       const refund = Number(order.refund_amount || 0)
