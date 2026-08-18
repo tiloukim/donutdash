@@ -12,6 +12,8 @@ interface UserRow {
   role: string
   is_active: boolean
   created_at: string
+  saved_address?: { address: string; city: string; state: string; zip: string } | null
+  last_order_address?: { delivery_address: string; delivery_city: string | null } | null
 }
 
 // Display order + labels for the role dropdown. The labels are
@@ -261,6 +263,22 @@ export default function AdminUsers() {
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Phone</label>
                 <input style={inputStyle} type="tel" placeholder="(555) 123-4567" value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Address</label>
+                {editing?.saved_address ? (
+                  <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', fontSize: 14, color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span>{[editing.saved_address.address, editing.saved_address.city, editing.saved_address.state, editing.saved_address.zip].filter(Boolean).join(', ')}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#059669', background: '#D1FAE5', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>Saved</span>
+                  </div>
+                ) : editing?.last_order_address ? (
+                  <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', fontSize: 14, color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span>{[editing.last_order_address.delivery_address, editing.last_order_address.delivery_city].filter(Boolean).join(', ')}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', background: '#F3F4F6', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>From last order</span>
+                  </div>
+                ) : (
+                  <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', fontSize: 14, color: '#9CA3AF' }}>No address on file</div>
+                )}
               </div>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Reset Password</label>
