@@ -1144,13 +1144,13 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Right: DonutDash app images */}
-            <div style={{ flex: '1 1 340px', display: 'flex', justifyContent: 'center' }}>
+            {/* Right: DonutDash app images (transparent cut-out, floats on the hero) */}
+            <div style={{ flex: '1 1 360px', display: 'flex', justifyContent: 'center' }}>
               <img
-                src="/bannerpost.png"
-                alt="DonutDash app — order donuts for delivery"
+                src="/hero-app.png"
+                alt="DonutDash app — browse shops, order donuts, and track delivery"
                 fetchPriority="high"
-                style={{ width: '100%', maxWidth: '440px', height: 'auto', display: 'block', filter: 'drop-shadow(0 24px 44px rgba(0,0,0,0.16))' }}
+                style={{ width: '100%', maxWidth: '480px', height: 'auto', display: 'block', filter: 'drop-shadow(0 16px 26px rgba(0,0,0,0.13))' }}
               />
             </div>
           </div>
