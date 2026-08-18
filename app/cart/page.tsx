@@ -275,12 +275,17 @@ export default function CartPage() {
                 {/* Item image */}
                 <div style={{
                   width: '60px', height: '60px', borderRadius: '10px', flexShrink: 0,
-                  background: item.image_url
-                    ? `url(${item.image_url}) center/cover no-repeat`
-                    : 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: item.image_url ? '#FFF7FB' : 'linear-gradient(135deg, #FFF0F5, #FFE4E1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
                 }}>
-                  {!item.image_url && <span style={{ fontSize: '1.5rem' }}>🍩</span>}
+                  {item.image_url
+                    ? <img
+                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/shop-images/item-cutouts/${item.id.split('::')[0]}.png`}
+                        onError={e => { const t = e.currentTarget; if (t.src.includes('item-cutouts')) t.src = item.image_url! }}
+                        alt={item.name}
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: '4px' }}
+                      />
+                    : <span style={{ fontSize: '1.5rem' }}>🍩</span>}
                 </div>
 
                 {/* Name + shop + qty controls */}
