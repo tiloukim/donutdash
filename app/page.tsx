@@ -767,6 +767,27 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Featured treats — mobile horizontal scroll */}
+        {featuredItems.length > 0 && (
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ padding: '0 20px', marginBottom: '10px' }}>
+              <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: '1.2rem', fontWeight: 800, color: '#1A1A2E', margin: 0 }}>Fresh &amp; popular</h2>
+              <p style={{ color: '#888', fontSize: '0.8rem', margin: '2px 0 0' }}>Donuts, kolaches, cro-nuts &amp; more</p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '0 20px 4px', WebkitOverflowScrolling: 'touch' }}>
+              {featuredItems.map(item => (
+                <Link key={item.id} href={`/shops/${item.shop_slug}`} style={{ flexShrink: 0, width: '140px', textDecoration: 'none', borderRadius: '14px', overflow: 'hidden', border: '1px solid #F1E3EA', background: '#fff' }}>
+                  <div style={{ width: '100%', height: '110px', background: `#FFF0F5 url(${item.image_url}) center/cover no-repeat` }} />
+                  <div style={{ padding: '8px 10px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#1A1A2E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                    <div style={{ color: PINK, fontWeight: 800, fontSize: '0.82rem', marginTop: '2px' }}>${item.price.toFixed(2)}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Near Me (GPS-based) — mobile */}
         {gpsStatus !== 'granted' ? (
           <div style={{ padding: '0 20px', marginBottom: '16px' }}>
