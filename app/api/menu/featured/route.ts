@@ -31,9 +31,16 @@ export async function GET() {
     .not('image_url', 'is', null)
   const items = rawItems || []
 
+  // Background-removed cutouts are hosted at a predictable path per item id.
+  // The client uses cutout_url and falls back to image_url if it's missing.
+  const SUPA = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const shape = (it: (typeof items)[number]) => {
     const shop = shopMap.get(it.shop_id)
-    return { id: it.id, name: it.name, price: it.price, image_url: it.image_url, category: it.category, shop_name: shop?.name || '', shop_slug: shop?.slug || '' }
+    return {
+      id: it.id, name: it.name, price: it.price, image_url: it.image_url, category: it.category,
+      shop_name: shop?.name || '', shop_slug: shop?.slug || '',
+      cutout_url: `${SUPA}/storage/v1/object/public/shop-images/item-cutouts/${it.id}.png`,
+    }
   }
 
   const usedNames = new Set<string>()

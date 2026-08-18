@@ -173,7 +173,7 @@ function LineIcon({ name, color = '#FF1493', size = 28 }: { name: 'browse' | 'or
 export default function HomePage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
-  const [featuredItems, setFeaturedItems] = useState<{ id: string; name: string; price: number; image_url: string; shop_name: string; shop_slug: string }[]>([])
+  const [featuredItems, setFeaturedItems] = useState<{ id: string; name: string; price: number; image_url: string; cutout_url?: string; shop_name: string; shop_slug: string }[]>([])
   const [surgeActive, setSurgeActive] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
@@ -777,10 +777,16 @@ export default function HomePage() {
             <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '0 20px 4px', WebkitOverflowScrolling: 'touch' }}>
               {featuredItems.map(item => (
                 <Link key={item.id} href={`/shops/${item.shop_slug}`} style={{ flexShrink: 0, width: '140px', textDecoration: 'none', borderRadius: '14px', overflow: 'hidden', border: '1px solid #F1E3EA', background: '#fff' }}>
-                  <div style={{ width: '100%', height: '110px', background: `#FFF0F5 url(${item.image_url}) center/cover no-repeat` }} />
+                  <div style={{ width: '100%', height: '110px', background: '#FFF7FB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px' }}>
+                    <img
+                      src={item.cutout_url || item.image_url}
+                      onError={e => { const t = e.currentTarget; if (t.src.includes('item-cutouts')) t.src = item.image_url }}
+                      alt={item.name}
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', filter: 'drop-shadow(0 5px 8px rgba(0,0,0,0.14))' }}
+                    />
+                  </div>
                   <div style={{ padding: '8px 10px' }}>
                     <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#1A1A2E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
-                    <div style={{ color: PINK, fontWeight: 800, fontSize: '0.82rem', marginTop: '2px' }}>${item.price.toFixed(2)}</div>
                   </div>
                 </Link>
               ))}
@@ -1293,13 +1299,17 @@ export default function HomePage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1rem' }}>
                 {featuredItems.map(item => (
                   <Link key={item.id} href={`/shops/${item.shop_slug}`} style={{ textDecoration: 'none', display: 'block', borderRadius: '14px', overflow: 'hidden', border: '1px solid #F1E3EA', background: '#fff' }}>
-                    <div style={{ width: '100%', aspectRatio: '1 / 1', background: `#FFF0F5 url(${item.image_url}) center/cover no-repeat` }} />
+                    <div style={{ width: '100%', aspectRatio: '1 / 1', background: '#FFF7FB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+                      <img
+                        src={item.cutout_url || item.image_url}
+                        onError={e => { const t = e.currentTarget; if (t.src.includes('item-cutouts')) t.src = item.image_url }}
+                        alt={item.name}
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.14))' }}
+                      />
+                    </div>
                     <div style={{ padding: '10px 12px' }}>
                       <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1A1A2E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '3px', gap: 6 }}>
-                        <span style={{ color: PINK, fontWeight: 800, fontSize: '0.9rem' }}>${item.price.toFixed(2)}</span>
-                        <span style={{ color: '#9A9AA8', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.shop_name}</span>
-                      </div>
+                      <div style={{ color: '#9A9AA8', fontSize: '0.72rem', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.shop_name}</div>
                     </div>
                   </Link>
                 ))}
