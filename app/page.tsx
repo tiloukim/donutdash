@@ -188,15 +188,9 @@ export default function HomePage() {
   const [addressInput, setAddressInput] = useState('')
   const [addressLoading, setAddressLoading] = useState(false)
   const [addressError, setAddressError] = useState<string | null>(null)
+  const [deliverWhen, setDeliverWhen] = useState<'now' | 'schedule'>('now')
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported'>('idle')
-  const [isInApp, setIsInApp] = useState(false)
-
-  useEffect(() => {
-    // Detect if running inside native app WebView
-    const w = window as any
-    setIsInApp(!!(w.ReactNativeWebView || navigator.userAgent.includes('DonutDash') || (window as any).webkit?.messageHandlers?.ReactNativeWebView))
-  }, [])
 
   const requestGps = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -1034,139 +1028,123 @@ export default function HomePage() {
 
       {/* ===== DESKTOP LAYOUT (hidden on mobile) ===== */}
       <div className="desktop-only" style={{ flex: 1 }}>
-        {/* Hero Section */}
+        {/* Hero Section — UberEats-style full-bleed search hero.
+            TO DROP IN A REAL DONUT PHOTO LATER: replace the section `background`
+            with a left-scrim + image, e.g.:
+              background: `linear-gradient(100deg, rgba(255,246,238,0.97) 0%, rgba(255,246,238,0.75) 40%, rgba(255,246,238,0) 70%), url(/hero-donuts.jpg) center/cover no-repeat`
+            and delete the <HeroDecor> block below. Everything else stays. */}
         <section style={{
-          background: 'linear-gradient(180deg, #F9528C 0%, #E94E87 50%, #D8457D 100%)',
-          padding: '3rem 1.5rem',
           position: 'relative',
           overflow: 'hidden',
+          background: 'linear-gradient(115deg, #FFF6EE 0%, #FFE7F1 55%, #FFD9E7 100%)',
+          minHeight: '540px',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '4rem 1.5rem',
         }}>
-          <div style={{
-            maxWidth: '1100px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '2rem', flexWrap: 'wrap', position: 'relative', zIndex: 1,
-          }}>
-            {/* Left: Text + Search */}
-            <div style={{ flex: '1 1 400px', textAlign: 'left' }}>
+          {/* Decorative warmth + donut motif — placeholder for the food photo */}
+          <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
+            <div style={{ position: 'absolute', right: '-6%', top: '-22%', width: '640px', height: '640px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,140,0,0.18), rgba(255,140,0,0) 70%)' }} />
+            <div style={{ position: 'absolute', right: '10%', bottom: '-28%', width: '540px', height: '540px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,20,147,0.16), rgba(255,20,147,0) 70%)' }} />
+            <div style={{ position: 'absolute', right: '7%', top: '18%', width: '176px', height: '176px', borderRadius: '50%', border: '42px solid #FF66CC', opacity: 0.32 }} />
+            <div style={{ position: 'absolute', right: '22%', top: '48%', width: '108px', height: '108px', borderRadius: '50%', border: '28px solid #FFD9B0', opacity: 0.5 }} />
+            <div style={{ position: 'absolute', right: '3%', bottom: '10%', width: '132px', height: '132px', borderRadius: '50%', border: '33px solid #FFB0CF', opacity: 0.38 }} />
+          </div>
+
+          <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 1 }}>
+            <div style={{ maxWidth: '640px' }}>
               <h1 style={{
-                fontFamily: 'var(--font-playfair), Georgia, serif',
-                fontSize: 'clamp(2.25rem, 5vw, 3.75rem)',
+                fontFamily: 'var(--font-dm-sans), system-ui, -apple-system, sans-serif',
+                fontSize: 'clamp(2.5rem, 6vw, 4.25rem)',
                 fontWeight: 800,
-                color: 'white',
-                marginBottom: '1rem',
-                lineHeight: 1.08,
-                letterSpacing: '-0.5px',
+                color: '#12121C',
+                lineHeight: 1.02,
+                letterSpacing: '-1.5px',
+                margin: '0 0 1.5rem',
               }}>
                 {user
-                  ? <>{getGreeting()}, {user.name.split(' ')[0]}! <span style={{ display: 'block' }}>Ready for donuts?</span></>
-                  : <>Delicious Donuts <span style={{ display: 'block' }}>Delivered Fast</span></>
+                  ? <>{getGreeting()}, {user.name.split(' ')[0]}.<br />Order donuts near you</>
+                  : <>Donut delivery,<br />near you</>
                 }
               </h1>
-              <p style={{
-                color: 'rgba(255,255,255,0.9)',
-                fontSize: 'clamp(1rem, 2.5vw, 1.2rem)',
-                marginBottom: '2rem',
-                lineHeight: 1.5,
-              }}>
-                Fresh donuts, coffee, and breakfast treats from the best local shops, straight to your door.
-              </p>
 
-              {/* Live trust stats */}
-              {heroStats.length > 0 && (
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '1.75rem' }}>
-                  {heroStats.map((st, i) => (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: '7px',
-                      background: 'rgba(255,255,255,0.15)',
-                      border: '1px solid rgba(255,255,255,0.28)',
-                      borderRadius: '999px', padding: '7px 14px',
-                    }}>
-                      <span style={{ fontSize: '0.95rem', color: st.gold ? '#FFD54A' : '#fff', lineHeight: 1 }}>{st.icon}</span>
-                      <span style={{ color: '#fff', fontWeight: 800, fontSize: '0.9rem' }}>{st.value}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem' }}>{st.label}</span>
-                    </div>
-                  ))}
+              {/* Uber-style search row: address · deliver-when · button */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'stretch', maxWidth: '760px' }}>
+                <div style={{
+                  flex: '1 1 320px', display: 'flex', alignItems: 'center', gap: '10px', height: '54px',
+                  background: '#fff', border: '1px solid #ECECEC', borderRadius: '10px', padding: '0 16px',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.09)',
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#12121C" aria-hidden><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" /></svg>
+                  <input
+                    type="text"
+                    placeholder="Enter delivery address"
+                    value={addressInput}
+                    onChange={e => setAddressInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddressSearch() }}
+                    style={{ flex: 1, border: 'none', outline: 'none', fontSize: '1rem', color: '#12121C', background: 'transparent' }}
+                  />
                 </div>
-              )}
 
-              <div style={{
-                display: 'flex',
-                maxWidth: '500px',
-                background: 'white',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-              }}>
-                <input
-                  type="text"
-                  placeholder="Enter your delivery address..."
-                  value={addressInput}
-                  onChange={e => setAddressInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddressSearch() }}
-                  style={{
-                    flex: 1,
-                    padding: '1rem 1.25rem',
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: '1rem',
-                    color: '#1A1A2E',
-                  }}
-                />
+                <label style={{
+                  display: 'flex', alignItems: 'center', gap: '6px', height: '54px', cursor: 'pointer',
+                  background: '#fff', border: '1px solid #ECECEC', borderRadius: '10px', padding: '0 12px 0 14px',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.09)',
+                }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#12121C" strokeWidth="2" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" strokeLinecap="round" /></svg>
+                  <select
+                    value={deliverWhen}
+                    onChange={e => setDeliverWhen(e.target.value as 'now' | 'schedule')}
+                    aria-label="When to deliver"
+                    style={{ appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', border: 'none', outline: 'none', background: 'transparent', fontSize: '0.95rem', fontWeight: 600, color: '#12121C', cursor: 'pointer', paddingRight: '2px' }}
+                  >
+                    <option value="now">Deliver now</option>
+                    <option value="schedule">Schedule</option>
+                  </select>
+                  <span style={{ color: '#12121C', fontSize: '0.7rem' }}>▾</span>
+                </label>
+
                 <button
                   onClick={handleAddressSearch}
                   disabled={addressLoading}
                   style={{
-                    background: ORANGE,
-                    color: 'white',
-                    padding: '1rem 1.5rem',
-                    fontWeight: 700,
-                    fontSize: '0.95rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    whiteSpace: 'nowrap',
-                    border: 'none',
-                    cursor: addressLoading ? 'wait' : 'pointer',
-                    opacity: addressLoading ? 0.7 : 1,
+                    height: '54px', background: PINK, color: '#fff', fontWeight: 700, fontSize: '0.98rem',
+                    border: 'none', borderRadius: '10px', padding: '0 28px', whiteSpace: 'nowrap',
+                    cursor: addressLoading ? 'wait' : 'pointer', opacity: addressLoading ? 0.7 : 1,
+                    boxShadow: '0 8px 22px rgba(255,20,147,0.34)',
                   }}
                 >
-                  {addressLoading ? 'Searching…' : 'Find Shops'}
+                  {addressLoading ? 'Searching…' : 'Find shops'}
                 </button>
               </div>
+
               {addressError && (
-                <p style={{ color: '#FFE4E1', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                  {addressError}
-                </p>
+                <p style={{ color: '#C0264E', fontSize: '0.85rem', marginTop: '0.6rem' }}>{addressError}</p>
               )}
 
-              {/* App Download — hide when inside native app */}
-              {!isInApp && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '1.5rem', flexWrap: 'wrap' }}>
-                  <a
-                    href="https://apps.apple.com/us/app/donutdash-donut-delivery/id6762573707"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'inline-block' }}
-                  >
-                    <img
-                      src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
-                      alt="Download on the App Store"
-                      style={{ height: '44px' }}
-                    />
-                  </a>
-                  <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem' }}>
-                    Android coming soon
-                  </span>
+              <div style={{ marginTop: '1.1rem', fontSize: '0.95rem', color: '#5A5A68' }}>
+                {user
+                  ? <>Craving something? <Link href="/shops" style={{ color: '#12121C', fontWeight: 700, textDecoration: 'underline' }}>Browse all shops</Link></>
+                  : <>Or <Link href="/login" style={{ color: '#12121C', fontWeight: 700, textDecoration: 'underline' }}>Sign in</Link> to see your saved addresses</>
+                }
+              </div>
+
+              {/* Live trust stats — light variant */}
+              {heroStats.length > 0 && (
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '1.75rem' }}>
+                  {heroStats.map((st, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(0,0,0,0.06)',
+                      borderRadius: '999px', padding: '6px 13px',
+                    }}>
+                      <span style={{ fontSize: '0.85rem', color: st.gold ? '#F5A623' : PINK, lineHeight: 1 }}>{st.icon}</span>
+                      <span style={{ color: '#12121C', fontWeight: 800, fontSize: '0.85rem' }}>{st.value}</span>
+                      <span style={{ color: '#6B6B78', fontSize: '0.8rem' }}>{st.label}</span>
+                    </div>
+                  ))}
                 </div>
               )}
-            </div>
-
-            {/* Right: Banner Image */}
-            <div style={{ flex: '1 1 350px', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ width: '100%', maxWidth: '450px', position: 'relative' }}>
-                <img src="/bannerpost.png" alt="Fresh donuts delivered by DonutDash" fetchPriority="high" style={{ width: '100%', height: 'auto', display: 'block' }} />
-                {/* Fade edges to blend with background */}
-                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
-                  background: 'radial-gradient(ellipse at center, transparent 50%, #E94E87 95%)',
-                }} />
-              </div>
             </div>
           </div>
         </section>
