@@ -905,13 +905,22 @@ export default function CheckoutPage() {
             {items.map(item => (
               <div key={item.id} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '0.5rem 0', fontSize: '0.9rem',
+                padding: '0.5rem 0', fontSize: '0.9rem', gap: '0.5rem',
               }}>
-                <span>
-                  <span style={{ fontWeight: 600 }}>{item.quantity}x</span>{' '}
-                  {item.name}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                  {item.image_url && (
+                    <img
+                      src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/shop-images/item-cutouts/${item.id.split('::')[0]}.png`}
+                      onError={e => { const t = e.currentTarget; if (t.src.includes('item-cutouts')) t.src = item.image_url! }}
+                      alt=""
+                      style={{ width: 36, height: 36, objectFit: 'contain', background: '#FFF7FB', borderRadius: 8, flexShrink: 0 }}
+                    />
+                  )}
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ fontWeight: 600 }}>{item.quantity}x</span>{' '}{item.name}
+                  </span>
                 </span>
-                <span style={{ fontWeight: 500 }}>${(item.price * item.quantity).toFixed(2)}</span>
+                <span style={{ fontWeight: 500, flexShrink: 0 }}>${(item.price * item.quantity).toFixed(2)}</span>
               </div>
             ))}
 
