@@ -11,6 +11,9 @@ interface Stats {
   totalDeliveryFees: number
   driverPayouts: number
   totalTips: number
+  heldForShops: number
+  heldForDrivers: number
+  heldForTax: number
   totalOrders: number
   activeShops: number
   activeDrivers: number
@@ -129,6 +132,73 @@ export default function AdminDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Money Buckets — where the collected cash actually belongs */}
+      {(() => {
+        const yours = stats?.netProfit || 0
+        const shops = stats?.heldForShops || 0
+        const drivers = stats?.heldForDrivers || 0
+        const tax = stats?.heldForTax || 0
+        const buckets = [
+          { label: 'Held for shops', value: shops, color: '#8B5CF6', icon: '🏪', note: 'Food revenue − commission · paid weekly' },
+          { label: 'Held for drivers', value: drivers, color: '#EF4444', icon: '🚗', note: 'Base + mileage + tips · paid weekly' },
+          { label: 'Held for tax', value: tax, color: '#EA580C', icon: '🏛️', note: 'Sales tax owed to Texas · Tax Center' },
+          { label: 'Yours (net profit)', value: yours, color: '#10B981', icon: '📈', note: 'Commissions + fees you keep' },
+        ]
+        const total = buckets.reduce((s, b) => s + b.value, 0)
+        const pct = (v: number) => (total > 0 ? (v / total) * 100 : 0)
+        return (
+          <div style={{
+            marginBottom: 32,
+            background: '#fff',
+            borderRadius: 16,
+            padding: 28,
+            border: '1px solid #E5E7EB',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E', margin: '0 0 6px' }}>
+              Whose money is this?
+            </h2>
+            <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px' }}>
+              Of the {fmt(total)} customers paid you, only your slice is profit — the rest is held for others.
+            </p>
+
+            {/* Stacked bar */}
+            <div style={{ display: 'flex', height: 20, borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+              {buckets.map(b => (
+                <div key={b.label} title={`${b.label}: ${fmt(b.value)}`} style={{
+                  width: `${pct(b.value)}%`,
+                  background: b.color,
+                  minWidth: b.value > 0 ? 3 : 0,
+                }} />
+              ))}
+            </div>
+
+            {/* Bucket rows */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+              {buckets.map(b => (
+                <div key={b.label} style={{
+                  borderRadius: 10, padding: 16,
+                  background: b.color + '0D',
+                  border: `1px solid ${b.color}33`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 16 }}>{b.icon}</span>
+                    <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>{b.label}</span>
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: b.color, letterSpacing: '-0.02em' }}>{fmt(b.value)}</div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
+                    {pct(b.value).toFixed(0)}% · {b.note}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: '#9CA3AF', margin: '16px 0 0' }}>
+              All-time, delivery-service orders. Shop &amp; driver amounts are paid out in the Monday payout batch; tax is moved in the Tax Center. This is a scorecard, not live account balances.
+            </p>
+          </div>
+        )
+      })()}
 
       {/* Operational Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>

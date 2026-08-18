@@ -15,7 +15,7 @@ export async function GET() {
 
     // Fetch all stats in parallel
     const [ordersRes, deliveriesRes, shopsRes, driversRes, usersRes] = await Promise.all([
-      svc.from('dd_orders').select('id, total, subtotal, delivery_fee, service_fee, tip, status, commission_pct, order_type, refund_amount'),
+      svc.from('dd_orders').select('id, total, subtotal, delivery_fee, service_fee, tax, tip, status, commission_pct, order_type, refund_amount'),
       svc.from('dd_deliveries').select('id, driver_earnings, status'),
       svc.from('dd_shops').select('id, is_active'),
       svc.from('dd_users').select('id').eq('role', 'driver').eq('is_active', true),
@@ -71,6 +71,18 @@ export async function GET() {
     // net profit by ~totalTips.
     const netProfit = Math.round((shopCommissions + totalServiceFees + totalDeliveryFees + totalTips - driverPayouts) * 100) / 100
 
+    // "Money buckets" — how the cash customers paid (totalRevenue) splits by
+    // who it actually belongs to. These four partition totalRevenue exactly:
+    //   heldForShops + heldForDrivers + heldForTax + netProfit === totalRevenue
+    // Only netProfit is the platform's; the other three are pass-through
+    // liabilities the platform is holding until it pays them out.
+    //  - Shops: food revenue minus your commission (paid via weekly payout batch)
+    //  - Drivers: base + mileage + tips (paid via weekly payout batch)
+    //  - Tax: sales tax collected, owed to Texas (moved via Tax Center)
+    const heldForShops = Math.round(validOrders.reduce((sum, o) => sum + effSubtotal(o) * (1 - resolveCommissionRate(o)), 0) * 100) / 100
+    const heldForDrivers = Math.round(driverPayouts * 100) / 100
+    const heldForTax = Math.round(validOrders.reduce((sum, o) => sum + effFee(Number(o.tax || 0), o), 0) * 100) / 100
+
     return NextResponse.json({
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       netProfit,
@@ -79,6 +91,9 @@ export async function GET() {
       totalDeliveryFees: Math.round(totalDeliveryFees * 100) / 100,
       driverPayouts: Math.round(driverPayouts * 100) / 100,
       totalTips: Math.round(totalTips * 100) / 100,
+      heldForShops,
+      heldForDrivers,
+      heldForTax,
       totalOrders: validOrders.length,
       activeShops: shops.filter(s => s.is_active).length,
       activeDrivers: drivers.length,
