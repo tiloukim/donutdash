@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 // Resolve the signed-in user's POS staff profile.
 // Access rule:
@@ -41,13 +42,7 @@ export async function GET(_req: NextRequest) {
   // Pick the first shop the user owns (admin / ops often own shops too —
   // e.g. tilou owns Top Donuts). Future shop-selector screen will let
   // platform staff switch between shops they don't own.
-  const { data: shopRow } = await svc
-    .from('dd_shops')
-    .select('id, name, delivery_enabled, pos_enabled')
-    .eq('owner_id', profile.id)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle()
+  const shopRow = await getActiveShop(svc, profile.id)
 
   if (!shopRow) {
     return NextResponse.json(

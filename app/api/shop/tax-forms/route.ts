@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveCommissionRate } from '@/lib/constants'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
   const { data: ddUser } = await svc.from('dd_users').select('id, name, email, role').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: shop } = await svc.from('dd_shops').select('id, name, address, city, state, zip, phone, tax_id').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
 
   const { searchParams } = new URL(req.url)

@@ -7,6 +7,7 @@ import { sendPushToUser } from '@/lib/push-server'
 import { refundSquareOrder } from '@/lib/square-refund'
 import { resolveCommissionRate } from '@/lib/constants'
 import { getPayConfig } from '@/lib/pay-config'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 // Valid shop-side status transitions
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop' }, { status: 404 })
 
   const { searchParams } = new URL(req.url)
@@ -98,7 +99,7 @@ export async function PATCH(req: NextRequest) {
   if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin'))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: shop } = await svc.from('dd_shops').select('id, lat, lng').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop' }, { status: 404 })
 
   const body = await req.json()

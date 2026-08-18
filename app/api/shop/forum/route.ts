@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -109,7 +110,7 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Get shop name for the author
-  const { data: authorShop } = await svc.from('dd_shops').select('name').eq('owner_id', ddUser.id).single()
+  const authorShop = await getActiveShop(svc, ddUser.id)
 
   return NextResponse.json({ post: { ...post, reply_count: 0, shop_name: authorShop?.name || null } })
 }
