@@ -173,6 +173,7 @@ function LineIcon({ name, color = '#FF1493', size = 28 }: { name: 'browse' | 'or
 export default function HomePage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
+  const [featuredItems, setFeaturedItems] = useState<{ id: string; name: string; price: number; image_url: string; shop_name: string; shop_slug: string }[]>([])
   const [surgeActive, setSurgeActive] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
@@ -258,6 +259,14 @@ export default function HomePage() {
       .catch(() => setShops([]))
       .finally(() => setLoading(false))
   }, [gpsLocation])
+
+  // Featured treats — real, photographed items from orderable shops.
+  useEffect(() => {
+    fetch('/api/menu/featured')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.items) setFeaturedItems(d.items) })
+      .catch(() => {})
+  }, [])
 
   // Fetch favorites
   useEffect(() => {
@@ -1242,6 +1251,41 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Featured treats — real, photographed menu items from orderable shops */}
+        {featuredItems.length > 0 && (
+          <section style={{ padding: '4rem 1.5rem', background: '#fff' }}>
+            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', fontWeight: 800, color: '#1A1A2E', margin: 0 }}>
+                    Fresh from local donut shops
+                  </h2>
+                  <p style={{ color: '#888', fontSize: '0.95rem', margin: '0.25rem 0 0' }}>
+                    Donuts, kolaches, cro-nuts, and more — made fresh daily
+                  </p>
+                </div>
+                <Link href="/shops" style={{ color: PINK, fontWeight: 700, fontSize: '0.95rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                  Order now &rarr;
+                </Link>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1rem' }}>
+                {featuredItems.map(item => (
+                  <Link key={item.id} href={`/shops/${item.shop_slug}`} style={{ textDecoration: 'none', display: 'block', borderRadius: '14px', overflow: 'hidden', border: '1px solid #F1E3EA', background: '#fff' }}>
+                    <div style={{ width: '100%', aspectRatio: '1 / 1', background: `#FFF0F5 url(${item.image_url}) center/cover no-repeat` }} />
+                    <div style={{ padding: '10px 12px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1A1A2E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '3px', gap: 6 }}>
+                        <span style={{ color: PINK, fontWeight: 800, fontSize: '0.9rem' }}>${item.price.toFixed(2)}</span>
+                        <span style={{ color: '#9A9AA8', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.shop_name}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Find Donuts Near You */}
         <section style={{ padding: '4rem 1.5rem', background: '#fff' }}>
