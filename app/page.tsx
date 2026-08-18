@@ -1304,7 +1304,7 @@ export default function HomePage() {
                   <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#1E9E5A', background: '#E7F7EE', padding: '3px 9px', borderRadius: '999px', whiteSpace: 'nowrap' }}>● Available</span>
                 </div>
               ))}
-              {['Dallas, TX', 'Houston, TX', 'Austin, TX', 'Phoenix, AZ'].map(m => (
+              {['Lindale, TX', 'Dallas, TX', 'Houston, TX', 'Austin, TX', 'Phoenix, AZ'].map(m => (
                 <div key={m} style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '14px', padding: '1.1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', opacity: 0.75 }}>
                   <span style={{ fontWeight: 700, color: '#77778A' }}>{m}</span>
                   <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#9A9AA8', background: '#F1F1F4', padding: '3px 9px', borderRadius: '999px', whiteSpace: 'nowrap' }}>Coming soon</span>
