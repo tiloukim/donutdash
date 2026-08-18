@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveCommissionRate, SHOP_COMMISSION_RATE } from '@/lib/constants'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 export async function GET() {
   const supabase = await createClient()
@@ -11,7 +12,7 @@ export async function GET() {
   const { data: ddUser } = await svc.from('dd_users').select('*').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: shop } = await svc.from('dd_shops').select('id, commission_pct').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
 
   const shopCommissionPct = shop.commission_pct ?? SHOP_COMMISSION_RATE * 100

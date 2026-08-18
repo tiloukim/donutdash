@@ -55,6 +55,8 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [shopName, setShopName] = useState<string>('')
   const [hasShop, setHasShop] = useState(true)
+  const [shops, setShops] = useState<{ id: string; name: string }[]>([])
+  const [activeShopId, setActiveShopId] = useState('')
 
   useEffect(() => {
     if (!user || (role !== 'shop_owner' && role !== 'admin')) return
@@ -73,6 +75,26 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {})
   }, [user, role, router])
+
+  // Multi-shop: load all shops this owner has, for the switcher.
+  useEffect(() => {
+    if (!user || (role !== 'shop_owner' && role !== 'admin')) return
+    fetch('/api/shop/list')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!d?.shops) return
+        setShops(d.shops)
+        const m = typeof document !== 'undefined' ? document.cookie.match(/(?:^|;\s*)dd_active_shop=([^;]*)/) : null
+        const cookieId = m ? decodeURIComponent(m[1]) : ''
+        setActiveShopId(d.shops.find((s: { id: string }) => s.id === cookieId)?.id || d.shops[0]?.id || '')
+      })
+      .catch(() => {})
+  }, [user, role])
+
+  const switchShop = (id: string) => {
+    document.cookie = `dd_active_shop=${id}; path=/; max-age=${60 * 60 * 24 * 365}`
+    window.location.reload()
+  }
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: 18 }}>Loading...</div>
 
@@ -224,7 +246,20 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
               {(() => { const nav = [...NAV_ITEMS, ...FINANCE_NAV, ...SUPPLY_NAV, ...COMMUNITY_NAV].find(n => n.href === pathname); return nav ? t(nav.labelKey) : t('nav.dashboard') })()}
             </h1>
           </div>
-          <span style={{ fontSize: 14, color: '#666', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} className="shop-header-name">{user.name}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            {shops.length > 1 && (
+              <select
+                value={activeShopId}
+                onChange={e => switchShop(e.target.value)}
+                aria-label="Switch shop"
+                title="Switch shop"
+                style={{ maxWidth: 190, padding: '7px 10px', borderRadius: 8, border: '1.5px solid #FFD4E5', background: '#FFF0F7', color: '#FF1493', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+              >
+                {shops.map(s => <option key={s.id} value={s.id}>🍩 {s.name}</option>)}
+              </select>
+            )}
+            <span style={{ fontSize: 14, color: '#666', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="shop-header-name">{user.name}</span>
+          </div>
         </header>
         <div style={{ padding: '16px 12px' }} className="shop-content"><div className="shop-content-inner">{children}</div></div>
       </main>

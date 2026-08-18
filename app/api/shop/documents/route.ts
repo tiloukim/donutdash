@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export async function GET() {
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
   // Find the shop owned by this user
-  const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
 
   const { data: documents } = await svc.from('dd_shop_documents')
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
 
   try {

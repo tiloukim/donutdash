@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { SquareClient, SquareEnvironment } from 'square'
 import { SPONSOR_PLANS, getSponsorPlan } from '@/lib/sponsorship'
 import { notifyAdmins } from '@/lib/sms'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
@@ -28,9 +29,7 @@ async function resolveOwnerShop() {
   if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
-  const { data: shop } = await svc.from('dd_shops')
-    .select('id, name, is_sponsored, sponsor_rank, sponsor_headline, sponsor_banner_url, sponsor_expires_at')
-    .eq('owner_id', ddUser.id).maybeSingle()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return { error: NextResponse.json({ error: 'No shop found for this account' }, { status: 404 }) }
 
   return { svc, shop, ddUser }

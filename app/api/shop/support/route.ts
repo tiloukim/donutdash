@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 export async function GET() {
   const supabase = await createClient()
@@ -12,7 +13,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop' }, { status: 404 })
 
   // Mark admin messages as read
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop' }, { status: 404 })
 
   const { message } = await req.json()

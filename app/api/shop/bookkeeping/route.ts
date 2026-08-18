@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveCommissionRate } from '@/lib/constants'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 async function getShopId() {
   const supabase = await createClient()
@@ -11,7 +12,7 @@ async function getShopId() {
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'shop_owner' && ddUser.role !== 'admin')) return null
 
-  const { data: shop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   return shop?.id || null
 }
 

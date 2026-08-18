@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 import crypto from 'crypto'
 
 function generateShopReferralCode(): string {
@@ -16,7 +17,7 @@ export async function GET() {
   const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
   if (!ddUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  const { data: shop } = await svc.from('dd_shops').select('id, referral_code').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
 
   // Auto-generate referral code if none
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Get the new shop
-  const { data: newShop } = await svc.from('dd_shops').select('id').eq('owner_id', ddUser.id).single()
+  const newShop = await getActiveShop(svc, ddUser.id)
 
   // Referral codes are signup-time only. Once the shop has any orders,
   // signup is "complete" and codes can no longer be applied retroactively.

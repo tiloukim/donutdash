@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error || !post) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
 
   // Get shop name for post author
-  const { data: postShop } = await svc.from('dd_shops').select('name').eq('owner_id', post.author_id).single()
+  const postShop = await getActiveShop(svc, post.author_id)
 
   const { data: replies } = await svc
     .from('dd_forum_replies')
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Update post updated_at
   await svc.from('dd_forum_posts').update({ updated_at: new Date().toISOString() }).eq('id', id)
 
-  const { data: replyShop } = await svc.from('dd_shops').select('name').eq('owner_id', ddUser.id).single()
+  const replyShop = await getActiveShop(svc, ddUser.id)
 
   return NextResponse.json({ reply: { ...reply, shop_name: replyShop?.name || null } })
 }

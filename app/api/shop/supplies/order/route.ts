@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { notifyAdmins } from '@/lib/sms'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 async function getShopContext() {
   const supabase = await createClient()
@@ -13,7 +14,7 @@ async function getShopContext() {
     return { error: 'forbidden' as const }
   }
 
-  const { data: shop } = await svc.from('dd_shops').select('id, name').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return { error: 'no_shop' as const }
 
   return { shop, svc, ddUser }

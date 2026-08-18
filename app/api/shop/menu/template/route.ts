@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { MENU_TEMPLATES, getTemplate } from '@/lib/menu-template'
+import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
 
 // Public list of available templates (no auth required to read).
 export async function GET() {
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const { data: shop } = await svc.from('dd_shops').select('id, current_template_id').eq('owner_id', ddUser.id).single()
+  const shop = await getActiveShop(svc, ddUser.id)
   if (!shop) return NextResponse.json({ error: 'No shop found' }, { status: 404 })
 
   let templateId = MENU_TEMPLATES[0].id
