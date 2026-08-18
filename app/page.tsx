@@ -479,11 +479,13 @@ export default function HomePage() {
         }}>
           <div>
             <h1 style={{
-              fontSize: '1.5rem',
+              fontFamily: 'var(--font-playfair), Georgia, serif',
+              fontSize: '1.7rem',
               fontWeight: 800,
               color: '#1A1A2E',
               margin: 0,
-              lineHeight: 1.2,
+              lineHeight: 1.15,
+              letterSpacing: '-0.3px',
             }}>
               {user ? `${getGreeting()}, ${user.name.split(' ')[0]}!` : 'Welcome!'}
             </h1>
@@ -509,6 +511,23 @@ export default function HomePage() {
             </Link>
           )}
         </div>
+
+        {/* Live trust stats — light variant */}
+        {heroStats.length > 0 && (
+          <div style={{ display: 'flex', gap: '8px', padding: '0 20px', marginBottom: '14px', flexWrap: 'wrap' }}>
+            {heroStats.map((st, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: '5px',
+                background: '#FFF0F5', border: '1px solid #FFD4E5',
+                borderRadius: '999px', padding: '5px 11px',
+              }}>
+                <span style={{ fontSize: '0.8rem', color: st.gold ? '#F5A623' : PINK, lineHeight: 1 }}>{st.icon}</span>
+                <span style={{ color: '#1A1A2E', fontWeight: 700, fontSize: '0.78rem' }}>{st.value}</span>
+                <span style={{ color: '#888', fontSize: '0.72rem' }}>{st.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Delivery address search */}
         <div style={{
@@ -772,7 +791,7 @@ export default function HomePage() {
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px',
             }}>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
+              <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: '1.2rem', fontWeight: 800, color: '#1A1A2E', margin: 0 }}>
                 📍 Near You ({NEAR_ME_RADIUS_MILES} mi)
               </h2>
             </div>
@@ -859,7 +878,7 @@ export default function HomePage() {
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
+          <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: '1.3rem', fontWeight: 800, color: '#1A1A2E', margin: 0 }}>
             {gpsLocation ? `Shops Within ${NEAR_ME_RADIUS_MILES} Miles` : 'Nearby Shops'}
             {gpsLocation && ` (${mobileDisplayShops.length})`}
           </h2>
