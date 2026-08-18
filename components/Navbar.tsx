@@ -30,7 +30,9 @@ export default function Navbar() {
         </Link>
 
         <div className="nav-links">
-          <Link href="/shops" className="nav-link">Browse</Link>
+          <Link href="/shops" className="nav-link">Browse Shops</Link>
+          <Link href="/signup?role=shop_owner" className="nav-link">For Shops</Link>
+          <Link href="/signup?role=driver" className="nav-link">Become a Driver</Link>
           {user && <Link href="/orders" className="nav-link">Orders</Link>}
           {user && <Link href="/rewards" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Rewards</Link>}
           <Link href="/cart" className="nav-link" style={{ position: 'relative' }}>
@@ -171,20 +173,24 @@ export default function Navbar() {
                   )}
                 </div>
               ) : (
-                <Link href="/login" style={{
-                  background: '#FF1493',
-                  color: 'white',
-                  padding: '0.5rem 1.25rem',
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  transition: 'background 0.2s',
-                }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#FF69B4')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#FF1493')}
-                >
-                  Sign In
-                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Link href="/login" className="nav-link">Sign In</Link>
+                  <Link href="/shops" style={{
+                    background: '#FF1493',
+                    color: 'white',
+                    padding: '0.5rem 1.25rem',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    transition: 'background 0.2s',
+                  }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#FF69B4')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#FF1493')}
+                  >
+                    Order Now
+                  </Link>
+                </div>
               )}
             </>
           )}
@@ -208,7 +214,15 @@ export default function Navbar() {
       <div className={`mobile-nav ${mobileOpen ? 'open' : ''}`}>
         <Link href="/shops" onClick={() => setMobileOpen(false)}
           style={{ padding: '0.5rem 0', fontWeight: 500 }}>
-          Browse
+          Browse Shops
+        </Link>
+        <Link href="/signup?role=shop_owner" onClick={() => setMobileOpen(false)}
+          style={{ padding: '0.5rem 0', fontWeight: 500 }}>
+          For Shops
+        </Link>
+        <Link href="/signup?role=driver" onClick={() => setMobileOpen(false)}
+          style={{ padding: '0.5rem 0', fontWeight: 500 }}>
+          Become a Driver
         </Link>
         {user && (
           <>
@@ -247,10 +261,16 @@ export default function Navbar() {
               Sign Out
             </button>
           ) : (
-            <Link href="/login" onClick={() => setMobileOpen(false)}
-              style={{ padding: '0.5rem 0', fontWeight: 600, color: '#FF1493' }}>
-              Sign In
-            </Link>
+            <>
+              <Link href="/login" onClick={() => setMobileOpen(false)}
+                style={{ padding: '0.5rem 0', fontWeight: 600, color: '#FF1493' }}>
+                Sign In
+              </Link>
+              <Link href="/shops" onClick={() => setMobileOpen(false)}
+                style={{ marginTop: '0.25rem', padding: '0.6rem 1rem', textAlign: 'center', background: '#FF1493', color: '#fff', borderRadius: 8, fontWeight: 700 }}>
+                Order Now
+              </Link>
+            </>
           )
         )}
       </div>

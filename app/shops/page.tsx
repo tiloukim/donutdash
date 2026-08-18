@@ -52,6 +52,7 @@ function ShopsPageInner() {
   const urlLng = searchParams.get('lng')
   const urlSort = searchParams.get('sort') as SortOption | null
   const urlAddr = searchParams.get('addr')
+  const urlCategory = searchParams.get('category')
 
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
@@ -74,12 +75,17 @@ function ShopsPageInner() {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Fetch shops — include lat/lng if we have it so each shop gets distance_miles
+  // Fetch shops — include lat/lng if we have it so each shop gets distance_miles,
+  // and a category filter when arriving from a "Popular categories" link.
   useEffect(() => {
-    const url = customerLocation
-      ? `/api/shops?lat=${customerLocation.lat}&lng=${customerLocation.lng}`
-      : '/api/shops'
-    fetch(url)
+    const params = new URLSearchParams()
+    if (customerLocation) {
+      params.set('lat', String(customerLocation.lat))
+      params.set('lng', String(customerLocation.lng))
+    }
+    if (urlCategory) params.set('category', urlCategory)
+    const qs = params.toString()
+    fetch(`/api/shops${qs ? `?${qs}` : ''}`)
       .then(res => res.json())
       .then(data => {
         // Marketplace view: orderable shops AND unclaimed "claimable" listings
@@ -90,7 +96,7 @@ function ShopsPageInner() {
       })
       .catch(() => setShops([]))
       .finally(() => setLoading(false))
-  }, [customerLocation])
+  }, [customerLocation, urlCategory])
 
   // Fetch favorites
   useEffect(() => {

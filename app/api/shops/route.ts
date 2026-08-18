@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const slug = searchParams.get('slug')
+    const category = searchParams.get('category')
     const customerLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : null
     const customerLng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : null
 
@@ -148,9 +149,22 @@ export async function GET(request: NextRequest) {
       return (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
     })
 
+    // Optional category filter: keep only shops that sell an available item in
+    // this category (menu categories live on dd_menu_items, not on shops).
+    let listed = shopsWithEta
+    if (category) {
+      const { data: catItems } = await supabase
+        .from('dd_menu_items')
+        .select('shop_id')
+        .eq('category', category)
+        .eq('is_available', true)
+      const withCat = new Set((catItems || []).map(i => i.shop_id))
+      listed = shopsWithEta.filter(s => withCat.has(s.id))
+    }
+
     // Never expose owner PII / financial internals on this public endpoint.
     const SENSITIVE = ['owner_id', 'tax_id', 'commission_pct', 'owner_pin_hash', 'owner_pin_salt', 'owner_pin_failed_attempts', 'owner_pin_locked_until']
-    const publicShops = shopsWithEta.map(s => {
+    const publicShops = listed.map(s => {
       const c = { ...s } as Record<string, unknown>
       for (const k of SENSITIVE) delete c[k]
       return c

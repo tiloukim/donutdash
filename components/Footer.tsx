@@ -55,8 +55,8 @@ export default function Footer() {
         }
         .dd-footer-grid {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 1rem;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1.25rem 1rem;
           text-align: left;
         }
         @media (min-width: 768px) {
@@ -83,6 +83,7 @@ export default function Footer() {
             content: none;
           }
           .dd-footer-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 2rem 3rem;
           }
         }
@@ -152,16 +153,36 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Links grid — 3 columns */}
+        {/* Links grid — 4 columns. Prospective shop owners / drivers go to the
+            signup form with the right role preselected, NOT the gated
+            /shop or /driver dashboards (those redirect non-owners to sign-in). */}
         <div className="dd-footer-grid">
           <div>
-            <h4 className="dd-footer-heading">Browse</h4>
+            <h4 className="dd-footer-heading">Customers</h4>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Link href="/shops" className="dd-footer-link">Find Donuts</Link>
               <Link href="/shops" className="dd-footer-link">Browse Shops</Link>
               <Link href="/orders" className="dd-footer-link">My Orders</Link>
-              <Link href="/cart" className="dd-footer-link">Cart</Link>
-              <Link href="/support" className="dd-footer-link">Customer Help</Link>
-              <Link href="/support/shops" className="dd-footer-link">Shop Support</Link>
+              <Link href="/gift-cards" className="dd-footer-link">Gift Cards</Link>
+              <Link href="/support" className="dd-footer-link">Help</Link>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="dd-footer-heading">Donut Shops</h4>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Link href="/signup?role=shop_owner" className="dd-footer-link">Join DonutDash</Link>
+              <Link href="/partner-setup" className="dd-footer-link">DonutDash POS</Link>
+              <Link href="/login" className="dd-footer-link">Merchant Login</Link>
+              <Link href="/support/shops" className="dd-footer-link">Merchant Support</Link>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="dd-footer-heading">Drivers</h4>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Link href="/signup?role=driver" className="dd-footer-link">Become a Driver</Link>
+              <Link href="/login" className="dd-footer-link">Driver Login</Link>
               <Link href="/support/drivers" className="dd-footer-link">Driver Support</Link>
             </div>
           </div>
@@ -169,26 +190,13 @@ export default function Footer() {
           <div>
             <h4 className="dd-footer-heading">Company</h4>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Link href="/about" className="dd-footer-link">About Us</Link>
-              <Link href="/terms" className="dd-footer-link">Terms</Link>
+              <Link href="/about" className="dd-footer-link">About</Link>
+              <Link href="/support" className="dd-footer-link">Contact</Link>
               <Link href="/privacy" className="dd-footer-link">Privacy</Link>
+              <Link href="/terms" className="dd-footer-link">Terms</Link>
               <Link href="/sms-consent" className="dd-footer-link">SMS Consent</Link>
               {!isCustomer && <Link href="/contractor-agreement" className="dd-footer-link">Contractor Agreement</Link>}
-              <a href="https://www.facebook.com/profile.php?id=61575586874091" target="_blank" rel="noopener noreferrer" className="dd-footer-link">
-                Facebook
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="dd-footer-heading">For Business</h4>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {/* Prospective shop owners / drivers should land on the signup
-                  form with the right role preselected — NOT on the gated
-                  /shop or /driver dashboards (those redirect to a sign-in
-                  wall for non-shop_owner / non-driver visitors). */}
-              <Link href="/signup?role=shop_owner" className="dd-footer-link">List Your Donut Shop with Us</Link>
-              <Link href="/signup?role=driver" className="dd-footer-link">Be a DonutDash Driver</Link>
+              <a href="https://www.facebook.com/profile.php?id=61575586874091" target="_blank" rel="noopener noreferrer" className="dd-footer-link">Facebook</a>
             </div>
           </div>
         </div>
