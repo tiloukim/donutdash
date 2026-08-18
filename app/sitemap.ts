@@ -92,22 +92,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ]
 
-  // Dynamic shop pages
+  // Dynamic shop storefront pages. Only claimed, active shops get a storefront
+  // URL — unclaimed listings route to the claim flow, not a real product page,
+  // so indexing them would create thin pages. (Fixed: was querying a nonexistent
+  // `shops` table + `updated_at` column; the real table is `dd_shops`.)
   let shopPages: MetadataRoute.Sitemap = []
   try {
     const supabase = createServiceClient()
     const { data: shops } = await supabase
-      .from('shops')
-      .select('slug, updated_at')
+      .from('dd_shops')
+      .select('slug, created_at, is_claimed')
       .eq('is_active', true)
 
     if (shops) {
-      shopPages = shops.map((shop) => ({
-        url: `${baseUrl}/shops/${shop.slug}`,
-        lastModified: new Date(shop.updated_at || new Date()),
-        changeFrequency: 'daily' as const,
-        priority: 0.8,
-      }))
+      shopPages = shops
+        .filter((shop) => shop.slug && shop.is_claimed !== false)
+        .map((shop) => ({
+          url: `${baseUrl}/shops/${shop.slug}`,
+          lastModified: new Date(shop.created_at || new Date()),
+          changeFrequency: 'daily' as const,
+          priority: 0.8,
+        }))
     }
   } catch {
     // If DB fetch fails, return static pages only
