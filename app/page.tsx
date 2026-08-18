@@ -1042,17 +1042,14 @@ export default function HomePage() {
           alignItems: 'center',
           padding: '4rem 1.5rem',
         }}>
-          {/* Decorative warmth + donut motif — placeholder for the food photo */}
+          {/* Soft warm glow behind the app image */}
           <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
             <div style={{ position: 'absolute', right: '-6%', top: '-22%', width: '640px', height: '640px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,140,0,0.18), rgba(255,140,0,0) 70%)' }} />
             <div style={{ position: 'absolute', right: '10%', bottom: '-28%', width: '540px', height: '540px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,20,147,0.16), rgba(255,20,147,0) 70%)' }} />
-            <div style={{ position: 'absolute', right: '7%', top: '18%', width: '176px', height: '176px', borderRadius: '50%', border: '42px solid #FF66CC', opacity: 0.32 }} />
-            <div style={{ position: 'absolute', right: '22%', top: '48%', width: '108px', height: '108px', borderRadius: '50%', border: '28px solid #FFD9B0', opacity: 0.5 }} />
-            <div style={{ position: 'absolute', right: '3%', bottom: '10%', width: '132px', height: '132px', borderRadius: '50%', border: '33px solid #FFB0CF', opacity: 0.38 }} />
           </div>
 
-          <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 1 }}>
-            <div style={{ maxWidth: '640px' }}>
+          <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '2.5rem', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 480px', minWidth: 0 }}>
               <h1 style={{
                 fontFamily: 'var(--font-dm-sans), system-ui, -apple-system, sans-serif',
                 fontSize: 'clamp(2.5rem, 6vw, 4.25rem)',
@@ -1145,6 +1142,16 @@ export default function HomePage() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Right: DonutDash app images (transparent cut-out, floats on the hero) */}
+            <div style={{ flex: '1 1 360px', display: 'flex', justifyContent: 'center' }}>
+              <img
+                src="/hero-app.png"
+                alt="DonutDash app — browse shops, order donuts, and track delivery"
+                fetchPriority="high"
+                style={{ width: '100%', maxWidth: '480px', height: 'auto', display: 'block', filter: 'drop-shadow(0 16px 26px rgba(0,0,0,0.13))' }}
+              />
             </div>
           </div>
         </section>
