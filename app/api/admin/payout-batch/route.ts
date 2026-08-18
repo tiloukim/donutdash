@@ -4,6 +4,41 @@ import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate } from '@/lib/co
 
 export const dynamic = 'force-dynamic'
 
+type SupabaseSvc = ReturnType<typeof createServiceClient>
+
+// Derive a batch's true status from its items. A batch's stored status only
+// gets flipped to 'completed' by "Pay All" — paying items one at a time left
+// it stuck on 'pending' even when most (or all) items were paid. Deriving from
+// the items keeps the batch honest:
+//   - no items still pending      → 'completed'
+//   - some resolved, some pending → 'partially_paid'
+//   - nothing resolved yet        → 'pending'
+function deriveStatus(counts: { itemCount: number; pendingCount: number }, fallback: string): string {
+  if (counts.itemCount === 0) return fallback || 'pending'
+  if (counts.pendingCount === 0) return 'completed'
+  if (counts.itemCount - counts.pendingCount > 0) return 'partially_paid'
+  return 'pending'
+}
+
+// Recompute and persist a single batch's status after its items change.
+async function reconcileBatchStatus(svc: SupabaseSvc, batchId: string, processedBy?: string) {
+  const [{ data: items }, { data: batch }] = await Promise.all([
+    svc.from('dd_payout_items').select('status').eq('batch_id', batchId),
+    svc.from('dd_payout_batches').select('processed_at').eq('id', batchId).maybeSingle(),
+  ])
+  const list = items || []
+  const pendingCount = list.filter(i => i.status === 'pending').length
+  const status = deriveStatus({ itemCount: list.length, pendingCount }, 'pending')
+  const patch: Record<string, unknown> = { status }
+  // Stamp processed_at the first time it completes; never overwrite an existing stamp.
+  if (status === 'completed' && !(batch as { processed_at?: string } | null)?.processed_at) {
+    patch.processed_at = new Date().toISOString()
+    if (processedBy) patch.processed_by = processedBy
+  }
+  await svc.from('dd_payout_batches').update(patch).eq('id', batchId)
+  return status
+}
+
 // GET — list all payout batches
 export async function GET() {
   const supabase = await createClient()
@@ -19,7 +54,38 @@ export async function GET() {
     .order('week_start', { ascending: false })
     .limit(20)
 
-  return NextResponse.json({ batches: batches || [] })
+  const list = batches || []
+  const ids = list.map(b => b.id)
+  const { data: allItems } = ids.length
+    ? await svc.from('dd_payout_items').select('batch_id, status, amount').in('batch_id', ids)
+    : { data: [] as Array<{ batch_id: string; status: string; amount: number }> }
+
+  const round = (n: number) => Math.round(n * 100) / 100
+  const agg = new Map<string, { itemCount: number; paidCount: number; pendingCount: number; skippedCount: number; paidAmount: number; pendingAmount: number }>()
+  for (const it of allItems || []) {
+    const g = agg.get(it.batch_id) || { itemCount: 0, paidCount: 0, pendingCount: 0, skippedCount: 0, paidAmount: 0, pendingAmount: 0 }
+    const amt = Number(it.amount || 0)
+    g.itemCount++
+    if (it.status === 'paid') { g.paidCount++; g.paidAmount += amt }
+    else if (it.status === 'pending') { g.pendingCount++; g.pendingAmount += amt }
+    else if (it.status === 'skipped') { g.skippedCount++ }
+    agg.set(it.batch_id, g)
+  }
+
+  const enriched = list.map(b => {
+    const g = agg.get(b.id) || { itemCount: 0, paidCount: 0, pendingCount: 0, skippedCount: 0, paidAmount: 0, pendingAmount: 0 }
+    const status = deriveStatus({ itemCount: g.itemCount, pendingCount: g.pendingCount }, b.status)
+    return { ...b, status, paid_count: g.paidCount, pending_count: g.pendingCount, skipped_count: g.skippedCount, item_count: g.itemCount, paid_amount: round(g.paidAmount), pending_amount: round(g.pendingAmount) }
+  })
+
+  // Self-heal: persist the derived status for any batch whose stored value drifted
+  // (e.g. the pre-existing batches stuck on 'pending' after item-by-item payments),
+  // so every other view — reports, crons — agrees without a manual migration.
+  await Promise.all(enriched
+    .filter((b, i) => b.status !== list[i].status)
+    .map(b => svc.from('dd_payout_batches').update({ status: b.status }).eq('id', b.id)))
+
+  return NextResponse.json({ batches: enriched })
 }
 
 // POST — generate a new weekly payout batch
@@ -225,11 +291,16 @@ export async function POST(req: NextRequest) {
 
   // Mark individual item as paid
   if (action === 'pay_item' && itemId) {
-    const { error } = await svc.from('dd_payout_items')
+    const { data: updated, error } = await svc.from('dd_payout_items')
       .update({ status: 'paid', paid_at: new Date().toISOString() })
       .eq('id', itemId)
+      .select('batch_id')
+      .maybeSingle()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ success: true })
+    // Roll the batch status forward — paying the last pending item completes it.
+    let batchStatus: string | undefined
+    if (updated?.batch_id) batchStatus = await reconcileBatchStatus(svc, updated.batch_id, ddUser.id)
+    return NextResponse.json({ success: true, batchStatus })
   }
 
   // Mark all items in batch as paid. Idempotency guard on the batch
@@ -246,7 +317,7 @@ export async function POST(req: NextRequest) {
     const { data: batchRows, error: batchError } = await svc.from('dd_payout_batches')
       .update({ status: 'completed', processed_at: new Date().toISOString(), processed_by: ddUser.id })
       .eq('id', batchId)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'partially_paid'])
       .select('id')
 
     if (batchError) return NextResponse.json({ error: batchError.message }, { status: 500 })
@@ -262,11 +333,16 @@ export async function POST(req: NextRequest) {
   // notes silently drop" bug.
   if (action === 'skip_item' && itemId) {
     // bodyNotes was packed into the original parse above; use it directly
-    const { error } = await svc.from('dd_payout_items')
+    const { data: updated, error } = await svc.from('dd_payout_items')
       .update({ status: 'skipped', notes: bodyNotes || null })
       .eq('id', itemId)
+      .select('batch_id')
+      .maybeSingle()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ success: true })
+    // Skipping the last pending item resolves the batch, so re-derive its status.
+    let batchStatus: string | undefined
+    if (updated?.batch_id) batchStatus = await reconcileBatchStatus(svc, updated.batch_id, ddUser.id)
+    return NextResponse.json({ success: true, batchStatus })
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

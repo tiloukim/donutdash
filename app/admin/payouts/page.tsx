@@ -12,6 +12,24 @@ interface PayoutBatch {
   total_amount: number
   created_at: string
   processed_at: string | null
+  // Derived by the API from the batch's items:
+  paid_count?: number
+  pending_count?: number
+  skipped_count?: number
+  item_count?: number
+  paid_amount?: number
+  pending_amount?: number
+}
+
+// Status → pill styling + human label. Batches can be pending, partially paid
+// (some items paid one-by-one but not all), or completed.
+function batchStatusMeta(status: string): { bg: string; color: string; label: string } {
+  switch (status) {
+    case 'completed': return { bg: '#D1FAE5', color: '#065F46', label: 'completed' }
+    case 'partially_paid': return { bg: '#DBEAFE', color: '#1E40AF', label: 'partially paid' }
+    case 'processing': return { bg: '#DBEAFE', color: '#1E40AF', label: 'processing' }
+    default: return { bg: '#FEF3C7', color: '#92400E', label: 'pending' }
+  }
 }
 
 interface PayoutItem {
@@ -169,7 +187,17 @@ export default function PayoutsPage() {
         body: JSON.stringify({ action: 'pay_item', itemId }),
       })
       if (res.ok) {
-        setBatchItems(prev => prev.map(i => i.id === itemId ? { ...i, status: 'paid', paid_at: new Date().toISOString() } : i))
+        const data = await res.json().catch(() => ({}))
+        const newItems = batchItems.map(i => i.id === itemId ? { ...i, status: 'paid', paid_at: new Date().toISOString() } : i)
+        setBatchItems(newItems)
+        // Keep the batch status in sync with the API's derived value so the list
+        // and header reflect partially-paid / completed without a refresh.
+        if (data.batchStatus && selectedBatch) {
+          const paidAmt = newItems.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.amount || 0), 0)
+          const pendingAmt = newItems.filter(i => i.status === 'pending').reduce((s, i) => s + Number(i.amount || 0), 0)
+          setSelectedBatch(prev => prev ? { ...prev, status: data.batchStatus, paid_amount: paidAmt, pending_amount: pendingAmt } : prev)
+          setBatches(prev => prev.map(b => b.id === selectedBatch.id ? { ...b, status: data.batchStatus, paid_amount: paidAmt, pending_amount: pendingAmt, pending_count: newItems.filter(i => i.status === 'pending').length } : b))
+        }
       }
     } catch {}
     finally { setProcessing(null) }
@@ -450,13 +478,25 @@ export default function PayoutsPage() {
                         <td style={tdStyle}>{fmt(batch.total_driver_payouts)}</td>
                         <td style={{ ...tdStyle, fontWeight: 700 }}>{fmt(batch.total_amount)}</td>
                         <td style={tdStyle}>
-                          <span style={{
-                            fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
-                            background: batch.status === 'completed' ? '#D1FAE5' : batch.status === 'processing' ? '#DBEAFE' : '#FEF3C7',
-                            color: batch.status === 'completed' ? '#065F46' : batch.status === 'processing' ? '#1E40AF' : '#92400E',
-                          }}>
-                            {batch.status}
-                          </span>
+                          {(() => {
+                            const meta = batchStatusMeta(batch.status)
+                            const hasCounts = typeof batch.item_count === 'number' && batch.item_count > 0
+                            return (
+                              <>
+                                <span style={{
+                                  fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
+                                  background: meta.bg, color: meta.color,
+                                }}>
+                                  {meta.label}
+                                </span>
+                                {hasCounts && batch.status !== 'completed' && (
+                                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>
+                                    {fmt(batch.paid_amount || 0)} of {fmt(batch.total_amount)} paid · {batch.pending_count} left
+                                  </div>
+                                )}
+                              </>
+                            )
+                          })()}
                         </td>
                         <td style={tdStyle}>
                           <button onClick={() => fetchBatchDetails(batch)} style={{
@@ -490,14 +530,17 @@ export default function PayoutsPage() {
                 Week of {new Date(selectedBatch.week_start + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </h3>
             </div>
-            {selectedBatch.status !== 'completed' && batchItems.some(i => i.status === 'pending') && (
-              <button onClick={() => payAll(selectedBatch.id)} disabled={processing === 'all'} style={{
-                padding: '10px 24px', borderRadius: 8, border: 'none', background: '#10B981', color: '#fff',
-                fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              }}>
-                {processing === 'all' ? 'Processing...' : `Mark All as Paid (${fmt(selectedBatch.total_amount)})`}
-              </button>
-            )}
+            {selectedBatch.status !== 'completed' && batchItems.some(i => i.status === 'pending') && (() => {
+              const remaining = batchItems.filter(i => i.status === 'pending').reduce((s, i) => s + Number(i.amount || 0), 0)
+              return (
+                <button onClick={() => payAll(selectedBatch.id)} disabled={processing === 'all'} style={{
+                  padding: '10px 24px', borderRadius: 8, border: 'none', background: '#10B981', color: '#fff',
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                }}>
+                  {processing === 'all' ? 'Processing...' : `Mark Remaining as Paid (${fmt(remaining)})`}
+                </button>
+              )
+            })()}
           </div>
 
           {/* Summary cards */}
