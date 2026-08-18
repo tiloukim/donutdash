@@ -36,13 +36,28 @@ export async function GET() {
   const thisWeek = all.filter(d => d.delivered_at && d.delivered_at >= weekStart).reduce((sum, d) => sum + d.driver_earnings, 0)
   const allTime = all.reduce((sum, d) => sum + d.driver_earnings, 0)
 
-  // Calculate total paid out + pending payouts
+  // Money already paid (or reserved) for this driver comes via TWO paths — both
+  // must be subtracted from earnings, or the driver keeps seeing paid money as
+  // "available":
+  //  1) dd_payout_requests — on-demand instant-payout requests (reserve
+  //     pending/approved, and count paid).
+  //  2) dd_payout_items — the WEEKLY BATCH payouts. This is the main way drivers
+  //     get paid; it was previously ignored here, so a batch-paid driver still
+  //     saw their full lifetime earnings as available balance.
   const { data: payouts } = await svc.from('dd_payout_requests')
     .select('amount, status')
     .eq('user_id', ddUser.id)
     .in('status', ['pending', 'approved', 'paid'])
+  const requestedOrPaid = (payouts || []).reduce((sum, p) => sum + Number(p.amount), 0)
 
-  const totalPaidOut = (payouts || []).reduce((sum, p) => sum + Number(p.amount), 0)
+  const { data: batchItems } = await svc.from('dd_payout_items')
+    .select('amount, status')
+    .eq('user_id', ddUser.id)
+    .eq('user_type', 'driver')
+    .eq('status', 'paid')
+  const batchPaid = (batchItems || []).reduce((sum, p) => sum + Number(p.amount), 0)
+
+  const totalPaidOut = requestedOrPaid + batchPaid
   const availableBalance = Math.max(0, Math.round((allTime - totalPaidOut) * 100) / 100)
 
   // Get referral credit
