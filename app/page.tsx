@@ -364,18 +364,11 @@ export default function HomePage() {
   // Live trust stats for the hero — all derived from real shop data, never
   // fabricated. A stat is only shown when it's meaningful.
   const orderableShops = shops.filter(s => s.is_claimed !== false)
-  const ratedShops = shops.filter(s => (s.review_count ?? 0) > 0 && (s.rating ?? 0) > 0)
-  const avgRating = ratedShops.length
-    ? ratedShops.reduce((sum, s) => sum + (s.rating ?? 0), 0) / ratedShops.length
-    : 0
-  const heroStats: { icon: string; value: string; label: string; gold?: boolean }[] = []
-  if (!loading && orderableShops.length > 0) {
-    heroStats.push({ icon: '🍩', value: `${orderableShops.length}`, label: orderableShops.length === 1 ? 'local shop' : 'local shops' })
-  }
-  heroStats.push({ icon: '⚡', value: DEFAULT_ETA_LABEL, label: 'to your door' })
-  if (avgRating >= 3.5) {
-    heroStats.push({ icon: '★', value: avgRating.toFixed(1), label: 'avg rating', gold: true })
-  }
+  // Hero shows a single neutral delivery-time chip. Shop-count and rating chips
+  // were removed — weak social proof for a young marketplace.
+  const heroStats: { icon: string; value: string; label: string; gold?: boolean }[] = [
+    { icon: '⚡', value: DEFAULT_ETA_LABEL, label: 'to your door' },
+  ]
 
   const houseBanners = [
     {
