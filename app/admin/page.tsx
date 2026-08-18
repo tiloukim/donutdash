@@ -14,6 +14,7 @@ interface Stats {
   heldForShops: number
   heldForDrivers: number
   heldForTax: number
+  platformDiscounts: number
   totalOrders: number
   activeShops: number
   activeDrivers: number
@@ -42,12 +43,13 @@ export default function AdminDashboard() {
 
   const financialCards = [
     { label: 'Total Revenue', value: fmt(stats?.totalRevenue || 0), color: '#10B981', icon: '💰', description: 'Sum of all order totals' },
-    { label: 'Net Profit', value: fmt(stats?.netProfit || 0), color: '#6366F1', icon: '📈', description: 'Commissions + fees - driver payouts' },
+    { label: 'Net Profit', value: fmt(stats?.netProfit || 0), color: '#6366F1', icon: '📈', description: 'Commissions + fees − driver payouts − promos' },
     { label: 'Shop Commissions', value: fmt(stats?.shopCommissions || 0), color: '#8B5CF6', icon: '🏷️', description: `Default ${(SHOP_COMMISSION_RATE * 100).toFixed(0)}%, per-shop overrides applied` },
     { label: 'Service Fees', value: fmt(stats?.totalServiceFees || 0), color: '#06B6D4', icon: '🧾', description: 'Collected from customers' },
     { label: 'Delivery Fees', value: fmt(stats?.totalDeliveryFees || 0), color: '#F59E0B', icon: '🚚', description: 'Charged per delivery' },
     { label: 'Driver Payouts', value: fmt(stats?.driverPayouts || 0), color: '#EF4444', icon: '💸', description: 'Paid to drivers' },
     { label: 'Tips', value: fmt(stats?.totalTips || 0), color: '#EC4899', icon: '🤑', description: 'Passed through to drivers' },
+    { label: 'Promos Given', value: `−${fmt(stats?.platformDiscounts || 0)}`, color: '#F43F5E', icon: '🎟️', description: 'Discount codes the platform absorbed' },
   ]
 
   const operationalCards = [

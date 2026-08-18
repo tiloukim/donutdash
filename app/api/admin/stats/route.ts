@@ -15,7 +15,7 @@ export async function GET() {
 
     // Fetch all stats in parallel
     const [ordersRes, deliveriesRes, shopsRes, driversRes, usersRes] = await Promise.all([
-      svc.from('dd_orders').select('id, total, subtotal, delivery_fee, service_fee, tax, tip, status, commission_pct, order_type, refund_amount'),
+      svc.from('dd_orders').select('id, total, subtotal, delivery_fee, service_fee, tax, tip, status, commission_pct, order_type, refund_amount, promo_discount, discount_amount, cash_discount_amount'),
       svc.from('dd_deliveries').select('id, driver_earnings, status'),
       svc.from('dd_shops').select('id, is_active'),
       svc.from('dd_users').select('id').eq('role', 'driver').eq('is_active', true),
@@ -63,16 +63,26 @@ export async function GET() {
       .filter(d => d.status !== 'cancelled')
       .reduce((sum, d) => sum + (d.driver_earnings || 0), 0)
 
+    // Promo codes / discounts are platform-funded: the shop still gets its full
+    // subtotal-minus-commission and the driver their full pay, but the customer
+    // paid less. So the discount comes straight out of the platform's slice and
+    // must be subtracted from net profit — otherwise profit is overstated by the
+    // promo we handed out. (e.g. WELCOME10 knocking $1.45 off an order.)
+    const platformDiscounts = Math.round(validOrders.reduce((sum, o) =>
+      sum + effFee(Number(o.promo_discount || 0) + Number(o.discount_amount || 0) + Number(o.cash_discount_amount || 0), o), 0) * 100) / 100
+
     // Net profit = commissions + service fees + delivery fees + tips collected
     //              - driver payouts (which include tips paid out)
+    //              - platform-funded discounts (promos we absorbed)
     // Tips pass through: customer paid → platform → driver. Without
     // adding tips on the revenue side, the subtraction inside
     // driverPayouts double-counts the tip pool and silently lowers
     // net profit by ~totalTips.
-    const netProfit = Math.round((shopCommissions + totalServiceFees + totalDeliveryFees + totalTips - driverPayouts) * 100) / 100
+    const netProfit = Math.round((shopCommissions + totalServiceFees + totalDeliveryFees + totalTips - driverPayouts - platformDiscounts) * 100) / 100
 
     // "Money buckets" — how the cash customers paid (totalRevenue) splits by
-    // who it actually belongs to. These four partition totalRevenue exactly:
+    // who it actually belongs to. These four partition totalRevenue exactly
+    // (now that netProfit absorbs platform-funded discounts):
     //   heldForShops + heldForDrivers + heldForTax + netProfit === totalRevenue
     // Only netProfit is the platform's; the other three are pass-through
     // liabilities the platform is holding until it pays them out.
@@ -94,6 +104,7 @@ export async function GET() {
       heldForShops,
       heldForDrivers,
       heldForTax,
+      platformDiscounts,
       totalOrders: validOrders.length,
       activeShops: shops.filter(s => s.is_active).length,
       activeDrivers: drivers.length,
