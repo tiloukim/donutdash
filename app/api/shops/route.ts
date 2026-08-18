@@ -120,46 +120,32 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Sort: pinned shops always first, then nearest distance, then highest rated
-    const PINNED_IDS = [
-      '22222222-2222-2222-2222-222222222222', // 1. Top Donuts
-      'd56579d4-746d-4173-8ea0-8f73990b2faf', // 2. Shipley Do-Nuts
-      '5ca3b5ed-f530-4d97-9865-5092ba31fdbd', // 3. Fancy Donuts
-      '64a68fa8-758e-498c-b103-4e9c1883ad1d', // 4. Donut Delight
-      '38cb57da-4e6b-4db3-9ab8-82ffcd932f4e', // 5. Donut Time
-      'b36b8595-4fc3-4c1a-9124-8f184c080b7c', // 6. SUNRISE DONUTS
-    ]
+    // Sort. When the customer's location is known, true proximity is what
+    // matters, so distance wins WITHIN each group — the nearest orderable shop
+    // shows first. (Previously a hardcoded pinned list + sponsored placement
+    // overrode distance, so a physically closer shop wasn't shown first.)
+    const hasLocation = customerLat != null && customerLng != null
     shopsWithEta.sort((a, b) => {
-      // Live sponsors outrank everything else (paid placement), highest
-      // sponsor_rank first.
-      if (a.sponsored !== b.sponsored) return a.sponsored ? -1 : 1
-      if (a.sponsored && b.sponsored && a.sponsor_rank !== b.sponsor_rank) {
-        return b.sponsor_rank - a.sponsor_rank
-      }
-
-      // Orderable (claimed) shops rank above unclaimed "claimable" listings,
-      // so customers see shops they can actually order from first.
+      // Orderable (claimed) shops always rank above unclaimed "claimable"
+      // listings — customers can't order from unclaimed shops.
       const aClaimed = a.is_claimed !== false
       const bClaimed = b.is_claimed !== false
       if (aClaimed !== bClaimed) return aClaimed ? -1 : 1
 
-      // Pinned shops always appear first in the listed order
-      {
-        const aPinIdx = PINNED_IDS.indexOf(a.id)
-        const bPinIdx = PINNED_IDS.indexOf(b.id)
-        const aPinned = aPinIdx !== -1
-        const bPinned = bPinIdx !== -1
-        if (aPinned && !bPinned) return -1
-        if (!aPinned && bPinned) return 1
-        if (aPinned && bPinned) return aPinIdx - bPinIdx
+      if (hasLocation) {
+        // Nearest first within the group, then highest rated.
+        const aDist = a.distance_miles ?? 9999
+        const bDist = b.distance_miles ?? 9999
+        if (aDist !== bDist) return aDist - bDist
+        return (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
       }
 
-      // Then sort by distance (nearest first) if available
-      const aDist = a.distance_miles ?? 9999
-      const bDist = b.distance_miles ?? 9999
-      if (aDist !== bDist) return aDist - bDist
-
-      // Then by rating (highest first)
+      // No location → keep the curated browse order: live sponsors first
+      // (paid placement), highest sponsor_rank first, then highest rated.
+      if (a.sponsored !== b.sponsored) return a.sponsored ? -1 : 1
+      if (a.sponsored && b.sponsored && a.sponsor_rank !== b.sponsor_rank) {
+        return b.sponsor_rank - a.sponsor_rank
+      }
       return (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
     })
 
