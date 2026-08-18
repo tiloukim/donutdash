@@ -126,25 +126,24 @@ export async function GET(request: NextRequest) {
     // overrode distance, so a physically closer shop wasn't shown first.)
     const hasLocation = customerLat != null && customerLng != null
     shopsWithEta.sort((a, b) => {
-      // Orderable (claimed) shops always rank above unclaimed "claimable"
-      // listings — customers can't order from unclaimed shops.
+      // Sponsored shops (paid placement) keep a guaranteed top spot — even on
+      // location searches — highest sponsor_rank first.
+      if (a.sponsored !== b.sponsored) return a.sponsored ? -1 : 1
+      if (a.sponsored && b.sponsored && a.sponsor_rank !== b.sponsor_rank) {
+        return b.sponsor_rank - a.sponsor_rank
+      }
+
+      // Orderable (claimed) shops rank above unclaimed "claimable" listings —
+      // customers can't order from unclaimed shops.
       const aClaimed = a.is_claimed !== false
       const bClaimed = b.is_claimed !== false
       if (aClaimed !== bClaimed) return aClaimed ? -1 : 1
 
+      // Within the same tier: nearest first when location is known, then rating.
       if (hasLocation) {
-        // Nearest first within the group, then highest rated.
         const aDist = a.distance_miles ?? 9999
         const bDist = b.distance_miles ?? 9999
         if (aDist !== bDist) return aDist - bDist
-        return (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
-      }
-
-      // No location → keep the curated browse order: live sponsors first
-      // (paid placement), highest sponsor_rank first, then highest rated.
-      if (a.sponsored !== b.sponsored) return a.sponsored ? -1 : 1
-      if (a.sponsored && b.sponsored && a.sponsor_rank !== b.sponsor_rank) {
-        return b.sponsor_rank - a.sponsor_rank
       }
       return (b.avg_rating ?? 0) - (a.avg_rating ?? 0)
     })
