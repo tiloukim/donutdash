@@ -1266,23 +1266,28 @@ export default function HomePage() {
         </section>
 
 
-        {/* Popular Categories — the real menu categories (donuts/coffee/breakfast/drinks) */}
+        {/* What's your breakfast today — appetizing labels, every link maps to a
+            real, non-empty /shops category filter (kolaches & dozen boxes live
+            under breakfast/donuts, so they route there). */}
         <section style={{ padding: '3.5rem 1.5rem', background: '#FFF9F3' }}>
           <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.1rem)', fontWeight: 800, color: '#1A1A2E', margin: '0 0 1.5rem' }}>
-              Browse by category
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.1rem)', fontWeight: 800, color: '#1A1A2E', margin: '0 0 0.35rem' }}>
+              What&apos;s your breakfast today?
             </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+            <p style={{ color: '#888', margin: '0 0 1.5rem', fontSize: '0.95rem' }}>Tap a craving — we&apos;ll show shops near you that deliver it fresh.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
               {[
                 { key: 'donuts', label: 'Donuts', emoji: '🍩' },
+                { key: 'breakfast', label: 'Kolaches', emoji: '🥐' },
                 { key: 'coffee', label: 'Coffee', emoji: '☕' },
-                { key: 'breakfast', label: 'Breakfast', emoji: '🥐' },
-                { key: 'drinks', label: 'Drinks', emoji: '🥤' },
-              ].map(cat => (
-                <Link key={cat.key} href={`/shops?category=${cat.key}`} style={{
+                { key: 'breakfast', label: 'Breakfast', emoji: '🥓' },
+                { key: 'donuts', label: 'Dozen Boxes', emoji: '📦' },
+              ].map((cat, i) => (
+                <Link key={i} href={`/shops?category=${cat.key}`} onClick={() => track('category_clicked', { category: cat.label })} style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem',
                   background: '#fff', border: '1px solid #F1E3EA', borderRadius: '16px',
                   padding: '1.5rem 1rem', textDecoration: 'none', textAlign: 'center',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                 }}>
                   <span style={{ fontSize: '2rem', lineHeight: 1 }}>{cat.emoji}</span>
                   <span style={{ fontWeight: 700, color: '#1A1A2E', fontSize: '0.95rem' }}>{cat.label}</span>
@@ -1331,6 +1336,31 @@ export default function HomePage() {
           </section>
         )}
 
+        {/* How it works — 3 honest steps */}
+        <section style={{ padding: '4rem 1.5rem', background: '#FFF9F3' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.1rem)', fontWeight: 800, color: '#1A1A2E', margin: '0 0 2rem' }}>
+              How it works
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+              {[
+                { n: '1', emoji: '📍', title: 'Enter your address', desc: 'We find the local donut shops that deliver to you.' },
+                { n: '2', emoji: '🍩', title: 'Pick your shop & order', desc: 'Browse fresh donuts, kolaches, coffee, and breakfast — order now or schedule ahead.' },
+                { n: '3', emoji: '🚗', title: 'Fresh, local delivery', desc: 'A local driver brings it to your door. Track your order the whole way.' },
+              ].map(step => (
+                <div key={step.n} style={{ background: '#fff', border: '1px solid #F1E3EA', borderRadius: '16px', padding: '1.75rem 1.5rem', textAlign: 'center' }}>
+                  <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '58px', height: '58px', borderRadius: '50%', background: 'linear-gradient(135deg, #FFF0F5, #FFE1EE)', marginBottom: '1rem' }}>
+                    <span style={{ fontSize: '1.6rem', lineHeight: 1 }}>{step.emoji}</span>
+                    <span style={{ position: 'absolute', top: '-6px', right: '-6px', width: '24px', height: '24px', borderRadius: '50%', background: PINK, color: '#fff', fontWeight: 800, fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{step.n}</span>
+                  </div>
+                  <h3 style={{ fontWeight: 700, fontSize: '1.05rem', color: '#1A1A2E', margin: '0 0 0.4rem' }}>{step.title}</h3>
+                  <p style={{ color: '#77778A', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>{step.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Find Donuts Near You */}
         <section style={{ padding: '4rem 1.5rem', background: '#fff' }}>
           <div style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center' }}>
@@ -1354,6 +1384,42 @@ export default function HomePage() {
             <button onClick={requestGps} style={{ marginTop: '1rem', background: 'none', border: 'none', color: PINK, fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}>
               {gpsStatus === 'requesting' ? 'Locating…' : gpsStatus === 'denied' ? 'Location blocked — enter address above' : '📍 Use my location'}
             </button>
+          </div>
+        </section>
+
+        {/* Office & event breakfast — leans on the REAL scheduled-ordering feature */}
+        <section style={{ padding: '4rem 1.5rem', background: 'linear-gradient(135deg, #FFF0F5, #FFF9F3)' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '2.5rem', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 360px' }}>
+              <span style={{ display: 'inline-block', background: '#fff', border: '1px solid #F1D5E4', borderRadius: '999px', padding: '5px 14px', fontSize: '0.8rem', fontWeight: 800, color: PINK, letterSpacing: '0.3px', marginBottom: '1rem' }}>
+                🗓️ SCHEDULE AHEAD
+              </span>
+              <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.1rem)', fontWeight: 800, color: '#1A1A2E', margin: '0 0 0.75rem' }}>
+                Breakfast for the whole office
+              </h2>
+              <p style={{ color: '#5A5A68', fontSize: '1.02rem', lineHeight: 1.6, margin: '0 0 1.5rem', maxWidth: '460px' }}>
+                Meetings, classrooms, church, or a crowd at home? Order dozens of fresh donuts and kolaches and <strong>schedule delivery</strong> for the exact morning you need them.
+              </p>
+              <button
+                onClick={() => { try { sessionStorage.setItem('dd_deliver_when', 'schedule') } catch {}; track('office_breakfast_clicked'); router.push('/shops') }}
+                style={{ background: PINK, color: '#fff', fontWeight: 700, fontSize: '1rem', border: 'none', borderRadius: '10px', padding: '0.9rem 2rem', cursor: 'pointer', boxShadow: '0 8px 22px rgba(255,20,147,0.28)' }}
+              >
+                Schedule a group order
+              </button>
+            </div>
+            <div style={{ flex: '1 1 260px', display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {[
+                { emoji: '📦', label: 'Order by the dozen' },
+                { emoji: '🗓️', label: 'Pick a delivery time' },
+                { emoji: '☕', label: 'Add coffee for the team' },
+                { emoji: '🚗', label: 'Delivered fresh that morning' },
+              ].map((c, i) => (
+                <div key={i} style={{ flex: '1 1 130px', background: '#fff', border: '1px solid #F1E3EA', borderRadius: '14px', padding: '1.1rem 0.9rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.7rem', lineHeight: 1, marginBottom: '0.5rem' }}>{c.emoji}</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#1A1A2E', lineHeight: 1.35 }}>{c.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -1425,6 +1491,19 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
+            {/* Trust signals — all real, backed capabilities */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '2rem' }}>
+              {[
+                { icon: '🔒', label: 'Secure checkout' },
+                { icon: '📍', label: 'Live order tracking' },
+                { icon: '🚗', label: 'Fast local delivery' },
+                { icon: '🏪', label: 'Real local shops' },
+              ].map((t, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: '#FFF7FB', border: '1px solid #F1E3EA', borderRadius: '999px', padding: '8px 15px', fontSize: '0.85rem', fontWeight: 700, color: '#3A3A48' }}>
+                  <span style={{ fontSize: '0.95rem', lineHeight: 1 }}>{t.icon}</span> {t.label}
+                </span>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -1445,6 +1524,33 @@ export default function HomePage() {
             </div>
             <div style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center' }}>
               <img src="/hero-app.png" alt="DonutDash mobile app" style={{ width: '100%', maxWidth: '380px', height: 'auto', filter: 'drop-shadow(0 16px 26px rgba(0,0,0,0.12))' }} />
+            </div>
+          </div>
+        </section>
+
+        {/* Final customer CTA — last push to order before the merchant pitch */}
+        <section style={{ padding: '4.5rem 1.5rem', background: 'linear-gradient(135deg, #FF3D9A 0%, #FF1493 100%)' }}>
+          <div style={{ maxWidth: '640px', margin: '0 auto', textAlign: 'center' }}>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(1.9rem, 4vw, 2.6rem)', fontWeight: 800, color: '#fff', margin: '0 0 0.6rem' }}>
+              Breakfast is calling 🍩
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', margin: '0 0 1.6rem' }}>
+              {welcomeOffer?.enabled && welcomeOffer.label
+                ? <>Enter your address and get <strong>{welcomeOffer.label} on your first order</strong>.</>
+                : <>Enter your address and we&apos;ll find fresh donuts near you.</>}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <input
+                type="text"
+                placeholder="Enter delivery address"
+                value={addressInput}
+                onChange={e => setAddressInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddressSearch() }}
+                style={{ flex: '1 1 300px', height: '54px', border: 'none', borderRadius: '10px', padding: '0 16px', fontSize: '1rem', color: '#12121C', outline: 'none', boxShadow: '0 8px 22px rgba(0,0,0,0.18)' }}
+              />
+              <button onClick={handleAddressSearch} disabled={addressLoading} style={{ height: '54px', background: '#12121C', color: '#fff', fontWeight: 700, fontSize: '1rem', border: 'none', borderRadius: '10px', padding: '0 30px', cursor: addressLoading ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                {addressLoading ? 'Searching…' : 'Order Donuts'}
+              </button>
             </div>
           </div>
         </section>
