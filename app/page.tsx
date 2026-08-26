@@ -11,6 +11,7 @@ import { useCart } from '@/lib/cart-context'
 import type { Shop } from '@/lib/types'
 import DonutIcon from '@/components/DonutIcon'
 import { estimateDeliveryEta, DEFAULT_ETA_LABEL } from '@/lib/eta'
+import { captureUtm, track } from '@/lib/analytics'
 import RunningDonut from '@/components/RunningDonut'
 
 function PromoBannerCarousel({ banners }: { banners: { title: string; subtitle: string; bg: string; emoji?: string; icon?: React.ReactNode; image?: string | null; href?: string; sponsored?: boolean }[] }) {
@@ -174,6 +175,7 @@ export default function HomePage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [featuredItems, setFeaturedItems] = useState<{ id: string; name: string; price: number; image_url: string; cutout_url?: string; shop_name: string; shop_slug: string }[]>([])
+  const [welcomeOffer, setWelcomeOffer] = useState<{ enabled: boolean; label?: string; code?: string | null; freeDelivery?: boolean } | null>(null)
   const [surgeActive, setSurgeActive] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
@@ -202,11 +204,29 @@ export default function HomePage() {
     } catch {}
   }, [])
 
+  // Attribution + funnel analytics (UTM captured on first landing).
+  useEffect(() => {
+    captureUtm()
+    track('landing_page_view')
+  }, [])
+
+  // Advertise ONLY what checkout will actually honor — the live welcome offer is
+  // read from the same server config the charge uses (never a hard-coded promo).
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/promo/welcome')
+      .then(r => r.json())
+      .then(d => { if (!cancelled && d?.enabled) setWelcomeOffer(d) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
   const requestGps = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setGpsStatus('unsupported')
       return
     }
+    track('use_location_clicked')
     setGpsStatus('requesting')
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -220,6 +240,7 @@ export default function HomePage() {
 
   const handleAddressSearch = useCallback(async () => {
     const addr = addressInput.trim()
+    track('address_entered', { hasQuery: !!addr })
     if (!addr) {
       router.push('/shops')
       return
@@ -1113,9 +1134,31 @@ export default function HomePage() {
                   : <>Fresh Donuts.<br />Delivered.</>
                 }
               </h1>
-              <p style={{ fontSize: 'clamp(1rem, 2vw, 1.15rem)', color: '#3A3A48', lineHeight: 1.5, margin: '0 0 1.75rem', maxWidth: '520px' }}>
+              <p style={{ fontSize: 'clamp(1rem, 2vw, 1.15rem)', color: '#3A3A48', lineHeight: 1.5, margin: '0 0 1.5rem', maxWidth: '520px' }}>
                 Find local donut shops near you and order fresh donuts, breakfast, coffee, kolaches, and more.
               </p>
+
+              {/* First-order offer — reads live server config, so it only ever
+                  advertises what checkout will actually honor (no bait-and-switch). */}
+              {welcomeOffer?.enabled && welcomeOffer.label && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+                  background: 'linear-gradient(90deg, #FFF0F6, #FFE3EF)', border: '1px solid rgba(255,20,147,0.28)',
+                  borderRadius: '999px', padding: '8px 16px', margin: '0 0 1.6rem',
+                  boxShadow: '0 6px 18px rgba(255,20,147,0.14)',
+                }}>
+                  <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>🍩</span>
+                  <span style={{ fontWeight: 800, color: '#B30059', fontSize: '0.95rem', letterSpacing: '-0.2px' }}>
+                    {welcomeOffer.label} <span style={{ color: '#5A5A68', fontWeight: 600 }}>your first order</span>
+                  </span>
+                  {welcomeOffer.code && (
+                    <span style={{
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontWeight: 800, fontSize: '0.8rem',
+                      color: '#fff', background: PINK, borderRadius: '6px', padding: '3px 9px', letterSpacing: '0.5px',
+                    }}>{welcomeOffer.code}</span>
+                  )}
+                </div>
+              )}
 
               {/* Uber-style search row: address · deliver-when · button */}
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'stretch', maxWidth: '760px' }}>
@@ -1210,13 +1253,13 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Right: DonutDash app images (transparent cut-out, floats on the hero) */}
-            <div style={{ flex: '1 1 360px', display: 'flex', justifyContent: 'center' }}>
+            {/* Right: fresh food — the star (real menu cutouts) */}
+            <div style={{ flex: '1 1 380px', display: 'flex', justifyContent: 'center' }}>
               <img
-                src="/hero-app.png"
-                alt="DonutDash app — browse shops, order donuts, and track delivery"
+                src="/hero-food.png"
+                alt="Fresh glazed, chocolate & sprinkle donuts, a kolache, and a breakfast croissant"
                 fetchPriority="high"
-                style={{ width: '100%', maxWidth: '480px', height: 'auto', display: 'block', filter: 'drop-shadow(0 16px 26px rgba(0,0,0,0.13))' }}
+                style={{ width: '100%', maxWidth: '520px', height: 'auto', display: 'block' }}
               />
             </div>
           </div>

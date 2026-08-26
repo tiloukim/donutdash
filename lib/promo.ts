@@ -14,6 +14,7 @@
 //   welcome_promo_value         percent (0-100) or flat dollars
 //   welcome_promo_code          optional code, e.g. WELCOME10 (blank = no code)
 //   welcome_promo_max_discount  optional $ cap for the percent type (0 = none)
+//   welcome_promo_free_delivery 'true' | 'false' — also waive the delivery fee
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -23,7 +24,13 @@ export interface WelcomePromo {
   code: string
   /** Dollar amount to deduct, already rounded to cents and capped. */
   discount: number
-  /** Human label, e.g. "Welcome offer (10% off)". */
+  /**
+   * When true the customer's delivery fee is also waived at checkout. The driver
+   * is still paid in full from the weekly payout — this only reduces the
+   * platform's take, so it's independent of the `discount` margin clamp.
+   */
+  freeDelivery: boolean
+  /** Human label, e.g. "Welcome offer (10% off + free delivery)". */
   label: string
 }
 
@@ -33,6 +40,7 @@ const SETTING_KEYS = [
   'welcome_promo_value',
   'welcome_promo_code',
   'welcome_promo_max_discount',
+  'welcome_promo_free_delivery',
 ] as const
 
 interface ComputeArgs {
@@ -130,35 +138,43 @@ export async function computeWelcomePromo({ svc, customerId, phone, deliveryAddr
     if (addrUsed === true) return null
   }
 
+  const freeDelivery = cfg.welcome_promo_free_delivery === 'true'
   const type = cfg.welcome_promo_type === 'amount' ? 'amount' : 'percent'
   const value = parseFloat(cfg.welcome_promo_value || '0') || 0
-  if (value <= 0) return null
+  // A free-delivery-only promo (no percent/amount) is still a valid offer.
+  if (value <= 0 && !freeDelivery) return null
 
-  let discount: number
-  let labelDetail: string
-  if (type === 'percent') {
-    discount = subtotal * (value / 100)
-    const cap = parseFloat(cfg.welcome_promo_max_discount || '0') || 0
-    if (cap > 0) discount = Math.min(discount, cap)
-    labelDetail = `${value % 1 === 0 ? value : value.toFixed(1)}% off`
-  } else {
-    discount = value
-    labelDetail = `$${value.toFixed(2)} off`
+  let discount = 0
+  const parts: string[] = []
+  if (value > 0) {
+    if (type === 'percent') {
+      discount = subtotal * (value / 100)
+      const cap = parseFloat(cfg.welcome_promo_max_discount || '0') || 0
+      if (cap > 0) discount = Math.min(discount, cap)
+      parts.push(`${value % 1 === 0 ? value : value.toFixed(1)}% off`)
+    } else {
+      discount = value
+      parts.push(`$${value.toFixed(2)} off`)
+    }
   }
 
   // Never discount more than the food subtotal; the charge math handles the
   // final clamp against the grand total.
   discount = Math.min(discount, subtotal)
-  // Clamp to the platform's discountable margin so the promo can only ever come
-  // out of platform earnings — never the shop payout, and never enough to fail
-  // the charge. Degrades gracefully: the customer just gets a smaller discount.
+  // Clamp to the platform's discountable margin so the discount can only ever
+  // come out of platform earnings — never the shop payout, and never enough to
+  // fail the charge. Free delivery is intentionally NOT clamped here: it's a
+  // separate platform-absorbed line (the driver is paid from the weekly payout).
   if (marginCap != null) discount = Math.min(discount, Math.max(0, marginCap))
   discount = Math.round(discount * 100) / 100
-  if (discount <= 0) return null
+  if (freeDelivery) parts.push('free delivery')
+  // Nothing left to give (margin clamped the discount to $0 and no free delivery).
+  if (discount <= 0 && !freeDelivery) return null
 
   return {
     code: configuredCode || 'WELCOME',
     discount,
-    label: `Welcome offer (${labelDetail})`,
+    freeDelivery,
+    label: `Welcome offer (${parts.join(' + ')})`,
   }
 }

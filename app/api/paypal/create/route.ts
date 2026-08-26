@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use shop's flat delivery fee (or platform default); pickup orders are free.
-    const deliveryFee = isPickup ? 0 : (shop?.delivery_fee ?? DEFAULT_DELIVERY_FEE)
+    const deliveryFeeQuoted = isPickup ? 0 : (shop?.delivery_fee ?? DEFAULT_DELIVERY_FEE)
 
     // SECURITY: never trust client-supplied prices — look up the real price for
     // each item from dd_menu_items for this shop (else a caller could pay 1¢).
@@ -114,6 +114,9 @@ export async function POST(request: NextRequest) {
     const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, phone: ddUser.phone, deliveryAddress: delivery_address, deliveryCity: delivery_city, subtotal, code: promo_code, marginCap: platformMargin })
     const promoDiscountAmt = promo?.discount ?? 0
     const promoCode = promo?.code ?? null
+    // Free-delivery welcome promo waives the customer's delivery fee (driver is
+    // still paid from the weekly payout). Zero it before the captured total.
+    const deliveryFee = (promo?.freeDelivery && !isPickup) ? 0 : deliveryFeeQuoted
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscountAmt) * 100) / 100
 
     // Create order in DB

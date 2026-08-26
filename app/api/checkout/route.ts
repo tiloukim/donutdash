@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
     const payCfg = await getPayConfig()
     const baseDeliveryFee = shop?.delivery_fee ?? payCfg.defaultDeliveryFee
     const extraMiles = Math.max(0, deliveryDistanceMiles - payCfg.deliveryFreeMiles)
-    const deliveryFee = isPickup
+    const deliveryFeeQuoted = isPickup
       ? 0
       : Math.round((baseDeliveryFee + extraMiles * payCfg.deliveryPerExtraMile) * 100) / 100
 
@@ -226,6 +226,18 @@ export async function POST(request: NextRequest) {
       0
     )
     const serviceFee = Math.round(subtotal * shopFeeRate * 100) / 100
+    // Promo recomputed server-side from the real subtotal; client value ignored.
+    // marginCap (service fee + commission; tax/tip/delivery excluded) keeps the
+    // percentage discount inside platform earnings — never the shop payout.
+    const platformMargin = serviceFee + subtotal * SHOP_COMMISSION_RATE
+    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, phone: ddUser.phone, deliveryAddress: delivery_address, deliveryCity: delivery_city, subtotal, code: promo_code, marginCap: platformMargin })
+    const promoDiscount = promo?.discount ?? 0
+    const promoCode = promo?.code ?? null
+    // A free-delivery welcome promo waives ONLY the customer's delivery fee. The
+    // driver is still paid in full from the weekly payout (base + per-mile + tip),
+    // so this just reduces the platform's own take — it never touches shop or
+    // driver money. Zero it BEFORE tax so we don't tax a fee the customer doesn't pay.
+    const deliveryFee = (promo?.freeDelivery && !isPickup) ? 0 : deliveryFeeQuoted
     // Texas Comptroller Rule 3.293: separately-stated delivery and service
     // fees on prepared-food sales are part of the taxable sale price. Tip
     // is not. All checkout paths must agree on the tax base or the customer
@@ -233,13 +245,6 @@ export async function POST(request: NextRequest) {
     const taxableBasis = subtotal + deliveryFee + serviceFee
     const tax = Math.round(taxableBasis * shopTaxRate * 100) / 100
     const tipAmount = tip || 0
-    // Promo recomputed server-side from the real subtotal; client value ignored.
-    // marginCap (service fee + commission; tax/tip/delivery excluded) keeps the
-    // discount inside platform earnings — never the shop payout.
-    const platformMargin = serviceFee + subtotal * SHOP_COMMISSION_RATE
-    const promo = await computeWelcomePromo({ svc, customerId: ddUser.id, phone: ddUser.phone, deliveryAddress: delivery_address, deliveryCity: delivery_city, subtotal, code: promo_code, marginCap: platformMargin })
-    const promoDiscount = promo?.discount ?? 0
-    const promoCode = promo?.code ?? null
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100
 
     // Idempotency: the browser sends a stable key per checkout attempt. If a

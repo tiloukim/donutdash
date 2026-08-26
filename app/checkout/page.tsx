@@ -75,7 +75,7 @@ export default function CheckoutPage() {
   const isPickup = fulfillmentType === 'pickup'
 
   const [promoInput, setPromoInput] = useState('')
-  const [promo, setPromo] = useState<{ code: string; discount: number; label: string } | null>(null)
+  const [promo, setPromo] = useState<{ code: string; discount: number; label: string; freeDelivery?: boolean } | null>(null)
   const [promoError, setPromoError] = useState('')
   const [promoChecking, setPromoChecking] = useState(false)
 
@@ -92,7 +92,7 @@ export default function CheckoutPage() {
       .then(r => r.json())
       .then(data => {
         if (!cancelled && data?.valid) {
-          setPromo({ code: data.code, discount: data.discount, label: data.label })
+          setPromo({ code: data.code, discount: data.discount, label: data.label, freeDelivery: data.freeDelivery })
         }
       })
       .catch(() => {})
@@ -266,7 +266,11 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hoursInfo])
 
-  const deliveryFee = isPickup ? 0 : (quote?.deliveryFee ?? shopFees.delivery_fee)
+  const deliveryFeeQuoted = isPickup ? 0 : (quote?.deliveryFee ?? shopFees.delivery_fee)
+  // A free-delivery welcome promo waives the customer's delivery fee (the driver
+  // is still paid from the weekly payout). Mirror the server's charge math so the
+  // displayed total always matches what Square charges.
+  const deliveryFee = promo?.freeDelivery && !isPickup ? 0 : deliveryFeeQuoted
   const serviceFee = Math.round(total * (shopFees.service_fee_pct / 100) * 100) / 100
   // Small-order fee removed — the server never charged it, so showing it made
   // the displayed total exceed the actual charge. Kept as 0 so the fee row hides
@@ -932,7 +936,14 @@ export default function CheckoutPage() {
               {!isPickup && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
                   <span style={{ color: '#666' }}>Delivery Fee {quote?.distanceMiles != null && <span style={{ fontSize: '0.7rem', color: '#aaa' }}>({quote.distanceMiles} mi)</span>}</span>
-                  <span>${deliveryFee.toFixed(2)}*</span>
+                  {promo?.freeDelivery && deliveryFeeQuoted > 0 ? (
+                    <span>
+                      <span style={{ color: '#aaa', textDecoration: 'line-through', marginRight: '0.4rem' }}>${deliveryFeeQuoted.toFixed(2)}</span>
+                      <span style={{ color: '#10B981', fontWeight: 700 }}>FREE</span>
+                    </span>
+                  ) : (
+                    <span>${deliveryFee.toFixed(2)}*</span>
+                  )}
                 </div>
               )}
               <div style={{ marginBottom: '0.35rem' }}>

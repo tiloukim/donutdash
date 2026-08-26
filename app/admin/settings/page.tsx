@@ -28,6 +28,7 @@ const WELCOME_DEFAULTS: Record<string, string> = {
   welcome_promo_value: '10',
   welcome_promo_code: 'WELCOME',
   welcome_promo_max_discount: '0',
+  welcome_promo_free_delivery: 'false',
 }
 
 // Customer referral program ($5 credit). Read by lib/referral.ts; defaults off.
@@ -229,6 +230,22 @@ export default function AdminSettings() {
                 fontSize: 15, outline: 'none', textTransform: 'uppercase',
               }}
             />
+          </div>
+
+          <div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, color: '#374151', cursor: promoEnabled ? 'pointer' : 'default' }}>
+              <input
+                type="checkbox"
+                checked={values.welcome_promo_free_delivery === 'true'}
+                onChange={e => set('welcome_promo_free_delivery', e.target.checked ? 'true' : 'false')}
+                disabled={!promoEnabled}
+                style={{ width: 18, height: 18, accentColor: '#EC4899' }}
+              />
+              Also waive the delivery fee on the first order
+            </label>
+            <p style={{ margin: '6px 0 0 28px', fontSize: 12, color: '#9CA3AF' }}>
+              The driver is still paid in full (base + per-mile + tip) from the weekly payout — this only reduces the platform&apos;s take.
+            </p>
           </div>
         </div>
       </div>
