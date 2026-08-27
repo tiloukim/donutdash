@@ -26,6 +26,7 @@ async function getCityShops(city: string, state: string): Promise<Shop[]> {
     .from('dd_shops')
     .select('*')
     .eq('is_active', true)
+    .eq('is_claimed', true) // only "on board" shops — hide unclaimed seed listings
     .ilike('city', city)
     .ilike('state', state)
     .order('rating', { ascending: false })
@@ -35,7 +36,7 @@ async function getCityShops(city: string, state: string): Promise<Shop[]> {
 export async function generateStaticParams() {
   try {
     const svc = createServiceClient()
-    const { data } = await svc.from('dd_shops').select('city, state').eq('is_active', true)
+    const { data } = await svc.from('dd_shops').select('city, state').eq('is_active', true).eq('is_claimed', true)
     const set = new Set<string>()
     for (const s of data || []) {
       if (s.city && s.state) {

@@ -27,7 +27,7 @@ export default function FlyerGenerator() {
   const flyerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/shops')
+    fetch('/api/shops?include_unclaimed=1')
       .then(r => r.json())
       .then(d => setShops(d.shops || []))
       .catch(() => {})

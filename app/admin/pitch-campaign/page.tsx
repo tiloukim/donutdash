@@ -42,7 +42,7 @@ export default function PitchCampaignPage() {
   useEffect(() => {
     load()
     // Also fetch unclaimed shops for the add-form dropdown.
-    fetch('/api/shops?limit=200')
+    fetch('/api/shops?limit=200&include_unclaimed=1')
       .then((r) => r.json())
       .then((d) => setShops((d.shops as Shop[]).filter((s) => !s.is_claimed)))
       .catch(() => {})

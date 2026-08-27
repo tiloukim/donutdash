@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const customerLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : null
     const customerLng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : null
+    // Admin tools (pitch/flyers) opt in to see unclaimed seed listings.
+    const includeUnclaimed = searchParams.get('include_unclaimed') === '1'
 
     let query = supabase
       .from('dd_shops')
@@ -20,7 +22,13 @@ export async function GET(request: NextRequest) {
       .order('rating', { ascending: false })
 
     if (slug) {
+      // Single-shop lookup (shop pages, claim funnel) resolves any shop by slug.
       query = query.eq('slug', slug)
+    } else if (!includeUnclaimed) {
+      // Customer browse shows only "on board" shops — a real merchant has
+      // claimed and is running the shop. Unclaimed seed/marketplace listings
+      // (empty menus) are hidden from all customer listings.
+      query = query.eq('is_claimed', true)
     }
 
     const { data: shops, error } = await query
