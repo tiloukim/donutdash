@@ -1253,13 +1253,13 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Right: fresh food — the star (real menu cutouts) */}
+            {/* Right: DonutDash mobile app */}
             <div style={{ flex: '1 1 380px', display: 'flex', justifyContent: 'center' }}>
               <img
-                src="/hero-food.png"
-                alt="Fresh glazed, chocolate & sprinkle donuts, a kolache, and a breakfast croissant"
+                src="/hero-app.png"
+                alt="DonutDash mobile app"
                 fetchPriority="high"
-                style={{ width: '100%', maxWidth: '520px', height: 'auto', display: 'block' }}
+                style={{ width: '100%', maxWidth: '440px', height: 'auto', display: 'block', filter: 'drop-shadow(0 16px 30px rgba(0,0,0,0.14))' }}
               />
             </div>
           </div>
