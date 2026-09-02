@@ -38,12 +38,23 @@ export async function GET() {
         default: return !!(o.bank_account_holder && o.bank_routing_number && o.bank_account_number)
       }
     }
+    // The customer-facing card surcharge is admin-only to SEE, not just to
+    // change. Managers (general / field / marketing) get the fields stripped
+    // from the payload entirely — hiding them in the UI alone would still
+    // ship the values to the browser. `viewer_is_admin` lets the page decide
+    // whether to render the controls at all.
+    const callerIsAdmin = ddUser.role === 'admin'
     const out = (shops || []).map(s => {
       const owner = (Array.isArray(s.owner) ? s.owner[0] : s.owner) as Owner
-      return { ...s, payout_ready: ready(owner), owner: owner ? { name: owner.name, email: owner.email } : null }
+      const base = { ...s, payout_ready: ready(owner), owner: owner ? { name: owner.name, email: owner.email } : null }
+      if (!callerIsAdmin) {
+        delete (base as Record<string, unknown>).card_surcharge_pct
+        delete (base as Record<string, unknown>).card_surcharge_mode
+      }
+      return base
     })
 
-    return NextResponse.json({ shops: out })
+    return NextResponse.json({ shops: out, viewer_is_admin: callerIsAdmin })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -123,7 +134,10 @@ export async function PATCH(request: NextRequest) {
     // shouldn't be able to flip commission rates or service fees. UI
     // surface for these fields is already admin-gated, this is the
     // matching server enforcement.
-    const REVENUE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'delivery_fee', 'min_order', 'cash_discount_pct', 'pos_card_fee']
+    // card_surcharge_* is the customer-facing card fee — the most directly
+    // money-moving setting we have, since it changes what a cardholder is
+    // charged at the register. Admin-only, same as commission.
+    const REVENUE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'delivery_fee', 'min_order', 'cash_discount_pct', 'pos_card_fee', 'card_surcharge_pct', 'card_surcharge_mode']
     const callerIsAdmin = ddUser.role === 'admin'
     const touchesRevenue = REVENUE_FIELDS.some(k => k in fields)
     if (touchesRevenue && !callerIsAdmin) {
@@ -162,6 +176,33 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Cash discount must be between 0% and 10%' }, { status: 400 })
       }
       allowed.cash_discount_pct = pct
+    }
+    if ('card_surcharge_pct' in fields) {
+      // Customer-facing card fee. Ceiling of 4 matches the SQL check
+      // constraint and Mastercard's cap; Visa's is 3%. Percentage only —
+      // there is deliberately no flat component (see
+      // supabase/card-surcharge.sql): the flat $0.15/card is pos_card_fee,
+      // billed to the SHOP, and a second flat field beside it would be
+      // trivial to confuse.
+      const pct = Number(fields.card_surcharge_pct)
+      if (!Number.isFinite(pct) || pct < 0 || pct > 4) {
+        return NextResponse.json({ error: 'Card surcharge must be between 0% and 4%' }, { status: 400 })
+      }
+      allowed.card_surcharge_pct = pct
+    }
+    if ('card_surcharge_mode' in fields) {
+      // Who applies the fee — the setting the original 4% bug got wrong.
+      //   none     no fee program
+      //   terminal the processor adds it on top of what the POS sends
+      //   pos      the POS computes it and includes it in the amount sent
+      // Setting 'terminal' when the TPN has no fee program means the POS
+      // quotes a fee nobody collects; setting 'pos' when the TPN DOES have
+      // one charges the customer twice.
+      const mode = String(fields.card_surcharge_mode)
+      if (!['none', 'terminal', 'pos'].includes(mode)) {
+        return NextResponse.json({ error: 'card_surcharge_mode must be none, terminal, or pos' }, { status: 400 })
+      }
+      allowed.card_surcharge_mode = mode
     }
     if ('pricing_mode' in fields) {
       // Three modes match the SQL enum check. 'standard' is the
