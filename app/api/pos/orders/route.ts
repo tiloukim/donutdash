@@ -168,12 +168,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? 'Insert failed' }, { status: 500 })
   }
 
-  // Bill the shop owner the per-card-transaction fee. Card only (cash is
-  // exempt), logged in its own ledger — NOT added to the order total, so the
-  // customer never sees or pays it. The rate is per-shop (dd_shops.pos_card_fee,
-  // default $0.15); we store the amount actually charged so historical bills
-  // stay right if the rate changes. Best-effort: a failed fee log must not
-  // fail the sale (the order already committed + the customer paid).
+  // Record the processor's flat per-card fee for reconciliation. Card only
+  // (cash is exempt), logged in its own ledger — NOT added to the order
+  // total, so the customer never sees or pays it.
+  //
+  // This does NOT bill anyone. The processor (Netevia / iPOSpays) deducts
+  // 3.5% + $0.15 from the deposit directly; this ledger exists so daily
+  // totals can be reconciled against the statement. No payout path reads it.
+  //
+  // Note it captures only the FLAT half — the 3.5% (dd_shops.pos_card_fee_pct)
+  // is reporting-only and is not written here, because /api/pos/card-fees/daily
+  // is consumed by an external billing pull (POS_BILLING_KEY) and changing
+  // what that returns needs the consumer's agreement first.
+  //
+  // The rate is per-shop (dd_shops.pos_card_fee, default $0.15); we store the
+  // amount in effect at the time so history stays right if the rate changes.
+  // Best-effort: a failed log must not fail the sale (the order already
+  // committed and the customer paid).
   if (body.payment_method !== 'cash') {
     const { data: shopFee } = await svc
       .from('dd_shops')

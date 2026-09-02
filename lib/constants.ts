@@ -44,9 +44,16 @@ export function isPayoutExcluded(email?: string | null): boolean {
 
 export const DEFAULT_DELIVERY_FEE = 3.99
 
-// Flat fee DonutDash bills the SHOP OWNER for each in-store POS card
-// transaction (not charged to the customer — separate from cash discount).
-// Logged per card sale in dd_pos_card_fees and summed in the shop's report.
+// Flat per-transaction half of what the PROCESSOR (Netevia / iPOSpays)
+// charges the SHOP on in-store card sales; the percentage half is
+// dd_shops.pos_card_fee_pct (3.5%). Deducted by the processor straight out
+// of the deposit — DonutDash never collects it, despite what this comment
+// used to say. Not charged to the customer either; that's
+// dd_shops.card_surcharge_pct.
+//
+// Logged per card sale in dd_pos_card_fees, which is a RECONCILIATION
+// record only: /api/pos/card-fees/daily reads it and explicitly moves no
+// money, and no payout path deducts it.
 export const POS_CARD_TRANSACTION_FEE = 0.15
 
 // Distance-based delivery pricing: the base delivery fee covers the first
