@@ -137,7 +137,7 @@ export async function PATCH(request: NextRequest) {
     // card_surcharge_* is the customer-facing card fee — the most directly
     // money-moving setting we have, since it changes what a cardholder is
     // charged at the register. Admin-only, same as commission.
-    const REVENUE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'delivery_fee', 'min_order', 'cash_discount_pct', 'pos_card_fee', 'card_surcharge_pct', 'card_surcharge_mode']
+    const REVENUE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'delivery_fee', 'min_order', 'cash_discount_pct', 'pos_card_fee', 'pos_card_fee_pct', 'card_surcharge_pct', 'card_surcharge_mode']
     const callerIsAdmin = ddUser.role === 'admin'
     const touchesRevenue = REVENUE_FIELDS.some(k => k in fields)
     if (touchesRevenue && !callerIsAdmin) {
@@ -176,6 +176,17 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Cash discount must be between 0% and 10%' }, { status: 400 })
       }
       allowed.cash_discount_pct = pct
+    }
+    if ('pos_card_fee_pct' in fields) {
+      // Percentage half of what the PROCESSOR charges the shop on card
+      // volume (the flat half is pos_card_fee). A cost to the shop, not
+      // DonutDash revenue — reporting only, never written to the
+      // dd_pos_card_fees ledger. Ceiling is a typo guard (35 vs 3.5).
+      const pct = Number(fields.pos_card_fee_pct)
+      if (!Number.isFinite(pct) || pct < 0 || pct > 10) {
+        return NextResponse.json({ error: 'Processor card rate must be between 0% and 10%' }, { status: 400 })
+      }
+      allowed.pos_card_fee_pct = pct
     }
     if ('card_surcharge_pct' in fields) {
       // Customer-facing card fee. Ceiling of 4 matches the SQL check
