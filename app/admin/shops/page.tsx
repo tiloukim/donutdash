@@ -19,6 +19,9 @@ interface Shop {
   service_fee_pct: number
   delivery_fee: number
   pos_card_fee: number
+  /** Percentage the processor charges the shop on card volume (merchant
+   *  cost, not DonutDash revenue). Pairs with the flat pos_card_fee. */
+  pos_card_fee_pct?: number
   min_order: number
   tax_rate: number
   cash_discount_pct: number
@@ -36,7 +39,7 @@ interface Shop {
   owner: { name: string; email: string } | null
 }
 
-const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pos_card_fee', 'pricing_mode', 'card_surcharge_pct', 'card_surcharge_mode', 'delivery_fee', 'min_order', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
+const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pos_card_fee', 'pos_card_fee_pct', 'pricing_mode', 'card_surcharge_pct', 'card_surcharge_mode', 'delivery_fee', 'min_order', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
 
 export default function AdminShops() {
   const [shops, setShops] = useState<Shop[]>([])
@@ -596,6 +599,15 @@ export default function AdminShops() {
                             title="Flat fee billed to the shop owner per in-store card transaction (not charged to the customer)."
                             style={numStyle}
                           /> / card
+                        </span>
+                      </label>
+                      <label style={cfgLabel}>Processor Rate %
+                        <span>
+                          <input type="number" step="0.25" min="0" max="10" value={shop.pos_card_fee_pct ?? 0}
+                            onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, pos_card_fee_pct: parseFloat(e.target.value) || 0 } : s))}
+                            title="Percentage the PROCESSOR charges the shop on card volume, deducted from the deposit. Pairs with POS Card Fee (the flat half). Reporting only — drives Net Sales. Not charged to the customer."
+                            style={numStyle}
+                          /> %
                         </span>
                       </label>
                       <label style={cfgLabel}>Min Order
