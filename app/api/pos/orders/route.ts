@@ -151,11 +151,11 @@ export async function POST(req: NextRequest) {
       cash_received: body.cash_received ?? null,
       change_given: body.change_given ?? null,
       cash_discount_amount: Math.round(discount * 100) / 100,
-      // TODO: persist card_surcharge once we add the column. For now the
-      // surcharge is folded into `total` (which IS persisted) and used
-      // only for the integrity check above. Reports that need to know
-      // "what % was surcharge" can derive it from (total - subtotal - tax
-      // - tip + cash_discount) until the column lands.
+      // Card fee as reported by the gateway, stored explicitly rather than
+      // folded into `total` and reverse-engineered later (see
+      // supabase/card-surcharge.sql). Deriving it arithmetically is what
+      // let a fabricated 4% go unnoticed in reports.
+      card_surcharge_amount: Math.round(surcharge * 100) / 100,
       card_brand: body.card_brand ?? null,
       card_last4: body.card_last4 ?? null,
       card_auth_code: body.card_auth_code ?? null,
