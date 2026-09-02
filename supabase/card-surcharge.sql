@@ -14,16 +14,19 @@
 -- Run in Supabase SQL editor.
 
 -- ── Per-shop rate ───────────────────────────────────────────────────
--- The fee is percentage + flat, because processors quote it that way
--- (e.g. 3.5% + $0.15 per swipe/dip/tap). Either component may be 0.
--- Both default to 0 so no shop starts charging a fee by accident —
--- enabling one is an explicit, per-shop decision.
+-- PERCENTAGE ONLY. Defaults to 0 so no shop starts charging a fee by
+-- accident — enabling it is an explicit, per-shop decision.
+--
+-- There is deliberately no flat component. Do NOT confuse this with
+-- dd_shops.pos_card_fee, the flat $0.15/card that DonutDash bills the
+-- SHOP OWNER: that one is logged to the dd_pos_card_fees ledger by
+-- app/api/pos/orders/route.ts and is never added to the order total, so
+-- the customer neither sees nor pays it. A flat surcharge column here
+-- would look identical at a glance and, set by mistake, would charge
+-- every customer $0.15 they never agreed to — 12% on a $1.25 donut.
 
 alter table public.dd_shops
   add column if not exists card_surcharge_pct numeric(5,2) not null default 0.00;
-
-alter table public.dd_shops
-  add column if not exists card_surcharge_flat numeric(6,2) not null default 0.00;
 
 alter table public.dd_shops
   drop constraint if exists dd_shops_card_surcharge_pct_range;
@@ -34,17 +37,8 @@ alter table public.dd_shops
   add constraint dd_shops_card_surcharge_pct_range
   check (card_surcharge_pct >= 0.00 and card_surcharge_pct <= 4.00);
 
-alter table public.dd_shops
-  drop constraint if exists dd_shops_card_surcharge_flat_range;
-alter table public.dd_shops
-  add constraint dd_shops_card_surcharge_flat_range
-  check (card_surcharge_flat >= 0.00 and card_surcharge_flat <= 1.00);
-
 comment on column public.dd_shops.card_surcharge_pct is
-  'Percentage component of the card fee passed to the customer (e.g. 3.50 for 3.5%). 0 = no percentage fee. Only meaningful when card_surcharge_mode is not ''none''.';
-
-comment on column public.dd_shops.card_surcharge_flat is
-  'Flat per-transaction component of the card fee in dollars (e.g. 0.15 per swipe/dip/tap). 0 = no flat fee. Note this dominates on small tickets: $0.15 on a $1.25 sale is 12% by itself.';
+  'Customer-facing card surcharge percentage (e.g. 3.50 for 3.5%). Percentage only, by design. 0 = no fee. Only meaningful when card_surcharge_mode is not ''none''. NOT the same as pos_card_fee, which is the flat $0.15/card billed to the shop owner and never charged to the customer.';
 
 -- ── Who applies the fee ─────────────────────────────────────────────
 -- The critical distinction, and the source of the original bug:
