@@ -23,6 +23,10 @@ interface Shop {
   tax_rate: number
   cash_discount_pct: number
   pricing_mode: 'standard' | 'cash_discount' | 'dual_pricing'
+  /** Customer-facing card surcharge. Optional because the API strips both
+   *  fields for non-admin viewers — managers never receive them. */
+  card_surcharge_pct?: number
+  card_surcharge_mode?: 'none' | 'terminal' | 'pos'
   is_sponsored?: boolean
   sponsor_rank?: number
   sponsor_headline?: string | null
@@ -32,7 +36,7 @@ interface Shop {
   owner: { name: string; email: string } | null
 }
 
-const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pos_card_fee', 'pricing_mode', 'delivery_fee', 'min_order', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
+const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pos_card_fee', 'pricing_mode', 'card_surcharge_pct', 'card_surcharge_mode', 'delivery_fee', 'min_order', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
 
 export default function AdminShops() {
   const [shops, setShops] = useState<Shop[]>([])
@@ -45,6 +49,9 @@ export default function AdminShops() {
   const [uploadError, setUploadError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [search, setSearch] = useState('')
+  // True only for dd_users.role === 'admin'. Managers never see the
+  // customer-facing card surcharge at all.
+  const [viewerIsAdmin, setViewerIsAdmin] = useState(false)
   // Which shop's fee/config panel is expanded (only one open at a time).
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -65,6 +72,10 @@ export default function AdminShops() {
         const list = data.shops || []
         setShops(list)
         setOriginalShops(list)
+        // Card-surcharge controls are admin-only. The API already strips the
+        // values for managers; this hides the inputs so they aren't shown a
+        // control that would 403 on save.
+        setViewerIsAdmin(!!data.viewer_is_admin)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -545,6 +556,39 @@ export default function AdminShops() {
                           />
                         </span>
                       </label>
+                      {/* ── Customer-facing card surcharge — ADMIN ONLY ──
+                          Changes what the cardholder is actually charged at
+                          the register, so it's gated to role === 'admin' both
+                          here and in the PATCH handler. Managers never receive
+                          the values from the API at all. */}
+                      {viewerIsAdmin ? (
+                        <>
+                          <label style={cfgLabel}>Card Surcharge %
+                            <span>
+                              <input type="number" step="0.25" min="0" max="4" value={shop.card_surcharge_pct ?? 0}
+                                onChange={e => setShops(prev => prev.map(s => s.id === shop.id ? { ...s, card_surcharge_pct: parseFloat(e.target.value) || 0 } : s))}
+                                title="Charged TO THE CUSTOMER on card sales. 0 = off. Visa caps surcharges at 3%, Mastercard at 4%. Not the same as POS Card Fee, which the shop pays."
+                                style={numStyle}
+                              /> %
+                            </span>
+                          </label>
+                          <label style={cfgLabel}>Surcharge Mode
+                            <select
+                              value={shop.card_surcharge_mode ?? 'none'}
+                              onChange={e => {
+                                const next = e.target.value as NonNullable<Shop['card_surcharge_mode']>
+                                setShops(prev => prev.map(s => s.id === shop.id ? { ...s, card_surcharge_mode: next } : s))
+                              }}
+                              style={{ padding: '5px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, background: '#fff', cursor: 'pointer' }}
+                              title="none = no fee. pos = the POS adds the fee and sends the final total to the terminal. terminal = the processor's own fee program adds it (only if the TPN is configured for it — otherwise the POS quotes a fee nobody collects)."
+                            >
+                              <option value="none">none</option>
+                              <option value="pos">pos</option>
+                              <option value="terminal">terminal</option>
+                            </select>
+                          </label>
+                        </>
+                      ) : null}
                       <label style={cfgLabel}>POS Card Fee
                         <span>
                           $ <input type="number" step="0.01" min="0" max="5" value={shop.pos_card_fee ?? 0.15}
