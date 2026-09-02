@@ -15,6 +15,8 @@ export default function robots(): MetadataRoute.Robots {
           '/checkout',
           '/cart',
           '/orders',
+          // Internal POS APK install link — not something to surface in search.
+          '/pos',
         ],
       },
     ],
