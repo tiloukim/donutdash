@@ -8,6 +8,7 @@ import ConditionalFooter from '@/components/ConditionalFooter'
 import CookieConsent from '@/components/CookieConsent'
 import InstallPrompt from '@/components/InstallPrompt'
 import PageTracker from '@/components/PageTracker'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -155,6 +156,12 @@ export default function RootLayout({
         </AuthProvider>
         <InstallPrompt />
         <CookieConsent />
+        {/* Vercel Web Analytics. Added because nobody could tell whether the
+            shop was getting no traffic or traffic that didn't convert —
+            those need opposite fixes, and every other theory about low order
+            volume was guesswork without it. Cookieless and no PII, so it
+            sits outside the CookieConsent gate. */}
+        <Analytics />
       </body>
     </html>
   )
