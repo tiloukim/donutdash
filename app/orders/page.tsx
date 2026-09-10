@@ -270,6 +270,8 @@ export default function OrdersPage() {
     if (!order.items || !order.shop_id) return
     clearCart()
     for (const item of order.items) {
+      // Custom POS lines carry no menu item, so there is nothing to re-add.
+      if (!item.menu_item_id) continue
       const cartItem: CartItem = {
         id: item.menu_item_id,
         name: item.name,
