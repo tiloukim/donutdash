@@ -126,6 +126,18 @@ export const MAX_DRIVER_DISTANCE_MILES = 10
 // Default shop delivery range (shop → customer). Per-shop
 // dd_shops.delivery_radius_miles overrides this when set.
 export const MAX_DELIVERY_MILES = 10
+
+// How far ahead of its slot a scheduled order stays "held": invisible to
+// dispatch, not acceptable by the store, and shown read-only on the shop
+// dashboard and the register. Released ~2h before the slot by the
+// release-scheduled-orders cron, which is when it becomes a live order.
+export const SCHEDULE_HOLD_MS = 2 * 60 * 60 * 1000
+
+/** True while a scheduled order is still held (ASAP orders are never held). */
+export function isHeldScheduled(scheduledFor: string | null | undefined): boolean {
+  if (!scheduledFor) return false
+  return new Date(scheduledFor).getTime() - Date.now() > SCHEDULE_HOLD_MS
+}
 export const BASE_DELIVERY_PAY = 3.00
 export const PER_MILE_PAY = 0.75
 export const DRIVER_LOCATION_UPDATE_INTERVAL = 10000

@@ -345,7 +345,7 @@ export default function ShopOrders() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: 20, fontWeight: 800, color: '#1A1A2E' }}>${o.subtotal?.toFixed(2)}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>{(o.items || []).reduce((s: number, i: any) => s + i.quantity, 0)} items</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>subtotal · {(o.items || []).reduce((s: number, i: any) => s + i.quantity, 0)} items</div>
                     <span style={{ fontSize: 14, color: '#ccc' }}>{isExpanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
@@ -389,10 +389,27 @@ export default function ShopOrders() {
                           ))}
                         </div>
 
-                        {/* Total */}
+                        {/* Item subtotal + what the shop keeps. This is NOT the
+                            customer's charge — tax, service fee, delivery and tip
+                            are DonutDash's side and stay hidden here. Labelling
+                            the subtotal "Total" made it look like it disagreed
+                            with the register, which shows the amount charged. */}
                         <div style={{ borderTop: '2px solid #f0f0f0', paddingTop: 12 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 18, fontWeight: 800 }}>
-                            <span>Total</span><span>${o.subtotal?.toFixed(2)}</span>
+                            <span>Item subtotal</span><span>${o.subtotal?.toFixed(2)}</span>
+                          </div>
+                          {typeof o.commission === 'number' && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 14, color: '#888' }}>
+                              <span>DonutDash commission</span><span>-${o.commission.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {typeof o.shop_earnings === 'number' && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 17, fontWeight: 800, color: '#10B981' }}>
+                              <span>You earn</span><span>${o.shop_earnings.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div style={{ fontSize: 12, color: '#aaa', marginTop: 6, lineHeight: 1.5 }}>
+                            The customer is charged more than this — tax, service fee, delivery and tip are handled by DonutDash.
                           </div>
                         </div>
                       </div>
