@@ -21,6 +21,11 @@ export async function GET(req: NextRequest) {
   // Active delivery orders that should have a driver working. Look back 24h so a
   // long-stranded order still gets rescued, but skip orders updated in the last
   // 90s to avoid racing the normal confirm-time creation path.
+  //
+  // The window is created_at OR scheduled_for: a scheduled order can be placed
+  // days before its slot, so a created_at-only floor silently excluded exactly
+  // the orders most likely to be orphaned (they skip dispatch at checkout and
+  // only get a driver when the shop accepts after release).
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const graceBefore = new Date(Date.now() - 90 * 1000).toISOString()
 
@@ -30,7 +35,7 @@ export async function GET(req: NextRequest) {
     .eq('fulfillment_type', 'delivery')
     .neq('order_type', 'pos_walkin')
     .in('status', ['confirmed', 'preparing', 'ready_for_pickup'])
-    .gte('created_at', since)
+    .or(`created_at.gte.${since},scheduled_for.gte.${since}`)
     .lte('updated_at', graceBefore)
 
   if (!orders || orders.length === 0) return NextResponse.json({ dispatched: 0 })

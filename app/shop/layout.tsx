@@ -337,7 +337,10 @@ function GlobalOrderAlert() {
       const res = await fetch('/api/shop/orders?status=pending')
       if (!res.ok) return
       const data = await res.json()
-      const pending = data.filter((o: any) => o.status === 'pending')
+      // A held scheduled order is pending but not yet the store's to act on —
+      // chiming for an order due in three days would train the staff to ignore
+      // the alarm. It still shows in the Orders list as upcoming.
+      const pending = data.filter((o: any) => o.status === 'pending' && !o.held)
 
       if (!silent) {
         const newOrders = pending.filter((o: any) => !knownIdsRef.current.has(o.id))
