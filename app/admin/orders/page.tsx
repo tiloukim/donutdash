@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ORDER_STATUS_LABELS, resolveCommissionRate } from '@/lib/constants'
+import { isHeldScheduled, ORDER_STATUS_LABELS, resolveCommissionRate } from '@/lib/constants'
 import DriverAvatar from '@/components/DriverAvatar'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
@@ -285,6 +285,9 @@ export default function AdminOrders() {
               }).map(order => {
                 const colors = STATUS_COLORS[order.status] || { bg: '#F3F4F6', text: '#374151' }
                 const delivery = Array.isArray(order.delivery) ? order.delivery[0] : order.delivery || null
+                // Still outside its release window: nothing is dispatched yet, so
+                // driver pay / distance legitimately don't exist.
+                const isHeld = isHeldScheduled(order.scheduled_for)
                 const isExpanded = expandedId === order.id
                 return (
                   <Fragment key={order.id}>
@@ -301,6 +304,11 @@ export default function AdminOrders() {
                       <td style={{ padding: '10px 12px', fontSize: 13 }}>
                         <div style={{ fontWeight: 500 }}>{order.customer?.name || '-'}</div>
                         <div style={{ color: '#9CA3AF', fontSize: 11 }}>{order.customer?.email || ''}</div>
+                        {order.scheduled_for && (
+                          <div style={{ color: '#B45309', fontSize: 11, fontWeight: 600, marginTop: 2 }}>
+                            {isHeld ? 'Scheduled' : 'Due'}: {new Date(order.scheduled_for).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#6B7280' }}>{order.shop?.name || '-'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</td>
@@ -375,9 +383,9 @@ export default function AdminOrders() {
                                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Sales Tax</span><span>${(order.tax || 0).toFixed(2)}</span></div>
                                 )}
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Tip</span><span>${(order.tip || 0).toFixed(2)}</span></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Driver Pay</span><span style={{ color: '#DC2626' }}>-${(delivery?.driver_earnings || 0).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Driver Pay</span>{delivery ? (<span style={{ color: '#DC2626' }}>-${(delivery.driver_earnings || 0).toFixed(2)}</span>) : (<span style={{ color: '#6B7280' }}>pending dispatch</span>)}</div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E5E7EB', paddingTop: 4, marginTop: 4 }}><span style={{ fontWeight: 700 }}>Total</span><span style={{ fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</span></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700, color: '#059669' }}>Admin Profit</span><span style={{ fontWeight: 700, color: '#059669' }}>${(((order.subtotal || 0) * resolveCommissionRate(order)) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) + (order.tip || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}</span></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700, color: '#059669' }}>Admin Profit{delivery ? '' : ' (before driver pay)'}</span><span style={{ fontWeight: 700, color: '#059669' }}>${(((order.subtotal || 0) * resolveCommissionRate(order)) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) + (order.tip || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}</span></div>
                               </div>
                             </div>
 
@@ -400,15 +408,32 @@ export default function AdminOrders() {
                                 </div>
                                 <div>
                                   <span style={{ color: '#6B7280' }}>Delivery Status: </span>
-                                  <span style={{ fontWeight: 500 }}>{delivery?.status || '-'}</span>
+                                  <span style={{ fontWeight: 500 }}>{delivery?.status || (isHeld ? 'Held — not dispatched' : 'Not dispatched')}</span>
                                 </div>
+                                {order.scheduled_for && (
+                                  <div>
+                                    <span style={{ color: '#6B7280' }}>Scheduled: </span>
+                                    <span style={{ fontWeight: 600, color: '#B45309' }}>
+                                      {new Date(order.scheduled_for).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                )}
                                 <div>
                                   <span style={{ color: '#6B7280' }}>Distance: </span>
                                   <span style={{ fontWeight: 500 }}>{delivery?.distance_miles != null ? `${Number(delivery.distance_miles).toFixed(1)} mi` : '—'}</span>
                                 </div>
+                                {/* Driver pay lives on dd_deliveries, so before dispatch there is
+                                    nothing to read. Showing $0.00 read as "this driver earns
+                                    nothing" when the truth is "not calculated yet". */}
                                 <div>
                                   <span style={{ color: '#6B7280' }}>Driver Earnings: </span>
-                                  <span style={{ fontWeight: 600, color: '#059669' }}>${(delivery?.driver_earnings || 0).toFixed(2)}</span>
+                                  {delivery ? (
+                                    <span style={{ fontWeight: 600, color: '#059669' }}>${(delivery.driver_earnings || 0).toFixed(2)}</span>
+                                  ) : (
+                                    <span style={{ fontWeight: 500, color: '#6B7280' }}>
+                                      Not calculated yet{isHeld ? ' — dispatches ~2h before the slot' : ''}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               {(delivery?.pickup_photo_url || delivery?.delivery_photo_url) && (
