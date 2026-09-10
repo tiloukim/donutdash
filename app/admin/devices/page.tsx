@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 
 // POS fleet presence. Each register (Elo / tablet) heartbeats
 // /api/pos/heartbeat every ~45s; a device is "online" if seen within 2 min
@@ -14,6 +14,7 @@ interface Device {
   register_label: string | null
   platform: string | null
   app_version: string | null
+  ota_update_id: string | null
   device_model: string | null
   card_terminal_tpn: string | null
   card_terminal_model: string | null
@@ -73,6 +74,16 @@ function TerminalBadge({ device }: { device: Device }) {
 
 export default function AdminDevices() {
   const [devices, setDevices] = useState<Device[]>([])
+
+  // Newest bundle any register has reported, by last_seen_at. Registers on a
+  // different one are running stale JS — the state that let a fixed-and-shipped
+  // bug keep firing from the shop floor with nothing to show for it.
+  const newestBundle = useMemo(() => {
+    const seen = devices
+      .filter((d) => d.ota_update_id)
+      .sort((a, b) => (b.last_seen_at || '').localeCompare(a.last_seen_at || ''))
+    return seen[0]?.ota_update_id ?? null
+  }, [devices])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
@@ -241,6 +252,26 @@ export default function AdminDevices() {
                     <span style={{ color: '#D1D5DB' }}>·</span>
                     {d.app_version ? <span>v{d.app_version}</span> : null}
                     {d.platform ? <span>{d.platform}</span> : null}
+                    {/* app_version is the native version and is the same on every
+                        OTA, so it can't reveal a register stuck on old JS. The
+                        bundle id can — and a register disagreeing with the newest
+                        bundle any device has reported is the thing worth seeing. */}
+                    <span style={{ color: '#D1D5DB' }}>·</span>
+                    {d.ota_update_id ? (
+                      <span
+                        style={{
+                          fontVariantNumeric: 'tabular-nums',
+                          fontWeight: d.ota_update_id === newestBundle ? 400 : 700,
+                          color: d.ota_update_id === newestBundle ? undefined : '#B45309',
+                        }}
+                        title={d.ota_update_id}
+                      >
+                        bundle {d.ota_update_id.slice(0, 8)}
+                        {newestBundle && d.ota_update_id !== newestBundle ? ' — stale' : ''}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#B45309', fontWeight: 700 }}>built-in — no OTA applied</span>
+                    )}
                     {d.last_ip ? (
                       <>
                         <span style={{ color: '#D1D5DB' }}>·</span>

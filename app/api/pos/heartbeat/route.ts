@@ -53,6 +53,8 @@ interface HeartbeatBody {
   card_terminal_model?: string | null
   card_terminal_connected?: boolean | null
   card_terminal_checked_at?: string | null
+  /** EAS Update bundle the register is running; null = embedded (no OTA yet). */
+  ota_update_id?: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -93,6 +95,9 @@ export async function POST(req: NextRequest) {
         card_terminal_model: body.card_terminal_model?.trim() || null,
         card_terminal_connected: body.card_terminal_connected ?? null,
         card_terminal_checked_at: body.card_terminal_checked_at || null,
+        // app_version is the NATIVE version and is identical across OTAs, so
+        // it can't distinguish a register on a stale JS bundle. This can.
+        ota_update_id: body.ota_update_id?.trim() || null,
         last_ip: lastIp,
         last_seen_at: new Date().toISOString(),
         // NOTE: pending_command is intentionally NOT in this set, so the
