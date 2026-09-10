@@ -24,7 +24,7 @@ import { NextResponse } from 'next/server'
 // move it to an unguessable path.
 
 const FALLBACK_APK_URL =
-  'https://expo.dev/artifacts/eas/JoF-VYZWcekAqEBZd-dHJRQ6QesfEHCNsLHzDxxRo0s.apk'
+  'https://expo.dev/artifacts/eas/cSbGLAPYdOApelVASjaM-EUHfj2Z4gSHa-9uvXIkVFo.apk'
 
 export const dynamic = 'force-dynamic'
 
