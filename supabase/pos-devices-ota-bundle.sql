@@ -1,0 +1,11 @@
+-- Which JS bundle each register is actually running.
+--
+-- dd_pos_devices.app_version holds the NATIVE version (1.0.1), which is
+-- identical across every OTA — so /admin/devices could not tell a register on
+-- a stale bundle from an up-to-date one. That gap is how a POS kept writing
+-- order status through a direct Supabase call for ~40 minutes after the fix
+-- that removed it had already shipped: nothing on the register or in the admin
+-- view revealed it was running old JS.
+--
+-- Null means the embedded bundle (no OTA applied yet).
+alter table dd_pos_devices add column if not exists ota_update_id text;
