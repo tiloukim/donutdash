@@ -1,0 +1,18 @@
+-- Allow an order line that has no menu item behind it.
+--
+-- WHY
+-- The POS keypad lets a cashier ring an arbitrary amount ("Custom item").
+-- app/(pos)/index.tsx synthesises a client-side id like
+-- "custom-1789080644182" so the line doesn't merge with other custom lines --
+-- but dd_order_items.menu_item_id is `uuid not null references dd_menu_items`,
+-- so the insert died with:
+--
+--   invalid input syntax for type uuid: "custom-1789080644182"
+--
+-- and the whole order was rolled back. A cashier could not complete ANY sale
+-- containing a custom amount.
+--
+-- A custom line genuinely has no menu item, so NULL is the honest value. The
+-- foreign key still applies to every non-null id, so real menu lines keep
+-- their referential integrity.
+alter table dd_order_items alter column menu_item_id drop not null;

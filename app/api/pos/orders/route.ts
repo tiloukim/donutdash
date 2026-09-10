@@ -9,7 +9,8 @@ import { POS_CARD_TRANSACTION_FEE } from '@/lib/constants'
 // actually own the shop they're billing to before inserting.
 
 interface CartLine {
-  menu_item_id: string
+  /** Null / non-uuid for a custom keypad amount — there is no menu item. */
+  menu_item_id: string | null
   name: string
   price: number
   quantity: number
@@ -183,8 +184,37 @@ export async function POST(req: NextRequest) {
   //
   // The rate is per-shop (dd_shops.pos_card_fee, default $0.15); we store the
   // amount in effect at the time so history stays right if the rate changes.
-  // Best-effort: a failed log must not fail the sale (the order already
-  // committed and the customer paid).
+  // Logged AFTER the items insert, so a sale that fails to save is never
+  // billed. Writing it earlier left orphan fee rows (order_id nulled by the
+  // FK when the failed order was rolled back) — three of them the day the
+  // custom-item bug was found, each for a sale that no longer existed.
+  // Best-effort from here: a failed log must not fail a sale the customer
+  // has already paid for.
+
+  // A custom keypad line has no menu item behind it — the POS synthesises a
+  // client-side id ("custom-1789080644182") purely to keep separate custom
+  // lines from merging in the cart. That is not a uuid, and sending it made
+  // Postgres reject the whole insert, rolling back the order: no sale
+  // containing a custom amount could be completed. Anything that isn't a uuid
+  // is stored as NULL (see supabase/order-items-custom-lines.sql).
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const items = body.lines.map((l) => ({
+    order_id: order.id,
+    menu_item_id: UUID_RE.test(String(l.menu_item_id ?? '')) ? l.menu_item_id : null,
+    name: l.name,
+    price: l.price,
+    quantity: l.quantity,
+    special_instructions: l.special_instructions ?? null,
+    image_url: l.image_url ?? null,
+  }))
+
+  const { error: itemsError } = await svc.from('dd_order_items').insert(items)
+  if (itemsError) {
+    // best-effort rollback of the parent row so the order doesn't linger empty
+    await svc.from('dd_orders').delete().eq('id', order.id)
+    return NextResponse.json({ error: itemsError.message }, { status: 500 })
+  }
+
   if (body.payment_method !== 'cash') {
     const { data: shopFee } = await svc
       .from('dd_shops')
@@ -198,23 +228,6 @@ export async function POST(req: NextRequest) {
       amount: fee,
       payment_method: body.payment_method,
     })
-  }
-
-  const items = body.lines.map((l) => ({
-    order_id: order.id,
-    menu_item_id: l.menu_item_id,
-    name: l.name,
-    price: l.price,
-    quantity: l.quantity,
-    special_instructions: l.special_instructions ?? null,
-    image_url: l.image_url ?? null,
-  }))
-
-  const { error: itemsError } = await svc.from('dd_order_items').insert(items)
-  if (itemsError) {
-    // best-effort rollback of the parent row so the order doesn't linger empty
-    await svc.from('dd_orders').delete().eq('id', order.id)
-    return NextResponse.json({ error: itemsError.message }, { status: 500 })
   }
 
   // Loyalty: award points to the attached walk-in customer (1 pt per $1 of
