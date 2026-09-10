@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { isHeldScheduled } from '@/lib/constants'
 
 export async function GET() {
   const supabase = await createClient()
@@ -16,10 +17,16 @@ export async function GET() {
     .is('driver_id', null)
     .order('created_at', { ascending: true })
 
-  const deliveries = (data || []).map(d => ({
-    ...d,
-    order: d.order ? { ...d.order, items: d.order.dd_order_items } : null,
-  }))
+  // Hide deliveries whose order is a still-held scheduled order. Dispatch is
+  // supposed to skip these, but a stray delivery row (an early confirm, a cron
+  // regression) would otherwise sit here claimable — and a driver accepting it
+  // would go collect an order days before it's baked.
+  const deliveries = (data || [])
+    .filter(d => !isHeldScheduled((d.order as { scheduled_for?: string } | null)?.scheduled_for))
+    .map(d => ({
+      ...d,
+      order: d.order ? { ...d.order, items: d.order.dd_order_items } : null,
+    }))
 
   return NextResponse.json(deliveries)
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
 import { getPayConfig } from '@/lib/pay-config'
+import { isHeldScheduled } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 
 // Safety net: a delivery order should get a dd_deliveries row + driver dispatch
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   const { data: orders } = await svc
     .from('dd_orders')
-    .select('id, tip, delivery_lat, delivery_lng, updated_at, shop:dd_shops(lat, lng)')
+    .select('id, tip, delivery_lat, delivery_lng, updated_at, scheduled_for, shop:dd_shops(lat, lng)')
     .eq('fulfillment_type', 'delivery')
     .neq('order_type', 'pos_walkin')
     .in('status', ['confirmed', 'preparing', 'ready_for_pickup'])
@@ -44,7 +45,11 @@ export async function GET(req: NextRequest) {
   const ids = orders.map(o => o.id)
   const { data: existing } = await svc.from('dd_deliveries').select('order_id').in('order_id', ids)
   const hasDelivery = new Set((existing || []).map(d => d.order_id))
-  const orphans = orders.filter(o => !hasDelivery.has(o.id))
+  // Never dispatch a still-held scheduled order. Widening the window above to
+  // include scheduled_for made this reachable: a scheduled order that gets
+  // confirmed early (POS, admin) would otherwise have a driver offered days
+  // before the slot. It becomes a normal orphan candidate once released.
+  const orphans = orders.filter(o => !hasDelivery.has(o.id) && !isHeldScheduled(o.scheduled_for))
 
   const cfg = await getPayConfig()
   let dispatched = 0

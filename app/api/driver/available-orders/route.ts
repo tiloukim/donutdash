@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { createDeliveryOffer } from '@/lib/delivery-assignment'
 import { ensureDriverEarnings } from '@/lib/pay-config'
+import { isHeldScheduled } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,13 +22,19 @@ export async function GET() {
 
   // Find deliveries with no driver assigned (pending status)
   const { data: unassigned } = await svc.from('dd_deliveries')
-    .select('id, order_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, distance_miles, driver_earnings, created_at, order:dd_orders(id, total, tip, subtotal, delivery_address, delivery_city, dd_order_items(quantity), shop:dd_shops(name, address, city))')
+    .select('id, order_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, distance_miles, driver_earnings, created_at, order:dd_orders(id, total, tip, subtotal, scheduled_for, delivery_address, delivery_city, dd_order_items(quantity), shop:dd_shops(name, address, city))')
     .is('driver_id', null)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
 
+  // Same hold as /api/driver/available — a still-held scheduled order must not
+  // be claimable, even if a stray delivery row exists for it.
+  const claimable = (unassigned || []).filter(
+    d => !isHeldScheduled((d.order as { scheduled_for?: string } | null)?.scheduled_for),
+  )
+
   // Backfill any missing driver_earnings so the offer never shows a placeholder.
-  const deliveries = await Promise.all((unassigned || []).map(async d => {
+  const deliveries = await Promise.all(claimable.map(async d => {
     const tip = (d.order as { tip?: number } | null)?.tip
     const driver_earnings = await ensureDriverEarnings(d.id, d.distance_miles, tip, d.driver_earnings)
     return { ...d, driver_earnings }
