@@ -90,7 +90,7 @@ export default function ShopOrders() {
     const res = await fetch(url)
     if (res.ok) {
       const data = await res.json()
-      const newPending = data.filter((o: any) => o.status === 'pending' && !knownOrderIdsRef.current.has(o.id))
+      const newPending = data.filter((o: any) => o.status === 'pending' && !o.held && !knownOrderIdsRef.current.has(o.id))
       if (newPending.length > 0) {
         playAlert()
         if ('Notification' in window && Notification.permission === 'granted') {
@@ -134,7 +134,7 @@ export default function ShopOrders() {
     setUpdating(null)
   }
 
-  const pendingCount = orders.filter(o => o.status === 'pending').length
+  const pendingCount = orders.filter(o => o.status === 'pending' && !o.held).length
 
   const togglePause = async (newPaused: boolean, reason?: string, minutes?: number) => {
     setTogglingPause(true)
@@ -309,10 +309,10 @@ export default function ShopOrders() {
 
             return (
               <div key={o.id} style={{
-                background: o.status === 'pending' ? '#FFF8FB' : '#fff', borderRadius: 14,
-                border: o.status === 'pending' ? '2px solid #FF1493' : '1px solid #FFE4EF',
+                background: o.status === 'pending' && !o.held ? '#FFF8FB' : '#fff', borderRadius: 14,
+                border: o.status === 'pending' && !o.held ? '2px solid #FF1493' : o.held ? '2px solid #F5B71D' : '1px solid #FFE4EF',
                 overflow: 'hidden',
-                animation: o.status === 'pending' ? 'pulse-bg 2s ease-in-out infinite' : undefined,
+                animation: o.status === 'pending' && !o.held ? 'pulse-bg 2s ease-in-out infinite' : undefined,
               }}>
                 {/* Order Header — clickable to expand */}
                 <div
@@ -372,7 +372,7 @@ export default function ShopOrders() {
                         <div style={{ fontSize: 14, fontWeight: 600, color: '#666', marginBottom: 12 }}>
                           {(o.items || []).reduce((s: number, i: any) => s + i.quantity, 0)} items
                           <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: statusStyle.bg, color: statusStyle.color, marginLeft: 8 }}>
-                            {o.status === 'pending' ? 'NEW' : o.status.replace(/_/g, ' ').toUpperCase()}
+                            {o.held ? 'SCHEDULED' : o.status === 'pending' ? 'NEW' : o.status.replace(/_/g, ' ').toUpperCase()}
                           </span>
                         </div>
 
@@ -470,7 +470,13 @@ export default function ShopOrders() {
 
                         {/* Action buttons */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {o.status === 'pending' && <>
+                          {o.status === 'pending' && o.held && (
+                            <div style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: '#FFF8EC', color: '#B45309', border: '1px solid #F5B71D', textAlign: 'center' }}>
+                              Scheduled for {new Date(o.scheduled_for).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                              <div style={{ fontWeight: 500, fontSize: 12, marginTop: 4 }}>Opens to accept 2 hours before.</div>
+                            </div>
+                          )}
+                          {o.status === 'pending' && !o.held && <>
                             <button onClick={(e) => { e.stopPropagation(); updateStatus(o.id, 'confirmed') }} disabled={updating === o.id}
                               style={{ width: '100%', padding: '14px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer' }}>
                               {updating === o.id ? '...' : '✓ Accept Order'}

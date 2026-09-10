@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { notifyAdmins, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
+import { pushAdmins } from '@/lib/push-server'
 
-// Releases "held" scheduled orders to the store ~2h before their slot: flips
-// the paid, still-pending order to 'confirmed' and fires the shop + admin
-// new-order notifications. The status flip is the dedupe — once confirmed a
-// later run won't re-select it. Runs every minute via vercel.json cron.
+// Releases "held" scheduled orders to the store ~2h before their slot and
+// fires the shop + admin new-order notifications. Runs every minute via
+// vercel.json cron.
+//
+// The release deliberately LEAVES the order 'pending'. A released scheduled
+// order has to look exactly like a fresh one to the store: the shop dashboard
+// and the POS side panel both key their "NEW order" chime, pulsing card, and
+// Accept button off status='pending', and the shop's Accept (pending ->
+// confirmed) is what dispatches a driver. Flipping to 'confirmed' here — as
+// this cron used to — released the order silently: no chime, no Accept, and no
+// driver until someone noticed it by hand.
+//
+// Dedupe is released_at (see supabase/scheduled-order-release.sql), set under a
+// released_at IS NULL guard so overlapping runs can't double-notify. Using a
+// dedicated marker instead of the status flip also means an order confirmed
+// early (admin action, manual edit) is no longer permanently disqualified from
+// being announced.
 //
 // Auth: Bearer CRON_SECRET (Vercel injects it for vercel.json crons).
 
@@ -20,14 +34,17 @@ export async function GET(req: NextRequest) {
   const svc = createServiceClient()
   const cutoff = new Date(Date.now() + RELEASE_LEAD_MS).toISOString()
 
-  // Held orders now within the lead window: paid, still 'pending', scheduled.
+  // Held orders now within the lead window: paid, scheduled, not yet released.
+  // Status is intentionally NOT part of the filter — an order someone confirmed
+  // early still needs its release announcement.
   const { data: due, error } = await svc
     .from('dd_orders')
-    .select('id, total, shop_id, scheduled_for')
-    .eq('status', 'pending')
+    .select('id, total, shop_id, scheduled_for, fulfillment_type, order_type')
+    .is('released_at', null)
     .not('payment_id', 'is', null)
     .not('scheduled_for', 'is', null)
     .lte('scheduled_for', cutoff)
+    .in('status', ['pending', 'confirmed'])
     .in('order_type', ['delivery', 'pickup'])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -35,13 +52,13 @@ export async function GET(req: NextRequest) {
 
   let released = 0
   for (const order of due) {
-    // Flip to confirmed FIRST (guarded on status='pending') so an overlapping
-    // run can never double-release / double-notify the same order.
+    // Stamp released_at FIRST (guarded on released_at IS NULL) so an
+    // overlapping run can never double-release / double-notify the same order.
     const { data: flipped, error: upErr } = await svc
       .from('dd_orders')
-      .update({ status: 'confirmed' })
+      .update({ released_at: new Date().toISOString() })
       .eq('id', order.id)
-      .eq('status', 'pending')
+      .is('released_at', null)
       .select('id')
     if (upErr || !flipped || flipped.length === 0) continue
 
@@ -74,6 +91,12 @@ export async function GET(req: NextRequest) {
     notifyAdmins(
       `Scheduled order due (${when}) — $${total} from ${shopName}`,
       `Scheduled Order Due: $${total} from ${shopName}`,
+    ).catch(() => {})
+    // Checkout pushes admins for every ASAP order; without this the release
+    // path was the one new-order event that never reached an admin device.
+    pushAdmins(
+      `Scheduled Order Due — $${total}`,
+      `${shopName} · ${when}`,
     ).catch(() => {})
   }
 
