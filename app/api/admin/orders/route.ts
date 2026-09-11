@@ -22,6 +22,18 @@ export async function GET() {
         items:dd_order_items(name, price, quantity),
         delivery:dd_deliveries(driver_earnings, driver_id, status, base_pay, distance_miles, delivery_photo_url, pickup_photo_url, driver:dd_users!driver_id(name, avatar_url))
       `)
+      // Delivery-business view only. POS walk-ins have entirely different
+      // economics — no commission, no driver, no service/delivery fee; the
+      // shop pays its processor directly — but this page applies the
+      // delivery model to every row it's given. A walk-in was therefore
+      // shown with a 20% commission it never paid and, because its status
+      // is 'delivered', a synthesised $3.00 driver estimate from the
+      // fallback below. Four test sales alone distorted Net Admin Profit by
+      // -$9.44, growing ~$3 per POS sale.
+      //
+      // Walk-in sales are reported in the POS app's own Reports screen,
+      // which accounts for processor fees instead.
+      .in('order_type', ['delivery', 'pickup'])
       .order('created_at', { ascending: false })
       .limit(200)
 
@@ -39,8 +51,14 @@ export async function GET() {
         // No stored value — recompute from current constants and stored distance.
         const dist = Number(delivery.distance_miles) || 0
         delivery.driver_earnings = Math.round((BASE_DELIVERY_PAY + dist * PER_MILE_PAY + tip) * 100) / 100
-      } else if (order.status !== 'cancelled' && order.status !== 'pending') {
-        // No delivery row yet — show an estimate so the table still renders a number.
+      } else if (
+        order.order_type === 'delivery' &&
+        order.status !== 'cancelled' &&
+        order.status !== 'pending'
+      ) {
+        // No delivery row yet — show an estimate so the table still renders
+        // a number. Gated to order_type 'delivery': a pickup has no driver
+        // and never will, so estimating pay for one invents a cost.
         const estimated = Math.round((BASE_DELIVERY_PAY + tip) * 100) / 100
         ;(order as any).delivery = [{ driver_earnings: estimated, driver_id: null, status: 'estimated', driver: null }]
       }
