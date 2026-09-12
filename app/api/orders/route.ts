@@ -29,7 +29,9 @@ export async function GET() {
 
     const { data: orders, error } = await supabase
       .from('dd_orders')
-      .select('*, shop:dd_shops(*), items:dd_order_items(*), delivery:dd_deliveries(delivery_photo_url)')
+      // dd_shops(*) handed the customer owner_pin_hash, owner_pin_salt and
+    // tax_id along with the shop name. Only what the order list renders.
+    .select('*, shop:dd_shops(id, name, slug, address, city, state, zip, phone, lat, lng, image_url), items:dd_order_items(*), delivery:dd_deliveries(delivery_photo_url)')
       .eq('customer_id', ddUser.id)
       .order('created_at', { ascending: false })
 

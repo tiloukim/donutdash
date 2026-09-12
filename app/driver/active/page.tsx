@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import ChatBox from '@/components/ChatBox'
+import CallButton from '@/components/CallButton'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -536,6 +537,8 @@ export default function ActiveDelivery() {
                    delivery.order.status}
                 </div>
               )}
+              {/* The shop's number is a published business line — dial it
+                  directly. Only personal numbers get a bridge. */}
               {delivery.order?.shop?.phone && (
                 <a href={`tel:${delivery.order.shop.phone}`} style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#3B82F6', textDecoration: 'none', fontWeight: 600 }}>
                   📞 Call Shop: {delivery.order.shop.phone}
@@ -566,10 +569,14 @@ export default function ActiveDelivery() {
               <p style={{ fontWeight: 700, fontSize: 16 }}>{delivery.order?.customer?.name || 'Customer'}</p>
               {delivery.order?.customer?.phone && (
                 <div style={{ marginTop: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {/* Masked — shown only so the driver can confirm the last
+                        four with whoever answers. The call goes through the
+                        bridge, not this string. */}
                     <span style={{ fontSize: 14, color: '#666' }}>
                       📞 {delivery.order.customer.phone}
                     </span>
+                    <CallButton orderId={delivery.order.id} to="customer" label="Call customer" compact />
                   </div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                     <button

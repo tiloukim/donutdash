@@ -5,6 +5,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import ChatBox from '@/components/ChatBox'
 import DriverAvatar from '@/components/DriverAvatar'
+import CallButton from '@/components/CallButton'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -650,10 +651,13 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <DriverAvatar name={tracking.driver.name} url={tracking.driver.avatar_url} selfieUrl={tracking.driver.selfie_url} size={48} />
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{tracking.driver.name}</div>
             <div style={{ fontSize: 12, color: '#888' }}>Your delivery driver</div>
           </div>
+          {/* The customer never gets the driver's number, and the driver
+              never gets theirs — the bridge connects them for this order. */}
+          <CallButton orderId={order.id} to="driver" label="Call driver" compact />
         </div>
       )}
 
@@ -665,6 +669,13 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
         }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', letterSpacing: 0.5, marginBottom: 6 }}>🏪 PICKUP AT</div>
           <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1A2E', marginBottom: 4 }}>{order.shop.name}</div>
+          {/* Direct — the shop's number is public. The driver's is not, which
+              is why that one goes through the bridge instead. */}
+          {order.shop.phone && (
+            <a href={`tel:${order.shop.phone}`} style={{ display: 'inline-block', marginBottom: 6, fontSize: 13, color: '#FF1493', textDecoration: 'none', fontWeight: 600 }}>
+              📞 Call {order.shop.name}: {order.shop.phone}
+            </a>
+          )}
           {order.shop.address && (
             <div style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>
               {order.shop.address}
