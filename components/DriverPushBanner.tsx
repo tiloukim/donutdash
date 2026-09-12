@@ -1,15 +1,21 @@
 'use client'
 
 // Nags a driver to turn on push notifications so they don't miss order offers.
-// Shows until push is actually active. Handles the iOS quirk where web push
-// only works once the app is added to the Home Screen (a Safari tab can't
-// receive push), and the "blocked" case where the browser must be changed in
+// Shows until push is actually active, and only when there is something the
+// driver can actually do about it: grant permission, or unblock it in browser
 // settings.
+//
+// iOS Safari can't receive web push at all unless the site is installed to the
+// Home Screen. There used to be a banner explaining that, but it sat on every
+// page load with no button to press — the fix is a multi-step detour through
+// the Share sheet, and dismissing it didn't stick. Offers already fall back to
+// SMS on iOS, so the banner cost attention without changing what a driver
+// receives. Now that path just stays quiet.
 
 import { useEffect, useState, useCallback } from 'react'
 import { subscribeToPush } from '@/lib/push-notifications'
 
-type State = 'checking' | 'ok' | 'prompt' | 'blocked' | 'ios-install'
+type State = 'checking' | 'ok' | 'prompt' | 'blocked'
 
 function isIOS(): boolean {
   if (typeof navigator === 'undefined') return false
@@ -30,9 +36,10 @@ export default function DriverPushBanner() {
     if (typeof window === 'undefined') return
     const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 
-    // iOS: push requires the app installed to the Home Screen.
-    if (isIOS() && !isStandalone()) { setState('ios-install'); return }
-    if (!supported) { setState(isIOS() ? 'ios-install' : 'ok'); return }
+    // iOS in a browser tab can't take web push however the driver is asked,
+    // so say nothing — SMS carries the offers there.
+    if (isIOS() && !isStandalone()) { setState('ok'); return }
+    if (!supported) { setState('ok'); return }
 
     if (Notification.permission === 'denied') { setState('blocked'); return }
     if (Notification.permission === 'granted') {
@@ -100,12 +107,6 @@ export default function DriverPushBanner() {
           <>
             <div style={headline}>Turn on order alerts</div>
             <div style={sub}>You won’t receive delivery offers until alerts are on — it only takes one tap.</div>
-          </>
-        )}
-        {state === 'ios-install' && (
-          <>
-            <div style={headline}>📲 Get order alerts on your iPhone</div>
-            <div style={sub}>Tap the <strong>Share</strong> icon, then <strong>“Add to Home Screen,”</strong> and open DonutDash from that icon to enable alerts. We’ll also text you offers in the meantime.</div>
           </>
         )}
         {state === 'blocked' && (
