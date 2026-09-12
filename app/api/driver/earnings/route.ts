@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { DRIVER_OFFER_ORDER_FIELDS } from '@/lib/driver-order-fields'
 import { BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
 
 export async function GET() {
@@ -12,7 +13,10 @@ export async function GET() {
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { data: deliveries } = await svc.from('dd_deliveries')
-    .select('*, order:dd_orders(*, shop:dd_shops(name), delivery_address, tip)')
+    // Completed runs are a payout history, not a contact list — the
+    // narrower set, so a driver's earnings page doesn't hand back the
+    // phone number of every customer they've ever delivered to.
+    .select(`*, order:dd_orders(${DRIVER_OFFER_ORDER_FIELDS}, shop:dd_shops(name))`)
     .eq('driver_id', ddUser.id)
     .eq('status', 'delivered')
     .order('delivered_at', { ascending: false })
