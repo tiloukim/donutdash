@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { isShopOpen } from '@/lib/shop-hours'
 import { refundSquareOrder } from '@/lib/square-refund'
 import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
+import { cancelDeliveryForOrder } from '@/lib/cancel-delivery'
 
 // Auto-cancel delivery/pickup orders that are still active after their
 // shop's closing hour. Runs hourly via vercel cron (vercel.json).
@@ -139,10 +140,7 @@ export async function GET(req: NextRequest) {
 
     // Cancel any active delivery too, so an already-assigned driver isn't left
     // with a "live" run for an order that's now refunded + cancelled.
-    await svc.from('dd_deliveries')
-      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-      .eq('order_id', order.id)
-      .neq('status', 'delivered')
+    await cancelDeliveryForOrder(order.id, { reason: 'Shop closed before the order went out' })
 
     // Best-effort customer email — never block the cron on email delivery.
     if (order.customer_id) {
