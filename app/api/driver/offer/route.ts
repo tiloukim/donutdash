@@ -224,6 +224,13 @@ export async function POST(req: NextRequest) {
   const { data: assigned, error: deliveryError } = await svc.from('dd_deliveries')
     .update({
       driver_id: ddUser.id,
+      // Denormalised so the POS can show who's collecting without reading
+      // dd_users — RLS blocks that for the cashier session. The claim path in
+      // available-orders has always set these; accepting a PUSHED offer did
+      // not, so an order dispatched to a driver showed a blank name at the
+      // counter while a self-claimed one showed it fine.
+      driver_name: ddUser.name ?? null,
+      driver_phone: ddUser.phone ?? null,
       status: 'assigned',
       driver_earnings: earnings,
     })
