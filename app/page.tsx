@@ -540,7 +540,7 @@ export default function HomePage() {
               {user.name?.charAt(0)?.toUpperCase() || 'U'}
             </a>
           ) : (
-            <Link href="/login" style={{
+            <Link href="/login" style={{ display: 'inline-block',
               padding: '8px 16px', background: PINK, color: 'white',
               borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none',
             }}>
@@ -1574,8 +1574,8 @@ export default function HomePage() {
               ))}
             </div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <Link href="/signup?role=shop_owner" style={{ background: PINK, color: '#fff', fontWeight: 700, padding: '0.9rem 2rem', borderRadius: '10px', textDecoration: 'none' }}>Join DonutDash</Link>
-              <Link href="/partner-setup" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', fontWeight: 700, padding: '0.9rem 2rem', borderRadius: '10px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.2)' }}>Learn about DonutDash for Shops</Link>
+              <Link href="/signup?role=shop_owner" style={{ display: 'inline-block', background: PINK, color: '#fff', fontWeight: 700, padding: '0.9rem 2rem', borderRadius: '10px', textDecoration: 'none' }}>Join DonutDash</Link>
+              <Link href="/partner-setup" style={{ display: 'inline-block', background: 'rgba(255,255,255,0.1)', color: '#fff', fontWeight: 700, padding: '0.9rem 2rem', borderRadius: '10px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.2)' }}>Learn about DonutDash for Shops</Link>
               <Link href="/signup?role=driver" style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700, padding: '0.9rem 0.5rem', textDecoration: 'underline' }}>Become a driver</Link>
             </div>
           </div>

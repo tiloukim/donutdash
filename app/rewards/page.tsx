@@ -72,7 +72,7 @@ export default function RewardsPage() {
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎁</div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Sign in to view your rewards</h2>
           <p style={{ color: '#888', marginBottom: '1.5rem' }}>Earn points on every order and redeem for free delivery and discounts!</p>
-          <Link href="/login" style={{
+          <Link href="/login" style={{ display: 'inline-block',
             background: '#FF8C00', color: 'white', padding: '0.75rem 2rem',
             borderRadius: '10px', fontWeight: 600, fontSize: '1rem', textDecoration: 'none',
           }}>Sign In</Link>

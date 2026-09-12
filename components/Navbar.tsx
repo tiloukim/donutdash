@@ -175,7 +175,7 @@ export default function Navbar() {
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <Link href="/login" className="nav-link">Sign In</Link>
-                  <Link href="/shops" style={{
+                  <Link href="/shops" style={{ display: 'inline-block',
                     background: '#FF1493',
                     color: 'white',
                     padding: '0.5rem 1.25rem',

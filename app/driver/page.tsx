@@ -631,7 +631,7 @@ function AvailableDeliveries() {
       )}
 
       <div style={{
-        background: '#fff', borderRadius: 16, padding: 40, textAlign: 'center',
+        background: '#fff', borderRadius: 16, padding: 'clamp(20px, 6vw, 40px)', textAlign: 'center',
         border: '1px solid #FFE8D6',
       }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>📡</div>

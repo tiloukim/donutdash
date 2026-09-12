@@ -415,7 +415,7 @@ export default function ShopDetailClient({
                 ${total.toFixed(2)}
               </span>
             </div>
-            <Link href="/cart" style={{
+            <Link href="/cart" style={{ display: 'inline-block',
               background: 'white',
               color: '#FF1493',
               padding: '0.6rem 1.5rem',

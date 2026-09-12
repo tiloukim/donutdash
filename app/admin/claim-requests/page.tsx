@@ -321,7 +321,7 @@ export default function AdminClaimRequestsPage() {
                             href={d.url!}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{
+                            style={{ display: 'inline-block',
                               padding: '6px 12px',
                               borderRadius: 6,
                               border: '1px solid #E5E7EB',
