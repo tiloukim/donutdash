@@ -45,6 +45,11 @@ export function computeAdminProfit(input: {
   tip: number
   driverEarnings: number
   processingFee: number
+  /** Welcome/referral promos are funded entirely by the platform —
+   *  app/api/checkout/route.ts applies them "without touching shop or driver
+   *  money." Omitting this reported an order that actually loses money as a
+   *  gain: order 083EC showed $13.44 profit while really running about -$1.41. */
+  promoDiscount?: number
 }): number {
   const gross =
     input.subtotal * input.commissionRate +
@@ -52,5 +57,5 @@ export function computeAdminProfit(input: {
     input.deliveryFee +
     input.smallOrderFee +
     input.tip
-  return Math.round((gross - input.driverEarnings - input.processingFee) * 100) / 100
+  return Math.round((gross - input.driverEarnings - input.processingFee - (input.promoDiscount || 0)) * 100) / 100
 }

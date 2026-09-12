@@ -93,6 +93,7 @@ export async function GET() {
         tip: Number(order.tip) || 0,
         driverEarnings: Number(delivery?.driver_earnings) || 0,
         processingFee,
+        promoDiscount: Number(order.promo_discount) || 0,
       })
       return { ...order, processing_fee: processingFee, admin_profit: adminProfit }
     })
