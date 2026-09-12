@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: order } = await svc
     .from('dd_orders')
-    .select('*, shop:dd_shops(lat, lng)')
+    .select('*, shop:dd_shops(lat, lng, timezone)')
     .eq('id', id)
     .eq('shop_id', shop_id)
     .single()
