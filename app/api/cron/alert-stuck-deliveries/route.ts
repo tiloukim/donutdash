@@ -34,7 +34,17 @@ export async function GET(req: NextRequest) {
     .eq('status', 'pending')
     .lte('created_at', cutoff)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // 42703 = the stuck_alerted_at column isn't migrated yet. This cron runs
+  // every minute; without this it would 500 sixty times an hour and bury real
+  // failures in the log. Report it once per run and do nothing else — the
+  // alert is simply off until supabase/delivery-stuck-alert.sql is applied.
+  if (error) {
+    const unmigrated = (error as any).code === '42703'
+    return NextResponse.json(
+      { error: error.message, ...(unmigrated ? { skipped: 'stuck_alerted_at not migrated' } : {}) },
+      { status: unmigrated ? 200 : 500 },
+    )
+  }
   if (!stuck?.length) return NextResponse.json({ alerted: 0 })
 
   let alerted = 0
