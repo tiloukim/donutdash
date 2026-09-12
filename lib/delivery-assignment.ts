@@ -301,3 +301,61 @@ export async function assignNextDriver(deliveryId: string, opts: { force?: boole
 // quoteDriverEarnings() reads from dd_platform_settings at runtime so
 // the admin Settings page actually controls pay. Old constant-only
 // helpers were removed to keep callers from grabbing the stale path.
+
+/**
+ * Whether a driver may take on `delivery` given what they already hold.
+ *
+ * The self-claim endpoints used to refuse outright the moment a driver had any
+ * active delivery — stricter than dispatch, which has always allowed stacking
+ * two orders from one shop. A driver carrying one order to an address could be
+ * OFFERED the second order to that same address, but could not accept it from
+ * Available Deliveries: "You already have an active delivery."
+ *
+ * Same rule as findNearestAvailableDrivers: same shop, drop-offs within
+ * BATCH_DROPOFF_RADIUS_MILES, under the stack cap.
+ */
+export async function canDriverTakeDelivery(
+  driverId: string,
+  delivery: { order_id: string; dropoff_lat?: number | null; dropoff_lng?: number | null },
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const svc = createServiceClient()
+
+  const { data: active } = await svc
+    .from('dd_deliveries')
+    .select('dropoff_lat, dropoff_lng, order:dd_orders(shop_id)')
+    .eq('driver_id', driverId)
+    .in('status', ['assigned', 'picked_up', 'delivering'])
+
+  const held = active || []
+  if (held.length === 0) return { ok: true }
+  if (held.length >= MAX_STACKED_DELIVERIES) {
+    return { ok: false, reason: `You can carry ${MAX_STACKED_DELIVERIES} deliveries at once. Finish one first.` }
+  }
+
+  const { data: target } = await svc
+    .from('dd_orders')
+    .select('shop_id')
+    .eq('id', delivery.order_id)
+    .maybeSingle()
+  const shopId = target?.shop_id
+  if (!shopId) return { ok: false, reason: 'You already have an active delivery.' }
+
+  const sameShop = held.some((h) => (h.order as any)?.shop_id === shopId)
+  if (!sameShop) {
+    return { ok: false, reason: 'You already have an active delivery from another shop.' }
+  }
+
+  const { dropoff_lat: lat, dropoff_lng: lng } = delivery
+  if (lat == null || lng == null) return { ok: true }
+
+  const near = held.some(
+    (h) =>
+      h.dropoff_lat != null &&
+      h.dropoff_lng != null &&
+      haversineDistance(h.dropoff_lat, h.dropoff_lng, lat, lng) <= BATCH_DROPOFF_RADIUS_MILES,
+  )
+  if (!near) {
+    return { ok: false, reason: 'Your current delivery is going somewhere else. Finish it first.' }
+  }
+  return { ok: true }
+}

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { assignNextDriver } from '@/lib/delivery-assignment'
+import { assignNextDriver, canDriverTakeDelivery } from '@/lib/delivery-assignment'
 import { quoteDriverEarnings, ensureDriverEarnings } from '@/lib/pay-config'
 import { haversineDistance } from '@/lib/osrm'
+import { MAX_STACKED_DELIVERIES } from '@/lib/constants'
 import { MAX_DRIVER_DISTANCE_MILES } from '@/lib/constants'
 
 // GET - get current pending offer for this driver
@@ -76,24 +77,32 @@ export async function GET() {
     return NextResponse.json(null)
   }
 
-  // Busy-driver gate — if this driver has an active delivery, no
-  // self-claim. Mirrors the cap in findNearestAvailableDrivers.
+  // Stack cap only — the per-delivery batching decision happens below, once we
+  // know WHICH delivery is being considered. Blocking on "has any active
+  // delivery" here would hide the second order from a driver already heading
+  // to that address, which dispatch would have offered them.
   const { data: activeDeliveries } = await svc
     .from('dd_deliveries')
     .select('id')
     .eq('driver_id', ddUser.id)
     .in('status', ['assigned', 'picked_up', 'delivering'])
-    .limit(1)
-  if (activeDeliveries && activeDeliveries.length > 0) {
+  if ((activeDeliveries?.length ?? 0) >= MAX_STACKED_DELIVERIES) {
     return NextResponse.json(null)
   }
 
   if (driverLoc?.lat && driverLoc?.lng && driverLoc.lat !== 0 && driverLoc.lng !== 0) {
-    const { data: unassigned } = await svc
+    const { data: unassignedAll } = await svc
       .from('dd_deliveries')
-      .select('id, pickup_lat, pickup_lng')
+      .select('id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, order_id')
       .eq('status', 'pending')
       .is('driver_id', null)
+
+    // Keep only deliveries this driver may actually take given what they hold.
+    const unassigned: typeof unassignedAll = []
+    for (const d of unassignedAll || []) {
+      const ok = await canDriverTakeDelivery(ddUser.id, d)
+      if (ok.ok) unassigned.push(d)
+    }
 
     if (unassigned?.length) {
       // Find nearest unassigned delivery within range
