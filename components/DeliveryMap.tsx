@@ -46,31 +46,41 @@ export default function DeliveryMap({ shopLat, shopLng, customerLat, customerLng
 
     const bounds: L.LatLngExpression[] = []
 
-    // Shop marker
-    if (markersRef.current.shop) markersRef.current.shop.remove()
-    const shopIcon = L.divIcon({
-      html: '<div style="font-size:24px;text-align:center">🏪</div>',
-      iconSize: [30, 30],
-      iconAnchor: [15, 15],
-      className: '',
-    })
-    markersRef.current.shop = L.marker([shopLat, shopLng], { icon: shopIcon })
-      .addTo(map)
-      .bindPopup('Pickup Location')
-    bounds.push([shopLat, shopLng])
-
-    // Customer marker
-    if (customerLat && customerLng) {
-      if (markersRef.current.customer) markersRef.current.customer.remove()
-      const custIcon = L.divIcon({
-        html: '<div style="font-size:24px;text-align:center">📍</div>',
+    // Shop marker. Moved in place rather than removed and re-added: this
+    // effect re-runs on every driver position update — every 5s during a live
+    // delivery — and tearing the pin down each time made it blink and closed
+    // any popup the customer had open. The driver marker below already did it
+    // this way; the fixed pins didn't.
+    if (markersRef.current.shop) {
+      markersRef.current.shop.setLatLng([shopLat, shopLng])
+    } else {
+      const shopIcon = L.divIcon({
+        html: '<div style="font-size:24px;text-align:center">🏪</div>',
         iconSize: [30, 30],
         iconAnchor: [15, 15],
         className: '',
       })
-      markersRef.current.customer = L.marker([customerLat, customerLng], { icon: custIcon })
+      markersRef.current.shop = L.marker([shopLat, shopLng], { icon: shopIcon })
         .addTo(map)
-        .bindPopup('Delivery Location')
+        .bindPopup('Pickup Location')
+    }
+    bounds.push([shopLat, shopLng])
+
+    // Customer marker
+    if (customerLat && customerLng) {
+      if (markersRef.current.customer) {
+        markersRef.current.customer.setLatLng([customerLat, customerLng])
+      } else {
+        const custIcon = L.divIcon({
+          html: '<div style="font-size:24px;text-align:center">📍</div>',
+          iconSize: [30, 30],
+          iconAnchor: [15, 15],
+          className: '',
+        })
+        markersRef.current.customer = L.marker([customerLat, customerLng], { icon: custIcon })
+          .addTo(map)
+          .bindPopup('Delivery Location')
+      }
       bounds.push([customerLat, customerLng])
     }
 
