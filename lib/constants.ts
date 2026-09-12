@@ -123,6 +123,14 @@ export const OFFER_TIMEOUT_SECONDS = 45
 export const DRIVER_STALE_MS = 5 * 60 * 1000
 // Dispatch: how far a driver can be from the shop to receive an offer.
 export const MAX_DRIVER_DISTANCE_MILES = 10
+
+// Two deliveries from the same shop are worth putting on one driver only if
+// they're actually going the same way. Measured between drop-off points: a
+// second stop within this radius is on the route, not a detour.
+export const BATCH_DROPOFF_RADIUS_MILES = 2
+
+// Most deliveries one driver may hold or be offered at once.
+export const MAX_STACKED_DELIVERIES = 2
 // Default shop delivery range (shop → customer). Per-shop
 // dd_shops.delivery_radius_miles overrides this when set.
 export const MAX_DELIVERY_MILES = 10

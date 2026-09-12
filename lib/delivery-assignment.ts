@@ -3,9 +3,19 @@ import { haversineDistance } from './osrm'
 import { sendEmail, sendSMS } from './sms'
 import { sendPushToUser } from './push-server'
 import { getPayConfig } from './pay-config'
-import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS, DRIVER_STALE_MS } from './constants'
+import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS, DRIVER_STALE_MS, BATCH_DROPOFF_RADIUS_MILES, MAX_STACKED_DELIVERIES } from './constants'
 
-export async function findNearestAvailableDrivers(shopLat: number, shopLng: number, excludeDriverIds: string[] = [], shopId?: string) {
+export async function findNearestAvailableDrivers(
+  shopLat: number,
+  shopLng: number,
+  excludeDriverIds: string[] = [],
+  shopId?: string,
+  /** Drop-off of the delivery being offered — batching only stacks orders
+   *  heading the same way, so we compare this against what the driver is
+   *  already carrying. Omitted (legacy callers) falls back to shop-only. */
+  dropLat?: number | null,
+  dropLng?: number | null,
+) {
   const svc = createServiceClient()
 
   // Matches the offline-stale-drivers cron threshold (DRIVER_STALE_MS) — a
@@ -28,50 +38,78 @@ export async function findNearestAvailableDrivers(shopLat: number, shopLng: numb
   // Get active deliveries per driver (with shop info for batching)
   const { data: busyDrivers } = await svc
     .from('dd_deliveries')
-    .select('driver_id, order:dd_orders(shop_id)')
+    .select('driver_id, dropoff_lat, dropoff_lng, order:dd_orders(shop_id)')
     .in('status', ['assigned', 'picked_up', 'delivering'])
 
   // Count active deliveries per driver and track their shop_ids
   const driverDeliveryCounts = new Map<string, number>()
   const driverShopIds = new Map<string, Set<string>>()
-  for (const d of busyDrivers || []) {
-    driverDeliveryCounts.set(d.driver_id, (driverDeliveryCounts.get(d.driver_id) || 0) + 1)
-    const sid = (d.order as any)?.shop_id
-    if (sid) {
-      if (!driverShopIds.has(d.driver_id)) driverShopIds.set(d.driver_id, new Set())
-      driverShopIds.get(d.driver_id)!.add(sid)
+  const driverDropoffs = new Map<string, { lat: number; lng: number }[]>()
+  function noteLoad(driverId: string, sid: unknown, lat: unknown, lng: unknown) {
+    driverDeliveryCounts.set(driverId, (driverDeliveryCounts.get(driverId) || 0) + 1)
+    if (typeof sid === 'string') {
+      if (!driverShopIds.has(driverId)) driverShopIds.set(driverId, new Set())
+      driverShopIds.get(driverId)!.add(sid)
     }
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      if (!driverDropoffs.has(driverId)) driverDropoffs.set(driverId, [])
+      driverDropoffs.get(driverId)!.push({ lat, lng })
+    }
+  }
+  for (const d of busyDrivers || []) {
+    noteLoad(d.driver_id, (d.order as any)?.shop_id, d.dropoff_lat, d.dropoff_lng)
   }
 
   // Check for pending offers (only non-expired ones)
+  // A pending offer used to exclude a driver outright. That quietly defeated
+  // batching whenever two orders from one shop were dispatched close together
+  // — the shop accepts both back to back, the driver has a pending offer on
+  // the first and zero active deliveries, so the second skipped past them to
+  // another driver. Two trips to the same street. Pending offers now count as
+  // load, so a driver can be stacked while still deciding.
   const { data: pendingOffers } = await svc
     .from('dd_delivery_offers')
-    .select('driver_id, expires_at')
+    .select('driver_id, delivery:dd_deliveries(dropoff_lat, dropoff_lng, order:dd_orders(shop_id))')
     .eq('status', 'pending')
     .gte('expires_at', new Date().toISOString())
 
-  const pendingIds = new Set((pendingOffers || []).map(o => o.driver_id))
+  for (const o of pendingOffers || []) {
+    const del = o.delivery as any
+    noteLoad(o.driver_id, del?.order?.shop_id, del?.dropoff_lat, del?.dropoff_lng)
+  }
+
   const excludeSet = new Set(excludeDriverIds)
 
   console.log('[DRIVER FIND] Driver delivery counts:', Object.fromEntries(driverDeliveryCounts))
-  console.log('[DRIVER FIND] Pending offer drivers:', [...pendingIds])
+  console.log('[DRIVER FIND] Pending offers counted as load:', (pendingOffers || []).length)
   console.log('[DRIVER FIND] Excluded drivers:', excludeDriverIds)
 
   const available = onlineDrivers
     .filter(d => {
-      if (excludeSet.has(d.driver_id) || pendingIds.has(d.driver_id)) return false
+      if (excludeSet.has(d.driver_id)) return false
       if (d.lat === 0 && d.lng === 0) return false // No GPS fix
 
       const activeCount = driverDeliveryCounts.get(d.driver_id) || 0
       if (activeCount === 0) return true // Free driver
-      if (activeCount >= 2) return false // Max 2 stacked deliveries
+      if (activeCount >= MAX_STACKED_DELIVERIES) return false
 
-      // Allow batching: 1 active delivery from the same shop
-      if (activeCount === 1 && shopId) {
-        const shops = driverShopIds.get(d.driver_id)
-        return shops ? shops.has(shopId) : false
-      }
-      return false
+      // Batching: same shop, and actually heading the same way. Same shop
+      // alone isn't enough — two Top Donuts orders going to opposite ends of
+      // Tyler are two trips however they're dispatched, and stacking them
+      // just makes the second customer wait through the first.
+      if (!shopId) return false
+      const shops = driverShopIds.get(d.driver_id)
+      if (!shops?.has(shopId)) return false
+
+      // No drop-off given (legacy callers) — fall back to shop-only batching
+      // rather than refusing to batch at all.
+      if (dropLat == null || dropLng == null) return true
+
+      const drops = driverDropoffs.get(d.driver_id) ?? []
+      if (drops.length === 0) return true
+      return drops.some(
+        (p) => haversineDistance(p.lat, p.lng, dropLat, dropLng) <= BATCH_DROPOFF_RADIUS_MILES,
+      )
     })
     .map(d => ({
       driver_id: d.driver_id,
@@ -248,7 +286,10 @@ export async function assignNextDriver(deliveryId: string, opts: { force?: boole
   }
 
   const shopId = (delivery.order as any)?.shop_id
-  const nearbyDrivers = await findNearestAvailableDrivers(shopLat, shopLng, excludeIds, shopId)
+  const nearbyDrivers = await findNearestAvailableDrivers(
+    shopLat, shopLng, excludeIds, shopId,
+    delivery.dropoff_lat, delivery.dropoff_lng,
+  )
 
   if (nearbyDrivers.length === 0) return null
 
@@ -260,3 +301,61 @@ export async function assignNextDriver(deliveryId: string, opts: { force?: boole
 // quoteDriverEarnings() reads from dd_platform_settings at runtime so
 // the admin Settings page actually controls pay. Old constant-only
 // helpers were removed to keep callers from grabbing the stale path.
+
+/**
+ * Whether a driver may take on `delivery` given what they already hold.
+ *
+ * The self-claim endpoints used to refuse outright the moment a driver had any
+ * active delivery — stricter than dispatch, which has always allowed stacking
+ * two orders from one shop. A driver carrying one order to an address could be
+ * OFFERED the second order to that same address, but could not accept it from
+ * Available Deliveries: "You already have an active delivery."
+ *
+ * Same rule as findNearestAvailableDrivers: same shop, drop-offs within
+ * BATCH_DROPOFF_RADIUS_MILES, under the stack cap.
+ */
+export async function canDriverTakeDelivery(
+  driverId: string,
+  delivery: { order_id: string; dropoff_lat?: number | null; dropoff_lng?: number | null },
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const svc = createServiceClient()
+
+  const { data: active } = await svc
+    .from('dd_deliveries')
+    .select('dropoff_lat, dropoff_lng, order:dd_orders(shop_id)')
+    .eq('driver_id', driverId)
+    .in('status', ['assigned', 'picked_up', 'delivering'])
+
+  const held = active || []
+  if (held.length === 0) return { ok: true }
+  if (held.length >= MAX_STACKED_DELIVERIES) {
+    return { ok: false, reason: `You can carry ${MAX_STACKED_DELIVERIES} deliveries at once. Finish one first.` }
+  }
+
+  const { data: target } = await svc
+    .from('dd_orders')
+    .select('shop_id')
+    .eq('id', delivery.order_id)
+    .maybeSingle()
+  const shopId = target?.shop_id
+  if (!shopId) return { ok: false, reason: 'You already have an active delivery.' }
+
+  const sameShop = held.some((h) => (h.order as any)?.shop_id === shopId)
+  if (!sameShop) {
+    return { ok: false, reason: 'You already have an active delivery from another shop.' }
+  }
+
+  const { dropoff_lat: lat, dropoff_lng: lng } = delivery
+  if (lat == null || lng == null) return { ok: true }
+
+  const near = held.some(
+    (h) =>
+      h.dropoff_lat != null &&
+      h.dropoff_lng != null &&
+      haversineDistance(h.dropoff_lat, h.dropoff_lng, lat, lng) <= BATCH_DROPOFF_RADIUS_MILES,
+  )
+  if (!near) {
+    return { ok: false, reason: 'Your current delivery is going somewhere else. Finish it first.' }
+  }
+  return { ok: true }
+}

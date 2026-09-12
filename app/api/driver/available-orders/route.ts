@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { createDeliveryOffer } from '@/lib/delivery-assignment'
+import { canDriverTakeDelivery, createDeliveryOffer } from '@/lib/delivery-assignment'
 import { ensureDriverEarnings } from '@/lib/pay-config'
 import { isHeldScheduled } from '@/lib/constants'
 
@@ -62,22 +62,23 @@ export async function POST(req: NextRequest) {
 
   // Verify the delivery is still unassigned
   const { data: delivery } = await svc.from('dd_deliveries')
-    .select('id, driver_id, status, order_id, distance_miles, driver_earnings, order:dd_orders(tip)')
+    .select('id, driver_id, status, order_id, dropoff_lat, dropoff_lng, distance_miles, driver_earnings, order:dd_orders(tip)')
     .eq('id', delivery_id)
     .single()
 
   if (!delivery) return NextResponse.json({ error: 'Delivery not found' }, { status: 404 })
   if (delivery.driver_id) return NextResponse.json({ error: 'Already claimed by another driver' }, { status: 400 })
 
-  // Check driver isn't already busy
-  const { data: busy } = await svc.from('dd_deliveries')
-    .select('id')
-    .eq('driver_id', ddUser.id)
-    .in('status', ['assigned', 'picked_up', 'delivering'])
-    .limit(1)
-
-  if (busy && busy.length > 0) {
-    return NextResponse.json({ error: 'You already have an active delivery' }, { status: 400 })
+  // Batching, not a blanket block. A driver already carrying one order from
+  // this shop to this address should be able to take the second — refusing
+  // was stricter than dispatch, which would happily have offered it to them.
+  const allowed = await canDriverTakeDelivery(ddUser.id, {
+    order_id: delivery.order_id,
+    dropoff_lat: delivery.dropoff_lat,
+    dropoff_lng: delivery.dropoff_lng,
+  })
+  if (!allowed.ok) {
+    return NextResponse.json({ error: allowed.reason }, { status: 400 })
   }
 
   // Assign to this driver. Use .select() and verify exactly one row
