@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { refundSquareOrder } from '@/lib/square-refund'
+import { cancelDeliveryForOrder } from '@/lib/cancel-delivery'
 
 function texml(content: string) {
   return new NextResponse(
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   if (digits === '2') {
     // Reject: release any driver, cancel + refund the customer.
-    await svc.from('dd_deliveries').update({ status: 'cancelled' }).eq('order_id', orderId).neq('status', 'delivered')
+    await cancelDeliveryForOrder(orderId, { reason: 'Shop declined by phone' })
     let refunded = false
     if (order.payment_method === 'square') {
       const result = await refundSquareOrder({

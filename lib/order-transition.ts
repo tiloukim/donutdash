@@ -6,6 +6,7 @@ import { sendPushToUser } from '@/lib/push-server'
 import { refundSquareOrder } from '@/lib/square-refund'
 import { getPayConfig } from '@/lib/pay-config'
 import { formatShopDateTime } from '@/lib/time-format'
+import { cancelDeliveryForOrder } from '@/lib/cancel-delivery'
 
 // The single implementation of "a store moved an online order forward".
 //
@@ -152,10 +153,7 @@ export async function applyOrderTransition({
   // When shop cancels an accepted order, refund the customer + cancel delivery
   if (status === 'cancelled' && (order.status === 'confirmed' || order.status === 'preparing' || order.status === 'ready_for_pickup')) {
     // Cancel any active delivery (driver may still be assigned)
-    await svc.from('dd_deliveries')
-      .update({ status: 'cancelled' })
-      .eq('order_id', order_id)
-      .neq('status', 'delivered')
+    await cancelDeliveryForOrder(order_id, { reason: cancellation_reason ?? null })
 
     // Refund the customer. Customer payments run through Square (single
     // platform location), so the platform absorbs the gross refund and

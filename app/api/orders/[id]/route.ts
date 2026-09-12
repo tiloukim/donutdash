@@ -4,6 +4,7 @@ import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
 import { getPayConfig } from '@/lib/pay-config'
 import { refundSquareOrder } from '@/lib/square-refund'
+import { cancelDeliveryForOrder } from '@/lib/cancel-delivery'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -88,10 +89,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (cancelErr) return NextResponse.json({ error: cancelErr.message }, { status: 500 })
 
     // Also cancel any associated delivery record
-    await svc
-      .from('dd_deliveries')
-      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-      .eq('order_id', id)
+    await cancelDeliveryForOrder(id, { reason: body.cancellation_reason ?? 'Cancelled by customer' })
 
     // Refund the customer if the order was already paid. Only pending/confirmed/
     // adjusted orders are cancellable here — i.e. the shop hasn't started
@@ -156,7 +154,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
       // Full refund if the customer declined the adjusted order.
       if (body.status === 'cancelled') {
-        await svc.from('dd_deliveries').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('order_id', id)
+        await cancelDeliveryForOrder(id, { reason: 'Customer declined the adjusted order' })
         const refundTotal = Math.round((currentOrder.original_total || currentOrder.total) * 100)
         const r = await refundSquareOrder({
           orderId: id,

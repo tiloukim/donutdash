@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeForShop } from '@/lib/pos-shop-auth'
 import { refundSquareOrder } from '@/lib/square-refund'
+import { cancelDeliveryForOrder } from '@/lib/cancel-delivery'
 
 // POST /api/pos/orders/:id/cancel  — cancel an online order from the POS,
 // refunding the customer and cancelling any in-flight delivery. The POS used
@@ -38,10 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // Cancel any active delivery so a driver isn't left holding it.
-  await svc.from('dd_deliveries')
-    .update({ status: 'cancelled' })
-    .eq('order_id', id)
-    .neq('status', 'delivered')
+  await cancelDeliveryForOrder(id, { reason: reason || 'Cancelled at the register' })
 
   // Refund the customer (online orders are charged through Square at checkout).
   let refunded = false
