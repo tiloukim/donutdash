@@ -1,0 +1,11 @@
+-- Marks a delivery as "we've already told an admin nobody has taken this".
+--
+-- assignNextDriver gives up after MAX_OFFER_ATTEMPTS (3) and leaves the
+-- delivery sitting in Available Deliveries, hoping a driver self-claims.
+-- Nothing told anyone. A paid order with the food already made could sit
+-- indefinitely with no driver: cancel-stale-orders only fires when the shop
+-- CLOSES, and call-unaccepted-orders watches the shop accepting, not dispatch.
+--
+-- Nullable timestamp rather than a boolean so the alert can be re-armed by
+-- clearing it, and so we can see when it fired.
+alter table dd_deliveries add column if not exists stuck_alerted_at timestamptz;

@@ -38,13 +38,24 @@ export async function POST(req: Request) {
   if (status === 'picked_up') updateData.picked_up_at = new Date().toISOString()
   if (status === 'delivered') updateData.delivered_at = new Date().toISOString()
 
-  const { data: updated, error } = await svc.from('dd_deliveries')
+  // Guard on the status we validated against. Two taps (or a retry on a slow
+  // network) both passed the transition check above and both wrote, so a
+  // delivery could jump assigned -> delivered and stamp delivered_at over a
+  // picked_up that never happened.
+  const { data: updatedRows, error } = await svc.from('dd_deliveries')
     .update(updateData)
     .eq('id', delivery_id)
+    .eq('status', delivery.status)
     .select()
-    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!updatedRows || updatedRows.length === 0) {
+    return NextResponse.json(
+      { error: 'That delivery just changed — pull to refresh.' },
+      { status: 409 },
+    )
+  }
+  const updated = updatedRows[0]
 
   // Sync order status
   const orderStatusMap: Record<string, string> = {
