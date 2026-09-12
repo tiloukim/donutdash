@@ -179,7 +179,7 @@ export default function PitchCampaignPage() {
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <Link
                           href={`/admin/shops/${r.shop_id}/pitch`}
-                          style={{ background: '#EEF2FF', color: '#4F46E5', padding: '4px 10px', borderRadius: 4, textDecoration: 'none', fontWeight: 600 }}
+                          style={{ display: 'inline-block', background: '#EEF2FF', color: '#4F46E5', padding: '4px 10px', borderRadius: 4, textDecoration: 'none', fontWeight: 600 }}
                         >
                           Pitch
                         </Link>

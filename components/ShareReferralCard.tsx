@@ -89,7 +89,7 @@ export default function ShareReferralCard({
             {url}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <a href={smsHref} style={{
+            <a href={smsHref} style={{ display: 'inline-block',
               flex: 1, minWidth: 100, padding: '10px 14px', borderRadius: 8, border: 'none',
               background: '#10B981', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
               textAlign: 'center', textDecoration: 'none',
@@ -114,7 +114,7 @@ export default function ShareReferralCard({
             }}>
               ⬇ QR
             </button>
-            <a href={posterUrl} style={{
+            <a href={posterUrl} style={{ display: 'inline-block',
               flex: 1, minWidth: 100, padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd',
               background: '#fff', color: '#333', fontSize: 14, fontWeight: 700, cursor: 'pointer',
               textAlign: 'center', textDecoration: 'none',

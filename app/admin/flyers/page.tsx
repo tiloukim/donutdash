@@ -162,7 +162,7 @@ export default function FlyerGenerator() {
               <a
                 href={`/api/qr/shop?slug=${shop.slug}&type=${shop.is_claimed === false ? 'claim' : 'order'}&size=400&color=%23FF1493`}
                 download={`QR-${shop.slug}.png`}
-                style={{
+                style={{ display: 'inline-block',
                   padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd',
                   background: '#fff', color: '#333', fontWeight: 600, fontSize: 13,
                   cursor: 'pointer', textDecoration: 'none', textAlign: 'center',

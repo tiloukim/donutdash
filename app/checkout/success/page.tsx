@@ -162,7 +162,7 @@ function SuccessContent() {
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             {orderId && (
-              <Link href={`/orders/${orderId}`} style={{
+              <Link href={`/orders/${orderId}`} style={{ display: 'inline-block',
                 background: '#FF1493', color: 'white', padding: '0.85rem 2rem',
                 borderRadius: '10px', fontWeight: 700, fontSize: '0.95rem',
                 textDecoration: 'none',
@@ -170,7 +170,7 @@ function SuccessContent() {
                 Track Order
               </Link>
             )}
-            <Link href="/shops" style={{
+            <Link href="/shops" style={{ display: 'inline-block',
               background: 'white', color: '#FF1493', padding: '0.85rem 2rem',
               borderRadius: '10px', fontWeight: 700, fontSize: '0.95rem',
               border: '2px solid #FF1493', textDecoration: 'none',

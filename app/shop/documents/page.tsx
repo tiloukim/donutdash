@@ -197,7 +197,7 @@ export default function ShopDocuments() {
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                   {doc?.file_url && (
                     <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                      style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, color: '#666', textDecoration: 'none' }}>
+                      style={{ display: 'inline-block', padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, color: '#666', textDecoration: 'none' }}>
                       View
                     </a>
                   )}
@@ -266,7 +266,7 @@ export default function ShopDocuments() {
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                   {doc?.file_url && (
                     <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                      style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, color: '#666', textDecoration: 'none' }}>
+                      style={{ display: 'inline-block', padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, color: '#666', textDecoration: 'none' }}>
                       View
                     </a>
                   )}

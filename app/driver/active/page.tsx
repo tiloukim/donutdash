@@ -267,13 +267,13 @@ export default function ActiveDelivery() {
 
   if (completed) {
     return (
-      <div style={{ background: '#fff', borderRadius: 16, padding: 60, textAlign: 'center', border: '1px solid #D1FAE5' }}>
+      <div style={{ background: '#fff', borderRadius: 16, padding: 'clamp(20px, 7vw, 60px)', textAlign: 'center', border: '1px solid #D1FAE5' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
         <h2 style={{ fontSize: 24, fontWeight: 700, color: '#065F46', marginBottom: 8 }}>Delivery Complete!</h2>
         <p style={{ fontSize: 16, color: '#10B981', fontWeight: 700, marginBottom: 24 }}>
           Earned: ${(delivery?.driver_earnings ?? 0).toFixed(2)}
         </p>
-        <Link href="/driver" style={{
+        <Link href="/driver" style={{ display: 'inline-block',
           background: '#FF8C00', color: '#fff', padding: '12px 28px',
           borderRadius: 8, textDecoration: 'none', fontWeight: 700,
         }}>
@@ -285,11 +285,11 @@ export default function ActiveDelivery() {
 
   if (deliveries.length === 0) {
     return (
-      <div style={{ background: '#fff', borderRadius: 16, padding: 60, textAlign: 'center', border: '1px solid #FFE8D6' }}>
+      <div style={{ background: '#fff', borderRadius: 16, padding: 'clamp(20px, 7vw, 60px)', textAlign: 'center', border: '1px solid #FFE8D6' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🚗</div>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No Active Delivery</h2>
         <p style={{ color: '#888', marginBottom: 24 }}>You don&apos;t have an active delivery right now.</p>
-        <Link href="/driver" style={{
+        <Link href="/driver" style={{ display: 'inline-block',
           background: '#FF8C00', color: '#fff', padding: '12px 28px',
           borderRadius: 8, textDecoration: 'none', fontWeight: 700,
         }}>

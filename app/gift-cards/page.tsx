@@ -122,7 +122,7 @@ export default function GiftCardsPage() {
         <Navbar />
         <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 16, padding: 24 }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Sign in to access Gift Cards</h2>
-          <Link href="/login" style={{ background: '#FF1493', color: '#fff', padding: '0.75rem 2rem', borderRadius: 10, fontWeight: 600, textDecoration: 'none' }}>Sign In</Link>
+          <Link href="/login" style={{ display: 'inline-block', background: '#FF1493', color: '#fff', padding: '0.75rem 2rem', borderRadius: 10, fontWeight: 600, textDecoration: 'none' }}>Sign In</Link>
         </div>
       </>
     )

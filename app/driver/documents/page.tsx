@@ -339,7 +339,7 @@ export default function DriverDocuments() {
                       href={doc.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{
+                      style={{ display: 'inline-block',
                         padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff',
                         fontSize: 13, color: '#666', textDecoration: 'none', cursor: 'pointer',
                       }}
