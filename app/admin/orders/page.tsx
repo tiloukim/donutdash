@@ -30,6 +30,8 @@ interface OrderRow {
   delivery_fee: number
   service_fee: number
   small_order_fee: number
+  processing_fee?: number
+  admin_profit?: number
   commission_pct: number | null
   tax: number
   tip: number
@@ -220,7 +222,10 @@ export default function AdminOrders() {
   // included in driver pay (pass-through) — both sides cancel, but they must
   // both appear or the formula double-counts the tip subtract. Tax is held
   // in escrow for the TX comptroller and not platform income.
-  const totalAdminProfit = shopCommissions + serviceFees + deliveryFees + smallOrderFees + tipsCollected - driverPayouts
+  const processingFees = orders.reduce((s, o) => s + (o.processing_fee || 0), 0)
+  // Net of what the processor takes — the old figure counted collecting the
+  // money as free, which overstated margin by roughly 4% of every card order.
+  const totalAdminProfit = shopCommissions + serviceFees + deliveryFees + smallOrderFees + tipsCollected - driverPayouts - processingFees
 
   const fmt = (n: number) => '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
@@ -229,7 +234,7 @@ export default function AdminOrders() {
       {/* Summary Cards */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
         <SummaryCard label="Total Revenue" value={fmt(totalRevenue)} sub={`${orders.length} orders`} />
-        <SummaryCard label="Net Admin Profit" value={fmt(totalAdminProfit)} sub="After driver payouts" />
+        <SummaryCard label="Net Admin Profit" value={fmt(totalAdminProfit)} sub="After driver pay + processing" />
         <SummaryCard label="Shop Commissions" value={fmt(shopCommissions)} sub="Per-shop rates applied" />
         <SummaryCard label="Service Fees" value={fmt(serviceFees)} sub="From customers" />
         <SummaryCard label="Delivery Fees" value={fmt(deliveryFees)} sub="From customers" />
@@ -313,7 +318,7 @@ export default function AdminOrders() {
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#6B7280' }}>{order.shop?.name || '-'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</td>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#059669', fontWeight: 700 }}>
-                        ${(((order.subtotal || 0) * resolveCommissionRate(order)) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) + (order.tip || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}
+                        ${(order.admin_profit ?? 0).toFixed(2)}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
@@ -385,7 +390,10 @@ export default function AdminOrders() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Tip</span><span>${(order.tip || 0).toFixed(2)}</span></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Driver Pay</span>{delivery ? (<span style={{ color: '#DC2626' }}>-${(delivery.driver_earnings || 0).toFixed(2)}</span>) : (<span style={{ color: '#6B7280' }}>pending dispatch</span>)}</div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E5E7EB', paddingTop: 4, marginTop: 4 }}><span style={{ fontWeight: 700 }}>Total</span><span style={{ fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</span></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700, color: '#059669' }}>Admin Profit{delivery ? '' : ' (before driver pay)'}</span><span style={{ fontWeight: 700, color: '#059669' }}>${(((order.subtotal || 0) * resolveCommissionRate(order)) + (order.service_fee || 0) + (order.delivery_fee || 0) + (order.small_order_fee || 0) + (order.tip || 0) - (delivery?.driver_earnings || 0)).toFixed(2)}</span></div>
+                                {(order.processing_fee ?? 0) > 0 ? (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Card processing</span><span style={{ color: '#DC2626' }}>-${(order.processing_fee ?? 0).toFixed(2)}</span></div>
+                                ) : null}
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700, color: '#059669' }}>Admin Profit{delivery ? '' : ' (before driver pay)'}</span><span style={{ fontWeight: 700, color: '#059669' }}>${(order.admin_profit ?? 0).toFixed(2)}</span></div>
                               </div>
                             </div>
 

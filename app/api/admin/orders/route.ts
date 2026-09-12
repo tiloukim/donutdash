@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { canAccessAdminPortal } from '@/lib/admin-auth'
-import { BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
+import { resolveCommissionRate, BASE_DELIVERY_PAY, PER_MILE_PAY } from '@/lib/constants'
+import { computeProcessingFee, computeAdminProfit, DEFAULT_PROCESSOR_PCT, DEFAULT_PROCESSOR_FLAT } from '@/lib/processing-fee'
 
 export async function GET() {
   try {
@@ -41,6 +42,18 @@ export async function GET() {
 
     // Trust the stored driver_earnings — that's what the weekly payout cron will actually pay.
     // Only fall back to a recompute if the stored value is missing/zero (legacy or in-flight rows).
+    // Processor rates, platform-wide. Read once per request rather than per
+    // order; a missing row falls back to the observed Square effective rate.
+    const { data: rateRows } = await svc
+      .from('dd_platform_settings')
+      .select('key, value')
+      .in('key', ['payment_processor_pct', 'payment_processor_flat'])
+    const rateMap = new Map((rateRows || []).map(r => [r.key, Number(r.value)]))
+    const rates = {
+      pct: Number.isFinite(rateMap.get('payment_processor_pct')!) ? rateMap.get('payment_processor_pct')! : DEFAULT_PROCESSOR_PCT,
+      flat: Number.isFinite(rateMap.get('payment_processor_flat')!) ? rateMap.get('payment_processor_flat')! : DEFAULT_PROCESSOR_FLAT,
+    }
+
     const enrichedOrders = (orders || []).map(order => {
       const delivery = Array.isArray(order.delivery) ? (order.delivery as any)?.[0] : (order.delivery as any)
       const tip = order.tip || 0
@@ -65,7 +78,26 @@ export async function GET() {
       return order
     })
 
-    return NextResponse.json({ orders: enrichedOrders })
+    // Attach the money the page used to recompute in three places (the table
+    // cell, the detail row, and the summary card) from slightly different
+    // expressions. One source now, and it nets off processing.
+    const withProfit = enrichedOrders.map((order: any) => {
+      const delivery = Array.isArray(order.delivery) ? order.delivery?.[0] : order.delivery
+      const processingFee = computeProcessingFee(Number(order.total) || 0, order.payment_method, rates)
+      const adminProfit = computeAdminProfit({
+        subtotal: Number(order.subtotal) || 0,
+        commissionRate: resolveCommissionRate(order),
+        serviceFee: Number(order.service_fee) || 0,
+        deliveryFee: Number(order.delivery_fee) || 0,
+        smallOrderFee: Number(order.small_order_fee) || 0,
+        tip: Number(order.tip) || 0,
+        driverEarnings: Number(delivery?.driver_earnings) || 0,
+        processingFee,
+      })
+      return { ...order, processing_fee: processingFee, admin_profit: adminProfit }
+    })
+
+    return NextResponse.json({ orders: withProfit, processorRates: rates })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
