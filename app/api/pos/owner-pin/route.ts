@@ -46,15 +46,15 @@ export async function GET(req: NextRequest) {
   const a = await authorizeForShop(shopId)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
 
+  const gate = await assertShopActive(a.svc, shopId)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
+
   const { data: shop } = await a.svc
     .from('dd_shops')
     .select('owner_pin_hash, owner_pin_locked_until')
     .eq('id', shopId)
     .maybeSingle()
   if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
-
-  const gate = await assertShopActive(svc, shopId)
-  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   const lockedUntil = (shop as { owner_pin_locked_until?: string | null }).owner_pin_locked_until
   return NextResponse.json({
