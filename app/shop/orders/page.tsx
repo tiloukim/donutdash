@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useRealtime } from '@/lib/use-realtime'
 import DriverAvatar from '@/components/DriverAvatar'
+import CallButton from '@/components/CallButton'
 
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), { ssr: false })
 
@@ -361,7 +362,11 @@ export default function ShopOrders() {
                         <span style={{ color: '#888', fontSize: 14 }}>• #{o.id.slice(0, 5).toUpperCase()}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        {o.customer?.phone && <a href={`tel:${o.customer.phone}`} style={{ fontSize: 20, textDecoration: 'none' }}>📞</a>}
+                        {/* Bridged: the shop reaches the customer without
+                            either side seeing the other's number. */}
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <CallButton orderId={o.id} to="customer" label="Call customer" compact />
+                        </span>
                       </div>
                     </div>
 
@@ -428,6 +433,9 @@ export default function ShopOrders() {
                                 </div>
                               </div>
                             </div>
+                            <div style={{ marginBottom: 8 }}>
+                              <CallButton orderId={o.id} to="driver" label="Call driver" compact />
+                            </div>
                             <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e5e7eb', height: 160 }}>
                               <DeliveryMap shopLat={shopLocation?.lat || 0} shopLng={shopLocation?.lng || 0} driverLat={tracking.location?.lat} driverLng={tracking.location?.lng} driverHeading={tracking.location?.heading} />
                             </div>
@@ -445,7 +453,9 @@ export default function ShopOrders() {
                           <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6, padding: '10px 12px', background: '#FFFBEB', borderRadius: 8, border: '1px solid #FDE68A' }}>
                             <div style={{ fontWeight: 700, color: '#92400E', marginBottom: 4 }}>🏪 Customer pickup</div>
                             <div>The customer will come to the shop to pick this up.</div>
-                            {o.customer?.phone && <div style={{ marginTop: 4 }}>Phone: <a href={`tel:${o.customer.phone}`} style={{ color: '#FF1493', textDecoration: 'none' }}>{o.customer.phone}</a></div>}
+                            <div style={{ marginTop: 8 }}>
+                              <CallButton orderId={o.id} to="customer" label="Call customer" compact />
+                            </div>
                           </div>
                         ) : (
                           <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
