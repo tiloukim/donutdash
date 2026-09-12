@@ -5,6 +5,7 @@ import { sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { sendPushToUser } from '@/lib/push-server'
 import { refundSquareOrder } from '@/lib/square-refund'
 import { getPayConfig } from '@/lib/pay-config'
+import { formatShopDateTime } from '@/lib/time-format'
 
 // The single implementation of "a store moved an online order forward".
 //
@@ -38,7 +39,7 @@ export type TransitionResult =
  * dispatch when fulfillment starts, and the ready-for-pickup driver alert.
  *
  * `order` must be the current row, already fetched and authorized for the
- * caller's shop, selected as `'*, shop:dd_shops(lat, lng)'`.
+ * caller's shop, selected as `'*, shop:dd_shops(lat, lng, timezone)'`.
  */
 export async function applyOrderTransition({
   svc,
@@ -70,7 +71,7 @@ export async function applyOrderTransition({
     : null
   if (heldUntil !== null && Date.now() < heldUntil && status !== 'cancelled') {
     return {
-      error: `This order is scheduled for ${new Date(order.scheduled_for).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}. It becomes available to accept 2 hours before that slot.`,
+      error: `This order is scheduled for ${formatShopDateTime(order.scheduled_for, order.shop?.timezone)}. It becomes available to accept 2 hours before that slot.`,
       status: 400,
     }
   }
@@ -94,7 +95,7 @@ export async function applyOrderTransition({
     .from('dd_orders')
     .update(updateData)
     .eq('id', order_id)
-    .select('*, shop:dd_shops(lat, lng)')
+    .select('*, shop:dd_shops(lat, lng, timezone)')
     .single()
 
   if (error) return { error: error.message, status: 500 }

@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest) {
   // Get current order and verify it belongs to this shop
   const { data: order } = await svc
     .from('dd_orders')
-    .select('*, shop:dd_shops(lat, lng)')
+    .select('*, shop:dd_shops(lat, lng, timezone)')
     .eq('id', order_id)
     .eq('shop_id', shop.id)
     .single()

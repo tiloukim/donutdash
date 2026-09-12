@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { notifyAdmins, sendSMS, sendOrderEmail, buildOrderEmailHtml } from '@/lib/sms'
 import { pushAdmins } from '@/lib/push-server'
+import { formatShopDateTime } from '@/lib/time-format'
 
 // Releases "held" scheduled orders to the store ~2h before their slot and
 // fires the shop + admin new-order notifications. Runs every minute via
@@ -64,11 +65,14 @@ export async function GET(req: NextRequest) {
 
     released++
 
-    const { data: shop } = await svc.from('dd_shops').select('name, owner_id').eq('id', order.shop_id).single()
+    const { data: shop } = await svc.from('dd_shops').select('name, owner_id, timezone').eq('id', order.shop_id).single()
     const shopName = shop?.name || 'your shop'
     const total = Number(order.total || 0).toFixed(2)
+    // In the SHOP's timezone. Formatting on a UTC server sent "Sep 12,
+    // 12:30 PM" for a 7:30 AM Central slot — five hours late, to the one
+    // message whose whole job is telling the kitchen when to bake.
     const when = order.scheduled_for
-      ? new Date(order.scheduled_for).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+      ? formatShopDateTime(order.scheduled_for, shop?.timezone)
       : 'soon'
 
     if (shop?.owner_id) {
