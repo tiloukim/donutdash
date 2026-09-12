@@ -338,7 +338,16 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
     }
 
     poll()
-    const interval = setInterval(poll, 5000)
+
+    // Cadence by what's actually happening, and STOP once the order is done.
+    // This used to poll two endpoints every 5s forever — a delivered order
+    // left open in a tab kept hitting /api/orders and /api/driver/track ~1,440
+    // times an hour, each a Supabase read, for data that could no longer
+    // change. Live tracking only matters while a driver is moving.
+    const status = order?.status
+    if (status === 'delivered' || status === 'cancelled') return
+    const everyMs = status === 'picked_up' || status === 'delivering' ? 5000 : 20000
+    const interval = setInterval(poll, everyMs)
     return () => clearInterval(interval)
   }, [id, order?.status])
 
