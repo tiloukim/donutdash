@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { verifyPin } from '@/lib/pin-hash'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 
 // POST /api/pos/cashiers/verify
 // Body: { staff_id, pin }
@@ -60,6 +61,9 @@ export async function POST(req: NextRequest) {
     .eq('id', body.staff_id)
     .maybeSingle()
   if (!staffWithShop) return NextResponse.json({ error: 'Cashier not found' }, { status: 404 })
+
+  const gate = await assertPosAccess(svc, caller.id, staffWithShop.shop_id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   const isAdminOrOps = caller.role === 'admin'
     || caller.role === 'general_manager'

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 
 // Resolve the signed-in user's POS staff profile.
 // Access rule:
@@ -55,6 +56,12 @@ export async function GET(_req: NextRequest) {
       { status: 403 },
     )
   }
+
+  // POS entitlement gate — a deactivated owner/shop or POS-disabled shop can't
+  // bootstrap the register. This is the first call the POS makes, so it blocks
+  // a fresh device outright.
+  const gate = await assertPosAccess(svc, profile.id, shopRow.id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   return NextResponse.json({
     user_id: profile.id,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { hashPin } from '@/lib/pin-hash'
+import { assertPosAccess, assertShopActive } from '@/lib/pos-shop-auth'
 
 // GET    /api/pos/owner-pin?shop_id=  → status
 // POST   /api/pos/owner-pin            → set the PIN
@@ -45,6 +46,9 @@ export async function GET(req: NextRequest) {
   const a = await authorizeForShop(shopId)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
 
+  const gate = await assertShopActive(a.svc, shopId)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
+
   const { data: shop } = await a.svc
     .from('dd_shops')
     .select('owner_pin_hash, owner_pin_locked_until')
@@ -82,6 +86,8 @@ export async function POST(req: NextRequest) {
 
   const a = await authorizeForShop(body.shop_id)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+  const gate = await assertPosAccess(a.svc, a.caller.id, body.shop_id)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   const { hash, salt } = hashPin(body.pin)
   const { error } = await a.svc
@@ -106,6 +112,8 @@ export async function DELETE(req: NextRequest) {
 
   const a = await authorizeForShop(shopId)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+  const gate = await assertPosAccess(a.svc, a.caller.id, shopId)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   const { error } = await a.svc
     .from('dd_shops')

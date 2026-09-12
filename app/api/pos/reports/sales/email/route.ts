@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { assertPosAccess } from '@/lib/pos-shop-auth'
 
 // POST /api/pos/reports/sales/email
 //
@@ -204,6 +205,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
     }
   }
+
+  const gate = await assertPosAccess(svc, profile.id, body.shopId)
+  if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status })
 
   // — Fetch shop for header / From display.
   const { data: shop, error: shopErr } = await svc
