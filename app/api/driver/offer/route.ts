@@ -13,7 +13,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const svc = createServiceClient()
-  const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
+  const { data: ddUser } = await svc.from('dd_users').select('id, role, name, phone').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const svc = createServiceClient()
-  const { data: ddUser } = await svc.from('dd_users').select('id, role').eq('auth_id', user.id).single()
+  const { data: ddUser } = await svc.from('dd_users').select('id, role, name, phone').eq('auth_id', user.id).single()
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
