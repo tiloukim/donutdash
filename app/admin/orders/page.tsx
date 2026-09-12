@@ -30,6 +30,7 @@ interface OrderRow {
   delivery_fee: number
   service_fee: number
   small_order_fee: number
+  promo_discount?: number
   processing_fee?: number
   admin_profit?: number
   commission_pct: number | null
@@ -225,7 +226,13 @@ export default function AdminOrders() {
   const processingFees = orders.reduce((s, o) => s + (o.processing_fee || 0), 0)
   // Net of what the processor takes — the old figure counted collecting the
   // money as free, which overstated margin by roughly 4% of every card order.
-  const totalAdminProfit = shopCommissions + serviceFees + deliveryFees + smallOrderFees + tipsCollected - driverPayouts - processingFees
+  // Platform-funded promos: the shop and driver are still paid in full, so
+  // the whole discount comes out of platform margin.
+  const promosFunded = orders.reduce((s, o) => s + (o.promo_discount || 0), 0)
+  const totalAdminProfit = shopCommissions + serviceFees + deliveryFees + smallOrderFees + tipsCollected - driverPayouts - processingFees - promosFunded
+  // A losing order is only worth seeing before the price is locked in, so
+  // count them here rather than leaving them to be noticed one row at a time.
+  const losingOrders = orders.filter(o => (o.admin_profit ?? 0) < 0)
 
   const fmt = (n: number) => '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
@@ -234,12 +241,18 @@ export default function AdminOrders() {
       {/* Summary Cards */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
         <SummaryCard label="Total Revenue" value={fmt(totalRevenue)} sub={`${orders.length} orders`} />
-        <SummaryCard label="Net Admin Profit" value={fmt(totalAdminProfit)} sub="After driver pay + processing" />
+        <SummaryCard label="Net Admin Profit" value={fmt(totalAdminProfit)} sub="After driver pay, processing + promos" />
         <SummaryCard label="Shop Commissions" value={fmt(shopCommissions)} sub="Per-shop rates applied" />
         <SummaryCard label="Service Fees" value={fmt(serviceFees)} sub="From customers" />
         <SummaryCard label="Delivery Fees" value={fmt(deliveryFees)} sub="From customers" />
         <SummaryCard label="Driver Payouts" value={fmt(driverPayouts)} sub="Paid to drivers" />
         <SummaryCard label="Tips" value={fmt(tipsCollected)} sub="100% to drivers" />
+        <SummaryCard label="Promos Funded" value={fmt(promosFunded)} sub="Platform-funded discounts" />
+        <SummaryCard
+          label="Losing Orders"
+          value={`${losingOrders.length}`}
+          sub={losingOrders.length ? 'Negative after driver pay' : 'None'}
+        />
       </div>
 
       {/* Search */}
@@ -317,8 +330,9 @@ export default function AdminOrders() {
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#6B7280' }}>{order.shop?.name || '-'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#059669', fontWeight: 700 }}>
+                      <td style={{ padding: '10px 12px', fontSize: 13, color: (order.admin_profit ?? 0) < 0 ? '#DC2626' : '#059669', fontWeight: 700 }}>
                         ${(order.admin_profit ?? 0).toFixed(2)}
+                        {(order.admin_profit ?? 0) < 0 && <span title="Loses money after driver pay"> ⚠️</span>}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
