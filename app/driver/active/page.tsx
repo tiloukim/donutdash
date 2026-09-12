@@ -537,10 +537,12 @@ export default function ActiveDelivery() {
                    delivery.order.status}
                 </div>
               )}
-              {delivery.order?.id && (
-                <div style={{ marginTop: 8 }}>
-                  <CallButton orderId={delivery.order.id} to="shop" label="Call shop" compact />
-                </div>
+              {/* The shop's number is a published business line — dial it
+                  directly. Only personal numbers get a bridge. */}
+              {delivery.order?.shop?.phone && (
+                <a href={`tel:${delivery.order.shop.phone}`} style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#3B82F6', textDecoration: 'none', fontWeight: 600 }}>
+                  📞 Call Shop: {delivery.order.shop.phone}
+                </a>
               )}
             </div>
             {(delivery.status === 'assigned') && (

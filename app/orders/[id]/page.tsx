@@ -669,6 +669,13 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
         }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', letterSpacing: 0.5, marginBottom: 6 }}>🏪 PICKUP AT</div>
           <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1A2E', marginBottom: 4 }}>{order.shop.name}</div>
+          {/* Direct — the shop's number is public. The driver's is not, which
+              is why that one goes through the bridge instead. */}
+          {order.shop.phone && (
+            <a href={`tel:${order.shop.phone}`} style={{ display: 'inline-block', marginBottom: 6, fontSize: 13, color: '#FF1493', textDecoration: 'none', fontWeight: 600 }}>
+              📞 Call {order.shop.name}: {order.shop.phone}
+            </a>
+          )}
           {order.shop.address && (
             <div style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>
               {order.shop.address}

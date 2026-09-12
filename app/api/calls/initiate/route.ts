@@ -8,7 +8,7 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-// POST /api/calls/initiate  { order_id, to: 'shop' | 'driver' | 'customer' }
+// POST /api/calls/initiate  { order_id, to: 'driver' | 'customer' }
 //
 // Anonymous call bridging. The caller names a ROLE, never a number. We ring
 // the caller first; when they answer, the TeXML at /api/telnyx/voice/bridge
@@ -21,7 +21,12 @@ export const dynamic = 'force-dynamic'
 // away. This way the initiator gets immediate feedback that it worked, and
 // the callee's phone only rings once someone is definitely on the line.
 
-const VALID_TARGETS: CallParty[] = ['shop', 'driver', 'customer']
+// The shop is deliberately absent. Its number is a published business line
+// — it's on the shop page, in search results, on the receipt — so bridging it
+// would burn a billed call to hide something that isn't hidden. Clients dial
+// the shop directly. Personal numbers (driver, customer) are the ones worth
+// spending a bridge on.
+const VALID_TARGETS: CallParty[] = ['driver', 'customer']
 
 // Enough for a driver who can't find the door to try twice and then message,
 // low enough that a stuck button can't ring someone twenty times.
@@ -45,8 +50,14 @@ export async function POST(req: NextRequest) {
   const orderId = String(body.order_id ?? '').trim()
   const to = String(body.to ?? '').trim() as CallParty
   if (!orderId) return NextResponse.json({ error: 'order_id is required' }, { status: 400 })
+  if (to === ('shop' as CallParty)) {
+    return NextResponse.json(
+      { error: 'Call the shop directly — its number is public.' },
+      { status: 400 },
+    )
+  }
   if (!VALID_TARGETS.includes(to)) {
-    return NextResponse.json({ error: 'to must be shop, driver, or customer' }, { status: 400 })
+    return NextResponse.json({ error: 'to must be driver or customer' }, { status: 400 })
   }
 
   const parties = await loadOrderParties(svc, orderId)

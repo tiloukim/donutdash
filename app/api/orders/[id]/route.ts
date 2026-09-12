@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data: order } = await svc
     .from('dd_orders')
-    .select('*, dd_order_items(*), shop:dd_shops(name, address, city, lat, lng), delivery:dd_deliveries(delivery_photo_url, pickup_photo_url)')
+    .select('*, dd_order_items(*), shop:dd_shops(name, address, city, lat, lng, phone), delivery:dd_deliveries(delivery_photo_url, pickup_photo_url)')
     .eq('id', id)
     .single()
 
