@@ -23,17 +23,24 @@ export async function GET(req: NextRequest) {
   }
 
   // Mark them as expired
+  // Guard on status: a driver accepting between the SELECT above and this
+  // UPDATE would otherwise have their accepted offer overwritten as 'expired',
+  // leaving the delivery assigned but the offer history saying nobody took it.
   const offerIds = expiredOffers.map(o => o.id)
-  await svc
+  const { data: actuallyExpired } = await svc
     .from('dd_delivery_offers')
     .update({ status: 'expired' })
     .in('id', offerIds)
+    .eq('status', 'pending')
+    .select('id, delivery_id')
 
-  // Try to reassign each delivery
-  const deliveryIds = [...new Set(expiredOffers.map(o => o.delivery_id))]
+  // Only re-offer deliveries whose offer this run actually expired.
+  // assignNextDriver no-ops on an already-assigned delivery, but re-offering
+  // one a driver just accepted is wasted work and noisy in the logs.
+  const deliveryIds = [...new Set((actuallyExpired || []).map(o => o.delivery_id))]
   for (const deliveryId of deliveryIds) {
     await assignNextDriver(deliveryId)
   }
 
-  return NextResponse.json({ expired: expiredOffers.length, reassigned: deliveryIds.length })
+  return NextResponse.json({ expired: (actuallyExpired || []).length, reassigned: deliveryIds.length })
 }
