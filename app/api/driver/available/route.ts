@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { isHeldScheduled } from '@/lib/constants'
+import { DRIVER_OFFER_ORDER_FIELDS } from '@/lib/driver-order-fields'
 
 export async function GET() {
   const supabase = await createClient()
@@ -12,7 +13,10 @@ export async function GET() {
   if (!ddUser || (ddUser.role !== 'driver' && ddUser.role !== 'admin')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { data } = await svc.from('dd_deliveries')
-    .select('*, order:dd_orders(*, dd_order_items(*), shop:dd_shops(name, address, city, state), customer:dd_users!customer_id(name, phone))')
+    // Every online driver can read this pool, including drivers who never
+    // take the order. The customer join is gone: their name and phone are
+    // not needed to size up a run, and this UI never rendered them.
+    .select(`*, order:dd_orders(${DRIVER_OFFER_ORDER_FIELDS}, dd_order_items(*), shop:dd_shops(name, address, city, state))`)
     .eq('status', 'pending')
     .is('driver_id', null)
     .order('created_at', { ascending: true })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { DRIVER_OFFER_ORDER_FIELDS } from '@/lib/driver-order-fields'
 import { assignNextDriver, canDriverTakeDelivery } from '@/lib/delivery-assignment'
 import { quoteDriverEarnings, ensureDriverEarnings } from '@/lib/pay-config'
 import { haversineDistance } from '@/lib/osrm'
@@ -41,7 +42,7 @@ export async function GET() {
 
   const { data: offer } = await svc
     .from('dd_delivery_offers')
-    .select('*, delivery:dd_deliveries(*, order:dd_orders(*, shop:dd_shops(name, address, city, lat, lng), customer:dd_users!customer_id(name), dd_order_items(*)))')
+    .select(`*, delivery:dd_deliveries(*, order:dd_orders(${DRIVER_OFFER_ORDER_FIELDS}, shop:dd_shops(name, address, city, lat, lng), customer:dd_users!customer_id(name), dd_order_items(*)))`)
     .eq('driver_id', ddUser.id)
     .eq('status', 'pending')
     .gte('expires_at', new Date().toISOString())
@@ -127,7 +128,7 @@ export async function GET() {
                 // Fetch the full offer with details
                 const { data: fullOffer } = await svc
                   .from('dd_delivery_offers')
-                  .select('*, delivery:dd_deliveries(*, order:dd_orders(*, shop:dd_shops(name, address, city, lat, lng), customer:dd_users!customer_id(name), dd_order_items(*)))')
+                  .select(`*, delivery:dd_deliveries(*, order:dd_orders(${DRIVER_OFFER_ORDER_FIELDS}, shop:dd_shops(name, address, city, lat, lng), customer:dd_users!customer_id(name), dd_order_items(*)))`)
                   .eq('id', newOffer.id)
                   .single()
 
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest) {
   // Get the offer
   const { data: offer } = await svc
     .from('dd_delivery_offers')
-    .select('*, delivery:dd_deliveries(*, order:dd_orders(*, shop:dd_shops(lat, lng)))')
+    .select(`*, delivery:dd_deliveries(*, order:dd_orders(${DRIVER_OFFER_ORDER_FIELDS}, shop:dd_shops(lat, lng)))`)
     .eq('id', offer_id)
     .eq('driver_id', ddUser.id)
     .eq('status', 'pending')
