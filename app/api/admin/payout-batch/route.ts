@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate, isDriverPayoutExcluded } from '@/lib/constants'
+import { notifyAdmins } from '@/lib/sms'
+import { notifyPayoutBatchReady } from '@/lib/payout-week'
 
 export const dynamic = 'force-dynamic'
 
@@ -294,6 +296,18 @@ export async function POST(req: NextRequest) {
     if (items.length > 0) {
       await svc.from('dd_payout_items').insert(items)
     }
+
+    // The manual path used to create a batch in silence. Regenerating by hand
+    // is the only way to correct a batch, so the corrected figures were
+    // exactly the ones nobody got told about. Same message as the cron.
+    await notifyPayoutBatchReady(notifyAdmins, {
+      weekStartStr, weekEndStr,
+      shopCount: shopEarnings.size,
+      driverCount: driverEarnings.size,
+      totalShopPayouts,
+      totalDriverPayouts,
+      totalAmount: Math.round((totalDriverPayouts + totalShopPayouts) * 100) / 100,
+    }).catch(err => console.error('payout-batch: notify failed', err))
 
     return NextResponse.json({ batch, itemCount: items.length })
   }
