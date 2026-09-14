@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate, isPayoutExcluded } from '@/lib/constants'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate, isDriverPayoutExcluded } from '@/lib/constants'
+import { notifyAdmins } from '@/lib/sms'
+import { notifyPayoutBatchReady } from '@/lib/payout-week'
 
 export const dynamic = 'force-dynamic'
 
@@ -151,6 +153,12 @@ export async function POST(req: NextRequest) {
     const { data: orders } = await svc.from('dd_orders')
       .select('id, subtotal, total, refund_amount, shop_id, tip, status, commission_pct')
       .eq('status', 'delivered')
+      // POS walk-ins are cash the shop already has in the drawer; paying them
+      // out again would hand the shop its own money a second time. The cron
+      // and lib/payout-week.ts have always filtered these — this route did
+      // not, which was invisible only because shops were excluded from
+      // payouts entirely.
+      .in('order_type', ['delivery', 'pickup'])
       .gte('created_at', weekStart.toISOString())
       .lte('created_at', weekEnd.toISOString())
 
@@ -180,7 +188,7 @@ export async function POST(req: NextRequest) {
     for (const del of deliveries || []) {
       if (!del.driver_id) continue
       // Skip the operator's own / demo driver accounts — no self-payouts.
-      if (isPayoutExcluded(userMap.get(del.driver_id)?.email)) continue
+      if (isDriverPayoutExcluded(userMap.get(del.driver_id)?.email)) continue
       const stored = Number(del.driver_earnings) || 0
       const tip = Number((del.order as any)?.tip) || 0
       const basePay = Number(del.base_pay) || BASE_DELIVERY_PAY
@@ -203,7 +211,6 @@ export async function POST(req: NextRequest) {
     for (const order of orders || []) {
       const shopId = order.shop_id
       // Skip the operator's own shops — the platform owner doesn't pay themselves.
-      if (isPayoutExcluded(userMap.get(shopsById.get(shopId)?.owner_id)?.email)) continue
       const subtotal = Number(order.subtotal || 0)
       const total = Number(order.total || 0)
       const refund = Number(order.refund_amount || 0)
@@ -289,6 +296,18 @@ export async function POST(req: NextRequest) {
     if (items.length > 0) {
       await svc.from('dd_payout_items').insert(items)
     }
+
+    // The manual path used to create a batch in silence. Regenerating by hand
+    // is the only way to correct a batch, so the corrected figures were
+    // exactly the ones nobody got told about. Same message as the cron.
+    await notifyPayoutBatchReady(notifyAdmins, {
+      weekStartStr, weekEndStr,
+      shopCount: shopEarnings.size,
+      driverCount: driverEarnings.size,
+      totalShopPayouts,
+      totalDriverPayouts,
+      totalAmount: Math.round((totalDriverPayouts + totalShopPayouts) * 100) / 100,
+    }).catch(err => console.error('payout-batch: notify failed', err))
 
     return NextResponse.json({ batch, itemCount: items.length })
   }

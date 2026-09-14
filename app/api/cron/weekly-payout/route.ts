@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate, isPayoutExcluded } from '@/lib/constants'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate, isDriverPayoutExcluded } from '@/lib/constants'
 import { notifyAdmins } from '@/lib/sms'
+import { notifyPayoutBatchReady } from '@/lib/payout-week'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -87,7 +88,7 @@ export async function GET(req: NextRequest) {
     for (const del of deliveries || []) {
       if (!del.driver_id) continue
       // Skip the operator's own / demo driver accounts — no self-payouts.
-      if (isPayoutExcluded(userMap.get(del.driver_id)?.email)) continue
+      if (isDriverPayoutExcluded(userMap.get(del.driver_id)?.email)) continue
       // Trust the stored driver_earnings (set at offer time) — that's the
       // figure the driver was promised. Only fall back to a recompute when
       // the row has no stored value, and use one-way distance + current
@@ -114,7 +115,6 @@ export async function GET(req: NextRequest) {
     for (const order of orders || []) {
       const shopId = order.shop_id
       // Skip the operator's own shops — the platform owner doesn't pay themselves.
-      if (isPayoutExcluded(userMap.get(shopsById.get(shopId)?.owner_id)?.email)) continue
       const subtotal = Number(order.subtotal || 0)
       const total = Number(order.total || 0)
       const refund = Number(order.refund_amount || 0)
@@ -202,22 +202,16 @@ export async function GET(req: NextRequest) {
       await svc.from('dd_payout_items').insert(items)
     }
 
-    // Notify admin
-    const driverCount = driverEarnings.size
     const shopCount = shopEarnings.size
-    const msg = `Weekly Payout Batch Ready!\n${weekStartStr} to ${weekEndStr}\n${shopCount} shops: $${Math.round(totalShopPayouts * 100) / 100}\n${driverCount} drivers: $${Math.round(totalDriverPayouts * 100) / 100}\nTotal: $${totalAmount}\n\nReview at donutdash.app/admin/payouts`
-
-    await notifyAdmins(msg, `Weekly Payouts Ready: $${totalAmount}`, `
-      <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
-        <h2 style="color:#10B981;">Weekly Payout Batch Ready</h2>
-        <p style="color:#666;">${weekStartStr} to ${weekEndStr}</p>
-        <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:16px;margin:16px 0;">
-          <div style="font-size:28px;font-weight:800;color:#10B981;">$${totalAmount}</div>
-          <div style="font-size:14px;color:#666;margin-top:4px;">${shopCount} shops ($${Math.round(totalShopPayouts * 100) / 100}) + ${driverCount} drivers ($${Math.round(totalDriverPayouts * 100) / 100})</div>
-        </div>
-        <a href="https://donutdash.app/admin/payouts" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#10B981;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Review & Pay</a>
-      </div>
-    `)
+    const driverCount = driverEarnings.size
+    await notifyPayoutBatchReady(notifyAdmins, {
+      weekStartStr, weekEndStr,
+      shopCount,
+      driverCount,
+      totalShopPayouts,
+      totalDriverPayouts,
+      totalAmount: Number(totalAmount),
+    })
 
     return NextResponse.json({
       message: `Batch created for ${weekStartStr} to ${weekEndStr}`,
