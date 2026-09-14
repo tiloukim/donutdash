@@ -89,6 +89,28 @@ export default function PayoutsPage() {
   const [periodData, setPeriodData] = useState<PeriodData | null>(null)
   const [batches, setBatches] = useState<PayoutBatch[]>([])
   const [selectedBatch, setSelectedBatch] = useState<PayoutBatch | null>(null)
+  const [resending, setResending] = useState(false)
+
+  // Re-send the weekly summary to the admin list. Recomputes from orders and
+  // deliveries and creates nothing — safe to run on a settled batch, which
+  // regenerating is not.
+  async function resendSummary(weekStart: string) {
+    setResending(true)
+    try {
+      const res = await fetch('/api/admin/payout-batch/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ week_start: weekStart }),
+      })
+      const d = await res.json()
+      if (!res.ok) { alert(d.error || 'Could not send'); return }
+      alert(`Sent to admins.\n\n${d.shops} shop(s): $${d.totalShopPayouts.toFixed(2)}\n${d.drivers} driver(s): $${d.totalDriverPayouts.toFixed(2)}\nTotal: $${d.totalAmount.toFixed(2)}`)
+    } catch {
+      alert('Could not send')
+    } finally {
+      setResending(false)
+    }
+  }
   const [batchItems, setBatchItems] = useState<PayoutItem[]>([])
   const [payoutRequests, setPayoutRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -530,6 +552,13 @@ export default function PayoutsPage() {
                 Week of {new Date(selectedBatch.week_start + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </h3>
             </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={() => resendSummary(selectedBatch.week_start)} disabled={resending} style={{
+              padding: '10px 18px', borderRadius: 8, border: '1px solid #6366F1', background: '#fff',
+              color: '#6366F1', fontSize: 14, fontWeight: 700, cursor: resending ? 'default' : 'pointer',
+            }}>
+              {resending ? 'Sending…' : '✉️ Send summary to admins'}
+            </button>
             {selectedBatch.status !== 'completed' && batchItems.some(i => i.status === 'pending') && (() => {
               const remaining = batchItems.filter(i => i.status === 'pending').reduce((s, i) => s + Number(i.amount || 0), 0)
               return (
@@ -541,6 +570,7 @@ export default function PayoutsPage() {
                 </button>
               )
             })()}
+            </div>
           </div>
 
           {/* Summary cards */}
