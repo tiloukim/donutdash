@@ -1,4 +1,4 @@
-import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate, isPayoutExcluded } from '@/lib/constants'
+import { BASE_DELIVERY_PAY, PER_MILE_PAY, resolveCommissionRate, isDriverPayoutExcluded } from '@/lib/constants'
 
 /**
  * The Mon–Sun window the weekly payout batch covers, and what it will pay.
@@ -66,22 +66,20 @@ export async function computeWeeklyPayouts(
     .gte('delivered_at', window.weekStart.toISOString())
     .lte('delivered_at', window.weekEnd.toISOString())
 
+  // Only drivers: the shop-owner half of this lookup existed to drive the
+  // shop payout exclusion, which no longer exists.
   const { data: allUsers } = await svc.from('dd_users')
     .select('id, email, role')
-    .in('role', ['driver', 'shop_owner'])
-  const { data: shops } = await svc.from('dd_shops').select('id, owner_id')
+    .eq('role', 'driver')
 
   const userMap = new Map<string, { id: string; email: string | null; role: string }>(
     (allUsers || []).map((u: any) => [u.id, u]),
-  )
-  const shopsById = new Map<string, { id: string; owner_id: string | null }>(
-    (shops || []).map((s: any) => [s.id, s]),
   )
 
   const driverEarnings: PayoutTotals['driverEarnings'] = new Map()
   for (const del of deliveries || []) {
     if (!del.driver_id) continue
-    if (isPayoutExcluded(userMap.get(del.driver_id)?.email)) continue
+    if (isDriverPayoutExcluded(userMap.get(del.driver_id)?.email)) continue
     const stored = Number(del.driver_earnings) || 0
     const tip = Number(del.order?.tip) || 0
     const basePay = Number(del.base_pay) || BASE_DELIVERY_PAY
@@ -100,8 +98,6 @@ export async function computeWeeklyPayouts(
   const shopEarnings: PayoutTotals['shopEarnings'] = new Map()
   for (const order of orders || []) {
     const shopId = order.shop_id
-    const ownerId = shopsById.get(shopId)?.owner_id
-    if (isPayoutExcluded(ownerId ? userMap.get(ownerId)?.email : null)) continue
     const subtotal = Number(order.subtotal || 0)
     const total = Number(order.total || 0)
     const refund = Number(order.refund_amount || 0)

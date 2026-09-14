@@ -26,20 +26,27 @@ export function resolveCommissionRate(input: { commission_pct?: number | null } 
   return Number(pct) / 100
 }
 
-// Accounts owned by the platform operator (paying themselves) or seed/test
-// data. Excluded from weekly payout batch generation so the run never creates
-// "money owed" lines for internal shops/drivers or demo accounts. Real external
-// recipients (e.g. driver Eli Love) are unaffected. Matched case-insensitively
-// by email. Keep in sync with the project_donutdash_accounts note.
-export const PAYOUT_EXCLUDED_EMAILS = new Set<string>([
-  'tiloukim@gmail.com',    // owner / admin, shop_owner "tilou kim"
-  'gotopdonuts@gmail.com', // owner's account, shop_owner "Tony Kim" (Top Donuts)
-  'tonykim168@gmail.com',  // owner's own driver account "Tony Kim"
+// Seed accounts and self-owned DRIVER accounts that should not produce a
+// payout line.
+//
+// Shops are deliberately absent from this list. Every shop is a real
+// counterparty now, including the operator's own Top Donuts: what a shop
+// earned is what it earned regardless of who owns it, and suppressing that
+// made the weekly batch understate the book by the operator's whole share —
+// $48.88 of shop payout vanished from the week of 2026-09-07 alone.
+//
+// Drivers keep the guard. demo-driver is seed data and isn't a person, and
+// the operator's own driver account would otherwise inflate the Sunday
+// funding reminder with money they would be wiring to themselves. Delete an
+// entry here to start paying that driver; there is no shop equivalent to
+// delete, by design.
+export const DRIVER_PAYOUT_EXCLUDED_EMAILS = new Set<string>([
+  'tonykim168@gmail.com',      // operator's own driver account "Tony Kim"
   'demo-driver@donutdash.app', // seed/test driver
 ])
 
-export function isPayoutExcluded(email?: string | null): boolean {
-  return !!email && PAYOUT_EXCLUDED_EMAILS.has(email.trim().toLowerCase())
+export function isDriverPayoutExcluded(email?: string | null): boolean {
+  return !!email && DRIVER_PAYOUT_EXCLUDED_EMAILS.has(email.trim().toLowerCase())
 }
 
 export const DEFAULT_DELIVERY_FEE = 3.99
