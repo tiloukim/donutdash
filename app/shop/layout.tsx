@@ -14,6 +14,7 @@ import { playUrgentAlert, stopUrgentAlert, unlockAudio } from '@/lib/alert-sound
 const NAV_ITEMS: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: '/shop', labelKey: 'nav.dashboard', icon: '📊' },
   { href: '/shop/orders', labelKey: 'nav.orders', icon: '📋' },
+  { href: '/shop/transactions', labelKey: 'nav.walkins', icon: '🧾' },
   { href: '/shop/earnings', labelKey: 'nav.earnings', icon: '💰' },
   { href: '/shop/promote', labelKey: 'nav.promote', icon: '⭐' },
   { href: '/shop/menu', labelKey: 'nav.menu', icon: '🍩' },
