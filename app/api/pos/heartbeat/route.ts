@@ -50,6 +50,9 @@ interface HeartbeatBody {
   app_version?: string | null
   device_model?: string | null
   card_terminal_tpn?: string | null
+  /** Diagnostic: last SPIn response with all digits masked. Never card data.
+   *  Here to work out where brand/last-4 live in the envelope. */
+  last_spin_shape?: string | null
   card_terminal_model?: string | null
   card_terminal_connected?: boolean | null
   card_terminal_checked_at?: string | null
@@ -92,6 +95,9 @@ export async function POST(req: NextRequest) {
         app_version: body.app_version?.trim() || null,
         device_model: body.device_model?.trim() || null,
         card_terminal_tpn: body.card_terminal_tpn?.trim() || null,
+        // Capped — this is a diagnostic, not a log store, and an oversized
+        // body shouldn't be able to bloat the devices table.
+        last_spin_shape: body.last_spin_shape?.slice(0, 2000) || null,
         card_terminal_model: body.card_terminal_model?.trim() || null,
         card_terminal_connected: body.card_terminal_connected ?? null,
         card_terminal_checked_at: body.card_terminal_checked_at || null,
