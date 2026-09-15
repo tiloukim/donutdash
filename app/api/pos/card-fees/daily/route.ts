@@ -55,19 +55,36 @@ export async function GET(req: NextRequest) {
   const svc = createServiceClient()
   let q = svc
     .from('dd_pos_card_fees')
-    .select('shop_id, amount')
+    .select('shop_id, amount, fee_flat, fee_pct, base_amount')
     .gte('created_at', bounds.from)
     .lt('created_at', bounds.to)
   if (shopId) q = q.eq('shop_id', shopId)
   const { data, error } = await q
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Aggregate per shop.
-  const byShop = new Map<string, { count: number; total: number }>()
-  for (const r of (data ?? []) as Array<{ shop_id: string; amount: number | null }>) {
-    const agg = byShop.get(r.shop_id) ?? { count: 0, total: 0 }
+  // Aggregate per shop. Flat and percentage halves are kept apart as well as
+  // summed — they're negotiated separately, and a single blended number can't
+  // be checked against a processor statement that itemises them.
+  type Agg = { count: number; total: number; flat: number; pct: number; incomplete: number }
+  const byShop = new Map<string, Agg>()
+  for (const r of (data ?? []) as Array<{
+    shop_id: string; amount: number | null
+    fee_flat: number | null; fee_pct: number | null; base_amount: number | null
+  }>) {
+    const agg = byShop.get(r.shop_id) ?? { count: 0, total: 0, flat: 0, pct: 0, incomplete: 0 }
     agg.count += 1
     agg.total += Number(r.amount ?? 0)
+    if (r.fee_flat == null) {
+      // Written before supabase/card-fee-pct.sql — `amount` is the flat fee
+      // only and the percentage half was never recorded. Counted so the
+      // caller can tell an understated day from a complete one instead of
+      // quietly reconciling against a number that's short.
+      agg.incomplete += 1
+      agg.flat += Number(r.amount ?? 0)
+    } else {
+      agg.flat += Number(r.fee_flat)
+      agg.pct += Number(r.amount ?? 0) - Number(r.fee_flat)
+    }
     byShop.set(r.shop_id, agg)
   }
 
@@ -85,6 +102,11 @@ export async function GET(req: NextRequest) {
       shop_name: names.get(id) ?? null,
       card_txn_count: agg.count,
       total_owed: Math.round(agg.total * 100) / 100,
+      flat_owed: Math.round(agg.flat * 100) / 100,
+      pct_owed: Math.round(agg.pct * 100) / 100,
+      // > 0 means this shop's figure is known to be short: that many rows
+      // predate the percentage half being recorded.
+      incomplete_rows: agg.incomplete,
     }))
     .sort((x, y) => y.total_owed - x.total_owed)
 
@@ -92,8 +114,12 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     date: dateParam,
-    fee_per_txn: POS_CARD_TRANSACTION_FEE,
+    // Default flat fee only. The real charge is per-shop and has a
+    // percentage half too (dd_shops.pos_card_fee / pos_card_fee_pct); read
+    // flat_owed + pct_owed per shop rather than multiplying this by count.
+    default_fee_per_txn: POS_CARD_TRANSACTION_FEE,
     grand_total: grandTotal,
+    incomplete_rows: shops.reduce((s, x) => s + x.incomplete_rows, 0),
     shops,
   })
 }

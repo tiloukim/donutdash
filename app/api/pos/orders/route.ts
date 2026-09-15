@@ -23,6 +23,10 @@ interface CreateBody {
   lines: CartLine[]
   subtotal: number
   tax: number
+  /** Rate used to compute `tax`, as a fraction (0.0825 = 8.25%). Stored so a
+   *  reprint can label the line "Tax (8.25%)" like the original slip did,
+   *  and so old receipts keep their old rate after the shop's rate changes. */
+  tax_rate?: number | null
   /** Card-payment tip in dollars. 0 (or omitted) for cash sales. */
   tip?: number
   total: number
@@ -146,6 +150,10 @@ export async function POST(req: NextRequest) {
       status: 'delivered',
       subtotal: Math.round(recomputedSubtotal * 100) / 100,
       tax: Math.round(tax * 100) / 100,
+      // Rate, not just the dollars — see supabase/order-tax-rate.sql. Left
+      // null when the client doesn't send one so the receipt falls back to a
+      // bare "Tax" line rather than printing a confident 0%.
+      tax_rate: body.tax_rate != null ? Number(body.tax_rate) : null,
       tip: Math.round(tip * 100) / 100,
       total: Math.round(recomputedTotal * 100) / 100,
       payment_method: body.payment_method,
@@ -218,14 +226,25 @@ export async function POST(req: NextRequest) {
   if (body.payment_method !== 'cash') {
     const { data: shopFee } = await svc
       .from('dd_shops')
-      .select('pos_card_fee')
+      .select('pos_card_fee, pos_card_fee_pct')
       .eq('id', body.shop_id)
       .maybeSingle()
-    const fee = shopFee?.pos_card_fee != null ? Number(shopFee.pos_card_fee) : POS_CARD_TRANSACTION_FEE
+    const flat = shopFee?.pos_card_fee != null ? Number(shopFee.pos_card_fee) : POS_CARD_TRANSACTION_FEE
+    // The processor's cut has two halves and this ledger only ever recorded
+    // the flat one, so every reconciliation total ran 3.5% of card volume
+    // light. pos_card_fee_pct is stored as a PERCENT (3.5), not a fraction.
+    const pct = shopFee?.pos_card_fee_pct != null ? Number(shopFee.pos_card_fee_pct) : 0
+    // Percentage applies to what the processor actually settles — the full
+    // amount run on the card, surcharge and tip included — not the subtotal.
+    const base = Math.round(recomputedTotal * 100) / 100
+    const amount = Math.round((flat + base * (pct / 100)) * 100) / 100
     await svc.from('dd_pos_card_fees').insert({
       shop_id: body.shop_id,
       order_id: order.id,
-      amount: fee,
+      amount,
+      fee_flat: flat,
+      fee_pct: pct,
+      base_amount: base,
       payment_method: body.payment_method,
     })
   }
