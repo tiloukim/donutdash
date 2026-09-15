@@ -69,6 +69,6 @@ export async function POST(req: NextRequest) {
     drivers: totals.driverEarnings.size,
     totalShopPayouts: Math.round(totals.totalShopPayouts * 100) / 100,
     totalDriverPayouts: Math.round(totals.totalDriverPayouts * 100) / 100,
-    totalAmount: totals.totalAmount,
+    totalAmount: Math.round(totals.totalAmount * 100) / 100,
   })
 }

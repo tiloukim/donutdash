@@ -95,6 +95,11 @@ export default function PayoutsPage() {
   // deliveries and creates nothing — safe to run on a settled batch, which
   // regenerating is not.
   async function resendSummary(weekStart: string) {
+    // Confirm first: this fires real SMS to every number in
+    // ADMIN_PHONE_NUMBERS plus the email list. The button sits on the same
+    // row as "mark all paid", which is exactly where a stray click lands
+    // while someone is reconciling money.
+    if (!confirm(`Send the payout summary for the week of ${weekStart} to all admins?\n\nThis texts and emails everyone on the admin list. It does not move any money.`)) return
     setResending(true)
     try {
       const res = await fetch('/api/admin/payout-batch/notify', {
@@ -104,7 +109,11 @@ export default function PayoutsPage() {
       })
       const d = await res.json()
       if (!res.ok) { alert(d.error || 'Could not send'); return }
-      alert(`Sent to admins.\n\n${d.shops} shop(s): $${d.totalShopPayouts.toFixed(2)}\n${d.drivers} driver(s): $${d.totalDriverPayouts.toFixed(2)}\nTotal: $${d.totalAmount.toFixed(2)}`)
+      // Formatted defensively — the send already happened by this point, so a
+      // missing field must not throw into the catch below and tell the admin
+      // it failed when it didn't.
+      const money = (n: unknown) => `$${Number(n ?? 0).toFixed(2)}`
+      alert(`Sent to admins.\n\n${d.shops} shop(s): ${money(d.totalShopPayouts)}\n${d.drivers} driver(s): ${money(d.totalDriverPayouts)}\nTotal: ${money(d.totalAmount)}`)
     } catch {
       alert('Could not send')
     } finally {
