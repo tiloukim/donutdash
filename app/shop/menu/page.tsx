@@ -154,6 +154,12 @@ export default function ShopMenu() {
         image_url: mainImage,
         images: editImages,
         price: parseFloat(editing.price),
+        // The register reads pos_price and only falls back to price when it
+        // is null — and it is null nowhere on this menu. Writing `price`
+        // alone therefore edited a number the till never reads: the web said
+        // $7.75 for Half Dozen Chocolate while the counter charged $8.03.
+        // Both are written together, exactly as the POS's own editor does.
+        pos_price: parseFloat(editing.price),
         // Same rule as options: blank means "same as counter".
         online_price: editing.online_price?.toString().trim()
           ? parseFloat(editing.online_price) || null
@@ -222,7 +228,14 @@ export default function ShopMenu() {
   }
 
   const openEdit = (item: MenuItem) => {
-    setEditing({ ...item, price: item.price.toString(), online_price: item.online_price != null ? String(item.online_price) : '' })
+    // pos_price is what the register actually charges, so it is what the
+    // form must show — otherwise an owner edits a price that is already
+    // being overridden and sees no change at the till.
+    setEditing({
+      ...item,
+      price: String(item.pos_price ?? item.price),
+      online_price: item.online_price != null ? String(item.online_price) : '',
+    })
     setEditImages((item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : []))
     setEditVariants(item.variants?.map(v => ({
       name: v.name,
@@ -590,7 +603,7 @@ export default function ShopMenu() {
           <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>{editing?.id ? t('menu.editItem') : t('menu.newItem')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.name')}</label><input style={inputStyle} value={editing?.name || ''} onChange={e => setEditing({ ...editing, name: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.price')} <span style={{ fontWeight: 500 }}>(counter)</span></label><input style={inputStyle} type="number" step="0.01" value={editing?.price || ''} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>POS price <span style={{ fontWeight: 500 }}>(at the counter)</span></label><input style={inputStyle} type="number" step="0.01" value={editing?.price || ''} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
             {/* Online price is the shop's to set independently: DonutDash
                 takes a commission on app orders that a counter sale doesn't,
                 and this is where an owner covers it. Blank = same as counter,
