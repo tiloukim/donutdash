@@ -58,9 +58,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const isFull = Math.abs(rounded - total) < 0.005
+  const method = typeof body.refund_method === 'string' ? body.refund_method : null
+  if (method && !['void', 'return', 'cash'].includes(method)) {
+    return NextResponse.json({ error: 'refund_method must be void, return or cash' }, { status: 400 })
+  }
   const patch: Record<string, unknown> = {
     refund_amount: rounded,
     updated_at: new Date().toISOString(),
+    // Kept so a refund receipt can be printed now and REPRINTED later. The
+    // refund's own Ref # is what reconciles it against the processor's log —
+    // the sale's reference identifies the charge, not the credit.
+    refunded_at: new Date().toISOString(),
+    refund_method: method,
+    refund_ref_number: body.refund_ref_number ?? null,
+    refund_auth_code: body.refund_auth_code ?? null,
   }
   // Only a FULL refund cancels the sale. A partial leaves it delivered — the
   // customer kept some of what they bought, and reports count it accordingly.
@@ -69,5 +80,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { error } = await svc.from('dd_orders').update(patch).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ success: true, refund_amount: rounded, fullRefund: isFull })
+  return NextResponse.json({
+    success: true,
+    refund_amount: rounded,
+    fullRefund: isFull,
+    refunded_at: patch.refunded_at,
+  })
 }
