@@ -450,6 +450,11 @@ export default function CheckoutPage() {
       fulfillment_type: fulfillmentType,
       items: items.map(i => ({
         menu_item_id: i.id.split('::')[0],
+        // The chosen option(s), sent explicitly rather than left to be parsed
+        // back out of the display name. The server prices the line itself and
+        // cannot do that for a variant without knowing which one — it was
+        // overwriting a $13.50 dozen with the $1.25 base price.
+        variant: i.id.includes('::') ? i.id.split('::').slice(1).join('::') : null,
         name: i.name,
         price: i.price,
         quantity: i.quantity,

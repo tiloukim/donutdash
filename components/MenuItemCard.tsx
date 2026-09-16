@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useCart } from '@/lib/cart-context'
 import { trackEngagement } from '@/lib/track'
+import { onlineItemPrice, onlineOptionPrice } from '@/lib/menu-pricing'
 import type { MenuItem, VariantOption } from '@/lib/types'
 
 interface MenuItemCardProps {
@@ -34,29 +35,42 @@ export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed, 
   const hasVariants = item.variants && item.variants.length > 0
   const allVariantsSelected = !hasVariants || (item.variants?.every(v => !!selectedVariants[v.name]) === true)
 
+  // Every price on this card goes through onlineItemPrice/onlineOptionPrice.
+  // The site used to read `price` directly and ignore online_price entirely,
+  // so a shop could set an online price and be charged the counter price —
+  // losing the commission margin the online price exists to cover.
+  const basePrice = onlineItemPrice(item)
+
   function getActivePrice(): number {
-    if (!hasVariants) return item.price
+    if (!hasVariants) return basePrice
     for (const v of item.variants!) {
       const selectedName = selectedVariants[v.name]
       if (selectedName) {
         const opt = v.options.find((o): o is VariantOption => typeof o === 'object' && o.name === selectedName)
-        if (opt && opt.price > 0) return opt.price
+        if (opt) return onlineOptionPrice(opt, item)
       }
     }
-    return item.price
+    return basePrice
+  }
+
+  /** Online prices of every priced option, for the "$X+" range display. */
+  function allOptionPrices(): number[] {
+    const out: number[] = []
+    for (const v of item.variants ?? []) {
+      for (const o of v.options) {
+        if (typeof o !== 'object') continue
+        const p = onlineOptionPrice(o, item)
+        if (p > 0) out.push(p)
+      }
+    }
+    return out
   }
 
   function getPriceDisplay(): string {
-    if (!hasVariants) return `$${item.price.toFixed(2)}`
+    if (!hasVariants) return `$${basePrice.toFixed(2)}`
     if (allVariantsSelected) return `$${getActivePrice().toFixed(2)}`
-    const allPrices: number[] = []
-    for (const v of item.variants!) {
-      for (const o of v.options) {
-        const p = typeof o === 'object' ? o.price : 0
-        if (p > 0) allPrices.push(p)
-      }
-    }
-    if (allPrices.length === 0) return `$${item.price.toFixed(2)}`
+    const allPrices = allOptionPrices()
+    if (allPrices.length === 0) return `$${basePrice.toFixed(2)}`
     const min = Math.min(...allPrices)
     const max = Math.max(...allPrices)
     return min === max ? `$${min.toFixed(2)}` : `$${min.toFixed(2)}+`
@@ -69,19 +83,13 @@ export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed, 
     if (!dualPricingPct || dualPricingPct <= 0) return ''
     const factor = 1 - dualPricingPct / 100
     if (!hasVariants) {
-      return `$${(item.price * factor).toFixed(2)}`
+      return `$${(basePrice * factor).toFixed(2)}`
     }
     if (allVariantsSelected) {
       return `$${(getActivePrice() * factor).toFixed(2)}`
     }
-    const allPrices: number[] = []
-    for (const v of item.variants!) {
-      for (const o of v.options) {
-        const p = typeof o === 'object' ? o.price : 0
-        if (p > 0) allPrices.push(p)
-      }
-    }
-    if (allPrices.length === 0) return `$${(item.price * factor).toFixed(2)}`
+    const allPrices = allOptionPrices()
+    if (allPrices.length === 0) return `$${(basePrice * factor).toFixed(2)}`
     const min = Math.min(...allPrices) * factor
     const max = Math.max(...allPrices) * factor
     return min === max ? `$${min.toFixed(2)}` : `$${min.toFixed(2)}+`
@@ -357,7 +365,8 @@ export default function MenuItemCard({ item, shopId, shopName, shopIsUnclaimed, 
                     <option value="">Select {variant.name.toLowerCase()}</option>
                     {variant.options.map(opt => {
                       const optName = typeof opt === 'string' ? opt : opt.name
-                      const optPrice = typeof opt === 'object' && opt.price > 0 ? ` — $${opt.price.toFixed(2)}` : ''
+                      const optOnline = typeof opt === 'object' ? onlineOptionPrice(opt, item) : 0
+                      const optPrice = optOnline > 0 ? ` — $${optOnline.toFixed(2)}` : ''
                       return <option key={optName} value={optName}>{optName}{optPrice}</option>
                     })}
                   </select>
