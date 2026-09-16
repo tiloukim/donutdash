@@ -80,6 +80,10 @@ export default function ShopMenu() {
   const [filter, setFilter] = useState('all')
   const [editing, setEditing] = useState<any>(null)
   const [showForm, setShowForm] = useState(false)
+  // What the item looked like when it was opened. Needed to tell an option
+  // the owner edited from one they left alone — only the untouched ones
+  // should follow a change to the item's price.
+  const [orig, setOrig] = useState<{ price: string; online: string; opts: Record<string, { price: string; online: string }> } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [editImages, setEditImages] = useState<string[]>([])
   const [editVariants, setEditVariants] = useState<VariantFormGroup[]>([])
@@ -130,18 +134,60 @@ export default function ShopMenu() {
     if (!editing?.name || !editing?.price) return
     const method = editing.id ? 'PUT' : 'POST'
     const mainImage = editing.image_url || editImages[0] || ''
+    // An option's price is more specific than the item's, so it wins on both
+    // the register and the site. Changing the item's price alone therefore
+    // reached neither for an item with options — which is how the web could
+    // say $7.75 while the till charged $8.03, and how twelve online prices
+    // set on the register changed nothing a customer saw.
+    //
+    // So a change to the item's price shifts every option by the same
+    // DIFFERENCE. An option the owner edited in this session keeps their
+    // figure: an explicit edit outranks a derived one.
+    //
+    // The difference, not a ratio: "online costs $0.15 more" is the model
+    // this shop uses, and it matches what the register does on save. A ratio
+    // lives in the bulk tool, which can preview every option first.
+    const num = (v: string | undefined) => {
+      const n = parseFloat((v ?? '').trim())
+      return Number.isFinite(n) ? n : null
+    }
+    const newPos = num(editing.price)
+    const origPos = orig ? num(orig.price) : null
+    const posDelta = newPos != null && origPos != null ? Math.round((newPos - origPos) * 100) / 100 : 0
+    const newOnline = num(editing.online_price?.toString())
+    const origOnline = orig ? num(orig.online) : null
+    const onlineDelta =
+      newOnline != null && origOnline != null ? Math.round((newOnline - origOnline) * 100) / 100 : null
+
     const variants: VariantGroup[] | null = editVariants
       .filter(v => v.name.trim() && v.options.length > 0)
       .map(v => ({
         name: v.name.trim(),
         options: v.options.filter(o => o.name.trim()).map(o => {
+          const snap = orig?.opts[optKey(v.name.trim(), o.name.trim())]
+          const untouchedPrice = !!snap && (o.price ?? '').trim() === snap.price
+          const untouchedOnline = !!snap && (o.online_price ?? '').trim() === snap.online
+
+          let price = parseFloat(o.price) || 0
+          if (untouchedPrice && posDelta !== 0 && price > 0) {
+            price = Math.max(0, Math.round((price + posDelta) * 100) / 100)
+          }
+
           // Blank online price is stored as null, not 0 — null means "same as
           // counter" while 0 would read as free.
-          const online = o.online_price?.trim() ? parseFloat(o.online_price) : NaN
+          let online = num(o.online_price)
+          if (untouchedOnline && onlineDelta != null && onlineDelta !== 0) {
+            // An option with no online price of its own was inheriting the
+            // item; give it one anchored to its own counter price so a dozen
+            // doesn't inherit a single donut's figure.
+            const base = online ?? (parseFloat(o.price) || 0)
+            if (base > 0) online = Math.max(0, Math.round((base + onlineDelta) * 100) / 100)
+          }
+
           return {
             name: o.name.trim(),
-            price: parseFloat(o.price) || 0,
-            online_price: Number.isFinite(online) && online > 0 ? online : null,
+            price,
+            online_price: online != null && online > 0 ? online : null,
           }
         }),
       }))
@@ -253,11 +299,17 @@ export default function ShopMenu() {
   }
 
   const openAdd = () => {
+    // Nothing to compare against on a new item, so nothing propagates.
+    setOrig(null)
     setEditing({ ...emptyItem })
     setEditImages([])
     setEditVariants([])
     setShowForm(true)
   }
+
+  /** Key an option by group+name so a rename reads as a new option rather
+   *  than silently inheriting the old one's delta. */
+  const optKey = (g: string, o: string) => `${g}\u0000${o}`
 
   const openEdit = (item: MenuItem) => {
     // pos_price is what the register actually charges, so it is what the
@@ -277,6 +329,19 @@ export default function ShopMenu() {
         online_price: typeof o === 'object' && o.online_price != null ? String(o.online_price) : '',
       }))
     })) || [])
+    setOrig({
+      price: String(item.pos_price ?? item.price),
+      online: item.online_price != null ? String(item.online_price) : '',
+      opts: Object.fromEntries(
+        (item.variants ?? []).flatMap(v => v.options.map(o => [
+          optKey(v.name, typeof o === 'string' ? o : o.name),
+          {
+            price: typeof o === 'object' ? String(o.price) : '',
+            online: typeof o === 'object' && o.online_price != null ? String(o.online_price) : '',
+          },
+        ])),
+      ),
+    })
     setShowForm(true)
   }
 
