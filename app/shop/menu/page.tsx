@@ -220,6 +220,38 @@ export default function ShopMenu() {
     fetchItems()
   }
 
+  /** Scale every option's prices by the same ratio the item's prices imply.
+   *
+   *  An owner who changes the item's online price from $1.25 to $1.30 means
+   *  "4% more online", not "$1.30 for a dozen" — so the ratio is applied
+   *  rather than the figure. Options with no counter price of their own are
+   *  left alone; they already inherit the item.
+   *
+   *  Fills the visible fields rather than saving, so the result can be read
+   *  and adjusted before it becomes what customers pay. */
+  const applyItemPricesToOptions = () => {
+    const counter = parseFloat(editing?.price)
+    const online = editing?.online_price?.toString().trim()
+      ? parseFloat(editing.online_price)
+      : NaN
+    if (!Number.isFinite(counter) || counter <= 0) return
+    const ratio = Number.isFinite(online) && online > 0 ? online / counter : null
+    setEditVariants(editVariants.map(g => ({
+      ...g,
+      options: g.options.map(o => {
+        const optCounter = parseFloat(o.price)
+        if (!Number.isFinite(optCounter) || optCounter <= 0) return o
+        return {
+          ...o,
+          // Blank online ratio means "online matches counter" — clear the
+          // option's online price rather than writing the counter figure
+          // into it, so it keeps inheriting.
+          online_price: ratio == null ? '' : (Math.round(optCounter * ratio * 100) / 100).toFixed(2),
+        }
+      }),
+    })))
+  }
+
   const openAdd = () => {
     setEditing({ ...emptyItem })
     setEditImages([])
@@ -609,6 +641,22 @@ export default function ShopMenu() {
                 and this is where an owner covers it. Blank = same as counter,
                 so nothing changes for a shop that ignores this field. */}
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Online price</label><input style={inputStyle} type="number" step="0.01" placeholder="same as counter" value={editing?.online_price ?? ''} onChange={e => setEditing({ ...editing, online_price: e.target.value })} /></div>
+            {/* An option's own price is more specific than the item's, so it
+                wins. Without this, setting the item's online price to $1.30
+                on an item whose "1 Glazed" option says $1.50 looks like the
+                edit silently failed — it saved, it just isn't what's read. */}
+            {editVariants.some(g => g.options.some(o => o.price?.trim() || o.online_price?.trim())) && (
+              <div style={{ gridColumn: '1 / -1', background: '#FFFAEB', border: '1px solid #FEDF89', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#B54708' }}>
+                <div>This item has priced options below. <strong>Option prices win</strong> — the prices above only apply to options left blank.</div>
+                <button
+                  type="button"
+                  onClick={() => applyItemPricesToOptions()}
+                  style={{ marginTop: 8, padding: '6px 12px', borderRadius: 6, border: '1px solid #B54708', background: '#fff', color: '#B54708', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Apply these prices to all options
+                </button>
+              </div>
+            )}
             <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.description')}</label><input style={inputStyle} value={editing?.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} /></div>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.category')}</label><select style={inputStyle} value={editing?.category || 'donuts'} onChange={e => setEditing({ ...editing, category: e.target.value })}>{CATEGORIES.filter(c => c !== 'all').map(c => <option key={c} value={c}>{c}</option>)}</select></div>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.prepTime')}</label><input style={inputStyle} type="number" min="0" placeholder="e.g. 5" value={editing?.prep_time_min ?? ''} onChange={e => setEditing({ ...editing, prep_time_min: e.target.value ? parseInt(e.target.value) : null })} /></div>
