@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
   let query = ctx.svc
     .from('dd_menu_items')
-    .select('id, name, price, online_price, variants, category')
+    .select('id, name, price, pos_price, online_price, variants, category')
     .eq('shop_id', ctx.shop.id)
   if (category) query = query.eq('category', category)
   const { data: items, error } = await query
@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
   type OptRow = { name: string; price: number; online_price?: number | null }
   type Row = {
     id: string; name: string; price: number
+    pos_price: number | null
     online_price: number | null
     variants: { name: string; options: (string | OptRow)[] }[] | null
     category: string
@@ -88,7 +89,9 @@ export async function POST(req: NextRequest) {
 
   const changes = ((items || []) as Row[])
     .map((i) => {
-      const counter = Number(i.price) || 0
+      // pos_price is authoritative at the counter; price is its legacy
+      // mirror and can be stale.
+      const counter = Number(i.pos_price ?? i.price) || 0
       // Online is always derived from the counter price, never from whatever
       // online price happens to be set — otherwise applying +20% twice
       // compounds to 44% and nobody notices until a customer does.
@@ -151,7 +154,10 @@ export async function POST(req: NextRequest) {
   for (const c of changes) {
     const patch: Record<string, unknown> = target === 'online'
       ? { online_price: c.new_price }
-      : { price: c.new_price }
+      // Both, because the register reads pos_price and falls back to price
+      // only when it is null. Writing one without the other leaves the till
+      // charging the old number.
+      : { price: c.new_price, pos_price: c.new_price }
     if (includeVariants) patch.variants = c._nextVariants
     const { error: updErr } = await ctx.svc
       .from('dd_menu_items')
