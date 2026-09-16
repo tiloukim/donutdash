@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { onlineItemPrice, onlineOptionPrice } from '@/lib/menu-pricing'
+import type { VariantGroup } from '@/lib/types'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { SquareClient, SquareEnvironment } from 'square'
 import { SERVICE_FEE_RATE, MAX_DELIVERY_MILES, SHOP_COMMISSION_RATE } from '@/lib/constants'
@@ -207,17 +209,59 @@ export async function POST(request: NextRequest) {
     const menuIds = [...new Set(items.map((i: { menu_item_id: string }) => i.menu_item_id))]
     const { data: menuRows } = await svc
       .from('dd_menu_items')
-      .select('id, name, price, is_available')
+      // online_price and variants are part of the price, so the authority
+      // has to see them. Selecting only `price` is what made this overwrite
+      // a $13.50 dozen with the $1.25 single.
+      .select('id, name, price, online_price, variants, is_available')
       .eq('shop_id', shopId)
       .in('id', menuIds)
-    const priceMap = new Map((menuRows || []).map((m: { id: string; name: string; price: number; is_available: boolean }) => [m.id, m]))
-    for (const it of items as { menu_item_id: string; price: number; name: string; quantity: number }[]) {
-      const m = priceMap.get(it.menu_item_id) as { name: string; price: number; is_available: boolean } | undefined
+    type MenuRow = {
+      id: string; name: string; price: number
+      online_price: number | null; variants: VariantGroup[] | null; is_available: boolean
+    }
+    const priceMap = new Map((menuRows || []).map((m) => [m.id, m as MenuRow]))
+    for (const it of items as {
+      menu_item_id: string; price: number; name: string; quantity: number; variant?: string | null
+    }[]) {
+      const m = priceMap.get(it.menu_item_id)
       if (!m || m.is_available === false) {
         return NextResponse.json({ error: `"${it.name || 'An item'}" is no longer available. Please refresh your cart.` }, { status: 400 })
       }
-      it.price = Number(m.price) // authoritative server price
-      it.name = m.name
+
+      // Resolve the price the shop actually set for THIS line — the chosen
+      // variant option if there is one, otherwise the item — and take the
+      // online price, which is the shop's to set independently of the
+      // counter price so it can absorb the commission the app charges and
+      // the counter doesn't.
+      //
+      // Still authoritative: the figure comes from dd_menu_items either way,
+      // so a caller posting price:0.01 is overruled exactly as before. Only
+      // the lookup got smarter, not laxer.
+      const chosen = (it.variant ?? '').trim()
+      let resolved: number | null = null
+      if (chosen && m.variants?.length) {
+        for (const g of m.variants) {
+          const opt = g.options.find(
+            (o) => (typeof o === 'string' ? o : o.name) === chosen,
+          )
+          if (opt) { resolved = onlineOptionPrice(opt, m); break }
+        }
+        // A variant we can't find is a stale cart, not a pricing question —
+        // charging the base price for a dozen would be the expensive guess.
+        if (resolved == null) {
+          return NextResponse.json(
+            { error: `"${m.name}" options have changed. Please refresh your cart.` },
+            { status: 400 },
+          )
+        }
+      } else {
+        resolved = onlineItemPrice(m)
+      }
+
+      it.price = resolved
+      // Keep the variant in the name so the kitchen ticket, the receipt and
+      // the customer's confirmation all say which one was ordered.
+      it.name = chosen ? `${m.name} (${chosen})` : m.name
     }
 
     // Calculate totals

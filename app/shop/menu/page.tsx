@@ -8,7 +8,7 @@ import type { MenuItem, VariantGroup } from '@/lib/types'
 import { compressImage } from '@/lib/compress-image'
 import { useShopLang } from '@/lib/shop-lang-context'
 
-interface VariantFormOption { name: string; price: string }
+interface VariantFormOption { name: string; price: string; online_price?: string }
 interface VariantFormGroup { name: string; options: VariantFormOption[] }
 
 function SortableMenuItem({ item, onEdit, onDelete, onToggle, onToggleSoldOut }: {
@@ -61,7 +61,7 @@ function SortableMenuItem({ item, onEdit, onDelete, onToggle, onToggleSoldOut }:
 }
 
 const CATEGORIES = ['all', 'donuts', 'coffee', 'breakfast', 'drinks', 'other']
-const emptyItem = { name: '', description: '', price: '', category: 'donuts', image_url: '', images: [] as string[], is_available: true, is_featured: false }
+const emptyItem = { name: '', description: '', price: '', online_price: '', category: 'donuts', image_url: '', images: [] as string[], is_available: true, is_featured: false }
 
 async function uploadImage(file: File): Promise<string | null> {
   const compressed = await compressImage(file)
@@ -134,13 +134,32 @@ export default function ShopMenu() {
       .filter(v => v.name.trim() && v.options.length > 0)
       .map(v => ({
         name: v.name.trim(),
-        options: v.options.filter(o => o.name.trim()).map(o => ({ name: o.name.trim(), price: parseFloat(o.price) || 0 })),
+        options: v.options.filter(o => o.name.trim()).map(o => {
+          // Blank online price is stored as null, not 0 — null means "same as
+          // counter" while 0 would read as free.
+          const online = o.online_price?.trim() ? parseFloat(o.online_price) : NaN
+          return {
+            name: o.name.trim(),
+            price: parseFloat(o.price) || 0,
+            online_price: Number.isFinite(online) && online > 0 ? online : null,
+          }
+        }),
       }))
       .filter(v => v.options.length > 0)
     await fetch('/api/shop/menu', {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...editing, image_url: mainImage, images: editImages, price: parseFloat(editing.price), variants: variants.length > 0 ? variants : null }),
+      body: JSON.stringify({
+        ...editing,
+        image_url: mainImage,
+        images: editImages,
+        price: parseFloat(editing.price),
+        // Same rule as options: blank means "same as counter".
+        online_price: editing.online_price?.toString().trim()
+          ? parseFloat(editing.online_price) || null
+          : null,
+        variants: variants.length > 0 ? variants : null,
+      }),
     })
     setEditing(null)
     setShowForm(false)
@@ -203,11 +222,15 @@ export default function ShopMenu() {
   }
 
   const openEdit = (item: MenuItem) => {
-    setEditing({ ...item, price: item.price.toString() })
+    setEditing({ ...item, price: item.price.toString(), online_price: item.online_price != null ? String(item.online_price) : '' })
     setEditImages((item.images && item.images.length > 0) ? item.images : (item.image_url ? [item.image_url] : []))
     setEditVariants(item.variants?.map(v => ({
       name: v.name,
-      options: v.options.map(o => ({ name: typeof o === 'string' ? o : o.name, price: typeof o === 'object' ? o.price.toString() : '' }))
+      options: v.options.map(o => ({
+        name: typeof o === 'string' ? o : o.name,
+        price: typeof o === 'object' ? o.price.toString() : '',
+        online_price: typeof o === 'object' && o.online_price != null ? String(o.online_price) : '',
+      }))
     })) || [])
     setShowForm(true)
   }
@@ -495,7 +518,12 @@ export default function ShopMenu() {
           <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>{editing?.id ? t('menu.editItem') : t('menu.newItem')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.name')}</label><input style={inputStyle} value={editing?.name || ''} onChange={e => setEditing({ ...editing, name: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.price')}</label><input style={inputStyle} type="number" step="0.01" value={editing?.price || ''} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.price')} <span style={{ fontWeight: 500 }}>(counter)</span></label><input style={inputStyle} type="number" step="0.01" value={editing?.price || ''} onChange={e => setEditing({ ...editing, price: e.target.value })} /></div>
+            {/* Online price is the shop's to set independently: DonutDash
+                takes a commission on app orders that a counter sale doesn't,
+                and this is where an owner covers it. Blank = same as counter,
+                so nothing changes for a shop that ignores this field. */}
+            <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>Online price</label><input style={inputStyle} type="number" step="0.01" placeholder="same as counter" value={editing?.online_price ?? ''} onChange={e => setEditing({ ...editing, online_price: e.target.value })} /></div>
             <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.description')}</label><input style={inputStyle} value={editing?.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} /></div>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.category')}</label><select style={inputStyle} value={editing?.category || 'donuts'} onChange={e => setEditing({ ...editing, category: e.target.value })}>{CATEGORIES.filter(c => c !== 'all').map(c => <option key={c} value={c}>{c}</option>)}</select></div>
             <div><label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>{t('menu.prepTime')}</label><input style={inputStyle} type="number" min="0" placeholder="e.g. 5" value={editing?.prep_time_min ?? ''} onChange={e => setEditing({ ...editing, prep_time_min: e.target.value ? parseInt(e.target.value) : null })} /></div>
@@ -521,11 +549,13 @@ export default function ShopMenu() {
                   <div key={oi} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, marginLeft: 16 }}>
                     <input placeholder="Option name" value={opt.name} onChange={e => { const v = [...editVariants]; v[gi].options[oi].name = e.target.value; setEditVariants(v) }} style={{ flex: 1, padding: '4px 8px', border: '1px solid #eee', borderRadius: 4, fontSize: 12 }} />
                     <span style={{ fontSize: 12, color: '#888' }}>$</span>
-                    <input placeholder="0.00" type="number" step="0.01" value={opt.price} onChange={e => { const v = [...editVariants]; v[gi].options[oi].price = e.target.value; setEditVariants(v) }} style={{ width: 70, padding: '4px 8px', border: '1px solid #eee', borderRadius: 4, fontSize: 12 }} />
+                    <input title="Counter price" placeholder="0.00" type="number" step="0.01" value={opt.price} onChange={e => { const v = [...editVariants]; v[gi].options[oi].price = e.target.value; setEditVariants(v) }} style={{ width: 70, padding: '4px 8px', border: '1px solid #eee', borderRadius: 4, fontSize: 12 }} />
+                    <span style={{ fontSize: 10, color: '#bbb' }}>online</span>
+                    <input title="Online price — blank means same as counter" placeholder="same" type="number" step="0.01" value={opt.online_price ?? ''} onChange={e => { const v = [...editVariants]; v[gi].options[oi].online_price = e.target.value; setEditVariants(v) }} style={{ width: 70, padding: '4px 8px', border: '1px solid #eee', borderRadius: 4, fontSize: 12 }} />
                     <button type="button" onClick={() => { const v = [...editVariants]; v[gi].options = v[gi].options.filter((_, i) => i !== oi); setEditVariants(v) }} style={{ color: '#DC2626', fontSize: 10, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
                   </div>
                 ))}
-                <button type="button" onClick={() => { const v = [...editVariants]; v[gi].options.push({ name: '', price: '' }); setEditVariants(v) }} style={{ fontSize: 11, color: '#FF1493', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', marginLeft: 16, marginTop: 4 }}>{t('menu.addOption')}</button>
+                <button type="button" onClick={() => { const v = [...editVariants]; v[gi].options.push({ name: '', price: '', online_price: '' }); setEditVariants(v) }} style={{ fontSize: 11, color: '#FF1493', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', marginLeft: 16, marginTop: 4 }}>{t('menu.addOption')}</button>
               </div>
             ))}
           </div>

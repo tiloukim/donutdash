@@ -66,7 +66,13 @@ export interface Shop {
 
 export interface VariantOption {
   name: string
+  /** Counter price. What the register charges, and the fallback online. */
   price: number
+  /** Online price, when the shop prices this option differently on
+   *  donutdash.app — normally to cover the commission the app takes and the
+   *  counter doesn't. Falls back to `price` when unset, so existing options
+   *  keep charging exactly what they charge today. */
+  online_price?: number | null
 }
 
 export interface VariantGroup {
@@ -80,6 +86,10 @@ export interface MenuItem {
   name: string
   description: string | null
   price: number
+  /** Counter price, when the shop distinguishes the two. */
+  pos_price?: number | null
+  /** Price charged on donutdash.app. Null means "same as price". */
+  online_price?: number | null
   image_url: string | null
   images: string[] | null
   category: 'donuts' | 'coffee' | 'breakfast' | 'drinks' | 'other'
