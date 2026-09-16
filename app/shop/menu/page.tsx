@@ -247,9 +247,20 @@ export default function ShopMenu() {
   }, [])
 
   // Bulk price update
-  type BulkChange = { id: string; name: string; category: string; old_price: number; new_price: number }
+  type BulkOptionChange = { group: string; name: string; old_price: number; new_price: number }
+  type BulkChange = {
+    id: string; name: string; category: string
+    old_price: number; new_price: number
+    /** Variant options repriced alongside the item. */
+    options?: BulkOptionChange[]
+  }
   const [showBulk, setShowBulk] = useState(false)
-  const [bulkMode, setBulkMode] = useState<'flat' | 'percent'>('percent')
+  const [bulkMode, setBulkMode] = useState<'flat' | 'percent' | 'amount'>('percent')
+  // Which price column to write. 'online' derives from the counter price, so
+  // an owner sets counter prices once and says "online is that plus 20%".
+  const [bulkTarget, setBulkTarget] = useState<'counter' | 'online'>('counter')
+  const [bulkRound, setBulkRound] = useState('0')
+  const [bulkVariants, setBulkVariants] = useState(true)
   const [bulkValue, setBulkValue] = useState('')
   const [bulkCategory, setBulkCategory] = useState<string>('all')
   const [bulkPreview, setBulkPreview] = useState<BulkChange[] | null>(null)
@@ -274,7 +285,12 @@ export default function ShopMenu() {
       const res = await fetch('/api/shop/menu/bulk-price', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: bulkMode, value, category: bulkCategory, preview }),
+        body: JSON.stringify({
+          mode: bulkMode, value, category: bulkCategory, preview,
+          target: bulkTarget,
+          round_to: Number(bulkRound) || 0,
+          include_variants: bulkVariants,
+        }),
       })
       const data = await res.json()
       if (!res.ok) { setBulkError(data.error || 'Failed'); return }
@@ -447,13 +463,37 @@ export default function ShopMenu() {
         <div onClick={resetBulk} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 520, maxHeight: '85vh', overflow: 'auto' }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>Bulk Price Update</h3>
-            <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Apply a flat price or a percent change to multiple items at once.</p>
+            <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+              {bulkTarget === 'online'
+                ? 'Set online prices from your counter prices — add a percentage or a fixed amount to cover the commission on app orders.'
+                : 'Apply a flat price, a percentage or a fixed amount to multiple items at once.'}
+            </p>
+
+            {/* Counter vs online, first: it changes what every field below
+                means, and burying it under Mode made "+20%" ambiguous. */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              {(['counter', 'online'] as const).map(tg => (
+                <button
+                  key={tg}
+                  onClick={() => { setBulkTarget(tg); setBulkPreview(null) }}
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    border: bulkTarget === tg ? '2px solid #FF1493' : '1px solid #ddd',
+                    background: bulkTarget === tg ? '#FFF0F6' : '#fff',
+                    color: bulkTarget === tg ? '#FF1493' : '#555',
+                  }}
+                >
+                  {tg === 'counter' ? 'Counter prices' : 'Online prices'}
+                </button>
+              ))}
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Mode</label>
-                <select value={bulkMode} onChange={e => { setBulkMode(e.target.value as 'flat' | 'percent'); setBulkPreview(null) }} style={inputStyle}>
-                  <option value="percent">Percent change (+/-)</option>
+                <select value={bulkMode} onChange={e => { setBulkMode(e.target.value as 'flat' | 'percent' | 'amount'); setBulkPreview(null) }} style={inputStyle}>
+                  <option value="percent">{bulkTarget === 'online' ? 'Counter price + percent' : 'Percent change (+/-)'}</option>
+                  <option value="amount">{bulkTarget === 'online' ? 'Counter price + amount' : 'Add a fixed amount (+/-)'}</option>
                   <option value="flat">Set flat price</option>
                 </select>
               </div>
@@ -467,16 +507,38 @@ export default function ShopMenu() {
 
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>
-                {bulkMode === 'flat' ? 'New price (USD)' : 'Percent change (e.g. 10 = +10%, -5 = -5%)'}
+                {bulkMode === 'flat'
+                  ? 'New price (USD)'
+                  : bulkMode === 'amount'
+                    ? 'Amount to add (USD, e.g. 0.50)'
+                    : 'Percent to add (e.g. 20 = +20%, -5 = -5%)'}
               </label>
               <input
                 type="number"
-                step={bulkMode === 'flat' ? '0.01' : '0.5'}
+                step={bulkMode === 'percent' ? '0.5' : '0.01'}
                 value={bulkValue}
                 onChange={e => { setBulkValue(e.target.value); setBulkPreview(null) }}
-                placeholder={bulkMode === 'flat' ? '2.50' : '10'}
+                placeholder={bulkMode === 'flat' ? '2.50' : bulkMode === 'amount' ? '0.50' : '20'}
                 style={inputStyle}
               />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12, alignItems: 'end' }}>
+              <div>
+                {/* A 20% markup on $1.35 is $1.62. Rounding up keeps prices
+                    tidy without ever landing under the markup's intent. */}
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 4 }}>Round up to</label>
+                <select value={bulkRound} onChange={e => { setBulkRound(e.target.value); setBulkPreview(null) }} style={inputStyle}>
+                  <option value="0">No rounding</option>
+                  <option value="0.05">Nearest $0.05</option>
+                  <option value="0.10">Nearest $0.10</option>
+                  <option value="0.25">Nearest $0.25</option>
+                </select>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#555', paddingBottom: 10 }}>
+                <input type="checkbox" checked={bulkVariants} onChange={e => { setBulkVariants(e.target.checked); setBulkPreview(null) }} />
+                Include variant options
+              </label>
             </div>
 
             {bulkError && (
@@ -495,7 +557,17 @@ export default function ShopMenu() {
                         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
                         <span style={{ color: '#888', flexShrink: 0 }}>${c.old_price.toFixed(2)} → <strong style={{ color: '#FF1493' }}>${c.new_price.toFixed(2)}</strong></span>
                       </div>
-                    ))}
+                    )).concat(
+                      // Options priced separately from the item, shown so the
+                      // dozen is visible before it changes — that is where
+                      // most of the ticket value sits.
+                      bulkPreview.flatMap(c => (c.options ?? []).map((o, oi) => (
+                        <div key={`${c.id}-o${oi}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0 4px 16px', borderBottom: '1px solid #FFF0F5', fontSize: 12, color: '#777' }}>
+                          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>↳ {c.name} · {o.name}</span>
+                          <span style={{ flexShrink: 0 }}>${o.old_price.toFixed(2)} → <strong style={{ color: '#FF1493' }}>${o.new_price.toFixed(2)}</strong></span>
+                        </div>
+                      )))
+                    )}
                   </div>
                 )}
               </div>
