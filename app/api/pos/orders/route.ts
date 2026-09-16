@@ -42,6 +42,10 @@ interface CreateBody {
    *  client-reported grand total. Persisted alongside cash_discount so
    *  reports can break down "what we collected as the surcharge." */
   card_surcharge_amount?: number
+  /** Rate the convenience fee was charged at, as a PERCENT (3.5 = 3.5%).
+   *  Stored so a reprint shows what the customer actually paid rather than
+   *  whatever the shop charges today. */
+  card_surcharge_pct?: number | null
   /** Card brand from the terminal (VISA, MASTERCARD, AMEX, …). Lets the
    *  Transactions screen show "Mastercard 1427" instead of generic Card. */
   card_brand?: string | null
@@ -165,6 +169,7 @@ export async function POST(req: NextRequest) {
       // supabase/card-surcharge.sql). Deriving it arithmetically is what
       // let a fabricated 4% go unnoticed in reports.
       card_surcharge_amount: Math.round(surcharge * 100) / 100,
+      card_surcharge_pct: body.card_surcharge_pct != null ? Number(body.card_surcharge_pct) : null,
       card_brand: body.card_brand ?? null,
       card_last4: body.card_last4 ?? null,
       card_auth_code: body.card_auth_code ?? null,
