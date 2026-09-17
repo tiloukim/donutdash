@@ -242,12 +242,26 @@ export default function ShopMenu() {
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    const oldIndex = filtered.findIndex(i => i.id === active.id)
-    const newIndex = filtered.findIndex(i => i.id === over.id)
+    // Reorder within the dragged item's own category, not across the whole
+    // filtered list. With the page grouped into sections, indexing into
+    // `filtered` mixed categories together: dropping a drink two tiles left
+    // renumbered donuts, and the sort_order written back described a list
+    // nobody was looking at.
+    const dragged = items.find(i => i.id === active.id)
+    if (!dragged) return
+    const scope = filter === 'all'
+      ? items.filter(i => i.category === dragged.category)
+      : filtered
+
+    const oldIndex = scope.findIndex(i => i.id === active.id)
+    const newIndex = scope.findIndex(i => i.id === over.id)
+    // A drop outside the dragged item's own category lands here. Doing
+    // nothing is right: the tile's category is what decides where it
+    // belongs, and that is changed by editing the item, not by dragging.
     if (oldIndex === -1 || newIndex === -1) return
 
     // Optimistic reorder
-    const reordered = arrayMove(filtered, oldIndex, newIndex)
+    const reordered = arrayMove(scope, oldIndex, newIndex)
     setItems(prev => {
       const otherItems = prev.filter(i => !reordered.find(r => r.id === i.id))
       return [...otherItems, ...reordered]
@@ -472,6 +486,21 @@ export default function ShopMenu() {
   }
 
   const filtered = filter === 'all' ? items : items.filter(i => i.category === filter)
+
+  // Grouped for display. With "All categories" selected this was one
+  // undifferentiated grid of 51 tiles — finding a drink meant scanning past
+  // every donut. Categories follow the CATEGORIES order so the page reads
+  // the same way every time, and an empty one is skipped rather than
+  // printing a header over nothing.
+  const grouped = CATEGORIES
+    .filter(c => c !== 'all')
+    .map(c => ({ category: c, items: items.filter(i => i.category === c) }))
+    .filter(g => g.items.length > 0)
+
+  // Anything whose category isn't in the list — a renamed or legacy value —
+  // would otherwise vanish from the page entirely while still existing, and
+  // still being sold.
+  const ungrouped = items.filter(i => !CATEGORIES.includes(i.category))
   const inputStyle = { width: '100%', padding: '8px 12px', border: '1px solid #FFD6E8', borderRadius: 8, fontSize: 14 } as const
 
   if (loading) return <div>{t('common.loading')}</div>
@@ -829,13 +858,40 @@ export default function ShopMenu() {
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-            {filtered.map(item => (
-              <SortableMenuItem key={item.id} item={item} onEdit={openEdit} onDelete={deleteItem} onToggle={toggleAvailable} onToggleSoldOut={toggleSoldOut} />
+        {filter === 'all' ? (
+          <>
+            {[...grouped, ...(ungrouped.length ? [{ category: 'other (uncategorised)', items: ungrouped }] : [])].map(group => (
+              <div key={group.category} style={{ marginBottom: 22 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '0 0 8px' }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase', color: '#888', margin: 0 }}>
+                    {group.category}
+                  </h3>
+                  <span style={{ fontSize: 12, color: '#bbb' }}>{group.items.length}</span>
+                </div>
+                {/* One SortableContext per section: dragging reorders within
+                    a category, which is what sort_order means to the
+                    register. A single context across all of them let a tile
+                    be dropped into another category's run and silently keep
+                    its old category while moving in the order. */}
+                <SortableContext items={group.items.map(i => i.id)} strategy={rectSortingStrategy}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                    {group.items.map(item => (
+                      <SortableMenuItem key={item.id} item={item} onEdit={openEdit} onDelete={deleteItem} onToggle={toggleAvailable} onToggleSoldOut={toggleSoldOut} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </div>
             ))}
-          </div>
-        </SortableContext>
+          </>
+        ) : (
+          <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+              {filtered.map(item => (
+                <SortableMenuItem key={item.id} item={item} onEdit={openEdit} onDelete={deleteItem} onToggle={toggleAvailable} onToggleSoldOut={toggleSoldOut} />
+              ))}
+            </div>
+          </SortableContext>
+        )}
       </DndContext>
     </div>
   )
