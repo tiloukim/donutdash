@@ -28,7 +28,9 @@ async function authorize(staffRowId: string) {
     caller.role === 'general_manager' ||
     caller.role === 'field_manager'
   ) {
-    return { svc, caller }
+    // isPlatform distinguishes DonutDash staff from a shop owner. Both may
+    // manage a roster; only the former may mint an owner.
+    return { svc, caller, isPlatform: true as const }
   }
   // Shop owner must own the shop the staff row belongs to.
   const { data: staff } = await svc
@@ -46,12 +48,12 @@ async function authorize(staffRowId: string) {
   if (!shop) return { error: 'You do not own this shop', status: 403 as const }
   const gate = await assertPosAccess(svc, caller.id, staff.shop_id)
   if (gate) return gate
-  return { svc, caller }
+  return { svc, caller, isPlatform: false as const }
 }
 
 interface PatchBody {
   name?: string
-  role?: 'cashier' | 'manager'
+  role?: 'cashier' | 'manager' | 'owner'
   hourly_rate?: number | null
   status?: 'active' | 'inactive'
   pin?: string
@@ -70,7 +72,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const staffPatch: Record<string, unknown> = {}
-  if (body.role && ['cashier', 'manager'].includes(body.role)) staffPatch.role = body.role
+  // 'owner' is now assignable. It was excluded, which left a shop unable to
+  // have one at all — and owner is the tier that gates Card Terminal and
+  // Banking, the screens holding the TPN and AuthKey.
+  //
+  // Promoting to owner is deliberately NOT something a shop owner can do to
+  // someone else here: a.isPlatform covers admin / general manager / field
+  // manager. A shop owner changing their own staff between cashier and
+  // manager is routine; minting a second owner is not, and should go
+  // through someone who can see more than one shop.
+  if (body.role && ['cashier', 'manager'].includes(body.role)) {
+    staffPatch.role = body.role
+  } else if (body.role === 'owner') {
+    if (!a.isPlatform) {
+      return NextResponse.json(
+        { error: 'Only DonutDash staff can assign the owner role.' },
+        { status: 403 },
+      )
+    }
+    staffPatch.role = 'owner'
+  }
   if (body.hourly_rate !== undefined) staffPatch.hourly_rate = body.hourly_rate
   if (body.status && ['active', 'inactive'].includes(body.status)) staffPatch.status = body.status
   if (body.pin !== undefined) {
