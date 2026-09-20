@@ -27,6 +27,10 @@ interface CreateBody {
    *  reprint can label the line "Tax (8.25%)" like the original slip did,
    *  and so old receipts keep their old rate after the shop's rate changes. */
   tax_rate?: number | null
+  /** True when the cashier removed tax for this sale. */
+  tax_exempt?: boolean
+  /** Why tax was removed — Student, Vet, Church, School. */
+  tax_exempt_reason?: string | null
   /** Card-payment tip in dollars. 0 (or omitted) for cash sales. */
   tip?: number
   total: number
@@ -158,6 +162,11 @@ export async function POST(req: NextRequest) {
       // null when the client doesn't send one so the receipt falls back to a
       // bare "Tax" line rather than printing a confident 0%.
       tax_rate: body.tax_rate != null ? Number(body.tax_rate) : null,
+      // Recorded because tax = 0 on its own cannot tell an exempt sale from
+      // a shop that charges no tax, and "why wasn't tax charged" is the
+      // question that gets asked at filing time.
+      tax_exempt: !!body.tax_exempt,
+      tax_exempt_reason: body.tax_exempt ? (body.tax_exempt_reason ?? null) : null,
       tip: Math.round(tip * 100) / 100,
       total: Math.round(recomputedTotal * 100) / 100,
       payment_method: body.payment_method,
