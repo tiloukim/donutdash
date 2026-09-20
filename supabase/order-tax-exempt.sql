@@ -18,7 +18,7 @@ alter table public.dd_orders
 comment on column public.dd_orders.tax_exempt is
   'True when tax was deliberately removed at the register. Distinguishes an exempt sale from one that simply had no tax — tax = 0 alone cannot.';
 comment on column public.dd_orders.tax_exempt_reason is
-  'Why: Student, Vet, Church, School. Free text is accepted so the list can grow without a migration, but the register only offers those four.';
+  'Why: Student, Veteran, Church, School. Free text is accepted so the list can grow without a migration, but the register only offers those four.';
 
 -- Exempt sales are the ones pulled for review, and they are a small
 -- fraction of the table.
