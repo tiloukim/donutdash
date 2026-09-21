@@ -32,6 +32,9 @@ export default function ShopBookkeeping() {
   const [year, setYear] = useState(new Date().getFullYear())
   const [entries, setEntries] = useState<Entry[]>([])
   const [ordersByMonth, setOrdersByMonth] = useState<OrdersByMonth>({})
+  // Null for every shop except the few whose books are kept in the tax
+  // workspace; the server decides, so other shops never receive it.
+  const [taxWorkspace, setTaxWorkspace] = useState<{ entity: string; url: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Form states
@@ -158,6 +161,7 @@ export default function ShopBookkeeping() {
       const data = await res.json()
       setEntries(data.entries || [])
       setOrdersByMonth(data.ordersByMonth || {})
+      setTaxWorkspace(data.taxWorkspace || null)
     }
     setLoading(false)
   }, [year, filterMonth])
@@ -282,6 +286,24 @@ export default function ShopBookkeeping() {
           <button onClick={() => setYear(y => y - 1)} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontWeight: 700 }}>&lt;</button>
           <span style={{ fontWeight: 800, fontSize: 18 }}>{year}</span>
           <button onClick={() => setYear(y => y + 1)} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontWeight: 700 }}>&gt;</button>
+          {/* Sits with the year control because it follows the year on
+              screen — change to 2025 here and the link opens 2025 there.
+              rel=noreferrer because it leaves for a different origin. */}
+          {taxWorkspace ? (
+            <a
+              href={taxWorkspace.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Open the ${taxWorkspace.entity} books for ${year} — full ledger, payroll, assets and sales tax`}
+              style={{
+                marginLeft: 8, padding: '7px 14px', borderRadius: 8,
+                border: '1px solid #FFB3D4', background: '#fff', color: '#FF1493',
+                fontWeight: 700, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap',
+              }}
+            >
+              Full books ↗
+            </a>
+          ) : null}
         </div>
       </div>
 
