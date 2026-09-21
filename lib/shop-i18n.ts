@@ -6,7 +6,8 @@ const translations = {
   // Layout & Navigation
   'nav.dashboard': { en: 'Dashboard', km: 'ផ្ទាំងគ្រប់គ្រង' },
   'nav.orders': { en: 'Orders', km: 'ការបញ្ជាទិញ' },
-  'nav.walkins': { en: 'Walk-in Sales', km: 'ការលក់ក្នុងហាង' },
+  // Two registers run side by side, so the nav says so.
+  'nav.walkins': { en: 'Walk-in Sales · Both POS', km: 'ការលក់ក្នុងហាង · ម៉ាស៊ីនទាំងពីរ' },
   'nav.earnings': { en: 'Earnings', km: 'ចំណូល' },
   'nav.promote': { en: 'Promote', km: 'ផ្សព្វផ្សាយ' },
   'nav.menu': { en: 'Menu', km: 'មុខម្ហូប' },

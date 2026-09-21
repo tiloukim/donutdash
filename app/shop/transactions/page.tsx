@@ -27,6 +27,17 @@ type Totals = {
   tips: number; cardFees: number; refunds: number
 }
 
+type SquareSale = {
+  id: string; at: string; tender: string
+  cardBrand: string | null; cardLast4: string | null
+  total: number; tip: number; fee: number | null
+  refunded: boolean; refundAmount: number
+}
+type SquareTotals = {
+  net: number; cash: number; card: number; cashCount: number; cardCount: number
+  tips: number; fees: number; refunds: number; excludedOnline: number
+}
+
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const localDay = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -46,6 +57,7 @@ export default function ShopTransactions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [sq, setSq] = useState<{ configured: boolean; sales: SquareSale[]; totals: SquareTotals | null; error?: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -60,10 +72,19 @@ export default function ShopTransactions() {
       setSales(d.sales || [])
       setTotals(d.totals || null)
       setTruncated(!!d.truncated)
+
+      // Square is fetched separately and never allowed to fail the page: the
+      // registers are independent, and an outage at Square is no reason to
+      // hide sales that are already in hand.
+      fetch(`/api/shop/square-sales?from=${day}&to=${day}&tz_offset=${tz}`)
+        .then((r) => r.json())
+        .then((q) => setSq(q))
+        .catch(() => setSq({ configured: true, sales: [], totals: null, error: 'Could not reach Square.' }))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load sales')
       setSales([])
       setTotals(null)
+      setSq(null)
     } finally {
       setLoading(false)
     }
@@ -77,7 +98,7 @@ export default function ShopTransactions() {
     <div style={{ padding: '16px 14px 40px', maxWidth: 720, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>Walk-in sales</h1>
       <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px' }}>
-        Transactions rung on the POS register.
+        Both registers, side by side — the shop&apos;s own POS and Square.
       </p>
 
       {/* Day picker. Arrows because on a phone that is the gesture people
@@ -113,8 +134,21 @@ export default function ShopTransactions() {
         </div>
       )}
 
+      {!loading && !error && totals && sq?.totals && (
+        <div style={{ ...card, padding: 16, marginBottom: 14, background: '#FFF0F6', borderColor: '#FFC7E0' }}>
+          <div style={{ fontSize: 12, color: '#9B1B5A', fontWeight: 700, letterSpacing: 0.4 }}>BOTH REGISTERS</div>
+          <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>
+            {money(totals.net + sq.totals.net)}
+          </div>
+          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+            DonutDash {money(totals.net)} · Square {money(sq.totals.net)}
+          </div>
+        </div>
+      )}
+
       {!loading && !error && totals && (
         <>
+          <SectionHead title="DonutDash POS" count={sales.length} />
           {/* Net, not gross — a refunded sale should not read as money kept. */}
           <div style={{ ...card, padding: 16, marginBottom: 14 }}>
             <div style={{ fontSize: 12, color: '#666', fontWeight: 700, letterSpacing: 0.4 }}>NET TAKEN</div>
@@ -153,6 +187,96 @@ export default function ShopTransactions() {
           )}
         </>
       )}
+
+      {!loading && !error && sq && (
+        <div style={{ marginTop: 26 }}>
+          <SectionHead title="Square POS" count={sq.sales.length} />
+
+          {!sq.configured && (
+            <div style={{ ...card, padding: 16 }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#666' }}>Square isn&apos;t connected.</p>
+            </div>
+          )}
+
+          {sq.configured && sq.error && (
+            <div style={{ ...card, padding: 14, borderColor: '#F3C2C2', background: '#FFF6F6' }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#B42318' }}>{sq.error}</p>
+            </div>
+          )}
+
+          {sq.configured && !sq.error && sq.totals && (
+            <>
+              <div style={{ ...card, padding: 16, marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: '#666', fontWeight: 700, letterSpacing: 0.4 }}>NET TAKEN</div>
+                <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>{money(sq.totals.net)}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginTop: 14 }}>
+                  <Stat label={`Cash · ${sq.totals.cashCount}`} value={money(sq.totals.cash)} />
+                  <Stat label={`Card · ${sq.totals.cardCount}`} value={money(sq.totals.card)} />
+                  {sq.totals.tips > 0 && <Stat label="Tips" value={money(sq.totals.tips)} />}
+                  {sq.totals.fees > 0 && <Stat label="Square fees" value={money(sq.totals.fees)} />}
+                  {sq.totals.refunds > 0 && <Stat label="Refunded" value={`-${money(sq.totals.refunds)}`} negative />}
+                </div>
+              </div>
+
+              {/* Said out loud rather than hidden: these payments went through
+                  the same Square account but are DonutDash's own online
+                  orders, already counted on the delivery side. */}
+              {sq.totals.excludedOnline > 0 && (
+                <p style={{ fontSize: 12, color: '#666', margin: '0 0 12px' }}>
+                  {sq.totals.excludedOnline} online order{sq.totals.excludedOnline === 1 ? '' : 's'} left out —
+                  DonutDash checkout runs through this same Square account and is already counted under delivery.
+                </p>
+              )}
+
+              {sq.sales.length === 0 ? (
+                <div style={{ ...card, padding: 24, textAlign: 'center' }}>
+                  <p style={{ margin: 0, color: '#666', fontSize: 14 }}>No Square sales on this day.</p>
+                </div>
+              ) : (
+                <div style={{ ...card, overflow: 'hidden' }}>
+                  {sq.sales.map((s, i) => (
+                    <SquareRow key={s.id} sale={s} first={i === 0} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SectionHead({ title, count }: { title: string; count: number }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '0 0 10px' }}>
+      <h2 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>{title}</h2>
+      <span style={{ fontSize: 12, color: '#777' }}>{count} sale{count === 1 ? '' : 's'}</span>
+    </div>
+  )
+}
+
+/** Square gives payment-level detail; line items would need its Orders API,
+ *  so this shows what was paid and how, not what was bought. */
+function SquareRow({ sale, first }: { sale: SquareSale; first: boolean }) {
+  const time = new Date(sale.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  const brand = prettyBrand(sale.cardBrand)
+  const how = sale.tender === 'CASH'
+    ? 'Cash'
+    : brand && sale.cardLast4 ? `${brand} ${sale.cardLast4}` : 'Card'
+  return (
+    <div style={{ padding: '12px 14px', borderTop: first ? 'none' : '1px solid #F0F0F0', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{time}</div>
+        <div style={{ fontSize: 12, color: '#666' }}>
+          {how}
+          {sale.tip > 0 && ` · ${money(sale.tip)} tip`}
+          {sale.refunded && ` · refunded ${money(sale.refundAmount)}`}
+        </div>
+      </div>
+      <div style={{ fontWeight: 800, fontSize: 16, color: sale.refunded ? '#B42318' : '#111' }}>
+        {money(sale.total)}
+      </div>
     </div>
   )
 }
