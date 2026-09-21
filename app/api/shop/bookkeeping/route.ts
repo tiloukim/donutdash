@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveCommissionRate } from '@/lib/constants'
 import { resolveOwnerShop as getActiveShop } from '@/lib/shop-auth'
+import { taxWorkspaceFor } from '@/lib/tax-workspace'
 
 async function getShopId() {
   const supabase = await createClient()
@@ -98,7 +99,11 @@ export async function GET(req: NextRequest) {
     byChannel[channel].total += income
   }
 
-  return NextResponse.json({ entries: data || [], ordersByMonth, byChannel })
+  // Null for every shop but the handful whose books live in the tax
+  // workspace, so nobody else's page learns the workspace exists.
+  const taxWorkspace = taxWorkspaceFor(shopId, year)
+
+  return NextResponse.json({ entries: data || [], ordersByMonth, byChannel, taxWorkspace })
 }
 
 // POST: Add a new entry
