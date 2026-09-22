@@ -158,8 +158,26 @@ async function squareExtract(year: string) {
       { headers: { 'cache-control': 'no-store' } },
     )
   } catch (e) {
-    console.error('[tax-export] square failed', e)
-    return NextResponse.json({ error: 'Could not read Square sales.' }, { status: 502 })
+    // Carry Square's own words through. Swallowing them turned a specific,
+    // self-explaining failure — a location the credentials cannot see, an
+    // expired token — into "Could not read Square sales", which says only
+    // that something went wrong and leaves the reader to guess which thing.
+    const detail = e instanceof Error ? e.message : String(e ?? '')
+    console.error('[tax-export] square failed', detail)
+    const env = process.env.SQUARE_ENVIRONMENT === 'sandbox' ? 'sandbox' : 'production'
+    return NextResponse.json(
+      {
+        error: `Square (${env}) refused the read: ${detail.slice(0, 200)}`,
+        // The single most common cause of a location error, named rather
+        // than left to be deduced: a production location id cannot be seen
+        // by sandbox credentials, and the two are easy to mismatch because
+        // neither is obviously which.
+        hint: env === 'sandbox'
+          ? 'SQUARE_ENVIRONMENT is sandbox — a production location id and token will not work against it.'
+          : undefined,
+      },
+      { status: 502 },
+    )
   }
 }
 
