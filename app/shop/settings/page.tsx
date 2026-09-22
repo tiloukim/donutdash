@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import SquareConnect from './SquareConnect'
 
 export default function ShopSettings() {
   const [shop, setShop] = useState<any>(null)
@@ -439,6 +440,11 @@ export default function ShopSettings() {
           {bankSaved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Payout info saved!</span>}
         </div>
       </div>
+      {/* This shop's own Square account, if it rings on one. Sits after
+          payouts because it is the same kind of thing: a connection to
+          somewhere money actually moves. */}
+      <SquareConnect />
+
       {/* Shop Referral Program */}
       {shopReferral && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>

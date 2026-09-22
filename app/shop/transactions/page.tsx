@@ -38,6 +38,23 @@ const shiftDay = (day: string, deltaDays: number) => {
 const prettyBrand = (b: string | null) =>
   !b ? null : b.charAt(0).toUpperCase() + b.slice(1).toLowerCase()
 
+type SquareSale = {
+  id: string; at: string; tender: string
+  cardBrand: string | null; cardLast4: string | null
+  total: number; tip: number; fee: number | null; refundAmount: number
+}
+type SquareTotals = {
+  net: number; cash: number; card: number
+  cashCount: number; cardCount: number
+  tips: number; fees: number; refunds: number
+}
+type SquareState = {
+  connected: boolean
+  sales: SquareSale[]
+  totals: SquareTotals | null
+  error?: string
+}
+
 export default function ShopTransactions() {
   const [day, setDay] = useState(localDay())
   const [sales, setSales] = useState<Sale[]>([])
@@ -46,6 +63,10 @@ export default function ShopTransactions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
+  // This shop's OWN Square, or nothing. There is no platform fallback: the
+  // last version of this panel read DonutDash's account and showed every
+  // shop the same online orders under a heading saying "your register".
+  const [sq, setSq] = useState<SquareState | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -60,6 +81,15 @@ export default function ShopTransactions() {
       setSales(d.sales || [])
       setTotals(d.totals || null)
       setTruncated(!!d.truncated)
+
+      // Fetched separately and never allowed to fail the page: the two
+      // registers are independent, and an outage at Square is no reason to
+      // hide the shop's own takings.
+      setSq(null)
+      fetch(`/api/shop/square-sales?from=${day}&to=${day}&tz_offset=${tz}`)
+        .then((r) => r.json())
+        .then((sqd: SquareState) => setSq(sqd))
+        .catch(() => setSq({ connected: true, sales: [], totals: null, error: 'Could not reach Square.' }))
 
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load sales')
@@ -116,8 +146,17 @@ export default function ShopTransactions() {
 
       {!loading && !error && totals && (
         <div style={{ ...card, padding: 16, marginBottom: 14, background: '#FFF0F6', borderColor: '#FFC7E0' }}>
-          <div style={{ fontSize: 12, color: '#9B1B5A', fontWeight: 700, letterSpacing: 0.4 }}>WALK-IN TOTAL</div>
-          <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>{money(totals.net)}</div>
+          <div style={{ fontSize: 12, color: '#9B1B5A', fontWeight: 700, letterSpacing: 0.4 }}>
+            {sq?.connected && sq.totals ? 'BOTH REGISTERS' : 'WALK-IN TOTAL'}
+          </div>
+          <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>
+            {money(totals.net + (sq?.connected ? sq.totals?.net ?? 0 : 0))}
+          </div>
+          {sq?.connected && sq.totals && (
+            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+              DonutDash {money(totals.net)} · Square {money(sq.totals.net)}
+            </div>
+          )}
         </div>
       )}
 
@@ -163,7 +202,86 @@ export default function ShopTransactions() {
         </>
       )}
 
+      {/* This shop's OWN Square register.
+          Rendered only when the shop has connected one — most shops have
+          not, and an empty Square section on every shop's page is how the
+          last version came to show DonutDash's online orders to merchants
+          who had nothing to do with them. */}
+      {!loading && !error && sq?.connected && (
+        <div style={{ marginTop: 26 }}>
+          <SectionHead title="Square POS" count={sq.sales.length} />
 
+          {sq.error ? (
+            <div style={{ ...card, padding: 14, borderColor: '#F3C2C2', background: '#FFF6F6' }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#B42318' }}>{sq.error}</p>
+            </div>
+          ) : sq.totals && (
+            <>
+              <div style={{ ...card, padding: 16, marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: '#666', fontWeight: 700, letterSpacing: 0.4 }}>NET TAKEN</div>
+                <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>{money(sq.totals.net)}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginTop: 14 }}>
+                  <Stat label={`Cash · ${sq.totals.cashCount}`} value={money(sq.totals.cash)} />
+                  <Stat label={`Card · ${sq.totals.cardCount}`} value={money(sq.totals.card)} />
+                  {sq.totals.tips > 0 && <Stat label="Tips" value={money(sq.totals.tips)} />}
+                  {sq.totals.fees > 0 && <Stat label="Square fees" value={money(sq.totals.fees)} />}
+                  {sq.totals.refunds > 0 && <Stat label="Refunded" value={`-${money(sq.totals.refunds)}`} negative />}
+                </div>
+              </div>
+
+              {sq.sales.length === 0 ? (
+                <div style={{ ...card, padding: 24, textAlign: 'center' }}>
+                  <p style={{ margin: 0, color: '#666', fontSize: 14 }}>No Square sales on this day.</p>
+                </div>
+              ) : (
+                <div style={{ ...card, overflow: 'hidden' }}>
+                  {sq.sales.map((s, i) => (
+                    <SquareRow key={s.id} sale={s} first={i === 0} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Square reports payments, not line items — a basket would need its Orders
+ *  API and a second round trip per sale. Time, tender and amount is what a
+ *  reconciliation needs anyway. */
+function SquareRow({ sale, first }: { sale: SquareSale; first: boolean }) {
+  const time = new Date(sale.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  const brand = sale.cardBrand
+    ? sale.cardBrand.charAt(0) + sale.cardBrand.slice(1).toLowerCase()
+    : null
+  const how = sale.tender === 'CASH'
+    ? 'Cash'
+    : brand && sale.cardLast4 ? `${brand} ${sale.cardLast4}` : 'Card'
+  const refunded = sale.refundAmount > 0
+  return (
+    <div style={{ padding: '12px 14px', borderTop: first ? 'none' : '1px solid #F0F0F0', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{time}</div>
+        <div style={{ fontSize: 12, color: '#666' }}>
+          {how}
+          {sale.tip > 0 && ` · ${money(sale.tip)} tip`}
+          {refunded && ` · refunded ${money(sale.refundAmount)}`}
+        </div>
+      </div>
+      <div style={{ fontWeight: 800, fontSize: 16, color: refunded ? '#B42318' : '#111' }}>
+        {money(sale.total)}
+      </div>
+    </div>
+  )
+}
+
+function Stat({ label, value, negative }: { label: string; value: string; negative?: boolean }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: '#777', fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 17, fontWeight: 700, color: negative ? '#B42318' : '#111' }}>{value}</div>
     </div>
   )
 }
@@ -178,14 +296,6 @@ function SectionHead({ title, count }: { title: string; count: number }) {
 }
 
 
-function Stat({ label, value, negative }: { label: string; value: string; negative?: boolean }) {
-  return (
-    <div>
-      <div style={{ fontSize: 11, color: '#777', fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 17, fontWeight: 700, color: negative ? '#B42318' : '#111' }}>{value}</div>
-    </div>
-  )
-}
 
 function SaleRow({ sale, first, open, onToggle }: { sale: Sale; first: boolean; open: boolean; onToggle: () => void }) {
   const time = new Date(sale.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
