@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { timingSafeEqual } from 'crypto'
-import { fetchSquareSales, squareSalesConfigured } from '@/lib/square-sales'
 
 // GET /api/pos/tax-export?shop_id=<uuid>&year=<yyyy>
 // GET /api/pos/tax-export?scope=platform&year=<yyyy>
@@ -124,67 +123,6 @@ async function platformExtract(year: string) {
   )
 }
 
-// The shop's OTHER register. Top Donuts rings on two — its own POS, which
-// writes to dd_orders, and a Square terminal. Both are the same business's
-// income and belong in the same books, so the tax workspace has to be able
-// to read both or the year is short by whatever Square took.
-//
-// Returns the same shape of money fields as the shop scope: what came in,
-// split by tender, with tax and tips kept separate because neither is
-// revenue. No card numbers, no customer details.
-//
-// Square is not per-shop — the credentials point at one location — so there
-// is no shop_id to check here. That is also why this is a scope of its own
-// rather than folded into the shop extract: they are different sources with
-// different auth, and pretending otherwise would mean one endpoint that
-// half-works when Square is unconfigured.
-async function squareExtract(year: string) {
-  if (!squareSalesConfigured()) {
-    // Not an error. A shop without a Square terminal is the normal case, and
-    // the workspace should show "nothing here" rather than a failure.
-    return NextResponse.json(
-      { scope: 'square', year, configured: false, sales: [], totals: null },
-      { headers: { 'cache-control': 'no-store' } },
-    )
-  }
-  try {
-    const { sales, totals, truncated } = await fetchSquareSales(
-      `${year}-01-01T00:00:00Z`,
-      `${Number(year) + 1}-01-01T00:00:00Z`,
-      1000,
-    )
-    return NextResponse.json(
-      { scope: 'square', year, configured: true, sales, totals, truncated },
-      { headers: { 'cache-control': 'no-store' } },
-    )
-  } catch (e) {
-    // Carry Square's own words through. Swallowing them turned a specific,
-    // self-explaining failure — a location the credentials cannot see, an
-    // expired token — into "Could not read Square sales", which says only
-    // that something went wrong and leaves the reader to guess which thing.
-    const detail = e instanceof Error ? e.message : String(e ?? '')
-    console.error('[tax-export] square failed', detail)
-    const env = process.env.SQUARE_ENVIRONMENT === 'sandbox' ? 'sandbox' : 'production'
-    return NextResponse.json(
-      {
-        error: `Square (${env}) refused the read: ${detail.slice(0, 200)}`,
-        // The single most common cause of a location error, named rather
-        // than left to be deduced: a production location id cannot be seen
-        // by sandbox credentials, and the two are easy to mismatch because
-        // neither is obviously which.
-        hint: env === 'sandbox'
-          ? 'SQUARE_ENVIRONMENT is sandbox — a production location id and token will not work against it.'
-          : undefined,
-      },
-      { status: 502 },
-    )
-  }
-}
-
-// A year of register payments is many pages of Square's API, walked one
-// after another. Twelve test payments returned instantly; a real till does
-// not, and the default function timeout is what turned that into "could not
-// reach DonutDash" on the workspace.
 export const maxDuration = 60
 
 export async function GET(request: NextRequest) {
@@ -205,9 +143,6 @@ export async function GET(request: NextRequest) {
   }
   if (scope === 'platform') {
     return platformExtract(year)
-  }
-  if (scope === 'square') {
-    return squareExtract(year)
   }
   if (!/^[0-9a-f-]{36}$/i.test(shopId)) {
     return NextResponse.json({ error: 'Bad shop id.' }, { status: 400 })
