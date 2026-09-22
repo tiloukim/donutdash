@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { timingSafeEqual } from 'crypto'
+import { fetchSquareSales, squareSalesConfigured } from '@/lib/square-sales'
 
 // GET /api/pos/tax-export?shop_id=<uuid>&year=<yyyy>
 // GET /api/pos/tax-export?scope=platform&year=<yyyy>
@@ -123,6 +124,45 @@ async function platformExtract(year: string) {
   )
 }
 
+// The shop's OTHER register. Top Donuts rings on two — its own POS, which
+// writes to dd_orders, and a Square terminal. Both are the same business's
+// income and belong in the same books, so the tax workspace has to be able
+// to read both or the year is short by whatever Square took.
+//
+// Returns the same shape of money fields as the shop scope: what came in,
+// split by tender, with tax and tips kept separate because neither is
+// revenue. No card numbers, no customer details.
+//
+// Square is not per-shop — the credentials point at one location — so there
+// is no shop_id to check here. That is also why this is a scope of its own
+// rather than folded into the shop extract: they are different sources with
+// different auth, and pretending otherwise would mean one endpoint that
+// half-works when Square is unconfigured.
+async function squareExtract(year: string) {
+  if (!squareSalesConfigured()) {
+    // Not an error. A shop without a Square terminal is the normal case, and
+    // the workspace should show "nothing here" rather than a failure.
+    return NextResponse.json(
+      { scope: 'square', year, configured: false, sales: [], totals: null },
+      { headers: { 'cache-control': 'no-store' } },
+    )
+  }
+  try {
+    const { sales, totals, truncated } = await fetchSquareSales(
+      `${year}-01-01T00:00:00Z`,
+      `${Number(year) + 1}-01-01T00:00:00Z`,
+      1000,
+    )
+    return NextResponse.json(
+      { scope: 'square', year, configured: true, sales, totals, truncated },
+      { headers: { 'cache-control': 'no-store' } },
+    )
+  } catch (e) {
+    console.error('[tax-export] square failed', e)
+    return NextResponse.json({ error: 'Could not read Square sales.' }, { status: 502 })
+  }
+}
+
 export async function GET(request: NextRequest) {
   if (!process.env.TAX_EXPORT_TOKEN) {
     return NextResponse.json({ error: 'Export is not configured.' }, { status: 503 })
@@ -141,6 +181,9 @@ export async function GET(request: NextRequest) {
   }
   if (scope === 'platform') {
     return platformExtract(year)
+  }
+  if (scope === 'square') {
+    return squareExtract(year)
   }
   if (!/^[0-9a-f-]{36}$/i.test(shopId)) {
     return NextResponse.json({ error: 'Bad shop id.' }, { status: 400 })
