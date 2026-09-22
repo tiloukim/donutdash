@@ -24,7 +24,7 @@ type Sale = {
 }
 type Totals = {
   net: number; cash: number; card: number; cashCount: number; cardCount: number
-  tips: number; cardFees: number; refunds: number
+  tips: number; customerFees: number; shopFees: number; refunds: number
 }
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -102,6 +102,19 @@ export default function ShopTransactions() {
 
   useEffect(() => { load() }, [load])
 
+  // Card takings less what the processor keeps. Cash is deliberately not
+  // here: it is already in the till, and folding it into a "deposit" would
+  // produce a number that can never be reconciled against a bank statement.
+  const ddDeposit = totals
+    ? Math.round((totals.card - (totals.shopFees ?? 0)) * 100) / 100
+    : 0
+  const sqDeposit = sq?.connected && sq.totals
+    ? Math.round((sq.totals.card - sq.totals.fees) * 100) / 100
+    : 0
+  const cashInDrawer = Math.round(
+    ((totals?.cash ?? 0) + (sq?.connected ? sq.totals?.cash ?? 0 : 0)) * 100,
+  ) / 100
+
   const isToday = day === localDay()
 
   return (
@@ -157,6 +170,34 @@ export default function ShopTransactions() {
               DonutDash {money(totals.net)} · Square {money(sq.totals.net)}
             </div>
           )}
+
+          {/* What actually reaches the bank, which is not what was taken.
+              Card money less the processor's cut; cash is excluded because
+              it never goes through a processor at all — it is in the
+              drawer, and a "deposit" figure that quietly included it would
+              never match the statement. */}
+          <div style={{ borderTop: '1px solid #FFC7E0', marginTop: 14, paddingTop: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.6, color: '#B4005A' }}>
+              EXPECTED IN THE BANK
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5, marginTop: 2 }}>
+              {money(ddDeposit + sqDeposit)}
+            </div>
+            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+              DonutDash {money(ddDeposit)}
+              {sq?.connected && sq.totals ? ` · Square ${money(sqDeposit)}` : ''}
+              {cashInDrawer > 0 ? ` · ${money(cashInDrawer)} cash stays in the drawer` : ''}
+            </div>
+            {/* Square does not attach a processing fee until the payment
+                settles, usually the next day. Today's deposit therefore
+                reads high, and saying so beats having the statement
+                disagree with the screen tomorrow. */}
+            {sq?.connected && sq.totals && sq.totals.fees === 0 && sq.totals.cardCount > 0 && (
+              <div style={{ fontSize: 11, color: '#8A6D3B', marginTop: 6 }}>
+                Square hasn’t reported its fees for today yet — its deposit will be lower once they settle.
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -170,8 +211,21 @@ export default function ShopTransactions() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginTop: 14 }}>
               <Stat label={`Cash · ${totals.cashCount}`} value={money(totals.cash)} />
               <Stat label={`Card · ${totals.cardCount}`} value={money(totals.card)} />
-              {totals.tips > 0 && <Stat label="Tips" value={money(totals.tips)} />}
-              {totals.cardFees > 0 && <Stat label="Card fees" value={money(totals.cardFees)} />}
+              {/* Always shown, not only when non-zero. Square's row shows
+                  tips whatever they are, and two registers whose stats
+                  appear and disappear independently cannot be read side by
+                  side — a missing Tips on one reads as a layout difference,
+                  not as "no tips today". */}
+              <Stat label="Tips" value={money(totals.tips)} />
+              {/* Two fees, opposite directions, and the old single "Card
+                  fees" line was the customer-paid one wearing a name that
+                  could mean either. */}
+              {totals.cardCount > 0 && (
+                <Stat label="Customer fees" value={money(totals.customerFees ?? 0)} />
+              )}
+              {totals.cardCount > 0 && (
+                <Stat label="Shop fees" value={`-${money(totals.shopFees ?? 0)}`} negative />
+              )}
               {totals.refunds > 0 && <Stat label="Refunded" value={`-${money(totals.refunds)}`} negative />}
             </div>
           </div>
@@ -223,8 +277,11 @@ export default function ShopTransactions() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginTop: 14 }}>
                   <Stat label={`Cash · ${sq.totals.cashCount}`} value={money(sq.totals.cash)} />
                   <Stat label={`Card · ${sq.totals.cardCount}`} value={money(sq.totals.card)} />
-                  {sq.totals.tips > 0 && <Stat label="Tips" value={money(sq.totals.tips)} />}
-                  {sq.totals.fees > 0 && <Stat label="Square fees" value={money(sq.totals.fees)} />}
+                  <Stat label="Tips" value={money(sq.totals.tips)} />
+                  {/* Square's own cut, which is the same kind of number as
+                      Shop fees on the register above — both are money the
+                      processor keeps, so both are shown as a deduction. */}
+                  <Stat label="Square fees" value={`-${money(sq.totals.fees)}`} negative />
                   {sq.totals.refunds > 0 && <Stat label="Refunded" value={`-${money(sq.totals.refunds)}`} negative />}
                 </div>
               </div>
