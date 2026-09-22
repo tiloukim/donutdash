@@ -163,6 +163,12 @@ async function squareExtract(year: string) {
   }
 }
 
+// A year of register payments is many pages of Square's API, walked one
+// after another. Twelve test payments returned instantly; a real till does
+// not, and the default function timeout is what turned that into "could not
+// reach DonutDash" on the workspace.
+export const maxDuration = 60
+
 export async function GET(request: NextRequest) {
   if (!process.env.TAX_EXPORT_TOKEN) {
     return NextResponse.json({ error: 'Export is not configured.' }, { status: 503 })
