@@ -220,11 +220,31 @@ export default function ShopTransactions() {
               {/* Two fees, opposite directions, and the old single "Card
                   fees" line was the customer-paid one wearing a name that
                   could mean either. */}
+              {/* Three figures because there are three, and collapsing them
+                  is what made the old single line misread.
+
+                  Customer fees  the convenience fee, collected
+                  Processor      what iPOSpays deducts: 3.5% + $0.15 a card
+                  Net cost       the difference, which is the only one of
+                                 the three that is the shop's own money
+
+                  The flat $0.15 is never recovered by a percentage fee, and
+                  the two 3.5%s are not the same 3.5%: the customer's is on
+                  the subtotal, the processor's is on the settled total with
+                  tax and the fee itself inside it. Net cost is where both
+                  gaps show up. */}
               {totals.cardCount > 0 && (
                 <Stat label="Customer fees" value={money(totals.customerFees ?? 0)} />
               )}
               {totals.cardCount > 0 && (
-                <Stat label="Shop fees" value={`-${money(totals.shopFees ?? 0)}`} negative />
+                <Stat label="Processor" value={`-${money(totals.shopFees ?? 0)}`} negative />
+              )}
+              {totals.cardCount > 0 && (
+                <Stat
+                  label="Net cost"
+                  value={`-${money(Math.round(((totals.shopFees ?? 0) - (totals.customerFees ?? 0)) * 100) / 100)}`}
+                  negative
+                />
               )}
               {totals.refunds > 0 && <Stat label="Refunded" value={`-${money(totals.refunds)}`} negative />}
             </div>
