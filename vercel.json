@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/call-unaccepted-orders",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/daily-sales-report",
+      "schedule": "0 22,23 * * *"
     }
   ]
 }
