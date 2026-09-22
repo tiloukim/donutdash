@@ -102,6 +102,19 @@ export default function ShopTransactions() {
 
   useEffect(() => { load() }, [load])
 
+  // Card takings less what the processor keeps. Cash is deliberately not
+  // here: it is already in the till, and folding it into a "deposit" would
+  // produce a number that can never be reconciled against a bank statement.
+  const ddDeposit = totals
+    ? Math.round((totals.card - (totals.shopFees ?? 0)) * 100) / 100
+    : 0
+  const sqDeposit = sq?.connected && sq.totals
+    ? Math.round((sq.totals.card - sq.totals.fees) * 100) / 100
+    : 0
+  const cashInDrawer = Math.round(
+    ((totals?.cash ?? 0) + (sq?.connected ? sq.totals?.cash ?? 0 : 0)) * 100,
+  ) / 100
+
   const isToday = day === localDay()
 
   return (
@@ -157,6 +170,34 @@ export default function ShopTransactions() {
               DonutDash {money(totals.net)} · Square {money(sq.totals.net)}
             </div>
           )}
+
+          {/* What actually reaches the bank, which is not what was taken.
+              Card money less the processor's cut; cash is excluded because
+              it never goes through a processor at all — it is in the
+              drawer, and a "deposit" figure that quietly included it would
+              never match the statement. */}
+          <div style={{ borderTop: '1px solid #FFC7E0', marginTop: 14, paddingTop: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.6, color: '#B4005A' }}>
+              EXPECTED IN THE BANK
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5, marginTop: 2 }}>
+              {money(ddDeposit + sqDeposit)}
+            </div>
+            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+              DonutDash {money(ddDeposit)}
+              {sq?.connected && sq.totals ? ` · Square ${money(sqDeposit)}` : ''}
+              {cashInDrawer > 0 ? ` · ${money(cashInDrawer)} cash stays in the drawer` : ''}
+            </div>
+            {/* Square does not attach a processing fee until the payment
+                settles, usually the next day. Today's deposit therefore
+                reads high, and saying so beats having the statement
+                disagree with the screen tomorrow. */}
+            {sq?.connected && sq.totals && sq.totals.fees === 0 && sq.totals.cardCount > 0 && (
+              <div style={{ fontSize: 11, color: '#8A6D3B', marginTop: 6 }}>
+                Square hasn’t reported its fees for today yet — its deposit will be lower once they settle.
+              </div>
+            )}
+          </div>
         </div>
       )}
 
