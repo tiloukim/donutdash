@@ -77,19 +77,26 @@ export async function fetchSquareSales(
   const square = client()
   const sales: SquareSale[] = []
   let excludedOnline = 0
-  let cursor: string | undefined
+
+  // payments.list() returns a Page, not a plain response: pagination is
+  // hasNextPage()/getNextPage(), and there is no `cursor` property on it.
+  // Reading `(res as { cursor?: string }).cursor` therefore always produced
+  // undefined, the loop exited after the first page, and everything beyond
+  // it was silently invisible — a year that looked complete and was not.
+  //
+  // Square also returns SHORT pages: fewer rows than the page size with a
+  // next page still waiting, so "we got less than a full page" was never
+  // evidence there was no more.
+  let page = await square.payments.list({
+    locationId,
+    beginTime: beginIso,
+    endTime: endIso,
+    sortOrder: 'DESC',
+  })
   let pages = 0
 
-  do {
-    const res = await square.payments.list({
-      locationId,
-      beginTime: beginIso,
-      endTime: endIso,
-      sortOrder: 'DESC',
-      cursor,
-    })
-
-    for (const p of res.data ?? []) {
+  while (true) {
+    for (const p of page.data ?? []) {
       if (p.status !== 'COMPLETED' && p.status !== 'APPROVED') continue
 
       // The whole point of the filter. Without an app id configured we cannot
@@ -118,9 +125,13 @@ export async function fetchSquareSales(
       if (sales.length >= limit) break
     }
 
-    cursor = res.data && sales.length < limit ? (res as { cursor?: string }).cursor : undefined
     pages += 1
-  } while (cursor && pages < 20)
+    // Stop on the caller's cap, on the page cap, or when Square says there
+    // is nothing further. The page cap is a runaway guard, not a limit on
+    // the answer — `truncated` below reports when it actually bit.
+    if (sales.length >= limit || pages >= 40 || !page.hasNextPage()) break
+    page = await page.getNextPage()
+  }
 
   const totals = sales.reduce<SquareTotals>(
     (t, s) => {
@@ -144,6 +155,6 @@ export async function fetchSquareSales(
       net: round(totals.net), cash: round(totals.cash), card: round(totals.card),
       tips: round(totals.tips), fees: round(totals.fees), refunds: round(totals.refunds),
     },
-    truncated: sales.length >= limit,
+    truncated: sales.length >= limit || pages >= 40,
   }
 }
