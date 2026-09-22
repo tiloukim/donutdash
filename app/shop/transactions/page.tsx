@@ -125,7 +125,8 @@ export default function ShopTransactions() {
     <div style={{ padding: '16px 14px 40px', maxWidth: 720, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>Walk-in sales</h1>
       <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px' }}>
-        Every walk-in rung on the shop&apos;s register, by day.
+        Every walk-in rung on the shop&apos;s register, by day. Figures are takings —
+        what went through the till, including sales tax and the card fee — not revenue.
       </p>
 
       {/* Day picker. Arrows because on a phone that is the gesture people
@@ -164,7 +165,7 @@ export default function ShopTransactions() {
       {!loading && !error && totals && (
         <div style={{ ...card, padding: 16, marginBottom: 14, background: '#FFF0F6', borderColor: '#FFC7E0' }}>
           <div style={{ fontSize: 12, color: '#9B1B5A', fontWeight: 700, letterSpacing: 0.4 }}>
-            {sq?.connected && sq.totals ? 'BOTH REGISTERS' : 'WALK-IN TOTAL'}
+            {sq?.connected && sq.totals ? 'BOTH REGISTERS · TAKEN' : 'WALK-IN TAKEN'}
           </div>
           <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>
             {money(totals.net + (sq?.connected ? sq.totals?.net ?? 0 : 0))}
@@ -210,7 +211,7 @@ export default function ShopTransactions() {
           <SectionHead title="DonutDash POS" count={sales.length} />
           {/* Net, not gross — a refunded sale should not read as money kept. */}
           <div style={{ ...card, padding: 16, marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: '#666', fontWeight: 700, letterSpacing: 0.4 }}>NET TAKEN</div>
+            <div style={{ fontSize: 12, color: '#666', fontWeight: 700, letterSpacing: 0.4 }}>TAKEN  ·  INCL. TAX &amp; FEES</div>
             <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>{money(totals.net)}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginTop: 14 }}>
               <Stat label={`Cash · ${totals.cashCount}`} value={money(totals.cash)} />
@@ -299,7 +300,7 @@ export default function ShopTransactions() {
           ) : sq.totals && (
             <>
               <div style={{ ...card, padding: 16, marginBottom: 14 }}>
-                <div style={{ fontSize: 12, color: '#666', fontWeight: 700, letterSpacing: 0.4 }}>NET TAKEN</div>
+                <div style={{ fontSize: 12, color: '#666', fontWeight: 700, letterSpacing: 0.4 }}>TAKEN  ·  INCL. TAX &amp; FEES</div>
                 <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>{money(sq.totals.net)}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginTop: 14 }}>
                   <Stat label={`Cash · ${sq.totals.cashCount}`} value={money(sq.totals.cash)} />
