@@ -41,6 +41,11 @@ interface CreateBody {
   customer_id?: string | null
   /** Cash discount given on this sale (dollars). 0 on card sales. */
   cash_discount_amount?: number
+  /** Order-level discount applied at the register — the discount catalog,
+   *  not the cash-discount program. Deducted after subtotal and before the
+   *  total, and stored so a reprint can show the line. */
+  discount_amount?: number
+  discount_label?: string | null
   /** Card processing fee added by the terminal (dollars). Server adds
    *  this to its recomputed total so the integrity check accepts the
    *  client-reported grand total. Persisted alongside cash_discount so
@@ -129,8 +134,16 @@ export async function POST(req: NextRequest) {
   const tip = Number(body.tip ?? 0)
   const tax = Number(body.tax ?? 0)
   const discount = Number(body.cash_discount_amount ?? 0)
+  // Order-level discount. Its absence here is what rejected every
+  // discounted sale: the register sends the GROSS subtotal with the items
+  // and a total that already has the discount taken off, so leaving the
+  // discount out of this sum made the two disagree by exactly the discount.
+  // Order 46ADB ($67.59, 5% off) died on "total mismatch: client 67.59,
+  // server 70.77" — 70.77 − 67.59 = 3.18 = the discount — and by then the
+  // card had already been charged.
+  const orderDiscount = Number(body.discount_amount ?? 0)
   const surcharge = Number(body.card_surcharge_amount ?? 0)
-  const recomputedTotal = recomputedSubtotal + tax + tip - discount + surcharge
+  const recomputedTotal = recomputedSubtotal + tax + tip - discount - orderDiscount + surcharge
   const TOLERANCE = 0.01 // one cent of float wobble
   if (Math.abs(recomputedSubtotal - Number(body.subtotal)) > TOLERANCE) {
     return NextResponse.json({
@@ -173,6 +186,10 @@ export async function POST(req: NextRequest) {
       cash_received: body.cash_received ?? null,
       change_given: body.change_given ?? null,
       cash_discount_amount: Math.round(discount * 100) / 100,
+      // Persisted so the reprint shows the discount the customer was given,
+      // and so "what did we give away this month" is answerable at all.
+      discount_amount: Math.round(orderDiscount * 100) / 100,
+      discount_label: body.discount_label ?? null,
       // Card fee as reported by the gateway, stored explicitly rather than
       // folded into `total` and reverse-engineered later (see
       // supabase/card-surcharge.sql). Deriving it arithmetically is what
