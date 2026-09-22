@@ -239,13 +239,22 @@ export default function ShopTransactions() {
               {totals.cardCount > 0 && (
                 <Stat label="Processor" value={`-${money(totals.shopFees ?? 0)}`} negative />
               )}
-              {totals.cardCount > 0 && (
-                <Stat
-                  label="Net cost"
-                  value={`-${money(Math.round(((totals.shopFees ?? 0) - (totals.customerFees ?? 0)) * 100) / 100)}`}
-                  negative
-                />
-              )}
+              {/* The customer fee usually MORE than covers a flat
+                  per-card charge — 3.5% beats $0.15 on any basket over
+                  about $4.30 — so this figure is normally a gain, not a
+                  cost. Rendering it as "-$-4.97" was the giveaway that it
+                  had been written assuming only one direction. */}
+              {totals.cardCount > 0 && (() => {
+                const net = Math.round(((totals.customerFees ?? 0) - (totals.shopFees ?? 0)) * 100) / 100
+                return (
+                  <Stat
+                    label={net >= 0 ? 'Fee margin' : 'Net cost'}
+                    value={net >= 0 ? `+${money(net)}` : `-${money(Math.abs(net))}`}
+                    negative={net < 0}
+                    positive={net > 0}
+                  />
+                )
+              })()}
               {totals.refunds > 0 && <Stat label="Refunded" value={`-${money(totals.refunds)}`} negative />}
             </div>
           </div>
@@ -354,11 +363,17 @@ function SquareRow({ sale, first }: { sale: SquareSale; first: boolean }) {
   )
 }
 
-function Stat({ label, value, negative }: { label: string; value: string; negative?: boolean }) {
+function Stat({ label, value, negative, positive }: {
+  label: string; value: string; negative?: boolean; positive?: boolean
+}) {
+  // Three states, not two. Money out is red, money kept is green, and
+  // everything else is just a number — a figure that can go either way
+  // needs to say which way it went without the reader doing the sum.
+  const color = negative ? '#B42318' : positive ? '#0F7B45' : '#111'
   return (
     <div>
       <div style={{ fontSize: 11, color: '#777', fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 17, fontWeight: 700, color: negative ? '#B42318' : '#111' }}>{value}</div>
+      <div style={{ fontSize: 17, fontWeight: 700, color }}>{value}</div>
     </div>
   )
 }
