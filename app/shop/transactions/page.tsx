@@ -105,8 +105,12 @@ export default function ShopTransactions() {
   // Card takings less what the processor keeps. Cash is deliberately not
   // here: it is already in the till, and folding it into a "deposit" would
   // produce a number that can never be reconciled against a bank statement.
+  // Card takings less the convenience fee the processor keeps at
+  // settlement. The per-card charge is NOT subtracted: it is billed to the
+  // merchant account monthly, so deducting it here would understate every
+  // day's deposit and never match a statement.
   const ddDeposit = totals
-    ? Math.round((totals.card - (totals.shopFees ?? 0)) * 100) / 100
+    ? Math.round((totals.card - (totals.customerFees ?? 0)) * 100) / 100
     : 0
   const sqDeposit = sq?.connected && sq.totals
     ? Math.round((sq.totals.card - sq.totals.fees) * 100) / 100
@@ -233,28 +237,22 @@ export default function ShopTransactions() {
                   the subtotal, the processor's is on the settled total with
                   tax and the fee itself inside it. Net cost is where both
                   gaps show up. */}
+              {/* Named for where each one goes. Customers paid the fee and
+                  the processor kept it; the per-card charge is the shop's
+                  and arrives on a monthly bill rather than out of a
+                  deposit. */}
               {totals.cardCount > 0 && (
-                <Stat label="Customer fees" value={money(totals.customerFees ?? 0)} />
+                <Stat label="Fee to processor" value={money(totals.customerFees ?? 0)} />
               )}
               {totals.cardCount > 0 && (
-                <Stat label="Processor" value={`-${money(totals.shopFees ?? 0)}`} negative />
+                <Stat label="Card fees (monthly)" value={`-${money(totals.shopFees ?? 0)}`} negative />
               )}
-              {/* The customer fee usually MORE than covers a flat
-                  per-card charge — 3.5% beats $0.15 on any basket over
-                  about $4.30 — so this figure is normally a gain, not a
-                  cost. Rendering it as "-$-4.97" was the giveaway that it
-                  had been written assuming only one direction. */}
-              {totals.cardCount > 0 && (() => {
-                const net = Math.round(((totals.customerFees ?? 0) - (totals.shopFees ?? 0)) * 100) / 100
-                return (
-                  <Stat
-                    label={net >= 0 ? 'Fee margin' : 'Net cost'}
-                    value={net >= 0 ? `+${money(net)}` : `-${money(Math.abs(net))}`}
-                    negative={net < 0}
-                    positive={net > 0}
-                  />
-                )
-              })()}
+              {/* No net line.
+                  The convenience fee and the shop's per-card charge are not
+                  two sides of one number: the processor keeps the fee at
+                  settlement and bills the per-card charge monthly. Setting
+                  one against the other produced "Shop keeps $4.97", money
+                  the shop never had. */}
               {totals.refunds > 0 && <Stat label="Refunded" value={`-${money(totals.refunds)}`} negative />}
             </div>
           </div>
