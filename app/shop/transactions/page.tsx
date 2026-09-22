@@ -24,7 +24,7 @@ type Sale = {
 }
 type Totals = {
   net: number; cash: number; card: number; cashCount: number; cardCount: number
-  tips: number; cardFees: number; refunds: number
+  tips: number; customerFees: number; shopFees: number; refunds: number
 }
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -170,8 +170,21 @@ export default function ShopTransactions() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginTop: 14 }}>
               <Stat label={`Cash · ${totals.cashCount}`} value={money(totals.cash)} />
               <Stat label={`Card · ${totals.cardCount}`} value={money(totals.card)} />
-              {totals.tips > 0 && <Stat label="Tips" value={money(totals.tips)} />}
-              {totals.cardFees > 0 && <Stat label="Card fees" value={money(totals.cardFees)} />}
+              {/* Always shown, not only when non-zero. Square's row shows
+                  tips whatever they are, and two registers whose stats
+                  appear and disappear independently cannot be read side by
+                  side — a missing Tips on one reads as a layout difference,
+                  not as "no tips today". */}
+              <Stat label="Tips" value={money(totals.tips)} />
+              {/* Two fees, opposite directions, and the old single "Card
+                  fees" line was the customer-paid one wearing a name that
+                  could mean either. */}
+              {totals.cardCount > 0 && (
+                <Stat label="Customer fees" value={money(totals.customerFees ?? 0)} />
+              )}
+              {totals.cardCount > 0 && (
+                <Stat label="Shop fees" value={`-${money(totals.shopFees ?? 0)}`} negative />
+              )}
               {totals.refunds > 0 && <Stat label="Refunded" value={`-${money(totals.refunds)}`} negative />}
             </div>
           </div>
@@ -223,8 +236,11 @@ export default function ShopTransactions() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginTop: 14 }}>
                   <Stat label={`Cash · ${sq.totals.cashCount}`} value={money(sq.totals.cash)} />
                   <Stat label={`Card · ${sq.totals.cardCount}`} value={money(sq.totals.card)} />
-                  {sq.totals.tips > 0 && <Stat label="Tips" value={money(sq.totals.tips)} />}
-                  {sq.totals.fees > 0 && <Stat label="Square fees" value={money(sq.totals.fees)} />}
+                  <Stat label="Tips" value={money(sq.totals.tips)} />
+                  {/* Square's own cut, which is the same kind of number as
+                      Shop fees on the register above — both are money the
+                      processor keeps, so both are shown as a deduction. */}
+                  <Stat label="Square fees" value={`-${money(sq.totals.fees)}`} negative />
                   {sq.totals.refunds > 0 && <Stat label="Refunded" value={`-${money(sq.totals.refunds)}`} negative />}
                 </div>
               </div>

@@ -94,6 +94,20 @@ export async function GET(req: Request) {
 
   const rows = data ?? []
 
+  // The processor's cut on this day's card sales, as recorded per order when
+  // the sale was rung. Keyed by order so it covers exactly the sales listed
+  // above, including any the page's limit truncated away — which keeps the
+  // figure honest rather than quietly partial.
+  const orderIds = rows.map((r) => r.id)
+  let shopFees = 0
+  if (orderIds.length > 0) {
+    const { data: feeRows } = await svc
+      .from('dd_pos_card_fees')
+      .select('amount')
+      .in('order_id', orderIds)
+    shopFees = Math.round((feeRows ?? []).reduce((t, f) => t + Number(f.amount || 0), 0) * 100) / 100
+  }
+
   // Cashier names, resolved in one query rather than a join — dd_orders.staff_id
   // points at dd_users and a nested select here would re-fetch the same handful
   // of staff for every row.
@@ -158,7 +172,15 @@ export async function GET(req: Request) {
       cashCount: cash.length,
       cardCount: card.length,
       tips: Math.round(sales.reduce((t, s) => t + s.tip, 0) * 100) / 100,
-      cardFees: Math.round(sales.reduce((t, s) => t + s.cardFee, 0) * 100) / 100,
+      // What the CUSTOMER paid on top — the convenience fee. Named so it
+      // cannot be confused with the line below it, which is the opposite
+      // direction of money.
+      customerFees: Math.round(sales.reduce((t, s) => t + s.cardFee, 0) * 100) / 100,
+      // What the PROCESSOR takes off the shop. Read from dd_pos_card_fees
+      // rather than recomputed here: that ledger is what reconciles against
+      // the deposit, and a second calculation of the same number is how the
+      // two end up disagreeing.
+      shopFees,
       refunds: Math.round(sales.reduce((t, s) => t + s.refundAmount, 0) * 100) / 100,
     },
     sales,
