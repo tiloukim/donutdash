@@ -98,15 +98,25 @@ export async function GET(req: Request) {
   // the sale was rung. Keyed by order so it covers exactly the sales listed
   // above, including any the page's limit truncated away — which keeps the
   // figure honest rather than quietly partial.
-  const orderIds = rows.map((r) => r.id)
-  let shopFees = 0
-  if (orderIds.length > 0) {
-    const { data: feeRows } = await svc
-      .from('dd_pos_card_fees')
-      .select('amount')
-      .in('order_id', orderIds)
-    shopFees = Math.round((feeRows ?? []).reduce((t, f) => t + Number(f.amount || 0), 0) * 100) / 100
-  }
+  // The shop's two card charges, which behave differently and must not be
+  // reported as one number:
+  //
+  //   percentage  taken off the batch at settlement — reduces the deposit
+  //   flat        billed to the merchant account monthly — never touches a
+  //               deposit
+  //
+  // dd_pos_card_fees records both together in one `amount` per order, so
+  // summing it gave $16.85 under a label saying "monthly" when the monthly
+  // bill is $5.25 and the other $11.60 had already come out of the day's
+  // deposit. Computed from the shop's configured rates instead, which is
+  // the only way to tell the two apart.
+  const { data: feeCfg } = await svc
+    .from('dd_shops')
+    .select('pos_card_fee, pos_card_fee_pct')
+    .eq('id', shop.id)
+    .maybeSingle()
+  const flatRate = Number((feeCfg as { pos_card_fee?: number } | null)?.pos_card_fee ?? 0.15)
+  const pctRate = Number((feeCfg as { pos_card_fee_pct?: number } | null)?.pos_card_fee_pct ?? 0)
 
   // Cashier names, resolved in one query rather than a join — dd_orders.staff_id
   // points at dd_users and a nested select here would re-fetch the same handful
@@ -180,7 +190,10 @@ export async function GET(req: Request) {
       // rather than recomputed here: that ledger is what reconciles against
       // the deposit, and a second calculation of the same number is how the
       // two end up disagreeing.
-      shopFees,
+      // On the settled batch, once — the processor cuts its percentage off
+      // the day's card volume, not off each sale in turn.
+      cardPctFees: Math.round(sum(card) * (pctRate / 100) * 100) / 100,
+      cardFlatFees: Math.round(card.length * flatRate * 100) / 100,
       refunds: Math.round(sales.reduce((t, s) => t + s.refundAmount, 0) * 100) / 100,
     },
     sales,
