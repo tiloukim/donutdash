@@ -24,7 +24,7 @@ type Sale = {
 }
 type Totals = {
   net: number; cash: number; card: number; cashCount: number; cardCount: number
-  tips: number; customerFees: number; shopFees: number; refunds: number
+  tips: number; customerFees: number; cardPctFees: number; cardFlatFees: number; cardFlatRate: number; refunds: number
 }
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -105,12 +105,18 @@ export default function ShopTransactions() {
   // Card takings less what the processor keeps. Cash is deliberately not
   // here: it is already in the till, and folding it into a "deposit" would
   // produce a number that can never be reconciled against a bank statement.
-  // Card takings less the convenience fee the processor keeps at
-  // settlement. The per-card charge is NOT subtracted: it is billed to the
-  // merchant account monthly, so deducting it here would understate every
-  // day's deposit and never match a statement.
+  // Card takings less the percentage the processor cuts off the batch at
+  // settlement — 3.5% of what was run, which is not the same as the
+  // convenience fee collected: customers pay 3.5% of the SUBTOTAL, the
+  // processor takes 3.5% of the SETTLED TOTAL. Subtracting the collected
+  // figure instead put this a dollar above what the bank sends, and above
+  // what the register's own Banking screen says.
+  //
+  // The per-card charge is NOT subtracted: it is billed to the merchant
+  // account monthly, so deducting it here would understate every day's
+  // deposit and never match a statement.
   const ddDeposit = totals
-    ? Math.round((totals.card - (totals.customerFees ?? 0)) * 100) / 100
+    ? Math.round((totals.card - (totals.cardPctFees ?? 0)) * 100) / 100
     : 0
   const sqDeposit = sq?.connected && sq.totals
     ? Math.round((sq.totals.card - sq.totals.fees) * 100) / 100
@@ -245,8 +251,20 @@ export default function ShopTransactions() {
               {totals.cardCount > 0 && (
                 <Stat label="Fee to processor" value={money(totals.customerFees ?? 0)} />
               )}
+              {/* Two charges, and the labels now match what each one is.
+                  The ledger records them together in one figure per order,
+                  which is why this showed $16.85 under "monthly" when the
+                  monthly bill was $5.25 and the rest had already come out
+                  of the deposit. */}
               {totals.cardCount > 0 && (
-                <Stat label="Card fees (monthly)" value={`-${money(totals.shopFees ?? 0)}`} negative />
+                <Stat label="Taken at settlement" value={`-${money(totals.cardPctFees ?? 0)}`} negative />
+              )}
+              {totals.cardCount > 0 && (
+                <Stat
+                  label={`Flat fee (${money(totals.cardFlatRate ?? 0)} × ${totals.cardCount})`}
+                  value={`-${money(totals.cardFlatFees ?? 0)}`}
+                  negative
+                />
               )}
               {/* No net line.
                   The convenience fee and the shop's per-card charge are not
