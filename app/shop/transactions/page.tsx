@@ -24,7 +24,7 @@ type Sale = {
 }
 type Totals = {
   net: number; cash: number; card: number; cashCount: number; cardCount: number
-  tips: number; customerFees: number; cardPctFees: number; cardFlatFees: number; refunds: number
+  tips: number; customerFees: number; cardPctFees: number; cardFlatFees: number; cardFlatRate: number; refunds: number
 }
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -260,7 +260,11 @@ export default function ShopTransactions() {
                 <Stat label="Taken at settlement" value={`-${money(totals.cardPctFees ?? 0)}`} negative />
               )}
               {totals.cardCount > 0 && (
-                <Stat label="Card fees (monthly)" value={`-${money(totals.cardFlatFees ?? 0)}`} negative />
+                <Stat
+                  label={`Flat fee (${money(totals.cardFlatRate ?? 0)} × ${totals.cardCount})`}
+                  value={`-${money(totals.cardFlatFees ?? 0)}`}
+                  negative
+                />
               )}
               {/* No net line.
                   The convenience fee and the shop's per-card charge are not

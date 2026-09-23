@@ -194,6 +194,11 @@ export async function GET(req: Request) {
       // the day's card volume, not off each sale in turn.
       cardPctFees: Math.round(sum(card) * (pctRate / 100) * 100) / 100,
       cardFlatFees: Math.round(card.length * flatRate * 100) / 100,
+      // The rate itself, so the label can show its own working — "Flat fee
+      // ($0.15 x 35)" is checkable at a glance in a way that a bare total
+      // is not, and it follows the shop's configuration instead of being
+      // written into the page.
+      cardFlatRate: flatRate,
       refunds: Math.round(sales.reduce((t, s) => t + s.refundAmount, 0) * 100) / 100,
     },
     sales,
