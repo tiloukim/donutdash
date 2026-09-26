@@ -70,6 +70,11 @@ interface CreateBody {
   card_ref_number?: string | null
   /** Active cashier (dd_users.id). Defaults to the auth user when missing. */
   cashier_user_id?: string | null
+  /** Idempotency key from the register's offline queue. Optional — older
+   *  builds don't send one, and those keep the previous behaviour exactly.
+   *  When present, a repeat of the same key returns the original order
+   *  instead of creating a second one. */
+  client_order_id?: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -156,6 +161,11 @@ export async function POST(req: NextRequest) {
     }, { status: 400 })
   }
 
+  // Trimmed and length-capped before it reaches an indexed column. The value
+  // is device-generated, so treat it as untrusted input like any other field.
+  const rawKey = typeof body.client_order_id === 'string' ? body.client_order_id.trim() : ''
+  const clientOrderId = rawKey ? rawKey.slice(0, 64) : null
+
   const { data: order, error } = await svc
     .from('dd_orders')
     .insert({
@@ -200,9 +210,36 @@ export async function POST(req: NextRequest) {
       card_last4: body.card_last4 ?? null,
       card_auth_code: body.card_auth_code ?? null,
       card_ref_number: body.card_ref_number ?? null,
+      client_order_id: clientOrderId,
     })
     .select('id, short_code')
     .single()
+
+  // A repeat of a key we already have is a REPLAY, not a failure.
+  //
+  // The register posts with a 15s abort and queues anything that times out.
+  // When the server actually received that sale, the replay arrives here as
+  // a unique violation on (shop_id, client_order_id) — and the honest answer
+  // is the order that already exists, not an error. The cashier's copy syncs,
+  // the queue entry clears, and the sale is recorded once.
+  //
+  // Returning 200 with the original row matters as much as the dedup itself:
+  // a 409 would leave the entry in the queue retrying forever against a
+  // server that is never going to accept it.
+  if (error && error.code === '23505' && clientOrderId) {
+    const { data: existing } = await svc
+      .from('dd_orders')
+      .select('id, short_code')
+      .eq('shop_id', body.shop_id)
+      .eq('client_order_id', clientOrderId)
+      .maybeSingle()
+    if (existing) {
+      // No items insert, no fee ledger row, no loyalty award — all of that
+      // ran on the first request. Re-running any of it is the duplicate
+      // this route exists to prevent, wearing a different hat.
+      return NextResponse.json({ id: existing.id, short_code: existing.short_code, duplicate: true })
+    }
+  }
 
   if (error || !order) {
     return NextResponse.json({ error: error?.message ?? 'Insert failed' }, { status: 500 })
