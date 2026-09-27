@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
-// GET /api/shops/:shopId/menu-tax?ids=a,b,c
+// GET /api/shops/:id/menu-tax?ids=a,b,c
+//
+// The folder is [id], not [shopId]. Next.js refuses two different slug
+// names at the same path position, and app/api/shops/[id] already exists —
+// naming this one [shopId] did not just break this route, it broke the
+// routing table and took /api/pos/staff and /api/shop/orders down with it.
 //
 // Which of these items the shop has marked exempt from sales tax.
 //
@@ -19,8 +24,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest, ctx: { params: Promise<{ shopId: string }> }) {
-  const { shopId } = await ctx.params
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id: shopId } = await ctx.params
   const raw = req.nextUrl.searchParams.get('ids') ?? ''
   const ids = raw.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 200)
   if (!shopId || ids.length === 0) return NextResponse.json({ exempt: [] })
