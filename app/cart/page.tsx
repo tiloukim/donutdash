@@ -14,8 +14,24 @@ export default function CartPage() {
   const { items, total, count, updateQty, removeItem, clearCart, shopName, shopId } = useCart()
   const [shopMinOrder, setShopMinOrder] = useState<number>(0)
   const [shopTaxRate, setShopTaxRate] = useState<number>(0)
+  // Same reason as the checkout page: exemptions are read fresh, never taken
+  // off a cart line that may be weeks old. null = not loaded, treated as all
+  // taxable, which is exactly what this page did before.
+  const [exemptItemIds, setExemptItemIds] = useState<Set<string> | null>(null)
   const [shopDeliveryFee, setShopDeliveryFee] = useState<number>(DEFAULT_DELIVERY_FEE)
   const [shopServiceFeeRate, setShopServiceFeeRate] = useState<number>(SERVICE_FEE_RATE * 100)
+
+  useEffect(() => {
+    if (!shopId || items.length === 0) return
+    let cancelled = false
+    const ids = [...new Set(items.map((i) => i.id))]
+    fetch(`/api/shops/${shopId}/menu-tax?ids=${encodeURIComponent(ids.join(','))}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.exempt) setExemptItemIds(new Set<string>(d.exempt)) })
+      .catch(() => {})
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopId, items.map((i) => i.id).join(',')])
 
   useEffect(() => {
     if (!shopId) return
@@ -61,7 +77,14 @@ export default function CartPage() {
       : (tipOptions[selectedTipIndex]?.amount ?? 0)
   // Tax basis matches the API: subtotal + delivery + service + small order fee.
   // Tip is excluded.
-  const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * (shopTaxRate / 100) * 100) / 100
+  // Mirrors app/api/checkout/route.ts and the checkout page. Three copies of
+  // this sum now exist and all three must agree; they are written to look
+  // alike so a change to one is visibly a change the others need.
+  const taxableSubtotal = exemptItemIds
+    ? items.reduce((sum, i) => (exemptItemIds.has(i.id) ? sum : sum + i.price * i.quantity), 0)
+    : total
+  const taxableShare = total > 0 ? taxableSubtotal / total : 0
+  const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * taxableShare * (shopTaxRate / 100) * 100) / 100
   const grandTotal = Math.round((total + deliveryFee + serviceFee + smallOrderFee + tax + tip) * 100) / 100
   const meetsMinimum = total >= shopMinOrder
 

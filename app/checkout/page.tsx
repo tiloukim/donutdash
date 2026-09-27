@@ -55,6 +55,13 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [shopFees, setShopFees] = useState({ service_fee_pct: SERVICE_FEE_RATE * 100, delivery_fee: DEFAULT_DELIVERY_FEE, tax_rate: 0 })
+  // Item ids the shop has marked exempt. Fetched fresh rather than stored on
+  // the cart line: a cart lives in localStorage and can be weeks old, and the
+  // server taxes on what the item IS at checkout. Reading a stale flag here
+  // would show the customer one tax and charge them another — null means
+  // "not loaded yet" and is treated as everything taxable, which is what the
+  // page did before this existed.
+  const [exemptItemIds, setExemptItemIds] = useState<Set<string> | null>(null)
   const [shopAddress, setShopAddress] = useState<{ address: string; city: string; state: string; zip: string } | null>(null)
   // Distance-based delivery fee quoted from the entered address (matches what
   // the server will charge). Null until we have a full address to quote.
@@ -123,6 +130,25 @@ export default function CheckoutPage() {
       setPromoChecking(false)
     }
   }
+
+  useEffect(() => {
+    if (!shopId || items.length === 0) return
+    let cancelled = false
+    const ids = [...new Set(items.map((i) => i.id))]
+    fetch(`/api/shops/${shopId}/menu-tax?ids=${encodeURIComponent(ids.join(','))}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d?.exempt) return
+        setExemptItemIds(new Set<string>(d.exempt))
+      })
+      .catch(() => {
+        // Leave it null. Falling back to "everything taxable" matches both
+        // the previous behaviour and the safe direction: showing a tax the
+        // server then does not charge is a smaller problem than the reverse.
+      })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopId, items.map((i) => i.id).join(',')])
 
   useEffect(() => {
     if (!shopId) return
@@ -278,7 +304,14 @@ export default function CheckoutPage() {
   const smallOrderFee = 0
   // TX Comptroller Rule 3.293: separately-stated delivery + service fees on
   // prepared-food sales are part of the taxable base. Tip is excluded.
-  const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * (shopFees.tax_rate / 100) * 100) / 100
+  // Mirrors app/api/checkout/route.ts exactly — including apportioning the
+  // fees by the taxable share. If these two ever disagree the customer sees
+  // one number and is charged another, so they are written to look the same.
+  const taxableSubtotal = exemptItemIds
+    ? items.reduce((sum, i) => (exemptItemIds.has(i.id) ? sum : sum + i.price * i.quantity), 0)
+    : total
+  const taxableShare = total > 0 ? taxableSubtotal / total : 0
+  const tax = Math.round((total + deliveryFee + serviceFee + smallOrderFee) * taxableShare * (shopFees.tax_rate / 100) * 100) / 100
   const tip = isPickup ? 0 : tipParam
 
   const promoDiscount = promo?.discount || 0

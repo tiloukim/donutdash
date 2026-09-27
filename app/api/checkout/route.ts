@@ -212,16 +212,23 @@ export async function POST(request: NextRequest) {
       // online_price and variants are part of the price, so the authority
       // has to see them. Selecting only `price` is what made this overwrite
       // a $13.50 dozen with the $1.25 single.
-      .select('id, name, price, online_price, variants, is_available')
+      // `taxable` joins price as something the authority has to see: an
+      // exempt item taxed anyway is the customer's money, and the client
+      // cannot be trusted to report it any more than it can report a price.
+      .select('id, name, price, online_price, variants, is_available, taxable')
       .eq('shop_id', shopId)
       .in('id', menuIds)
     type MenuRow = {
       id: string; name: string; price: number
       online_price: number | null; variants: VariantGroup[] | null; is_available: boolean
+      /** dd_menu_items.taxable. NOT NULL DEFAULT TRUE, so undefined only
+       *  happens on a row read before the column existed — treat as taxable. */
+      taxable?: boolean | null
     }
     const priceMap = new Map((menuRows || []).map((m) => [m.id, m as MenuRow]))
     for (const it of items as {
       menu_item_id: string; price: number; name: string; quantity: number; variant?: string | null
+      taxable?: boolean
     }[]) {
       const m = priceMap.get(it.menu_item_id)
       if (!m || m.is_available === false) {
@@ -259,6 +266,9 @@ export async function POST(request: NextRequest) {
       }
 
       it.price = resolved
+      // Carried onto the line so the totals below can split the basket
+      // without looking the item up a second time.
+      it.taxable = m.taxable !== false
       // Keep the variant in the name so the kitchen ticket, the receipt and
       // the customer's confirmation all say which one was ordered.
       it.name = chosen ? `${m.name} (${chosen})` : m.name
@@ -286,7 +296,27 @@ export async function POST(request: NextRequest) {
     // fees on prepared-food sales are part of the taxable sale price. Tip
     // is not. All checkout paths must agree on the tax base or the customer
     // gets taxed differently depending on payment method.
-    const taxableBasis = subtotal + deliveryFee + serviceFee
+    // Per-item taxability. dd_menu_items.taxable is set at the register
+    // (Menu -> item -> Charge sales tax) and until now only the register
+    // honoured it, so an item exempted there was still taxed online — the
+    // same basket taxed two different ways depending on where it was bought.
+    const taxableSubtotal = (items as { price: number; quantity: number; taxable?: boolean }[])
+      .reduce((sum, it) => (it.taxable === false ? sum : sum + it.price * it.quantity), 0)
+    const taxableShare = subtotal > 0 ? taxableSubtotal / subtotal : 0
+
+    // Texas Comptroller Rule 3.293: separately-stated delivery and service
+    // fees on prepared-food sales are part of the taxable sale price. Tip
+    // is not. All checkout paths must agree on the tax base or the customer
+    // gets taxed differently depending on payment method.
+    //
+    // The fees are apportioned by the taxable share rather than taxed in
+    // full, because the rule they are taxed under is about PREPARED-FOOD
+    // sales: on an order that is entirely exempt bakery there is no
+    // prepared-food sale for the fee to attach to. A half-exempt order is
+    // treated as half of one. This is a tax-posture call, it is reviewable,
+    // and it is inert until a shop actually exempts something — with every
+    // item taxable, taxableShare is 1 and this is the old line exactly.
+    const taxableBasis = (subtotal + deliveryFee + serviceFee) * taxableShare
     const tax = Math.round(taxableBasis * shopTaxRate * 100) / 100
     const tipAmount = tip || 0
     const total = Math.round((subtotal + tax + deliveryFee + serviceFee + tipAmount - promoDiscount) * 100) / 100
