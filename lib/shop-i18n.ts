@@ -7,7 +7,11 @@ const translations = {
   'nav.dashboard': { en: 'Dashboard', km: 'ផ្ទាំងគ្រប់គ្រង' },
   'nav.orders': { en: 'Orders', km: 'ការបញ្ជាទិញ' },
   // Two registers run side by side, so the nav says so.
-  'nav.walkins': { en: 'Walk-in Sales', km: 'ការលក់ក្នុងហាង' },
+  // Renamed from "Walk-in Sales" — these are the register's sales, and the
+  // shop thinks of the machine, not the customer. Khmer left as-is: it reads
+  // "in-store sales", which is still what this is, and inventing a Khmer
+  // rendering of "POS" is not mine to do.
+  'nav.walkins': { en: 'POS Sales', km: 'ការលក់ក្នុងហាង' },
   'nav.earnings': { en: 'Earnings', km: 'ចំណូល' },
   'nav.promote': { en: 'Promote', km: 'ផ្សព្វផ្សាយ' },
   'nav.menu': { en: 'Menu', km: 'មុខម្ហូប' },

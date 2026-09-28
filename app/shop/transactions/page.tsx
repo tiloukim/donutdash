@@ -129,9 +129,9 @@ export default function ShopTransactions() {
 
   return (
     <div style={{ padding: '16px 14px 40px', maxWidth: 720, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>Walk-in sales</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>POS sales</h1>
       <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px' }}>
-        Every walk-in rung on the shop&apos;s register, by day. Figures are takings —
+        Every sale rung on the shop&apos;s register, by day. Figures are takings —
         what went through the till, including sales tax and the card fee — not revenue.
       </p>
 
@@ -284,7 +284,7 @@ export default function ShopTransactions() {
 
           {sales.length === 0 ? (
             <div style={{ ...card, padding: 24, textAlign: 'center' }}>
-              <p style={{ margin: 0, color: '#666', fontSize: 14 }}>No walk-in sales on this day.</p>
+              <p style={{ margin: 0, color: '#666', fontSize: 14 }}>No POS sales on this day.</p>
             </div>
           ) : (
             <div style={{ ...card, overflow: 'hidden' }}>

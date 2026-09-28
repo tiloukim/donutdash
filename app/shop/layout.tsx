@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import RoleAuthForm from '@/components/RoleAuthForm'
 import PendingReferralApplier from '@/components/PendingReferralApplier'
+import PullToRefresh from '@/components/PullToRefresh'
 import { ShopLangProvider, useShopLang } from '@/lib/shop-lang-context'
 import type { TranslationKey } from '@/lib/shop-i18n'
 import { useRealtime } from '@/lib/use-realtime'
@@ -262,7 +263,7 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
             <span style={{ fontSize: 14, color: '#666', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="shop-header-name">{user.name}</span>
           </div>
         </header>
-        <div style={{ padding: '16px 12px' }} className="shop-content"><div className="shop-content-inner">{children}</div></div>
+        <div style={{ padding: '16px 12px' }} className="shop-content"><div className="shop-content-inner"><PullToRefresh>{children}</PullToRefresh></div></div>
       </main>
 
       <style>{`
