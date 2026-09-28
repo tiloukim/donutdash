@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/server'
 
 // Short link for installing the DonutDash POS Android APK on a register.
 //
@@ -7,14 +8,27 @@ import { NextResponse } from 'next/server'
 // which is unusable on an Elo's on-screen keyboard. `donutdash.app/pos` is
 // typeable in a few seconds at the register.
 //
-// Updating for a new build: set POS_APK_URL in Vercel (Project → Settings →
-// Environment Variables) to the new artifact URL and redeploy — no code
-// change needed. The fallback below is only a safety net for when the env
-// var is missing, and WILL go stale, so prefer the env var.
+// ── Where the answer comes from, and why it changed ──────────────────────
 //
-// Get the artifact URL with:
-//   npx eas-cli build:view <build-id>      → "Application Archive URL"
-//   npx eas-cli build:list --platform android --limit 1
+// This used to read POS_APK_URL from the environment, with a hardcoded
+// fallback "only a safety net". The env var was never set. So for months the
+// safety net WAS the answer, and it pointed at a build old enough that it
+// predates the releases table entirely — anyone setting up a register from
+// this link got that. Nothing failed, nothing warned; the link just quietly
+// handed out the wrong app.
+//
+// The lesson is not "remember to update the env var". It is that a release
+// step with two places to update has one place that gets forgotten. So the
+// link now reads the releases table, which is already the record of what is
+// shipped: marking a build released in dd_app_releases IS repointing this
+// link. One control, no second step, nothing to keep in sync.
+//
+// To pin the fleet to an older build, un-release the newer rows. That is
+// visible in the table and in /admin, unlike an env var nobody can see.
+//
+// POS_APK_URL survives only as an emergency override for when the database
+// is unreachable. It is deliberately NOT consulted first — an override that
+// wins by default is how this broke in the first place.
 //
 // NOTE: this path is public. Anyone who guesses it can download the POS
 // APK. That's a low but non-zero exposure — the app is useless without
@@ -23,15 +37,44 @@ import { NextResponse } from 'next/server'
 // our client bundle. If that matters, gate it behind a query token or
 // move it to an unguessable path.
 
-const FALLBACK_APK_URL =
-  'https://expo.dev/artifacts/eas/w79OsXV3TJH5tUuzZxT8EAzi1tlwAlphihkObLKx7iE.apk'
-
 export const dynamic = 'force-dynamic'
 
-export function GET() {
-  const target = process.env.POS_APK_URL || FALLBACK_APK_URL
-  // 302, not 301 — the target changes with every build, and a permanent
-  // redirect would get cached by the register's browser and keep serving
-  // the old APK after we point this at a new one.
+export async function GET() {
+  let target: string | null = null
+
+  try {
+    const svc = createServiceClient()
+    const { data } = await svc
+      .from('dd_app_releases')
+      .select('apk_url, build_number')
+      .eq('is_released', true)
+      .order('build_number', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (data?.apk_url) target = data.apk_url
+  } catch (e) {
+    console.error('[pos] release lookup failed', e)
+  }
+
+  // Only when the table could not answer.
+  if (!target && process.env.POS_APK_URL) {
+    console.warn('[pos] falling back to POS_APK_URL — releases table unavailable')
+    target = process.env.POS_APK_URL
+  }
+
+  if (!target) {
+    // Deliberately an error, not a stale redirect. Handing someone an APK we
+    // cannot confirm is current is what this route spent months doing, and a
+    // technician who is told to try again will do that; one who silently
+    // installs a two-year-old build will not know for weeks.
+    return new NextResponse(
+      'Could not determine the current POS build. Try again in a moment, or ask DonutDash for the APK link.',
+      { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } },
+    )
+  }
+
+  // 302, not 301 — the target changes with every release, and a permanent
+  // redirect would get cached by the register's browser and keep serving the
+  // old APK after a new one is out.
   return NextResponse.redirect(target, 302)
 }
