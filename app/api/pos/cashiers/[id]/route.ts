@@ -3,12 +3,24 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { hashPin } from '@/lib/pin-hash'
 import { assertPosAccess } from '@/lib/pos-shop-auth'
 
-// PATCH  /api/pos/cashiers/:id   → update name, role, hourly_rate, PIN, status
-// DELETE /api/pos/cashiers/:id   → soft-inactive
+// PATCH  /api/pos/cashiers/:id          → update name, role, hourly_rate, PIN, status
+// DELETE /api/pos/cashiers/:id          → soft-inactive (keeps them on the roster, greyed)
+// DELETE /api/pos/cashiers/:id?purge=1  → remove the row entirely
 //
-// Soft delete (status='inactive') preserves shift + sale attribution
-// history. Hard delete is intentionally NOT exposed — admin can run
-// it via SQL if a row was created in error.
+// On why purge is safe, since the comment here previously said the opposite:
+//
+// This row is the SHOP LINK — which shop, what role, the PIN. It is not the
+// person. Sale attribution is dd_orders.cashier_user_id and shift history is
+// dd_shifts.user_id, and BOTH point at dd_users, which purging does not
+// touch. Nothing anywhere resolves a name through dd_shop_staff. So deleting
+// this row removes someone's access and their PIN; it does not orphan a
+// single sale or shift.
+//
+// Soft-inactive is still the default and still the right default — a cashier
+// who left might come back, and keeping the row keeps their PIN and role.
+// Purge is for rows created in error: a typo, a test account, a duplicate.
+// That used to require someone running SQL by hand, which is why the roster
+// filled up with them.
 
 async function authorize(staffRowId: string) {
   const auth = await createClient()
@@ -132,13 +144,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ ok: true })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const a = await authorize(id)
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
 
-  // Soft-inactive — never hard delete from the API. Sale + shift logs
-  // need to keep referencing the user_id.
+  const purge = req.nextUrl.searchParams.get('purge') === '1'
+
+  if (purge) {
+    // Refuse to purge an owner. Removing the only owner's link locks the shop
+    // out of its own roster, and that is not a mistake anyone should be able
+    // to make from a tablet at the counter.
+    const { data: row } = await a.svc
+      .from('dd_shop_staff')
+      .select('role')
+      .eq('id', id)
+      .maybeSingle()
+    if (row?.role === 'owner') {
+      return NextResponse.json(
+        { error: 'An owner cannot be deleted. Change their role first.' },
+        { status: 400 },
+      )
+    }
+
+    const { error } = await a.svc.from('dd_shop_staff').delete().eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true, purged: true })
+  }
+
   const { error } = await a.svc
     .from('dd_shop_staff')
     .update({ status: 'inactive' })
