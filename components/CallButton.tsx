@@ -23,6 +23,7 @@ export default function CallButton({
 }) {
   const [state, setState] = useState<'idle' | 'calling' | 'ringing'>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [last4, setLast4] = useState<string | null>(null)
 
   async function call() {
     if (state !== 'idle') return
@@ -40,6 +41,7 @@ export default function CallButton({
         setState('idle')
         return
       }
+      setLast4(data.ringing_last4 ?? null)
       setState('ringing')
       // Long enough to read, short enough that a second attempt isn't blocked
       // if they missed the first ring.
@@ -51,7 +53,7 @@ export default function CallButton({
   }
 
   const text = state === 'ringing'
-    ? 'Answer your phone'
+    ? (last4 ? `Ringing …${last4}` : 'Answer your phone')
     : state === 'calling'
       ? 'Starting…'
       : label || `Call ${to}`
@@ -76,6 +78,11 @@ export default function CallButton({
         📞 {text}
       </button>
       {error && <span style={{ fontSize: 11, color: '#DC2626' }}>{error}</span>}
+      {/* If this isn't the phone in their hand, the number on their profile is
+          wrong — and the other party is about to be called regardless. */}
+      {state === 'ringing' && last4 && (
+        <span style={{ fontSize: 11, color: '#666' }}>Not your phone? Fix the number in Settings.</span>
+      )}
     </span>
   )
 }

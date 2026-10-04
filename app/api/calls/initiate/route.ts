@@ -132,11 +132,19 @@ export async function POST(req: NextRequest) {
 
   await svc.from('dd_call_sessions').update({ status: 'ringing' }).eq('id', session.id)
 
-  // Deliberately free of phone numbers — the client is told what will happen,
-  // not who to dial.
+  // The callee's number is still deliberately absent. The CALLER's own last
+  // four is returned, because "answer your phone" is useless if we're ringing
+  // a number they don't hold: on 2026-10-03 a driver tapped three times while
+  // the bridge rang a stale profile number that auto-answered, and the
+  // customer was connected to silence each time. Showing the digits turns
+  // that from a silent failure into an obvious one.
+  const last4 = (callerPhone.replace(/\D/g, '') || '').slice(-4)
   return NextResponse.json({
     ok: true,
     call_id: session.id,
-    message: 'Answer your phone — we\'ll connect you.',
+    ringing_last4: last4 || null,
+    message: last4
+      ? `Answer your phone — we're ringing your number ending ${last4}.`
+      : 'Answer your phone — we\'ll connect you.',
   })
 }
