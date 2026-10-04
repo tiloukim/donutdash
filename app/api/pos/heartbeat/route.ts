@@ -58,6 +58,14 @@ interface HeartbeatBody {
   card_terminal_checked_at?: string | null
   /** EAS Update bundle the register is running; null = embedded (no OTA yet). */
   ota_update_id?: string | null
+  /** Why that id is null, which it is for three unrelated reasons. See
+   *  supabase/pos-update-telemetry.sql. */
+  updates_enabled?: boolean | null
+  updates_embedded_launch?: boolean | null
+  updates_channel?: string | null
+  updates_runtime_version?: string | null
+  updates_last_check?: string | null
+  updates_last_check_at?: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -104,6 +112,15 @@ export async function POST(req: NextRequest) {
         // app_version is the NATIVE version and is identical across OTAs, so
         // it can't distinguish a register on a stale JS bundle. This can.
         ota_update_id: body.ota_update_id?.trim() || null,
+        // A null ota_update_id means "not running an OTA bundle" and nothing
+        // more. These say which of the three reasons it is, so an admin can
+        // tell "rebuild the APK" from "restart the register".
+        updates_enabled: body.updates_enabled ?? null,
+        updates_embedded_launch: body.updates_embedded_launch ?? null,
+        updates_channel: body.updates_channel?.trim() || null,
+        updates_runtime_version: body.updates_runtime_version?.trim() || null,
+        updates_last_check: body.updates_last_check?.trim()?.slice(0, 40) || null,
+        updates_last_check_at: body.updates_last_check_at || null,
         last_ip: lastIp,
         last_seen_at: new Date().toISOString(),
         // NOTE: pending_command is intentionally NOT in this set, so the

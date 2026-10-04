@@ -15,6 +15,12 @@ interface Device {
   platform: string | null
   app_version: string | null
   ota_update_id: string | null
+  updates_enabled: boolean | null
+  updates_embedded_launch: boolean | null
+  updates_channel: string | null
+  updates_runtime_version: string | null
+  updates_last_check: string | null
+  updates_last_check_at: string | null
   device_model: string | null
   card_terminal_tpn: string | null
   card_terminal_model: string | null
@@ -270,8 +276,34 @@ export default function AdminDevices() {
                         {newestBundle && d.ota_update_id !== newestBundle ? ' — stale' : ''}
                       </span>
                     ) : (
-                      <span style={{ color: '#B45309', fontWeight: 700 }}>built-in — no OTA applied</span>
+                      /* "no OTA applied" is true for three unrelated reasons
+                         and each needs a different fix. Say which one. */
+                      <span style={{ color: '#B45309', fontWeight: 700 }}>
+                        {d.updates_enabled === false
+                          ? 'built-in — updates disabled in this build'
+                          : d.updates_last_check === 'downloaded'
+                            ? 'built-in — update downloaded, restart to apply'
+                            : d.updates_embedded_launch
+                              ? 'built-in — rolled back to embedded'
+                              : 'built-in — no OTA applied'}
+                      </span>
                     )}
+                    {d.updates_channel || d.updates_runtime_version ? (
+                      <>
+                        <span style={{ color: '#D1D5DB' }}>·</span>
+                        <span title="Channel and runtime the device asks EAS for — a mismatch with the published update is why nothing is ever offered">
+                          {d.updates_channel ?? '?'}/{d.updates_runtime_version ?? '?'}
+                        </span>
+                      </>
+                    ) : null}
+                    {d.updates_last_check ? (
+                      <>
+                        <span style={{ color: '#D1D5DB' }}>·</span>
+                        <span style={{ color: d.updates_last_check === 'error' ? '#DC2626' : undefined }}>
+                          check: {d.updates_last_check}
+                        </span>
+                      </>
+                    ) : null}
                     {d.last_ip ? (
                       <>
                         <span style={{ color: '#D1D5DB' }}>·</span>
