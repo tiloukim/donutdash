@@ -150,25 +150,42 @@ export async function POST(req: NextRequest) {
   const surcharge = Number(body.card_surcharge_amount ?? 0)
   const recomputedTotal = recomputedSubtotal + tax + tip - discount - orderDiscount + surcharge
   const TOLERANCE = 0.01 // one cent of float wobble
+  const mismatches: string[] = []
   if (Math.abs(recomputedSubtotal - Number(body.subtotal)) > TOLERANCE) {
-    return NextResponse.json({
-      error: `subtotal mismatch: client ${body.subtotal}, server ${recomputedSubtotal.toFixed(2)}`,
-    }, { status: 400 })
+    mismatches.push(`subtotal mismatch: client ${body.subtotal}, server ${recomputedSubtotal.toFixed(2)}`)
   }
   if (Math.abs(recomputedTotal - Number(body.total)) > TOLERANCE) {
-    return NextResponse.json({
-      error: `total mismatch: client ${body.total}, server ${recomputedTotal.toFixed(2)}`,
-    }, { status: 400 })
+    mismatches.push(`total mismatch: client ${body.total}, server ${recomputedTotal.toFixed(2)}`)
   }
+
+  // An auth code means the terminal already took the money. Refusing the
+  // sale now does not undo the charge — it only throws away the record of
+  // it, and the register drops 4xx rather than retrying them, so the sale
+  // is gone for good. That is how order 46ADB vanished, and how a $3.36
+  // Discover sale on 7 Oct 2026 left the POS $3.36 short of batch 029.
+  //
+  // So a charged sale is always recorded. It is recorded at the amount the
+  // customer was actually charged — the client total, which is what the
+  // terminal ran — because the server's recomputation is the figure in
+  // doubt, and writing it would misstate the till. The disagreement is
+  // kept on the row and an admin is told.
+  //
+  // Without an auth code no money has moved, so the check still refuses:
+  // that is a client bug worth surfacing, and nothing is lost by failing.
+  const alreadyCharged = typeof body.card_auth_code === 'string' && body.card_auth_code.trim() !== ''
+  if (mismatches.length > 0 && !alreadyCharged) {
+    return NextResponse.json({ error: mismatches[0] }, { status: 400 })
+  }
+  const reconcileFlag = mismatches.length > 0 ? 'total_mismatch' : null
+  const reconcileNote = mismatches.length > 0 ? mismatches.join('; ') : null
+  const recordedTotal = reconcileFlag ? Number(body.total) : recomputedTotal
 
   // Trimmed and length-capped before it reaches an indexed column. The value
   // is device-generated, so treat it as untrusted input like any other field.
   const rawKey = typeof body.client_order_id === 'string' ? body.client_order_id.trim() : ''
   const clientOrderId = rawKey ? rawKey.slice(0, 64) : null
 
-  const { data: order, error } = await svc
-    .from('dd_orders')
-    .insert({
+  const orderRow: Record<string, unknown> = {
       shop_id: body.shop_id,
       staff_id: staffId,
       customer_id: body.customer_id ?? null,
@@ -191,7 +208,7 @@ export async function POST(req: NextRequest) {
       tax_exempt: !!body.tax_exempt,
       tax_exempt_reason: body.tax_exempt ? (body.tax_exempt_reason ?? null) : null,
       tip: Math.round(tip * 100) / 100,
-      total: Math.round(recomputedTotal * 100) / 100,
+      total: Math.round(recordedTotal * 100) / 100,
       payment_method: body.payment_method,
       cash_received: body.cash_received ?? null,
       change_given: body.change_given ?? null,
@@ -211,9 +228,23 @@ export async function POST(req: NextRequest) {
       card_auth_code: body.card_auth_code ?? null,
       card_ref_number: body.card_ref_number ?? null,
       client_order_id: clientOrderId,
-    })
-    .select('id, short_code')
-    .single()
+      reconcile_flag: reconcileFlag,
+      reconcile_note: reconcileNote,
+  }
+
+  // The reconcile columns ship with supabase/card-sale-reconciliation.sql.
+  // If the code is live before the migration is, dropping them and trying
+  // again keeps every sale recordable — a sale is worth more than the flag
+  // on it. 42703 is "column does not exist".
+  let { data: order, error } = await svc
+    .from('dd_orders').insert(orderRow).select('id, short_code').single()
+  if (error && (error as { code?: string }).code === '42703') {
+    delete orderRow.reconcile_flag
+    delete orderRow.reconcile_note
+    console.error('[pos/orders] reconcile columns missing — run supabase/card-sale-reconciliation.sql')
+    ;({ data: order, error } = await svc
+      .from('dd_orders').insert(orderRow).select('id, short_code').single())
+  }
 
   // A repeat of a key we already have is a REPLAY, not a failure.
   //

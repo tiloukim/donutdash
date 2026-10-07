@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/daily-sales-report",
       "schedule": "0 22,23 * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-card-sales",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
