@@ -73,3 +73,52 @@ export function amountToCents(value: unknown): number | null {
   if (!Number.isFinite(n)) return null
   return cleaned.includes('.') ? Math.round(n * 100) : Math.round(n)
 }
+
+export type DuplicateCandidate = {
+  id: string
+  tpn: string | null
+  amount_cents: number | null
+  card_last4: string | null
+  auth_code: string | null
+  occurred_at: string | null
+  duplicate_alerted_at?: string | null
+}
+
+export type DuplicatePair = {
+  first: DuplicateCandidate
+  second: DuplicateCandidate
+  gapMs: number
+}
+
+/**
+ * Pairs up transactions that look like the same sale charged twice: same
+ * terminal, same amount, same last four, inside `windowMs`.
+ *
+ * A transaction with no last four is skipped rather than guessed at —
+ * without it, two customers buying the same item a minute apart are
+ * indistinguishable from one customer charged twice, and a false alarm
+ * about a double charge is expensive: it invites a refund of a sale that
+ * was real.
+ *
+ * Input must be ordered oldest first. Only the immediately preceding
+ * transaction in a group is considered, so three charges in a row raise
+ * two pairs rather than three — each alert names the one before it.
+ */
+export function findDuplicatePairs(
+  transactions: DuplicateCandidate[],
+  windowMs: number,
+): DuplicatePair[] {
+  const pairs: DuplicatePair[] = []
+  const seen = new Map<string, DuplicateCandidate>()
+  for (const txn of transactions) {
+    if (txn.amount_cents == null || !txn.card_last4) continue
+    const key = `${txn.tpn ?? '?'}|${txn.amount_cents}|${txn.card_last4}`
+    const prior = seen.get(key)
+    seen.set(key, txn)
+    if (!prior || txn.duplicate_alerted_at) continue
+    const gapMs =
+      new Date(txn.occurred_at ?? 0).getTime() - new Date(prior.occurred_at ?? 0).getTime()
+    if (gapMs >= 0 && gapMs <= windowMs) pairs.push({ first: prior, second: txn, gapMs })
+  }
+  return pairs
+}
