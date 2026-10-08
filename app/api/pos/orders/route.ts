@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeForShop } from '@/lib/pos-shop-auth'
+// Type-only use: svc comes from authorizeForShop, but its type is the one
+// createServiceClient returns.
+import type { createServiceClient } from '@/lib/supabase/server'
 import { awardLoyaltyPoints, type LoyaltyAward } from '@/lib/loyalty'
 import { POS_CARD_TRANSACTION_FEE } from '@/lib/constants'
 
@@ -83,6 +86,36 @@ interface CreateBody {
    *  When present, a repeat of the same key returns the original order
    *  instead of creating a second one. */
   client_order_id?: string | null
+}
+
+/**
+ * Close the charge intent for a recorded sale.
+ *
+ * Matched on client_order_id, which the register now carries from before the
+ * card is read through to the posted order — so this is an exact join, not a
+ * guess from amount and timestamp.
+ *
+ * Deliberately swallows its own errors. An order that is already safely
+ * written must not be failed because a reconciliation row could not be
+ * updated; the cost of that is one false entry in a report, and the cost of
+ * the alternative is a sale rejected after the customer has paid.
+ */
+async function resolveChargeIntent(
+  svc: ReturnType<typeof createServiceClient>,
+  clientOrderId: string | null,
+  shopId: string,
+  orderId: string,
+) {
+  if (!clientOrderId) return
+  try {
+    await svc
+      .from('dd_pos_charge_intents')
+      .update({ order_id: orderId, resolved_at: new Date().toISOString() })
+      .eq('client_order_id', clientOrderId)
+      .eq('shop_id', shopId)
+  } catch (e) {
+    console.error('[orders] could not resolve charge intent:', e)
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -280,6 +313,11 @@ export async function POST(req: NextRequest) {
       // No items insert, no fee ledger row, no loyalty award — all of that
       // ran on the first request. Re-running any of it is the duplicate
       // this route exists to prevent, wearing a different hat.
+      // Resolve here too. A replay means the FIRST attempt is what created
+      // the order, and if its own resolve call was the thing that failed, the
+      // intent would otherwise sit in the unrecorded-charges report forever
+      // describing a sale that is sitting in the table perfectly fine.
+      await resolveChargeIntent(svc, clientOrderId, body.shop_id, existing.id)
       return NextResponse.json({ id: existing.id, short_code: existing.short_code, duplicate: true })
     }
   }
@@ -287,6 +325,9 @@ export async function POST(req: NextRequest) {
   if (error || !order) {
     return NextResponse.json({ error: error?.message ?? 'Insert failed' }, { status: 500 })
   }
+
+  // The sale exists. Whatever the register attempted is now accounted for.
+  await resolveChargeIntent(svc, clientOrderId, body.shop_id, order.id)
 
   // Record the processor's flat per-card fee for reconciliation. Card only
   // (cash is exempt), logged in its own ledger — NOT added to the order
