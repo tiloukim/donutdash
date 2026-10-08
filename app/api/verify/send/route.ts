@@ -52,8 +52,18 @@ export async function POST(req: NextRequest) {
     })
     const data = await res.json()
     if (!res.ok) {
+      // Log the provider's message; do not forward it.
+      //
+      // data.message is written for whoever operates the account, not for the
+      // person holding the phone. When the Twilio account was suspended it
+      // read "authentication failed, account AC54b97aae… with status 4 is not
+      // active" — printed in full on a public page, which tells a customer
+      // nothing they can act on and tells everyone else the account SID.
       console.error('Verify send error:', data)
-      return NextResponse.json({ error: data.message || 'Failed to send code.' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'We could not send a code right now. Please try again shortly.' },
+        { status: 400 },
+      )
     }
     return NextResponse.json({ success: true, status: data.status })
   } catch (err) {

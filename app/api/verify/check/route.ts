@@ -48,8 +48,10 @@ export async function POST(req: NextRequest) {
     })
     const data = await res.json()
     if (!res.ok) {
+      // Logged, not forwarded — same reason as the send route: the provider
+      // writes these for the account operator and they can name the account.
       console.error('Verify check error:', data)
-      return NextResponse.json({ error: data.message || 'Verification failed.' }, { status: 400 })
+      return NextResponse.json({ error: 'Verification failed. Please try again.' }, { status: 400 })
     }
     if (data.status === 'approved') {
       return NextResponse.json({ verified: true })
