@@ -148,6 +148,11 @@ export async function PATCH(request: NextRequest) {
     const allowed: Record<string, any> = {}
     if ('is_active' in fields) allowed.is_active = fields.is_active
     if ('pos_enabled' in fields) allowed.pos_enabled = fields.pos_enabled
+    // Coerced to a real boolean, not passed through. Everything downstream —
+    // dd_cash_earn, dd_cash_redeem, the POS lookup — gates on this being
+    // true, and a stray null or "false" string would read as consent to fund
+    // rewards out of a shop's margin.
+    if ('rewards_enabled' in fields) allowed.rewards_enabled = fields.rewards_enabled === true
     if ('service_fee_pct' in fields) allowed.service_fee_pct = fields.service_fee_pct
     if ('delivery_fee' in fields) allowed.delivery_fee = fields.delivery_fee
     if ('min_order' in fields) allowed.min_order = fields.min_order

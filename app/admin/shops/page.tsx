@@ -13,6 +13,7 @@ interface Shop {
   is_claimed?: boolean
   payout_ready?: boolean
   pos_enabled?: boolean
+  rewards_enabled?: boolean
   rating: number
   review_count: number
   commission_pct: number
@@ -47,6 +48,7 @@ export default function AdminShops() {
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<string | null>(null)
   const [togglingPos, setTogglingPos] = useState<string | null>(null)
+  const [togglingRewards, setTogglingRewards] = useState<string | null>(null)
   const [savingAll, setSavingAll] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
@@ -184,6 +186,42 @@ export default function AdminShops() {
       }
     } catch { /* ignore */ }
     setToggling(null)
+  }
+
+  // DonutDash Cash entitlement, per shop.
+  //
+  // Defaults to OFF, the opposite of pos_enabled: a shop that has never been
+  // asked has not agreed to fund rewards out of its own margin, and an
+  // undefined value must not read as consent. The shop owner has the same
+  // switch on their own settings page; this is the platform-side override.
+  const toggleRewards = async (id: string, currentEnabled: boolean) => {
+    const shopName = shops.find(s => s.id === id)?.name || 'this shop'
+    if (currentEnabled) {
+      const ok = window.confirm(
+        `Turn off DonutDash Cash for ${shopName}?\n\n` +
+        `Customers stop earning and stop being able to spend their balance at this shop. ` +
+        `Balances already earned are kept and become spendable again if you turn it back on.`
+      )
+      if (!ok) return
+    }
+    setTogglingRewards(id)
+    try {
+      const res = await fetch('/api/admin/shops', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, rewards_enabled: !currentEnabled }),
+      })
+      if (res.ok) {
+        setShops(prev => prev.map(s => s.id === id ? { ...s, rewards_enabled: !currentEnabled } : s))
+        setOriginalShops(prev => prev.map(s => s.id === id ? { ...s, rewards_enabled: !currentEnabled } : s))
+      } else {
+        const d = await res.json().catch(() => ({}))
+        alert(d.error || 'Could not change rewards for this shop.')
+      }
+    } catch {
+      alert('Network error — rewards not changed.')
+    }
+    setTogglingRewards(null)
   }
 
   // POS entitlement — separate from is_active so a shop can be on delivery
@@ -408,6 +446,8 @@ export default function AdminShops() {
                 const isDirty = dirtyShops.some(d => d.id === shop.id)
                 const isExpanded = expandedId === shop.id
                 const posOn = shop.pos_enabled !== false
+                // Off unless explicitly on — see toggleRewards.
+                const rewardsOn = shop.rewards_enabled === true
                 const numStyle: React.CSSProperties = { width: 64, padding: '5px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 13, textAlign: 'center' }
                 const cfgLabel: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.4 }
                 return (
@@ -482,6 +522,23 @@ export default function AdminShops() {
                       }}
                     >
                       {posOn ? 'Disable POS' : 'Enable POS'}
+                    </button>
+                    <button
+                      onClick={() => toggleRewards(shop.id, rewardsOn)}
+                      disabled={togglingRewards === shop.id}
+                      title={rewardsOn
+                        ? 'Stop this shop earning and redeeming DonutDash Cash'
+                        : 'Let this shop earn and redeem DonutDash Cash'}
+                      style={{
+                        marginLeft: 8,
+                        padding: '5px 10px', borderRadius: 6, border: '1px solid #E5E7EB',
+                        background: rewardsOn ? '#FEF2F2' : '#F0FDF4',
+                        color: rewardsOn ? '#DC2626' : '#16A34A',
+                        cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                        opacity: togglingRewards === shop.id ? 0.5 : 1,
+                      }}
+                    >
+                      {rewardsOn ? 'Disable Rewards' : 'Enable Rewards'}
                     </button>
                   </td>
                   <td style={{ padding: '9px 10px' }}>
