@@ -112,18 +112,22 @@ export async function POST(req: NextRequest) {
 
   // Wallet, created on first sight so a new customer has somewhere to earn.
   const { data: wallet } = await svc
-    .rpc('dd_cash_wallet_for', { p_customer: customer!.id })
+    .rpc('dd_cash_wallet_for', { p_customer: customer!.id, p_shop: body.shop_id })
     .maybeSingle<{ balance_cents: number; recoverable_offset_cents: number }>()
 
   const balance = Number(wallet?.balance_cents ?? 0)
   const offset = Number(wallet?.recoverable_offset_cents ?? 0)
 
-  // Has this customer ever earned? Decides the rate, and it is the ledger
-  // that answers — a customer who earned and spent it all is not new.
+  // Has this customer ever earned AT THIS SHOP? Decides the rate, and it is
+  // the ledger that answers — a customer who earned and spent it all is not
+  // new. Scoped to the shop to match dd_cash_earn: balances are per shop, so
+  // a regular at one shop is genuinely a new customer at the next, and the
+  // quote the cashier reads out has to agree with what the sale will award.
   const { count: earnCount } = await svc
     .from('dd_cash_ledger')
     .select('id', { count: 'exact', head: true })
     .eq('customer_id', customer!.id)
+    .eq('shop_id', body.shop_id)
     .eq('transaction_type', 'EARN')
 
   const isNew = (earnCount ?? 0) === 0

@@ -445,6 +445,114 @@ export default function ShopSettings() {
           somewhere money actually moves. */}
       <SquareConnect />
 
+      {/* DonutDash Cash — opt in per shop */}
+      {shop && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>DonutDash Cash Rewards</h3>
+          <p style={{ fontSize: 12, color: '#888', marginBottom: 16, marginTop: 0 }}>
+            Customers earn a percentage back on what they spend here, and spend it here.
+            Balances are per shop &mdash; what a customer earns at your shop is funded by you
+            and can only be redeemed at your shop.
+          </p>
+
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 16 }}>
+            <input
+              type="checkbox"
+              checked={!!shop.rewards_enabled}
+              onChange={e => setShop({ ...shop, rewards_enabled: e.target.checked })}
+              style={{ marginTop: 3, width: 16, height: 16, accentColor: '#FF1493' }}
+            />
+            <span>
+              <span style={{ fontSize: 14, fontWeight: 600, display: 'block' }}>Take part in DonutDash Cash</span>
+              <span style={{ fontSize: 12, color: '#888' }}>
+                Off by default. Nothing is earned or redeemed at your shop until you switch this on.
+              </span>
+            </span>
+          </label>
+
+          {shop.rewards_enabled && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>
+                    First-visit rate (%)
+                  </label>
+                  {/* Stored in basis points so the rate is exact; shown as a
+                      percentage because that is how a shop owner thinks about
+                      it. 500 bps displays as 5. */}
+                  <input
+                    type="number" min={0} max={20} step={0.5}
+                    value={(Number(shop.reward_new_customer_bps ?? 0) / 100).toString()}
+                    onChange={e => setShop({ ...shop, reward_new_customer_bps: Math.round(Number(e.target.value) * 100) })}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #FFE4EF', fontSize: 14 }}
+                  />
+                  <span style={{ fontSize: 11, color: '#aaa' }}>What a brand-new customer earns.</span>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>
+                    Standard rate (%)
+                  </label>
+                  <input
+                    type="number" min={0} max={20} step={0.5}
+                    value={(Number(shop.reward_standard_bps ?? 0) / 100).toString()}
+                    onChange={e => setShop({ ...shop, reward_standard_bps: Math.round(Number(e.target.value) * 100) })}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #FFE4EF', fontSize: 14 }}
+                  />
+                  <span style={{ fontSize: 11, color: '#aaa' }}>Every visit after the first.</span>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>
+                    Minimum purchase ($)
+                  </label>
+                  <input
+                    type="number" min={0} step={0.5}
+                    value={(Number(shop.reward_min_purchase_cents ?? 0) / 100).toString()}
+                    onChange={e => setShop({ ...shop, reward_min_purchase_cents: Math.round(Number(e.target.value) * 100) })}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #FFE4EF', fontSize: 14 }}
+                  />
+                  <span style={{ fontSize: 11, color: '#aaa' }}>0 means every sale earns.</span>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>
+                    Most redeemable per order ($)
+                  </label>
+                  <input
+                    type="number" min={0} step={0.5}
+                    value={(Number(shop.reward_max_redeem_cents ?? 0) / 100).toString()}
+                    onChange={e => setShop({ ...shop, reward_max_redeem_cents: Math.round(Number(e.target.value) * 100) })}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #FFE4EF', fontSize: 14 }}
+                  />
+                  <span style={{ fontSize: 11, color: '#aaa' }}>0 means no cap.</span>
+                </div>
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 16 }}>
+                <input
+                  type="checkbox"
+                  checked={!!shop.reward_prompt_customer}
+                  onChange={e => setShop({ ...shop, reward_prompt_customer: e.target.checked })}
+                  style={{ marginTop: 3, width: 16, height: 16, accentColor: '#FF1493' }}
+                />
+                <span>
+                  <span style={{ fontSize: 14, fontWeight: 600, display: 'block' }}>Ask for a phone number on the customer screen</span>
+                  <span style={{ fontSize: 12, color: '#888' }}>
+                    Only applies to registers that have a second, customer-facing screen.
+                    The cashier can always skip it &mdash; useful at a drive-through.
+                  </span>
+                </span>
+              </label>
+            </>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={save} disabled={saving} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: '#FF1493', color: '#fff', border: 'none', cursor: 'pointer' }}>
+              {saving ? 'Saving...' : 'Save rewards settings'}
+            </button>
+            {saved && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Saved!</span>}
+          </div>
+        </div>
+      )}
+
       {/* Shop Referral Program */}
       {shopReferral && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24, marginTop: 16 }}>

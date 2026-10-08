@@ -390,10 +390,15 @@ export async function POST(req: NextRequest) {
       }
       await svc.rpc('dd_cash_earn', { p_order_id: order.id })
 
+      // This shop's wallet. Without the shop filter maybeSingle() would
+      // throw once a customer holds a balance at more than one shop, and
+      // before that it would have reported another shop's balance on this
+      // shop's receipt.
       const { data: w } = await svc
         .from('dd_cash_wallets')
         .select('balance_cents')
         .eq('customer_id', customerId)
+        .eq('shop_id', body.shop_id)
         .maybeSingle()
       const { data: rows } = await svc
         .from('dd_cash_ledger')

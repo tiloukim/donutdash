@@ -1,242 +1,222 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useAuth } from '@/lib/auth-context'
+/**
+ * Public DonutDash Cash balance check.
+ *
+ * No login: a customer who earned at the counter has never signed up for
+ * anything, so an account would be a wall in front of their own money. They
+ * prove the number is theirs with a texted code instead.
+ *
+ * This page replaced a points-and-tiers view (bronze/silver/gold) that needed
+ * a login and described a programme DonutDash no longer runs — points were
+ * converted to DonutDash Cash at 1 point = 1 cent. Leaving it up would have
+ * been the same mistake as a diagnostics screen reporting hardware that is not
+ * there: confidently describing something untrue.
+ */
+
+import { useState } from 'react'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
-interface Transaction {
-  id: string
-  points: number
-  type: string
-  description: string
-  created_at: string
+interface ShopBalance {
+  shop_name: string
+  city: string | null
+  state: string | null
+  balance_cents: number
+  lifetime_earned_cents: number
+  lifetime_redeemed_cents: number
 }
 
-interface LoyaltyData {
-  points: number
-  lifetime_points: number
-  tier: string
-  transactions: Transaction[]
-}
-
-const TIERS = [
-  { name: 'bronze', min: 0, max: 499, color: '#CD7F32', next: 'silver', nextAt: 500 },
-  { name: 'silver', min: 500, max: 1499, color: '#C0C0C0', next: 'gold', nextAt: 1500 },
-  { name: 'gold', min: 1500, max: 4999, color: '#FFD700', next: 'platinum', nextAt: 5000 },
-  { name: 'platinum', min: 5000, max: Infinity, color: '#E5E4E2', next: null, nextAt: null },
-]
-
-const TIER_BENEFITS: Record<string, string[]> = {
-  bronze: ['Earn 1 point per $1 spent', 'Redeem points for rewards'],
-  silver: ['Everything in Bronze', 'Bonus points on weekends (coming soon)'],
-  gold: ['Everything in Silver', 'Priority order processing (coming soon)'],
-  platinum: ['Everything in Gold', 'Exclusive monthly offers (coming soon)'],
-}
+const money = (c: number) => `$${(c / 100).toFixed(2)}`
 
 export default function RewardsPage() {
-  const { user, loading: authLoading } = useAuth()
-  const [data, setData] = useState<LoyaltyData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [step, setStep] = useState<'phone' | 'code' | 'done'>('phone')
+  const [phone, setPhone] = useState('')
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState<{ found: boolean; first_name: string | null; shops: ShopBalance[] } | null>(null)
 
-  useEffect(() => {
-    if (authLoading) return
-    if (!user) { setLoading(false); return }
-    fetch('/api/loyalty')
-      .then(r => r.json())
-      .then(d => { if (!d.error) setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [user, authLoading])
+  // Display as (903) 555-1234 while keeping only digits in state, so the
+  // request always carries something the server can normalise.
+  const digits = phone.replace(/\D/g, '').slice(0, 10)
+  const pretty =
+    digits.length > 6 ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+    : digits.length > 3 ? `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+    : digits
 
-  const currentTier = TIERS.find(t => t.name === (data?.tier || 'bronze'))!
-  const progress = currentTier.next && currentTier.nextAt
-    ? Math.min(100, ((data?.lifetime_points || 0) - currentTier.min) / (currentTier.nextAt - currentTier.min) * 100)
-    : 100
-
-  if (authLoading || loading) {
-    return (
-      <>
-        <Navbar />
-        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: '1.1rem', color: '#888' }}>Loading...</div>
-        </div>
-      </>
-    )
+  async function sendCode() {
+    if (digits.length !== 10) { setError('Enter a 10-digit mobile number.'); return }
+    setBusy(true); setError('')
+    try {
+      const res = await fetch('/api/verify/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: `+1${digits}` }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(data.error || 'Could not send a code.'); return }
+      setStep('code')
+    } catch {
+      setError('Network error. Try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
-  if (!user) {
-    return (
-      <>
-        <Navbar />
-        <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎁</div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Sign in to view your rewards</h2>
-          <p style={{ color: '#888', marginBottom: '1.5rem' }}>Earn points on every order and redeem for free delivery and discounts!</p>
-          <Link href="/login" style={{ display: 'inline-block',
-            background: '#FF8C00', color: 'white', padding: '0.75rem 2rem',
-            borderRadius: '10px', fontWeight: 600, fontSize: '1rem', textDecoration: 'none',
-          }}>Sign In</Link>
-        </div>
-      </>
-    )
+  async function checkBalance() {
+    setBusy(true); setError('')
+    try {
+      const res = await fetch('/api/rewards/balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: digits, code }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(data.error || 'Could not check that.'); return }
+      setResult(data)
+      setStep('done')
+    } catch {
+      setError('Network error. Try again.')
+    } finally {
+      setBusy(false)
+    }
   }
+
+  const total = (result?.shops ?? []).reduce((s, x) => s + x.balance_cents, 0)
 
   return (
     <>
       <Navbar />
-      <div style={{ maxWidth: '700px', margin: '0 auto', padding: '2rem 1rem', paddingTop: '140px' }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1A1A2E', margin: 0 }}>
-            DonutDash™ Rewards
-          </h1>
-          <p style={{ color: '#888', marginTop: '0.25rem' }}>Earn points. Get treats.</p>
-        </div>
+      <main style={{ maxWidth: 560, margin: '0 auto', padding: '32px 20px 64px' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>DonutDash Cash</h1>
+        <p style={{ fontSize: 14, color: '#666', marginTop: 0, marginBottom: 28 }}>
+          Check what you&rsquo;ve earned. Enter your mobile number and we&rsquo;ll text you a code.
+        </p>
 
-        {/* Points & Tier Card */}
-        <div style={{
-          background: 'linear-gradient(135deg, #FF8C00, #FFB347)',
-          borderRadius: '20px',
-          padding: '2rem',
-          color: 'white',
-          marginBottom: '1.5rem',
-          boxShadow: '0 8px 32px rgba(255,140,0,0.3)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: '0.85rem', opacity: 0.9, fontWeight: 500 }}>Available Points</div>
-              <div style={{ fontSize: '3rem', fontWeight: 800, lineHeight: 1.1 }}>{data?.points || 0}</div>
-            </div>
-            <div style={{
-              background: 'rgba(255,255,255,0.25)',
-              borderRadius: '12px',
-              padding: '0.5rem 1rem',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9 }}>Tier</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, textTransform: 'capitalize' }}>{data?.tier || 'bronze'}</div>
-            </div>
-          </div>
-
-          {/* Progress bar to next tier */}
-          {currentTier.next && (
-            <div style={{ marginTop: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', opacity: 0.9, marginBottom: '6px' }}>
-                <span style={{ textTransform: 'capitalize' }}>{currentTier.name}</span>
-                <span style={{ textTransform: 'capitalize' }}>{currentTier.next} ({currentTier.nextAt} pts)</span>
-              </div>
-              <div style={{
-                background: 'rgba(255,255,255,0.3)',
-                borderRadius: '10px',
-                height: '10px',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  background: 'white',
-                  height: '100%',
-                  borderRadius: '10px',
-                  width: `${progress}%`,
-                  transition: 'width 0.5s ease',
-                }} />
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.85, marginTop: '4px' }}>
-                {(currentTier.nextAt! - (data?.lifetime_points || 0))} points to {currentTier.next}
-              </div>
-            </div>
-          )}
-          {!currentTier.next && (
-            <div style={{ marginTop: '1rem', fontSize: '0.85rem', opacity: 0.9 }}>
-              You have reached the highest tier!
-            </div>
-          )}
-        </div>
-
-        {/* Tier Benefits */}
-        <div style={{
-          background: '#FFF8F0',
-          border: '1px solid #FFE8D6',
-          borderRadius: '16px',
-          padding: '1.25rem',
-          marginBottom: '1.5rem',
-        }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.75rem', color: '#1A1A2E' }}>
-            <span style={{ textTransform: 'capitalize' }}>{data?.tier || 'bronze'}</span> Tier Benefits
-          </h3>
-          {TIER_BENEFITS[data?.tier || 'bronze'].map((b, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', color: '#555', marginBottom: '6px' }}>
-              <span style={{ color: '#FF8C00', fontWeight: 700 }}>+</span> {b}
-            </div>
-          ))}
-        </div>
-
-        {/* Redeem Section — disabled while promo application is being rewired.
-            Points still accrue; redemption returns once promos are re-enabled. */}
-        <div style={{
-          background: '#FFF8F0',
-          border: '1px dashed #FFD8A8',
-          borderRadius: '16px',
-          padding: '1.25rem',
-          marginBottom: '2rem',
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎁</div>
-          <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1A1A2E', marginBottom: '0.25rem' }}>
-            Rewards coming soon
-          </div>
-          <div style={{ fontSize: '0.85rem', color: '#666', lineHeight: 1.5 }}>
-            Keep earning points on every order — redemption will be available shortly.
-          </div>
-        </div>
-
-        {/* Transaction History */}
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1A1A2E', marginBottom: '1rem' }}>
-          Points History
-        </h2>
-
-        {(!data?.transactions || data.transactions.length === 0) ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '2rem',
-            color: '#888',
-            background: '#FAFAFA',
-            borderRadius: '12px',
-          }}>
-            No transactions yet. Place an order to start earning points!
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {data.transactions.map(tx => (
-              <div key={tx.id} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '0.75rem 1rem',
-                background: 'white',
-                border: '1px solid #F0F0F0',
-                borderRadius: '10px',
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 500, color: '#1A1A2E' }}>
-                    {tx.description || tx.type}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#AAA' }}>
-                    {new Date(tx.created_at).toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric', year: 'numeric',
-                    })}
-                  </div>
-                </div>
-                <div style={{
-                  fontWeight: 700,
-                  fontSize: '1rem',
-                  color: tx.points > 0 ? '#38A169' : '#E53E3E',
-                }}>
-                  {tx.points > 0 ? '+' : ''}{tx.points}
-                </div>
-              </div>
-            ))}
+        {step === 'phone' && (
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#555', display: 'block', marginBottom: 6 }}>
+              Mobile number
+            </label>
+            <input
+              inputMode="numeric"
+              autoComplete="tel"
+              value={pretty}
+              onChange={(e) => setPhone(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void sendCode() }}
+              placeholder="(903) 555-1234"
+              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #FFE4EF', fontSize: 18, letterSpacing: 0.5 }}
+            />
+            {error && <p style={{ color: '#DC2626', fontSize: 13, marginBottom: 0 }}>{error}</p>}
+            <button
+              onClick={() => void sendCode()}
+              disabled={busy || digits.length !== 10}
+              style={{ marginTop: 16, width: '100%', padding: '13px', borderRadius: 8, fontSize: 15, fontWeight: 700, background: digits.length === 10 ? '#FF1493' : '#F3C6DA', color: '#fff', border: 'none', cursor: digits.length === 10 ? 'pointer' : 'default' }}
+            >
+              {busy ? 'Sending…' : 'Text me a code'}
+            </button>
           </div>
         )}
-      </div>
+
+        {step === 'code' && (
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 24 }}>
+            <p style={{ fontSize: 14, color: '#444', marginTop: 0 }}>
+              We texted a code to <strong>{pretty}</strong>.
+            </p>
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              onKeyDown={(e) => { if (e.key === 'Enter') void checkBalance() }}
+              placeholder="123456"
+              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #FFE4EF', fontSize: 22, letterSpacing: 6, textAlign: 'center' }}
+            />
+            {error && <p style={{ color: '#DC2626', fontSize: 13, marginBottom: 0 }}>{error}</p>}
+            <button
+              onClick={() => void checkBalance()}
+              disabled={busy || code.length < 4}
+              style={{ marginTop: 16, width: '100%', padding: '13px', borderRadius: 8, fontSize: 15, fontWeight: 700, background: code.length >= 4 ? '#FF1493' : '#F3C6DA', color: '#fff', border: 'none', cursor: code.length >= 4 ? 'pointer' : 'default' }}
+            >
+              {busy ? 'Checking…' : 'Check my balance'}
+            </button>
+            <button
+              onClick={() => { setStep('phone'); setCode(''); setError('') }}
+              style={{ marginTop: 10, width: '100%', padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: 'transparent', color: '#888', border: 'none', cursor: 'pointer' }}
+            >
+              Use a different number
+            </button>
+          </div>
+        )}
+
+        {step === 'done' && result && (
+          <>
+            {result.shops.length === 0 ? (
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 28, textAlign: 'center' }}>
+                <p style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 6 }}>
+                  No DonutDash Cash yet
+                </p>
+                <p style={{ fontSize: 14, color: '#666', marginTop: 0 }}>
+                  {result.found
+                    ? 'You haven’t earned any yet. Give your number at the counter on your next order and it starts adding up.'
+                    : 'We don’t have this number on file yet. Give it at the counter on your next order and you’ll start earning.'}
+                </p>
+                <Link href="/shops" style={{ display: 'inline-block', marginTop: 14, padding: '11px 22px', borderRadius: 8, background: '#FF1493', color: '#fff', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+                  Find a shop
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div style={{ background: 'linear-gradient(135deg,#FF1493,#FF6FB5)', borderRadius: 14, padding: 26, color: '#fff', marginBottom: 18 }}>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9, fontWeight: 600 }}>
+                    {result.first_name ? `${result.first_name}, you have` : 'You have'}
+                  </p>
+                  <p style={{ margin: '4px 0 0', fontSize: 40, fontWeight: 800, letterSpacing: -1 }}>{money(total)}</p>
+                  <p style={{ margin: '6px 0 0', fontSize: 13, opacity: 0.9 }}>
+                    {result.shops.length === 1
+                      ? 'at 1 shop'
+                      : `across ${result.shops.length} shops`}
+                  </p>
+                </div>
+
+                {/* Per shop, and said out loud: this is the rule that decides
+                    where the money can be spent, so it belongs on the screen
+                    rather than in a surprise at the till. */}
+                <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 12 }}>
+                  DonutDash Cash is earned and spent at the same shop. Each balance below can only
+                  be used at that shop.
+                </p>
+
+                {result.shops.map((s, i) => (
+                  <div key={i} style={{ background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF', padding: 18, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{s.shop_name}</p>
+                      {(s.city || s.state) && (
+                        <p style={{ margin: '2px 0 0', fontSize: 12, color: '#999' }}>
+                          {[s.city, s.state].filter(Boolean).join(', ')}
+                        </p>
+                      )}
+                      <p style={{ margin: '6px 0 0', fontSize: 11, color: '#aaa' }}>
+                        Earned {money(s.lifetime_earned_cents)} &middot; used {money(s.lifetime_redeemed_cents)}
+                      </p>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#FF1493', fontVariantNumeric: 'tabular-nums' }}>
+                      {money(s.balance_cents)}
+                    </p>
+                  </div>
+                ))}
+              </>
+            )}
+            <button
+              onClick={() => { setStep('phone'); setCode(''); setResult(null); setError('') }}
+              style={{ marginTop: 16, width: '100%', padding: '11px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: 'transparent', color: '#888', border: '1px solid #FFE4EF', cursor: 'pointer' }}
+            >
+              Check another number
+            </button>
+          </>
+        )}
+      </main>
     </>
   )
 }
