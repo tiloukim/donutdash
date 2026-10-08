@@ -7,11 +7,15 @@ const translations = {
   'nav.dashboard': { en: 'Dashboard', km: 'ផ្ទាំងគ្រប់គ្រង' },
   'nav.orders': { en: 'Orders', km: 'ការបញ្ជាទិញ' },
   // Two registers run side by side, so the nav says so.
+  //
   // Renamed from "Walk-in Sales" — these are the register's sales, and the
-  // shop thinks of the machine, not the customer. Khmer left as-is: it reads
-  // "in-store sales", which is still what this is, and inventing a Khmer
-  // rendering of "POS" is not mine to do.
-  'nav.walkins': { en: 'POS Sales', km: 'ការលក់ក្នុងហាង' },
+  // shop thinks of the machine, not the customer. The Khmer now says the
+  // same thing: ម៉ាស៊ីនគិតលុយ is the ordinary term for a cash register, so
+  // "ការលក់តាមម៉ាស៊ីនគិតលុយ" is "sales through the register" rather than the
+  // older "ការលក់ក្នុងហាង" ("in-store sales"), which described where the sale
+  // happened instead of what rang it up — and no longer distinguished these
+  // from anything else once online orders could also be collected in store.
+  'nav.walkins': { en: 'POS Sales', km: 'ការលក់តាមម៉ាស៊ីនគិតលុយ' },
   'nav.earnings': { en: 'Earnings', km: 'ចំណូល' },
   'nav.promote': { en: 'Promote', km: 'ផ្សព្វផ្សាយ' },
   'nav.menu': { en: 'Menu', km: 'មុខម្ហូប' },
