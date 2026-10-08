@@ -101,11 +101,24 @@ export async function POST(req: NextRequest) {
         earn: { is_new_customer: true, rate_bps: newBps, will_earn_cents: earnsNow },
       })
     }
+    // dd_users.email is NOT NULL and unique, and a walk-in enrolled at the
+    // counter has not given one. Leaving it out is why enrolment failed
+    // outright with "null value in column email violates not-null
+    // constraint" — printed raw on the register, so the cashier saw a
+    // Postgres error where a new customer should have been.
+    //
+    // .invalid is reserved by RFC 2606 precisely for this: it can never
+    // resolve, so nothing can ever accidentally send mail here, and it is
+    // obviously synthetic to anyone reading the table. Keyed on the phone,
+    // which is what makes it unique and what makes it the SAME address if
+    // this customer is ever enrolled again.
+    const syntheticEmail = `pos-${phone}@donutdash.invalid`
     const { data: created, error } = await svc
       .from('dd_users')
       .insert({
         name: body.name?.trim() || 'Guest',
         phone: body.phone,
+        email: syntheticEmail,
         role: 'customer',
         is_active: true,
       })
