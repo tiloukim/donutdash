@@ -41,18 +41,32 @@ export async function POST(req: NextRequest) {
   const svc = a.svc
 
   const phone = normalizePhone(body.phone)
-  if (!phone) {
+  // A call with NO phone at all is a configuration probe: the register asking
+  // what this shop's rewards settings are before it has anything to look up.
+  // Distinguished from a phone it could not parse, which is a real error and
+  // still rejected — otherwise a mistyped number would silently read as
+  // "tell me the settings" and the cashier would see nothing happen.
+  const probe = !body.phone
+  if (!phone && !probe) {
     return NextResponse.json({ error: 'Enter a 10-digit mobile number.' }, { status: 400 })
   }
 
   const { data: shop } = await svc
     .from('dd_shops')
-    .select('rewards_enabled, reward_new_customer_bps, reward_standard_bps, reward_min_purchase_cents, reward_max_redeem_cents')
+    .select('rewards_enabled, reward_new_customer_bps, reward_standard_bps, reward_min_purchase_cents, reward_max_redeem_cents, reward_prompt_customer')
     .eq('id', body.shop_id)
     .maybeSingle()
 
   if (!shop?.rewards_enabled) {
     return NextResponse.json({ enabled: false })
+  }
+  // Whether the register should put the pad on the customer's screen by
+  // itself. Returned with every lookup so the panel does not need a second
+  // call to find out, and so the setting takes effect without a new build.
+  const promptCustomer = !!shop.reward_prompt_customer
+
+  if (probe) {
+    return NextResponse.json({ enabled: true, found: false, prompt_customer: promptCustomer })
   }
 
   // Live records only. A merged duplicate is excluded by the same condition
@@ -61,13 +75,13 @@ export async function POST(req: NextRequest) {
     .from('dd_users')
     .select('id, name, phone')
     .eq('role', 'customer')
-    .eq('phone_normalized', phone)
+    .eq('phone_normalized', phone!)
     .is('merged_into', null)
     .maybeSingle()
 
   if (!customer) {
     if (!body.create) {
-      return NextResponse.json({ enabled: true, found: false })
+      return NextResponse.json({ enabled: true, found: false, prompt_customer: promptCustomer })
     }
     const { data: created, error } = await svc
       .from('dd_users')
@@ -134,6 +148,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     enabled: true,
     found: true,
+    prompt_customer: promptCustomer,
     customer: {
       id: customer!.id,
       name: customer!.name,
