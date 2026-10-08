@@ -279,7 +279,17 @@ $$;
 -- ─────────────────────────────────────────────────────────────────────────
 -- Drift: per wallet, which now means per customer PER SHOP
 -- ─────────────────────────────────────────────────────────────────────────
-create or replace view public.dd_cash_wallet_drift as
+-- DROPPED first, not CREATE OR REPLACE.
+--
+-- Replace can only APPEND columns to a view; it cannot insert one in the
+-- middle or rename an existing one. Adding shop_id as the second column made
+-- Postgres read it as renaming the old second column and it refused:
+--   cannot change name of view column "wallet_cents" to "shop_id"
+-- No cascade: this view is a diagnostic with nothing depending on it, and if
+-- something ever does, failing loudly beats dropping it silently.
+drop view if exists public.dd_cash_wallet_drift;
+
+create view public.dd_cash_wallet_drift as
   select w.customer_id,
          w.shop_id,
          w.balance_cents                       as wallet_cents,
