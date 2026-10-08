@@ -150,19 +150,35 @@ alter table public.dd_cash_wallets alter column shop_id set not null;
 -- ─────────────────────────────────────────────────────────────────────────
 -- 3. One wallet per customer PER SHOP
 -- ─────────────────────────────────────────────────────────────────────────
--- Drop whatever unique constraint or index currently pins customer_id alone,
--- by lookup rather than by a guessed name.
+-- Drop the unique constraint that pins customer_id alone.
+--
+-- The name is not a guess: a deliberately-duplicate insert against the live
+-- table reported `duplicate key value violates unique constraint
+-- "dd_cash_wallets_customer_id_key"`, which is also the name Postgres
+-- generates for a column-level UNIQUE. The catalog sweep after it is the
+-- belt-and-braces for a database where it was renamed.
+alter table public.dd_cash_wallets
+  drop constraint if exists dd_cash_wallets_customer_id_key;
+
 do $$
 declare r record;
 begin
   for r in
+    -- Matched on conkey, which is smallint[], against array[attnum], also
+    -- smallint[]. An earlier version compared array_agg(a.attname) to
+    -- array['customer_id'] and failed outright with "operator does not exist:
+    -- name[] = text[]" — attname is `name`, not text, and there is no
+    -- equality operator between those array types.
     select c.conname
       from pg_constraint c
-      join pg_class t on t.oid = c.conrelid
-     where t.relname = 'dd_cash_wallets' and c.contype = 'u'
-       and (select array_agg(a.attname order by a.attname)
-              from pg_attribute a
-             where a.attrelid = t.oid and a.attnum = any(c.conkey)) = array['customer_id']
+     where c.conrelid = 'public.dd_cash_wallets'::regclass
+       and c.contype = 'u'
+       and c.conkey = (
+         select array[a.attnum]
+           from pg_attribute a
+          where a.attrelid = 'public.dd_cash_wallets'::regclass
+            and a.attname = 'customer_id'
+       )
   loop
     execute format('alter table public.dd_cash_wallets drop constraint %I', r.conname);
   end loop;
