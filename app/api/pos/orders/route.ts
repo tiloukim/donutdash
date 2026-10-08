@@ -86,6 +86,8 @@ interface CreateBody {
    *  When present, a repeat of the same key returns the original order
    *  instead of creating a second one. */
   client_order_id?: string | null
+  /** Code already printed on an offline receipt. Validated server-side. */
+  short_code?: string | null
 }
 
 /**
@@ -273,6 +275,16 @@ export async function POST(req: NextRequest) {
       card_auth_code: body.card_auth_code ?? null,
       card_ref_number: body.card_ref_number ?? null,
       client_order_id: clientOrderId,
+      // The code already printed on an offline receipt, when there is one.
+      //
+      // Validated rather than trusted: five characters from the generator's
+      // own alphabet, or nothing. The trigger keeps it when it is free and
+      // replaces it when it is taken, so a clash cannot fail a sale that has
+      // already been handed over.
+      short_code:
+        typeof body.short_code === 'string' && /^[A-HJ-NP-Z2-9]{5}$/.test(body.short_code)
+          ? body.short_code
+          : undefined,
       reconcile_flag: reconcileFlag,
       reconcile_note: reconcileNote,
   }
