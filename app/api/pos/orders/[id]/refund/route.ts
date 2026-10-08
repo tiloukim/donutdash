@@ -80,10 +80,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { error } = await svc.from('dd_orders').update(patch).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // DonutDash Cash: take back the share of the reward that belongs to the
+  // merchandise just handed back.
+  //
+  // AFTER the update, because the function reads refund_amount off the order
+  // — and that column is the RUNNING TOTAL, which is what makes this safe to
+  // call twice. The reversal keys itself on that cumulative figure, so
+  // re-posting the same refund is a no-op while a second, larger partial
+  // refund correctly reverses only the increment.
+  //
+  // Non-fatal, and deliberately so: the gateway has already returned the
+  // customer's money by the time this runs. Failing the request here would
+  // tell the cashier the refund did not happen when it did — the exact
+  // "money moved and the books didn't know" failure this route's own
+  // comments describe. A missed reversal is recoverable; a refund the POS
+  // believes failed is not.
+  let cashReversal: { reversed_cents: number; deferred_cents: number } | null = null
+  try {
+    const { data: rev } = await svc
+      .rpc('dd_cash_reverse_refund', { p_order_id: id })
+      .maybeSingle<{ amount_cents: number; metadata: Record<string, unknown> }>()
+    if (rev) {
+      cashReversal = {
+        reversed_cents: Math.abs(Number(rev.amount_cents ?? 0)),
+        deferred_cents: Number(rev.metadata?.deferred_to_offset_cents ?? 0),
+      }
+    }
+  } catch (e) {
+    console.error('DonutDash Cash reversal error:', e)
+  }
+
   return NextResponse.json({
     success: true,
     refund_amount: rounded,
     fullRefund: isFull,
     refunded_at: patch.refunded_at,
+    cash_reversal: cashReversal,
   })
 }
