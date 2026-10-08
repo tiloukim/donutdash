@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { normalizePhone } from '@/lib/phone'
 import { getClientIp } from '@/lib/client-ip'
+import { checkVerificationCode } from '@/lib/phone-verify'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +16,13 @@ export async function POST(req: NextRequest) {
   // an attacker who got a victim into the "code sent" state could try
   // codes as fast as the network allows.
   const ip = getClientIp(req.headers)
-  const normalizedPhone = phone.trim()
+  // Normalised for the rate-limit KEY, not just trimmed.
+  //
+  // It was phone.trim(), so "+19035551212", "9035551212" and
+  // "(903) 555-1212" each got their own bucket — the per-number cap that is
+  // supposed to stop one phone being bombarded could be lapped simply by
+  // changing the punctuation between sends.
+  const normalizedPhone = normalizePhone(phone) ?? phone.trim()
   const phoneLimit = await checkRateLimit(`verify-check:phone:${normalizedPhone}`, 20, 60 * 60_000)
   if (!phoneLimit.allowed) {
     return NextResponse.json({ error: 'Too many verification attempts. Try again in an hour.' }, { status: 429 })
@@ -24,41 +32,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many verification attempts. Try again in an hour.' }, { status: 429 })
   }
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken = process.env.TWILIO_AUTH_TOKEN
-  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID
-
-  if (!accountSid || !authToken || !serviceSid) {
-    return NextResponse.json({ error: 'Verification not configured.' }, { status: 500 })
-  }
-
-  try {
-    const url = `https://verify.twilio.com/v2/Services/${serviceSid}/VerificationCheck`
-    const params = new URLSearchParams({
-      To: phone.trim(),
-      Code: code.trim(),
-    })
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      // Logged, not forwarded — same reason as the send route: the provider
-      // writes these for the account operator and they can name the account.
-      console.error('Verify check error:', data)
-      return NextResponse.json({ error: 'Verification failed. Please try again.' }, { status: 400 })
-    }
-    if (data.status === 'approved') {
-      return NextResponse.json({ verified: true })
-    }
-    return NextResponse.json({ verified: false, error: 'Invalid code. Please try again.' })
-  } catch (err) {
-    console.error('Verify check error:', err)
-    return NextResponse.json({ error: 'Verification failed.' }, { status: 500 })
-  }
+  // Checks the local fallback store first, then Twilio — see lib/phone-verify
+  // for why that order matters.
+  const result = await checkVerificationCode(normalizedPhone, code)
+  if (result.verified) return NextResponse.json({ verified: true })
+  return NextResponse.json({ verified: false, error: result.error ?? 'Invalid code. Please try again.' })
 }

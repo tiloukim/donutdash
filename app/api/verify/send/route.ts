@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { normalizePhone } from '@/lib/phone'
 import { getClientIp } from '@/lib/client-ip'
+import { sendVerificationCode } from '@/lib/phone-verify'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +18,13 @@ export async function POST(req: NextRequest) {
   // SMS-pump defense. Twilio charges per send — without these caps,
   // someone can burn the Verify quota and bombard a victim's phone.
   const ip = getClientIp(req.headers)
-  const normalizedPhone = phone.trim()
+  // Normalised for the rate-limit KEY, not just trimmed.
+  //
+  // It was phone.trim(), so "+19035551212", "9035551212" and
+  // "(903) 555-1212" each got their own bucket — the per-number cap that is
+  // supposed to stop one phone being bombarded could be lapped simply by
+  // changing the punctuation between sends.
+  const normalizedPhone = normalizePhone(phone) ?? phone.trim()
   const ipLimit = await checkRateLimit(`verify-send:ip:${ip}`, 10, 15 * 60_000)
   if (!ipLimit.allowed) {
     return NextResponse.json({ error: 'Too many verification requests. Try again in 15 minutes.' }, { status: 429 })
@@ -28,46 +36,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Too many ${verifyChannel === 'call' ? 'calls' : 'codes'} sent to this number. Try again in an hour.` }, { status: 429 })
   }
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken = process.env.TWILIO_AUTH_TOKEN
-  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID
-
-  if (!accountSid || !authToken || !serviceSid) {
-    return NextResponse.json({ error: 'Verification not configured.' }, { status: 500 })
+  // The provider decision lives in lib/phone-verify: Twilio Verify, falling
+  // back to a code we issue over Telnyx. Keeping it there rather than here is
+  // what lets the rewards balance route share exactly the same behaviour —
+  // a fallback only some callers know about is worse than none.
+  const result = await sendVerificationCode(normalizedPhone, verifyChannel)
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 })
   }
-
-  try {
-    const url = `https://verify.twilio.com/v2/Services/${serviceSid}/Verifications`
-    const params = new URLSearchParams({
-      To: phone.trim(),
-      Channel: verifyChannel,
-    })
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      // Log the provider's message; do not forward it.
-      //
-      // data.message is written for whoever operates the account, not for the
-      // person holding the phone. When the Twilio account was suspended it
-      // read "authentication failed, account AC54b97aae… with status 4 is not
-      // active" — printed in full on a public page, which tells a customer
-      // nothing they can act on and tells everyone else the account SID.
-      console.error('Verify send error:', data)
-      return NextResponse.json(
-        { error: 'We could not send a code right now. Please try again shortly.' },
-        { status: 400 },
-      )
-    }
-    return NextResponse.json({ success: true, status: data.status })
-  } catch (err) {
-    console.error('Verify send error:', err)
-    return NextResponse.json({ error: 'Failed to send verification code.' }, { status: 500 })
-  }
+  return NextResponse.json({ success: true, via: result.via })
 }

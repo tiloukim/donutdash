@@ -3,13 +3,14 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/phone'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { getClientIp } from '@/lib/client-ip'
+import { checkVerificationCode } from '@/lib/phone-verify'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * A customer's DonutDash Cash, by phone number, for the public site.
  *
- * The code is checked HERE, against Twilio, before any balance is read.
+ * The code is checked HERE, before any balance is read.
  *
  * /api/verify/check already exists and returns { verified: true } to the
  * browser, so the obvious build would have been to call it from the page and
@@ -46,33 +47,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many tries. Try again later.' }, { status: 429 })
   }
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken = process.env.TWILIO_AUTH_TOKEN
-  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID
-  if (!accountSid || !authToken || !serviceSid) {
-    return NextResponse.json({ error: 'Verification is not configured.' }, { status: 500 })
-  }
-
-  // Twilio wants E.164; normalizePhone gives us 10 US digits.
-  const e164 = `+1${phone}`
-  try {
-    const res = await fetch(
-      `https://verify.twilio.com/v2/Services/${serviceSid}/VerificationCheck`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({ To: e164, Code: code }),
-      },
-    )
-    const data = await res.json()
-    if (!res.ok || data.status !== 'approved') {
-      return NextResponse.json({ error: 'That code is not right. Try again.' }, { status: 401 })
-    }
-  } catch {
-    return NextResponse.json({ error: 'Could not check that code. Try again.' }, { status: 502 })
+  // Verified through the shared helper, so this route gets the Telnyx
+  // fallback exactly as signup and role auth do. Inlining a Twilio call here
+  // is how this route would quietly become the one place the fallback does
+  // not apply — and it is checked HERE, in the request that returns the
+  // balance, because a client-asserted "verified" flag is no protection at
+  // all.
+  const result = await checkVerificationCode(phone, code)
+  if (!result.verified) {
+    return NextResponse.json({ error: result.error ?? 'That code is not right.' }, { status: 401 })
   }
 
   const svc = createServiceClient()
