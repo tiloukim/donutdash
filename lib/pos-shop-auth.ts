@@ -19,6 +19,16 @@ interface AuthorizeOpts {
   // up with terminal-credentials: admin + the two manager tiers. Drop to
   // ['admin'] for sensitive financial routes.
   privilegedRoles?: string[]
+  /**
+   * Skip the POS kill-switch for this route.
+   *
+   * For the handful of endpoints that are not sales: heartbeat, build checks,
+   * device commands. A disabled register should stop taking money, which is
+   * what the switch is for — but it should not also go dark and become
+   * unreachable and un-updatable, because then the only way to recover it is
+   * physically. Telemetry and updates keep working; takings do not.
+   */
+  allowPosDisabled?: boolean
 }
 
 const DEFAULT_PRIVILEGED = ['admin', 'general_manager', 'field_manager']
@@ -82,10 +92,26 @@ export async function authorizeForShop(shopId: string, opts: AuthorizeOpts = {})
     if (shop.is_active === false) {
       return { error: 'This shop has been deactivated. Please contact DonutDash.', status: 403 as const }
     }
-    if (shop.pos_enabled === false) {
-      return { error: 'POS access is disabled for this shop. Please contact DonutDash.', status: 403 as const }
-    }
   }
+
+  // The POS kill-switch applies to EVERYONE, privileged roles included.
+  //
+  // It used to sit inside the block above, so admin, general_manager and
+  // field_manager skipped it entirely along with the ownership and is_active
+  // checks. Skipping ownership is right — an admin does not own the shop they
+  // are helping — but a kill-switch that exempts the people most likely to be
+  // holding the register is not a kill-switch. Disabling POS for Top Donuts
+  // did nothing visible because the till was signed in as an admin, and the
+  // only way to find that out was to read this function.
+  //
+  // Checked by shop id rather than by ownership, since a privileged caller
+  // has none. This cannot lock anyone out of fixing it: the admin web uses
+  // its own auth, not this, so the switch can always be turned back on.
+  const status = opts.allowPosDisabled ? null : await fetchShopStatusById(svc, shopId)
+  if (status?.pos_enabled === false) {
+    return { error: 'POS access is disabled for this shop. Please contact DonutDash.', status: 403 as const }
+  }
+
   return { svc, caller }
 }
 

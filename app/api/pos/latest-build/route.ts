@@ -22,7 +22,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'shop_id is required' }, { status: 400 })
   }
 
-  const a = await authorizeForShop(shopId, { privilegedRoles: ['admin'] })
+  const a = await authorizeForShop(shopId, {
+    privilegedRoles: ['admin'],
+    // A register whose POS is switched off must still be able to ask
+    // what build it should be on. Blocking this would mean a disabled
+    // till could not be updated out of whatever state disabled it.
+    allowPosDisabled: true,
+  })
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
 
   const { data, error } = await a.svc
