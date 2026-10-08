@@ -422,12 +422,42 @@ export async function POST(req: NextRequest) {
       const customerId = canonical ?? body.customer_id
 
       if (cashRedeemed > 0) {
-        await svc.rpc('dd_cash_redeem', {
+        const requestedCents = Math.round(cashRedeemed * 100)
+        const { data: redeemRow } = await svc.rpc('dd_cash_redeem', {
           p_order_id: order.id,
           p_customer: customerId,
           p_shop_id: body.shop_id,
-          p_requested_cents: Math.round(cashRedeemed * 100),
-        })
+          p_requested_cents: requestedCents,
+        }).maybeSingle<{ amount_cents: number }>()
+
+        // What the wallet ACTUALLY gave up, which is not always what the
+        // register asked for.
+        //
+        // dd_cash_redeem clamps the request to the real balance, the eligible
+        // merchandise and the shop's per-order cap, and this call used to
+        // throw its answer away. So when a register asked for more than the
+        // customer had — a stale quote carried over from a previous sale —
+        // the ledger was correctly debited for what existed while the ORDER
+        // kept claiming the larger figure it had already discounted. Order
+        // 19FDC recorded $1.38 against a wallet holding $0.29; the customer's
+        // balance was never over-drawn, but the shop quietly absorbed $1.09
+        // and nothing anywhere said so.
+        //
+        // The total is NOT rewritten: it is what the card was charged, and
+        // that is a fact. What gets corrected is the claim about where the
+        // discount came from, and the gap is flagged so somebody can see it.
+        const actualCents = Math.abs(Number(redeemRow?.amount_cents ?? 0))
+        if (actualCents !== requestedCents) {
+          const shortfall = (requestedCents - actualCents) / 100
+          await svc.from('dd_orders').update({
+            cash_redeemed_cents: actualCents,
+            reconcile_flag: 'redeem_shortfall',
+            reconcile_note:
+              `Register applied ${(requestedCents / 100).toFixed(2)} of DonutDash Cash but only ` +
+              `${(actualCents / 100).toFixed(2)} was available. The sale was discounted ` +
+              `${shortfall.toFixed(2)} more than the wallet funded.`,
+          }).eq('id', order.id)
+        }
       }
       await svc.rpc('dd_cash_earn', { p_order_id: order.id })
 
