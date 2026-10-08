@@ -449,13 +449,25 @@ export async function POST(req: NextRequest) {
         const actualCents = Math.abs(Number(redeemRow?.amount_cents ?? 0))
         if (actualCents !== requestedCents) {
           const shortfall = (requestedCents - actualCents) / 100
+          // FLAGGED, not rewritten.
+          //
+          // cash_redeemed_cents is part of the total's identity — this route
+          // validates total == subtotal + tax + tip - discount - cashRedeemed
+          // + surcharge and refuses a sale whose parts disagree. Correcting
+          // the column to the funded figure would leave total no longer
+          // explained by its own parts, breaking that invariant on exactly
+          // the orders that most need to be legible.
+          //
+          // So the order keeps the discount the customer actually received,
+          // which is what the card was charged and therefore true, and the
+          // shortfall is recorded as what it is: a discount the wallet did
+          // not fund, absorbed by the shop.
           await svc.from('dd_orders').update({
-            cash_redeemed_cents: actualCents,
             reconcile_flag: 'redeem_shortfall',
             reconcile_note:
-              `Register applied ${(requestedCents / 100).toFixed(2)} of DonutDash Cash but only ` +
-              `${(actualCents / 100).toFixed(2)} was available. The sale was discounted ` +
-              `${shortfall.toFixed(2)} more than the wallet funded.`,
+              `Register applied ${(requestedCents / 100).toFixed(2)} of DonutDash Cash but the ` +
+              `wallet only funded ${(actualCents / 100).toFixed(2)}. ` +
+              `${shortfall.toFixed(2)} of this sale's discount was not backed by a balance.`,
           }).eq('id', order.id)
         }
       }
