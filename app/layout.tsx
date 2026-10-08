@@ -11,16 +11,28 @@ import PageTracker from '@/components/PageTracker'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
+// No `weight` array: both of these are VARIABLE fonts, so this requests the
+// variable face instead of a list of static instances.
+//
+// Two reasons. The build one: asking for static instances is what makes
+// Google serve the fonts.gstatic.com/l/font?kit=... URL form, and Turbopack
+// cannot parse the `?` inside it — "Module not found: @vercel/turbopack-next
+// /internal/font/google/font". Google only returns that form sometimes, so
+// deploys failed at random while local builds and the deploy an hour earlier
+// passed. It cost two production deploys on 8 Oct.
+//
+// The correctness one: this file asks for 400-700, but the app actually uses
+// 300 through 900, so every weight outside that range was being faux-
+// synthesised by the browser. The variable faces cover 100-1000 (DM Sans) and
+// 400-900 (Playfair), so those weights are now real.
 const dmSans = DM_Sans({
   variable: '--font-dm-sans',
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
 })
 
 const playfair = Playfair_Display({
   variable: '--font-playfair',
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
 })
 
 export const metadata: Metadata = {
