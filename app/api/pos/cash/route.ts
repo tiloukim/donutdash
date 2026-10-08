@@ -81,7 +81,25 @@ export async function POST(req: NextRequest) {
 
   if (!customer) {
     if (!body.create) {
-      return NextResponse.json({ enabled: true, found: false, prompt_customer: promptCustomer })
+      // Say what a NEW customer would earn, from this shop's own setting.
+      //
+      // The customer screen used to print "earning 5% today" as a literal,
+      // which was accidentally true only because Top Donuts happens to be set
+      // to 500 bps. Now that a shop sets its own rate, a shop on 3% would have
+      // promised 5% on the customer's screen and awarded 3% at the till. The
+      // register cannot state a rate it has not been told, so it is sent one.
+      const newBps = Number(shop.reward_new_customer_bps ?? 0)
+      const eligibleNow = Math.max(0, Math.floor(Number(body.eligible_cents ?? 0)))
+      const earnsNow = eligibleNow >= (shop.reward_min_purchase_cents ?? 0)
+        ? Math.floor((eligibleNow * newBps + 5000) / 10000)
+        : 0
+      return NextResponse.json({
+        enabled: true,
+        found: false,
+        prompt_customer: promptCustomer,
+        new_customer_bps: newBps,
+        earn: { is_new_customer: true, rate_bps: newBps, will_earn_cents: earnsNow },
+      })
     }
     const { data: created, error } = await svc
       .from('dd_users')
