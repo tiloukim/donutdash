@@ -41,6 +41,14 @@ interface CreateBody {
   customer_id?: string | null
   /** Cash discount given on this sale (dollars). 0 on card sales. */
   cash_discount_amount?: number
+  /** DonutDash Cash the customer applied, in CENTS (everything else on this
+   *  body is dollars; the rewards ledger is integer cents end to end and
+   *  converting at the boundary is where a cent goes missing).
+   *
+   *  Treated exactly like a discount in the integrity check below: the
+   *  register's total already has it taken off, so the recomputation has to
+   *  take it off too or every redeemed sale is refused. */
+  cash_redeemed_cents?: number
   /** Order-level discount applied at the register — the discount catalog,
    *  not the cash-discount program. Deducted after subtotal and before the
    *  total, and stored so a reprint can show the line. */
@@ -147,8 +155,11 @@ export async function POST(req: NextRequest) {
   // server 70.77" — 70.77 − 67.59 = 3.18 = the discount — and by then the
   // card had already been charged.
   const orderDiscount = Number(body.discount_amount ?? 0)
+  // Cents on the wire, dollars in this sum. Rounded to cents first so the
+  // division cannot introduce a fraction the comparison then trips on.
+  const cashRedeemed = Math.max(0, Math.round(Number(body.cash_redeemed_cents ?? 0))) / 100
   const surcharge = Number(body.card_surcharge_amount ?? 0)
-  const recomputedTotal = recomputedSubtotal + tax + tip - discount - orderDiscount + surcharge
+  const recomputedTotal = recomputedSubtotal + tax + tip - discount - orderDiscount - cashRedeemed + surcharge
   const TOLERANCE = 0.01 // one cent of float wobble
   const mismatches: string[] = []
   if (Math.abs(recomputedSubtotal - Number(body.subtotal)) > TOLERANCE) {
@@ -216,6 +227,7 @@ export async function POST(req: NextRequest) {
       // Persisted so the reprint shows the discount the customer was given,
       // and so "what did we give away this month" is answerable at all.
       discount_amount: Math.round(orderDiscount * 100) / 100,
+      cash_redeemed_cents: Math.round(cashRedeemed * 100),
       discount_label: body.discount_label ?? null,
       // Card fee as reported by the gateway, stored explicitly rather than
       // folded into `total` and reverse-engineered later (see
@@ -348,10 +360,67 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // DonutDash Cash: settle the redemption, then the earning.
+  //
+  // In that order, and both AFTER the order row exists, because the earn is
+  // computed from the order's own columns — including the redemption, which
+  // must already be on the row or the customer earns on money they did not
+  // spend.
+  //
+  // Non-fatal, like loyalty below: the customer has already paid, and a
+  // rewards hiccup must never fail a sale. Both functions are idempotent on
+  // the order, so the retry path and the offline replay re-run them safely.
+  let cash: { redeemed_cents: number; earned_cents: number; balance_cents: number } | null = null
+  if (body.customer_id) {
+    try {
+      // Resolve through any merge, so a customer who was deduplicated earns
+      // into the surviving wallet rather than a record nobody reads.
+      const { data: canonical } = await svc
+        .rpc('dd_customer_canonical', { p_user: body.customer_id })
+        .single<string>()
+      const customerId = canonical ?? body.customer_id
+
+      if (cashRedeemed > 0) {
+        await svc.rpc('dd_cash_redeem', {
+          p_order_id: order.id,
+          p_customer: customerId,
+          p_shop_id: body.shop_id,
+          p_requested_cents: Math.round(cashRedeemed * 100),
+        })
+      }
+      await svc.rpc('dd_cash_earn', { p_order_id: order.id })
+
+      const { data: w } = await svc
+        .from('dd_cash_wallets')
+        .select('balance_cents')
+        .eq('customer_id', customerId)
+        .maybeSingle()
+      const { data: rows } = await svc
+        .from('dd_cash_ledger')
+        .select('transaction_type, amount_cents')
+        .eq('order_id', order.id)
+      const earned = (rows ?? []).filter(r => r.transaction_type === 'EARN')
+        .reduce((n, r) => n + Number(r.amount_cents), 0)
+      const redeemed = (rows ?? []).filter(r => r.transaction_type === 'REDEEM')
+        .reduce((n, r) => n - Number(r.amount_cents), 0)
+      cash = {
+        redeemed_cents: redeemed,
+        earned_cents: earned,
+        balance_cents: Number(w?.balance_cents ?? 0),
+      }
+    } catch (e) {
+      console.error('DonutDash Cash error:', e)
+    }
+  }
+
   // Loyalty: award points to the attached walk-in customer (1 pt per $1 of
   // subtotal), same rules as online orders. Non-fatal — a loyalty hiccup must
   // never fail a sale the customer already paid for. Returned so the POS can
   // show "Earned X pts · <balance> total" on the receipt screen.
+  //
+  // Superseded by DonutDash Cash and kept running only so the online channel
+  // and the tier badges keep working until that side is migrated too. Retire
+  // this block, not the tables, once online earns Cash as well.
   let loyalty: LoyaltyAward | null = null
   if (body.customer_id) {
     try {
@@ -370,5 +439,6 @@ export async function POST(req: NextRequest) {
     id: order.id,
     short_code: order.short_code,
     loyalty: loyalty ? { earned: loyalty.earned, balance: loyalty.points, tier: loyalty.tier } : null,
+    cash,
   })
 }
