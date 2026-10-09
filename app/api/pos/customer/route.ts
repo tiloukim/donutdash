@@ -84,6 +84,39 @@ export async function GET(req: NextRequest) {
     .eq('shop_id', shopId)
     .in('status', ['delivered', 'picked_up'])
 
+  // What they actually bought, which is a different question from what they
+  // earned. The ledger only knows about sales that moved a balance, so a
+  // customer who paid cash before joining, or whose basket fell under the
+  // minimum, has purchases the rewards history cannot see. "What did I get
+  // last time?" is answered here or not at all.
+  const { data: purchases } = await svc
+    .from('dd_orders')
+    .select('id, short_code, total, created_at, payment_method, status')
+    .eq('customer_id', customer.id)
+    .eq('shop_id', shopId)
+    .in('status', ['delivered', 'picked_up'])
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  // The items on each, so the answer is "two glazed and a coffee" rather than
+  // "$6.71" — which is what somebody actually means when they ask.
+  const purchaseIds = (purchases ?? []).map((o) => o.id)
+  const { data: items } = purchaseIds.length
+    ? await svc
+        .from('dd_order_items')
+        .select('order_id, name, quantity')
+        .in('order_id', purchaseIds)
+    : { data: [] as { order_id: string; name: string; quantity: number }[] }
+  const itemsByOrder = new Map<string, { name: string; quantity: number }[]>()
+  for (const it of items ?? []) {
+    const list = itemsByOrder.get(it.order_id) ?? []
+    list.push({ name: it.name, quantity: it.quantity })
+    itemsByOrder.set(it.order_id, list)
+  }
+
+  const totalSpentCents = (purchases ?? [])
+    .reduce((sum, o) => sum + Math.round(Number(o.total) * 100), 0)
+
   return NextResponse.json({
     found: true,
     customer: {
@@ -97,6 +130,7 @@ export async function GET(req: NextRequest) {
       email: (customer.email ?? '').endsWith('@donutdash.invalid') ? null : customer.email,
       joined_at: customer.created_at,
       visits: visits ?? 0,
+      total_spent_cents: totalSpentCents,
     },
     wallet: wallet
       ? {
@@ -106,6 +140,14 @@ export async function GET(req: NextRequest) {
           owed_back_cents: Number(wallet.recoverable_offset_cents ?? 0),
         }
       : null,
+    purchases: (purchases ?? []).map((o) => ({
+      id: o.id,
+      short_code: o.short_code,
+      total_cents: Math.round(Number(o.total) * 100),
+      at: o.created_at,
+      payment_method: o.payment_method,
+      items: itemsByOrder.get(o.id) ?? [],
+    })),
     ledger: (ledger ?? []).map((l) => ({
       type: l.transaction_type,
       amount_cents: Number(l.amount_cents),
