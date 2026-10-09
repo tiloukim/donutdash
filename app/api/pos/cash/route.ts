@@ -141,6 +141,27 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // A name supplied for a customer we already have.
+  //
+  // The name was only ever applied at CREATION, so one arriving afterwards —
+  // which is exactly what happens when the customer types it on their own
+  // screen a moment after enrolling — was silently dropped. Everyone stayed
+  // 'Guest'.
+  //
+  // Only fills a blank. A customer who has given a real name once should not
+  // have it overwritten by whatever gets typed at a counter later, and
+  // "Guest" is the placeholder this route writes itself.
+  const supplied = typeof body.name === 'string' ? body.name.trim().slice(0, 60) : ''
+  if (supplied && customer && (!customer.name || customer.name === 'Guest')) {
+    const { data: renamed } = await svc
+      .from('dd_users')
+      .update({ name: supplied })
+      .eq('id', customer.id)
+      .select('id, name, phone')
+      .maybeSingle()
+    if (renamed) customer = renamed
+  }
+
   // Wallet, created on first sight so a new customer has somewhere to earn.
   const { data: wallet } = await svc
     .rpc('dd_cash_wallet_for', { p_customer: customer!.id, p_shop: body.shop_id })
