@@ -49,6 +49,9 @@ interface HeartbeatBody {
   platform?: string | null
   app_version?: string | null
   device_model?: string | null
+  /** Hardware inventory, read from the OS on the device. Every field
+   *  optional — the register drops any it could not read. */
+  specs?: Record<string, unknown> | null
   card_terminal_tpn?: string | null
   /** Diagnostic: last SPIn response with all digits masked. Never card data.
    *  Here to work out where brand/last-4 live in the envelope. */
@@ -66,6 +69,40 @@ interface HeartbeatBody {
   updates_runtime_version?: string | null
   updates_last_check?: string | null
   updates_last_check_at?: string | null
+}
+
+/**
+ * Pick the inventory fields out of whatever the register sent.
+ *
+ * An allowlist, not a spread: this body is posted by a device every ~45
+ * seconds, and copying arbitrary keys from it into a table row is how a
+ * client ends up able to write columns nobody intended. Each value is also
+ * coerced, so a malformed number lands as null rather than failing the whole
+ * beat — presence telemetry must never be the thing that breaks.
+ */
+function deviceSpecColumns(specs: Record<string, unknown> | null | undefined) {
+  if (!specs || typeof specs !== 'object') return {}
+  const int = (v: unknown) => {
+    const n = Math.round(Number(v))
+    return Number.isFinite(n) ? n : null
+  }
+  const real = (v: unknown) => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+  }
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 40) : null)
+  return {
+    android_release: str(specs.android_release),
+    android_sdk: int(specs.android_sdk),
+    ram_total_mb: int(specs.ram_total_mb),
+    ram_available_mb: int(specs.ram_available_mb),
+    storage_total_mb: int(specs.storage_total_mb),
+    storage_free_mb: int(specs.storage_free_mb),
+    screen_px: str(specs.screen_px),
+    screen_density: real(specs.screen_density),
+    screen_inches: real(specs.screen_inches),
+    specs_updated_at: new Date().toISOString(),
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -102,6 +139,11 @@ export async function POST(req: NextRequest) {
         platform: body.platform?.trim() || null,
         app_version: body.app_version?.trim() || null,
         device_model: body.device_model?.trim() || null,
+        // Hardware inventory. Spread in only when the register sent some, so
+        // an older APK that knows nothing about specs does not blank what a
+        // newer one already reported — an upsert writes every key it is
+        // given, including the nulls.
+        ...deviceSpecColumns(body.specs),
         card_terminal_tpn: body.card_terminal_tpn?.trim() || null,
         // Capped — this is a diagnostic, not a log store, and an oversized
         // body shouldn't be able to bloat the devices table.

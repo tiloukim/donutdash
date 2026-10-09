@@ -22,6 +22,14 @@ interface Device {
   updates_last_check: string | null
   updates_last_check_at: string | null
   device_model: string | null
+  android_release: string | null
+  android_sdk: number | null
+  ram_total_mb: number | null
+  ram_available_mb: number | null
+  storage_total_mb: number | null
+  storage_free_mb: number | null
+  screen_px: string | null
+  screen_inches: number | null
   card_terminal_tpn: string | null
   card_terminal_model: string | null
   card_terminal_connected: boolean | null
@@ -241,6 +249,28 @@ export default function AdminDevices() {
                     {d.device_model ? (
                       <>
                         <span style={{ fontWeight: 600, color: '#374151' }}>{d.device_model}</span>
+                        <span style={{ color: '#D1D5DB' }}>·</span>
+                      </>
+                    ) : null}
+                    {/* Hardware inventory, when the register has reported it.
+                        An older APK sends nothing and this stays absent
+                        rather than showing a row of dashes. */}
+                    {d.android_release || d.ram_total_mb || d.storage_total_mb ? (
+                      <>
+                        <span>
+                          {[
+                            d.android_release ? `Android ${d.android_release}` : null,
+                            d.ram_total_mb ? `${(d.ram_total_mb / 1024).toFixed(1)} GB RAM` : null,
+                            // Free space leads, because it is the number that
+                            // predicts a register failing; capacity is context.
+                            d.storage_free_mb && d.storage_total_mb
+                              ? `${(d.storage_free_mb / 1024).toFixed(1)} of ${(d.storage_total_mb / 1024).toFixed(0)} GB free`
+                              : null,
+                            d.screen_px
+                              ? `${d.screen_px}${d.screen_inches ? ` (${d.screen_inches}")` : ''}`
+                              : null,
+                          ].filter(Boolean).join(' · ')}
+                        </span>
                         <span style={{ color: '#D1D5DB' }}>·</span>
                       </>
                     ) : null}
