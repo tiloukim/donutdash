@@ -24,6 +24,36 @@ export async function GET(req: NextRequest) {
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
   const svc = createServiceClient()
 
+  // No phone means "show me everyone", for the manage view.
+  if (!req.nextUrl.searchParams.get('phone')) {
+    const { data: wallets } = await svc
+      .from('dd_cash_wallets')
+      .select('customer_id, balance_cents, lifetime_earned_cents')
+      .eq('shop_id', shopId)
+      .order('balance_cents', { ascending: false })
+    const ids = (wallets ?? []).map((w) => w.customer_id)
+    const { data: people } = ids.length
+      ? await svc.from('dd_users').select('id, name, phone, created_at').in('id', ids).is('merged_into', null)
+      : { data: [] as { id: string; name: string | null; phone: string | null; created_at: string }[] }
+    const byId = new Map((people ?? []).map((p) => [p.id, p]))
+    return NextResponse.json({
+      list: (wallets ?? [])
+        // A wallet whose person was merged away is not a customer any more.
+        .filter((w) => byId.has(w.customer_id))
+        .map((w) => {
+          const p = byId.get(w.customer_id)!
+          return {
+            id: p.id,
+            name: p.name,
+            phone: p.phone,
+            joined_at: p.created_at,
+            balance_cents: Number(w.balance_cents ?? 0),
+            lifetime_earned_cents: Number(w.lifetime_earned_cents ?? 0),
+          }
+        }),
+    })
+  }
+
   const phone = normalizePhone(req.nextUrl.searchParams.get('phone'))
   if (!phone) return NextResponse.json({ error: 'Enter a 10-digit mobile number.' }, { status: 400 })
 
@@ -207,4 +237,63 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ ok: true, customer: saved })
+}
+
+/**
+ * Remove a customer from rewards.
+ *
+ * Guarded, because dd_cash_wallets and dd_cash_ledger both cascade from
+ * dd_users — deleting a person with history takes their ledger with them,
+ * and the append-only trigger that protects that ledger does not fire on a
+ * cascade. So a customer who has earned, spent, or bought anything is NOT
+ * deletable here; what that needs is a merge or a correction, not a delete.
+ *
+ * What this does remove is the common real case: a number keyed wrong,
+ * enrolled by mistake, with nothing behind it.
+ */
+export async function DELETE(req: NextRequest) {
+  const body = await req.json().catch(() => null)
+  const a = await authorizeForShop(body?.shop_id ?? '')
+  if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+  const svc = createServiceClient()
+
+  const phone = normalizePhone(body?.phone)
+  if (!phone) return NextResponse.json({ error: 'Enter a 10-digit mobile number.' }, { status: 400 })
+
+  const { data: customer } = await svc
+    .from('dd_users')
+    .select('id, name')
+    .eq('role', 'customer')
+    .eq('phone_normalized', phone)
+    .is('merged_into', null)
+    .maybeSingle()
+  if (!customer) return NextResponse.json({ error: 'No customer with that number.' }, { status: 404 })
+
+  const { count: ledgerRows } = await svc
+    .from('dd_cash_ledger')
+    .select('id', { count: 'exact', head: true })
+    .eq('customer_id', customer.id)
+  if ((ledgerRows ?? 0) > 0) {
+    return NextResponse.json({
+      error: 'This customer has rewards history, so removing them would delete an accounting record. Clear the balance or merge them instead.',
+    }, { status: 409 })
+  }
+
+  const { count: orders } = await svc
+    .from('dd_orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('customer_id', customer.id)
+  if ((orders ?? 0) > 0) {
+    return NextResponse.json({
+      error: `This customer is attached to ${orders} past sale${orders === 1 ? '' : 's'} and cannot be removed.`,
+    }, { status: 409 })
+  }
+
+  // Wallet first: it is empty by definition here, and deleting it explicitly
+  // keeps the cascade from being the thing that removes it.
+  await svc.from('dd_cash_wallets').delete().eq('customer_id', customer.id)
+  const { error } = await svc.from('dd_users').delete().eq('id', customer.id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
 }
