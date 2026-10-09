@@ -25,10 +25,11 @@ export async function GET(req: NextRequest) {
 
   const a = await authorizeForShop(shopId, {
     privilegedRoles: ['admin'],
-    // A register whose POS is switched off must still be able to ask
-    // what build it should be on. Blocking this would mean a disabled
-    // till could not be updated out of whatever state disabled it.
-    allowPosDisabled: true,
+    // A register at a shop that has been switched off — deactivated or
+    // POS-disabled — must still be able to ask what build it should be on.
+    // Blocking this would mean a disabled till could not be updated out of
+    // whatever state disabled it.
+    allowShopDisabled: true,
   })
   if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
 

@@ -20,15 +20,16 @@ interface AuthorizeOpts {
   // ['admin'] for sensitive financial routes.
   privilegedRoles?: string[]
   /**
-   * Skip the POS kill-switch for this route.
+   * Skip BOTH shop-state gates for this route — deactivated and POS-disabled.
    *
-   * For the handful of endpoints that are not sales: heartbeat, build checks,
-   * device commands. A disabled register should stop taking money, which is
-   * what the switch is for — but it should not also go dark and become
-   * unreachable and un-updatable, because then the only way to recover it is
-   * physically. Telemetry and updates keep working; takings do not.
+   * For the endpoints that are not sales: build checks, and heartbeat and
+   * device commands if they ever adopt this helper. A shop that has been
+   * switched off should stop taking money, which is what the switches are
+   * for — but its register should not also go dark and become unreachable
+   * and un-updatable, because then recovering it means a trip to the counter.
+   * Telemetry and updates keep working; takings do not.
    */
-  allowPosDisabled?: boolean
+  allowShopDisabled?: boolean
 }
 
 const DEFAULT_PRIVILEGED = ['admin', 'general_manager', 'field_manager']
@@ -86,28 +87,32 @@ export async function authorizeForShop(shopId: string, opts: AuthorizeOpts = {})
     return { error: 'Your account has been deactivated. Please contact DonutDash.', status: 403 as const }
   }
 
+  // OWNERSHIP is the only thing a privileged role skips.
+  //
+  // That part is right: an admin or a manager does not own the shop they are
+  // helping, and requiring them to would make support impossible. What was
+  // wrong is that both SHOP-STATE checks lived in here too, so the people
+  // most likely to be holding a register were the ones exempt from the
+  // switches meant to stop a register trading.
   if (!privileged.includes(caller.role)) {
     const shop = await fetchOwnedShopStatus(svc, shopId, caller.id)
     if (!shop) return { error: 'You do not own this shop', status: 403 as const }
-    if (shop.is_active === false) {
-      return { error: 'This shop has been deactivated. Please contact DonutDash.', status: 403 as const }
-    }
   }
 
-  // The POS kill-switch applies to EVERYONE, privileged roles included.
+  // Both shop-state gates apply to EVERYONE.
   //
-  // It used to sit inside the block above, so admin, general_manager and
-  // field_manager skipped it entirely along with the ownership and is_active
-  // checks. Skipping ownership is right — an admin does not own the shop they
-  // are helping — but a kill-switch that exempts the people most likely to be
-  // holding the register is not a kill-switch. Disabling POS for Top Donuts
-  // did nothing visible because the till was signed in as an admin, and the
-  // only way to find that out was to read this function.
+  // Disabling POS for Top Donuts appeared to do nothing because the till was
+  // signed in as an admin, and the only way to discover that was to read this
+  // function. A deactivated shop is the same argument: whether a shop may
+  // trade is a fact about the shop, not about who is standing at the counter.
   //
-  // Checked by shop id rather than by ownership, since a privileged caller
-  // has none. This cannot lock anyone out of fixing it: the admin web uses
-  // its own auth, not this, so the switch can always be turned back on.
-  const status = opts.allowPosDisabled ? null : await fetchShopStatusById(svc, shopId)
+  // Read by shop id rather than by ownership, since a privileged caller has
+  // none. Neither can lock anyone out of undoing it — the admin web uses its
+  // own auth, not this — so both switches can always be turned back on.
+  const status = opts.allowShopDisabled ? null : await fetchShopStatusById(svc, shopId)
+  if (status?.is_active === false) {
+    return { error: 'This shop has been deactivated. Please contact DonutDash.', status: 403 as const }
+  }
   if (status?.pos_enabled === false) {
     return { error: 'POS access is disabled for this shop. Please contact DonutDash.', status: 403 as const }
   }
