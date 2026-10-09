@@ -41,20 +41,33 @@ export async function GET(req: NextRequest) {
 
   const { data: wallet } = await svc
     .from('dd_cash_wallets')
-    .select('balance_cents, lifetime_earned_cents, lifetime_redeemed_cents, recoverable_offset_cents, created_at')
+    .select('id, balance_cents, lifetime_earned_cents, lifetime_redeemed_cents, recoverable_offset_cents, created_at')
     .eq('customer_id', customer.id)
     .eq('shop_id', shopId)
     .maybeSingle()
 
   // Recent movements, with the order they came from so a cashier can answer
   // "where did that come from?" rather than just reporting a number.
-  const { data: ledger } = await svc
-    .from('dd_cash_ledger')
-    .select('transaction_type, amount_cents, balance_after_cents, created_at, rate_bps, order_id, description')
-    .eq('customer_id', customer.id)
-    .eq('shop_id', shopId)
-    .order('created_at', { ascending: false })
-    .limit(20)
+  // Filtered by WALLET, not by shop.
+  //
+  // The wallet is already per-shop, so this is the same set — except for the
+  // rows the shop filter silently drops. The points conversion wrote
+  // ADMIN_ADJUSTMENT rows with shop_id = null, because the old points
+  // programme was platform-wide and backdating a shop onto them would have
+  // been inventing a fact. Those rows still fund this wallet.
+  //
+  // Filtering on shop_id meant a customer showing a $0.53 balance had an
+  // activity list summing to −$0.85, and a cashier asked to explain the
+  // difference had nothing to point at. wallet_id is exact: every row that
+  // moved this balance, and no row that did not.
+  const { data: ledger } = wallet
+    ? await svc
+        .from('dd_cash_ledger')
+        .select('transaction_type, amount_cents, balance_after_cents, created_at, rate_bps, order_id, description')
+        .eq('wallet_id', wallet.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+    : { data: [] as never[] }
 
   const orderIds = [...new Set((ledger ?? []).map((l) => l.order_id).filter(Boolean))]
   const { data: orders } = orderIds.length
