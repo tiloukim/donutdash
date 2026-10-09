@@ -4,6 +4,7 @@ import { authorizeForShop } from '@/lib/pos-shop-auth'
 // createServiceClient returns.
 import type { createServiceClient } from '@/lib/supabase/server'
 import { awardLoyaltyPoints, type LoyaltyAward } from '@/lib/loyalty'
+import { notifyAdmins } from '@/lib/sms'
 import { POS_CARD_TRANSACTION_FEE } from '@/lib/constants'
 
 // Create a POS walk-in order. Writes go through the service role
@@ -117,6 +118,72 @@ async function resolveChargeIntent(
       .eq('shop_id', shopId)
   } catch (e) {
     console.error('[orders] could not resolve charge intent:', e)
+  }
+}
+
+/**
+ * Did this sale just duplicate one a moment ago?
+ *
+ * Server-side ON PURPOSE. Every other defence against double charging lives
+ * in the register app, which means it protects nobody until that register
+ * updates — and on 9 Oct a customer was charged twice on a till still
+ * running a build from before the fix. This runs wherever the order lands,
+ * on whatever version sent it.
+ *
+ * It flags and alerts; it does not refuse. Two identical sales on one card
+ * minutes apart are nearly always a mistake but occasionally real, and a
+ * register that rejects a sale the customer has already paid for creates a
+ * worse problem than the one it solves. Measured against 679 card sales it
+ * would have fired five times, every one of them a genuine duplicate.
+ */
+async function flagIfDuplicate(
+  svc: ReturnType<typeof createServiceClient>,
+  order: { id: string; short_code: string | null },
+  body: CreateBody,
+  total: number,
+) {
+  try {
+    const last4 = typeof body.card_last4 === 'string' ? body.card_last4.trim() : ''
+    if (!last4 || !String(body.payment_method ?? '').startsWith('card')) return
+
+    const since = new Date(Date.now() - 5 * 60_000).toISOString()
+    const { data: near } = await svc
+      .from('dd_orders')
+      .select('id, short_code, total, created_at, card_ref_number')
+      .eq('shop_id', body.shop_id)
+      .eq('card_last4', last4)
+      .neq('id', order.id)
+      .neq('status', 'cancelled')
+      .gte('created_at', since)
+
+    const twin = (near ?? []).find((o) => Math.abs(Number(o.total) - total) < 0.005)
+    if (!twin) return
+
+    // Same reference means one approval recorded twice; different references
+    // mean the card really was charged twice. The distinction decides whether
+    // a customer is owed money, so it goes in the alert rather than being
+    // left for someone to work out later.
+    const sameRef = !!twin.card_ref_number && twin.card_ref_number === body.card_ref_number
+    const note = sameRef
+      ? `Same processor reference as ${twin.short_code}: one approval recorded twice, the customer paid once.`
+      : `Different processor reference from ${twin.short_code}: the card appears to have been charged TWICE. Check the terminal and void one.`
+
+    await svc.from('dd_orders').update({
+      reconcile_flag: sameRef ? 'duplicate_record' : 'possible_duplicate_charge',
+      reconcile_note: note,
+    }).eq('id', order.id)
+
+    const money = `$${total.toFixed(2)}`
+    await notifyAdmins(
+      `DUPLICATE? ${money} on ••••${last4} rung twice within 5 minutes (${twin.short_code} and ${order.short_code}). ${sameRef ? 'Same reference - books only.' : 'DIFFERENT references - customer may be charged twice.'}`,
+      `Possible duplicate charge: ${money}`,
+      `<p><strong>${money}</strong> on card ••••${last4} was rung twice within five minutes at the same shop.</p>
+       <p>Orders: <strong>${twin.short_code}</strong> and <strong>${order.short_code}</strong></p>
+       <p>${note}</p>`,
+    )
+  } catch (e) {
+    // Never the reason a sale fails. A missed alert costs an alert.
+    console.error('[orders] duplicate check failed:', e)
   }
 }
 
@@ -340,6 +407,9 @@ export async function POST(req: NextRequest) {
 
   // The sale exists. Whatever the register attempted is now accounted for.
   await resolveChargeIntent(svc, clientOrderId, body.shop_id, order.id)
+
+  // Does it duplicate one from a moment ago? Flags and alerts; never blocks.
+  await flagIfDuplicate(svc, order, body, recomputedTotal)
 
   // Record the processor's flat per-card fee for reconciliation. Card only
   // (cash is exempt), logged in its own ledger — NOT added to the order
