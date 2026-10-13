@@ -35,6 +35,15 @@ const shiftDay = (day: string, deltaDays: number) => {
   const dt = new Date(y, m - 1, d + deltaDays)
   return localDay(dt)
 }
+const prettyDay = (day: string) => {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+  })
+}
+const prettyTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+
 const prettyBrand = (b: string | null) =>
   !b ? null : b.charAt(0).toUpperCase() + b.slice(1).toLowerCase()
 
@@ -154,11 +163,22 @@ export default function ShopTransactions() {
         >›</button>
       </div>
 
-      {!isToday && (
-        <button onClick={() => setDay(localDay())} style={{ ...ghostBtn, marginBottom: 14 }}>
-          Jump to today
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }} className="no-print">
+        {!isToday && (
+          <button onClick={() => setDay(localDay())} style={ghostBtn}>
+            Jump to today
+          </button>
+        )}
+        {/* Prints the day that's on screen, not "today" — an owner reconciling
+            a drawer is almost always looking at a day that has closed. */}
+        <button
+          onClick={() => window.print()}
+          disabled={loading || !!error || (sales.length === 0 && !(sq?.sales?.length))}
+          style={ghostBtn}
+        >
+          🖨 Print {prettyDay(day)}
         </button>
-      )}
+      </div>
 
       {loading && <p style={{ color: '#666', fontSize: 14 }}>Loading…</p>}
       {error && (
@@ -347,6 +367,127 @@ export default function ShopTransactions() {
           )}
         </div>
       )}
+
+      {/* ------------------------------------------------------------------
+          Print view. Hidden on screen, and the ONLY thing visible on paper.
+          The screen list collapses each sale behind a tap, which is right for
+          a phone and useless on a printout — this lays every transaction for
+          the selected day out flat, with the totals that have to reconcile
+          against the drawer and the bank.
+          ------------------------------------------------------------------ */}
+      <style>{`
+        #pos-print { display: none; }
+        @media print {
+          /* Hide the app shell without needing to know its markup: everything
+             goes invisible, then the report is turned back on. */
+          body * { visibility: hidden !important; }
+          #pos-print, #pos-print * { visibility: visible !important; }
+          #pos-print { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+          /* Each register starts a fresh sheet. They reconcile against
+             different statements — the DonutDash batch against the processor,
+             Square against Square — so a page that straddles both is a page
+             that has to be cut in half before either can be filed. */
+          .print-page { break-before: page; page-break-before: always; }
+          .print-page:first-of-type { break-before: auto; page-break-before: auto; }
+          table { page-break-inside: auto; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
+          thead { display: table-header-group; }
+          @page { margin: 14mm; }
+        }
+      `}</style>
+
+      <div id="pos-print">
+        <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 2px' }}>POS sales — {prettyDay(day)}</h2>
+        <p style={{ fontSize: 11, color: '#444', margin: '0 0 12px' }}>
+          Takings: what went through the till, including sales tax and the card fee. Not revenue.
+          {truncated ? ' Partial day — the list was truncated.' : ''}
+        </p>
+
+        {totals && (
+          <table style={printTable}>
+            <tbody>
+              <tr><td style={ptLabel}>Taken — DonutDash ({totals.cashCount + totals.cardCount} sales)</td><td style={ptNum}>{money(totals.net)}</td></tr>
+              {sq?.connected && sq.totals ? (
+                <tr><td style={ptLabel}>Taken — Square ({sq.totals.cashCount + sq.totals.cardCount} sales)</td><td style={ptNum}>{money(sq.totals.net)}</td></tr>
+              ) : null}
+              <tr><td style={{ ...ptLabel, fontWeight: 800 }}>Total taken</td><td style={{ ...ptNum, fontWeight: 800 }}>{money(totals.net + (sq?.connected ? sq.totals?.net ?? 0 : 0))}</td></tr>
+              <tr><td style={ptLabel}>Cash ({totals.cashCount + (sq?.connected ? sq.totals?.cashCount ?? 0 : 0)})</td><td style={ptNum}>{money(totals.cash + (sq?.connected ? sq.totals?.cash ?? 0 : 0))}</td></tr>
+              <tr><td style={ptLabel}>Card ({totals.cardCount + (sq?.connected ? sq.totals?.cardCount ?? 0 : 0)})</td><td style={ptNum}>{money(totals.card + (sq?.connected ? sq.totals?.card ?? 0 : 0))}</td></tr>
+              <tr><td style={ptLabel}>Tips</td><td style={ptNum}>{money(totals.tips + (sq?.connected ? sq.totals?.tips ?? 0 : 0))}</td></tr>
+              {totals.refunds > 0 ? <tr><td style={ptLabel}>Refunds</td><td style={ptNum}>-{money(totals.refunds)}</td></tr> : null}
+              <tr><td style={{ ...ptLabel, fontWeight: 800 }}>Expected in the bank</td><td style={{ ...ptNum, fontWeight: 800 }}>{money(ddDeposit + sqDeposit)}</td></tr>
+              {cashInDrawer > 0 ? <tr><td style={ptLabel}>Cash stays in the drawer</td><td style={ptNum}>{money(cashInDrawer)}</td></tr> : null}
+            </tbody>
+          </table>
+        )}
+
+        {sales.length > 0 && (
+          <div className="print-page">
+            <h3 style={printH3}>DonutDash register — {sales.length} sale{sales.length === 1 ? '' : 's'}</h3>
+            <table style={printTable}>
+              <thead>
+                <tr>
+                  <th style={ptTh}>Time</th><th style={ptTh}>Ref</th><th style={ptTh}>Payment</th>
+                  <th style={ptTh}>Items</th><th style={{ ...ptTh, textAlign: 'right' }}>Tip</th>
+                  <th style={{ ...ptTh, textAlign: 'right' }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sales.map((row) => (
+                  <tr key={row.id}>
+                    <td style={ptTd}>{prettyTime(row.at)}</td>
+                    <td style={ptTd}>{row.shortCode ?? '—'}</td>
+                    <td style={ptTd}>
+                      {row.paymentMethod === 'cash'
+                        ? 'Cash'
+                        : [prettyBrand(row.cardBrand), row.cardLast4].filter(Boolean).join(' ') || 'Card'}
+                      {row.refunded ? ' · REFUNDED' : ''}
+                    </td>
+                    <td style={ptTd}>{row.items.map((i) => `${i.quantity}x ${i.name}`).join(', ') || '—'}</td>
+                    <td style={ptNum}>{row.tip ? money(row.tip) : '—'}</td>
+                    <td style={ptNum}>{money(row.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {sq?.connected && sq.sales.length > 0 && (
+          <div className="print-page">
+            {/* Repeated because this is now its own sheet, and a page of
+                figures with no date on it is useless once it's filed. */}
+            <h3 style={printH3}>Square — {prettyDay(day)} — {sq.sales.length} sale{sq.sales.length === 1 ? '' : 's'}</h3>
+            <table style={printTable}>
+              <thead>
+                <tr>
+                  <th style={ptTh}>Time</th><th style={ptTh}>Payment</th>
+                  <th style={{ ...ptTh, textAlign: 'right' }}>Tip</th>
+                  <th style={{ ...ptTh, textAlign: 'right' }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sq.sales.map((row) => (
+                  <tr key={row.id}>
+                    <td style={ptTd}>{prettyTime(row.at)}</td>
+                    <td style={ptTd}>
+                      {[prettyBrand(row.cardBrand), row.cardLast4].filter(Boolean).join(' ') || row.tender}
+                      {row.refundAmount > 0 ? ' · REFUNDED' : ''}
+                    </td>
+                    <td style={ptNum}>{row.tip ? money(row.tip) : '—'}</td>
+                    <td style={ptNum}>{money(row.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {sales.length === 0 && !(sq?.sales?.length) && (
+          <p style={{ fontSize: 12 }}>No sales on this day.</p>
+        )}
+      </div>
     </div>
   )
 }
@@ -494,6 +635,13 @@ function Line({ label, value, bold }: { label: string; value: string; bold?: boo
     </div>
   )
 }
+
+const printTable: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 11, marginBottom: 14 }
+const printH3: React.CSSProperties = { fontSize: 13, fontWeight: 800, margin: '14px 0 6px' }
+const ptTh: React.CSSProperties = { textAlign: 'left', borderBottom: '1px solid #000', padding: '3px 4px', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.3 }
+const ptTd: React.CSSProperties = { borderBottom: '1px solid #ddd', padding: '3px 4px', verticalAlign: 'top' }
+const ptLabel: React.CSSProperties = { padding: '2px 4px' }
+const ptNum: React.CSSProperties = { padding: '3px 4px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid #ddd' }
 
 const card: React.CSSProperties = { background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF' }
 const input: React.CSSProperties = { padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 16 }
