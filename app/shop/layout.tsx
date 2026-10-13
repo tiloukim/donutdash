@@ -203,7 +203,18 @@ function ShopLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <>
     <head><link rel="manifest" href="/manifest-shop.json" /></head>
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    {/* The shell must not reserve space on paper. minHeight:100vh keeps a full
+        page of nothing even when the sidebar is only made invisible, and the
+        sidebar is fixed so it would otherwise repeat on every sheet. A page
+        that wants to print puts its report in #pos-print and marks its own
+        screen content .screen-only. */}
+    <style>{`
+      @media print {
+        .shop-shell { min-height: 0 !important; display: block !important; }
+        .shop-sidebar-desktop, .screen-only, .no-print { display: none !important; }
+      }
+    `}</style>
+    <div className="shop-shell" style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Desktop sidebar */}
       <aside style={{
         width: 220, background: '#FF1493', color: '#fff', display: 'flex', flexDirection: 'column',

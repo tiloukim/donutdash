@@ -138,6 +138,7 @@ export default function ShopTransactions() {
 
   return (
     <div style={{ padding: '16px 14px 40px', maxWidth: 720, margin: '0 auto' }}>
+      <div className="screen-only">
       <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>POS sales</h1>
       <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px' }}>
         Every sale rung on the shop&apos;s register, by day. Figures are takings —
@@ -367,6 +368,7 @@ export default function ShopTransactions() {
           )}
         </div>
       )}
+      </div>
 
       {/* ------------------------------------------------------------------
           Print view. Hidden on screen, and the ONLY thing visible on paper.
@@ -378,12 +380,11 @@ export default function ShopTransactions() {
       <style>{`
         #pos-print { display: none; }
         @media print {
-          /* Hide the app shell without needing to know its markup: everything
-             goes invisible, then the report is turned back on. */
-          body * { visibility: hidden !important; }
-          #pos-print, #pos-print * { visibility: visible !important; }
-          #pos-print { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
-          .no-print { display: none !important; }
+          /* display:none, not visibility:hidden. Hidden elements still occupy
+             their space, so a 59-sale day printed the report followed by
+             several blank sheets where the on-screen list used to be. */
+          .screen-only, .no-print { display: none !important; }
+          #pos-print { display: block !important; }
           /* Each register starts a fresh sheet. They reconcile against
              different statements — the DonutDash batch against the processor,
              Square against Square — so a page that straddles both is a page
@@ -453,10 +454,15 @@ export default function ShopTransactions() {
               </table>
             )}
             <table style={printTable}>
+              <colgroup>
+                <col style={{ width: '9%' }} /><col style={{ width: '8%' }} />
+                <col style={{ width: '15%' }} /><col />
+                <col style={{ width: '8%' }} /><col style={{ width: '11%' }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th style={ptTh}>Time</th><th style={ptTh}>Ref</th><th style={ptTh}>Payment</th>
-                  <th style={ptTh}>Items</th><th style={{ ...ptTh, textAlign: 'right' }}>Tip</th>
+                  <th style={{ ...ptTh, whiteSpace: 'normal' }}>Items</th><th style={{ ...ptTh, textAlign: 'right' }}>Tip</th>
                   <th style={{ ...ptTh, textAlign: 'right' }}>Total</th>
                 </tr>
               </thead>
@@ -471,7 +477,7 @@ export default function ShopTransactions() {
                         : [prettyBrand(row.cardBrand), row.cardLast4].filter(Boolean).join(' ') || 'Card'}
                       {row.refunded ? ' · REFUNDED' : ''}
                     </td>
-                    <td style={ptTd}>{row.items.map((i) => `${i.quantity}x ${i.name}`).join(', ') || '—'}</td>
+                    <td style={ptItems}>{row.items.map((i) => `${i.quantity}x ${i.name}`).join(', ') || '—'}</td>
                     <td style={ptNum}>{row.tip ? money(row.tip) : '—'}</td>
                     <td style={ptNum}>{money(row.total)}</td>
                   </tr>
@@ -502,6 +508,10 @@ export default function ShopTransactions() {
               </table>
             )}
             <table style={printTable}>
+              <colgroup>
+                <col style={{ width: '18%' }} /><col />
+                <col style={{ width: '15%' }} /><col style={{ width: '18%' }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th style={ptTh}>Time</th><th style={ptTh}>Payment</th>
@@ -678,12 +688,19 @@ function Line({ label, value, bold }: { label: string; value: string; bold?: boo
   )
 }
 
-const printTable: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 11, marginBottom: 14 }
+// table-layout:fixed is the point. With auto layout the Items column took the
+// width it wanted and squeezed the rest to nothing, so "TOTAL" printed as
+// "TO/TA/L" and $23.14 came out as "$2/3.1/4" — a money column broken across
+// three lines is worse than no column at all.
+const printTable: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 11, marginBottom: 14, tableLayout: 'fixed' }
+// Only Items may wrap. Everything else is short and fixed-shape, and wrapping
+// it just makes it unreadable.
+const ptItems: React.CSSProperties = { borderBottom: '1px solid #ddd', padding: '3px 4px', verticalAlign: 'top', overflowWrap: 'anywhere' }
 const printH3: React.CSSProperties = { fontSize: 13, fontWeight: 800, margin: '14px 0 6px' }
-const ptTh: React.CSSProperties = { textAlign: 'left', borderBottom: '1px solid #000', padding: '3px 4px', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.3 }
-const ptTd: React.CSSProperties = { borderBottom: '1px solid #ddd', padding: '3px 4px', verticalAlign: 'top' }
+const ptTh: React.CSSProperties = { whiteSpace: 'nowrap', textAlign: 'left', borderBottom: '1px solid #000', padding: '3px 4px', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.3 }
+const ptTd: React.CSSProperties = { whiteSpace: 'nowrap', borderBottom: '1px solid #ddd', padding: '3px 4px', verticalAlign: 'top' }
 const ptLabel: React.CSSProperties = { padding: '2px 4px' }
-const ptNum: React.CSSProperties = { padding: '3px 4px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid #ddd' }
+const ptNum: React.CSSProperties = { whiteSpace: 'nowrap', padding: '3px 4px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid #ddd' }
 
 const card: React.CSSProperties = { background: '#fff', borderRadius: 12, border: '1px solid #FFE4EF' }
 const input: React.CSSProperties = { padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 16 }
