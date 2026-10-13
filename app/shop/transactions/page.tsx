@@ -425,6 +425,33 @@ export default function ShopTransactions() {
         {sales.length > 0 && (
           <div className="print-page">
             <h3 style={printH3}>DonutDash register — {sales.length} sale{sales.length === 1 ? '' : 's'}</h3>
+            {/* The same fee lines the screen shows for this register. They are
+                what the deposit is reconciled against, so a printout without
+                them can't be checked off a statement — which is most of why
+                anyone prints this. Labels match the screen exactly; two
+                figures that mean different things must not read alike. */}
+            {totals && (
+              <table style={printTable}>
+                <tbody>
+                  <tr><td style={ptLabel}>Taken · incl. tax &amp; fees</td><td style={ptNum}>{money(totals.net)}</td></tr>
+                  <tr><td style={ptLabel}>Cash · {totals.cashCount}</td><td style={ptNum}>{money(totals.cash)}</td></tr>
+                  <tr><td style={ptLabel}>Card · {totals.cardCount}</td><td style={ptNum}>{money(totals.card)}</td></tr>
+                  {totals.tips > 0 ? <tr><td style={ptLabel}>Tips</td><td style={ptNum}>{money(totals.tips)}</td></tr> : null}
+                  {totals.cardCount > 0 ? (
+                    <>
+                      <tr><td style={ptLabel}>Fee to processor</td><td style={ptNum}>{money(totals.customerFees ?? 0)}</td></tr>
+                      <tr><td style={ptLabel}>Taken at settlement</td><td style={ptNum}>-{money(totals.cardPctFees ?? 0)}</td></tr>
+                      <tr>
+                        <td style={ptLabel}>Flat fee ({money(totals.cardFlatRate ?? 0)} × {totals.cardCount})</td>
+                        <td style={ptNum}>-{money(totals.cardFlatFees ?? 0)}</td>
+                      </tr>
+                    </>
+                  ) : null}
+                  {totals.refunds > 0 ? <tr><td style={ptLabel}>Refunded</td><td style={ptNum}>-{money(totals.refunds)}</td></tr> : null}
+                  <tr><td style={{ ...ptLabel, fontWeight: 800 }}>Expected in the bank</td><td style={{ ...ptNum, fontWeight: 800 }}>{money(ddDeposit)}</td></tr>
+                </tbody>
+              </table>
+            )}
             <table style={printTable}>
               <thead>
                 <tr>
@@ -459,6 +486,21 @@ export default function ShopTransactions() {
             {/* Repeated because this is now its own sheet, and a page of
                 figures with no date on it is useless once it's filed. */}
             <h3 style={printH3}>Square — {prettyDay(day)} — {sq.sales.length} sale{sq.sales.length === 1 ? '' : 's'}</h3>
+            {/* Square reports one fee figure, not the split DonutDash has —
+                showing an empty "flat fee" row here would invent a number. */}
+            {sq.totals && (
+              <table style={printTable}>
+                <tbody>
+                  <tr><td style={ptLabel}>Taken</td><td style={ptNum}>{money(sq.totals.net)}</td></tr>
+                  <tr><td style={ptLabel}>Cash · {sq.totals.cashCount}</td><td style={ptNum}>{money(sq.totals.cash)}</td></tr>
+                  <tr><td style={ptLabel}>Card · {sq.totals.cardCount}</td><td style={ptNum}>{money(sq.totals.card)}</td></tr>
+                  {sq.totals.tips > 0 ? <tr><td style={ptLabel}>Tips</td><td style={ptNum}>{money(sq.totals.tips)}</td></tr> : null}
+                  <tr><td style={ptLabel}>Square fees</td><td style={ptNum}>-{money(sq.totals.fees)}</td></tr>
+                  {sq.totals.refunds > 0 ? <tr><td style={ptLabel}>Refunded</td><td style={ptNum}>-{money(sq.totals.refunds)}</td></tr> : null}
+                  <tr><td style={{ ...ptLabel, fontWeight: 800 }}>Expected in the bank</td><td style={{ ...ptNum, fontWeight: 800 }}>{money(sqDeposit)}</td></tr>
+                </tbody>
+              </table>
+            )}
             <table style={printTable}>
               <thead>
                 <tr>

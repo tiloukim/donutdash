@@ -47,3 +47,6 @@ supabase/.temp/
 /Privacy
 /app.json
 /public/OG-LOG-new-backup.png
+
+# Demo-store logins handed to sales reps — never committed
+.demo-store-credentials.md
