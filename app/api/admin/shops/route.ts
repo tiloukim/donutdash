@@ -146,6 +146,27 @@ export async function PATCH(request: NextRequest) {
 
     // Only allow these fields to be updated
     const allowed: Record<string, any> = {}
+    // Identity and contact. Trimmed, and empty strings are rejected rather
+    // than written: a shop with a blank name or address is worse than one
+    // with a stale one, and the UI can send '' from a cleared input.
+    for (const k of ['name', 'address', 'city', 'state', 'zip', 'phone'] as const) {
+      if (k in fields) {
+        const v = typeof fields[k] === 'string' ? (fields[k] as string).trim() : ''
+        if (!v) return NextResponse.json({ error: `${k} cannot be empty` }, { status: 400 })
+        allowed[k] = v
+      }
+    }
+    // lat/lng travel with the address or not at all. Delivery distance, driver
+    // dispatch and the pickup pin all read these — an address edited without
+    // them quietly quotes and routes against the old location.
+    if ('lat' in fields && 'lng' in fields) {
+      const la = Number(fields.lat), ln = Number(fields.lng)
+      if (!Number.isFinite(la) || !Number.isFinite(ln)) {
+        return NextResponse.json({ error: 'lat/lng must be numbers' }, { status: 400 })
+      }
+      allowed.lat = la
+      allowed.lng = ln
+    }
     if ('is_active' in fields) allowed.is_active = fields.is_active
     if ('pos_enabled' in fields) allowed.pos_enabled = fields.pos_enabled
     // Coerced to a real boolean, not passed through. Everything downstream —

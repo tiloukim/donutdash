@@ -453,11 +453,17 @@ export default function AdminShops() {
                 return (
                 <Fragment key={shop.id}>
                 <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #F3F4F6', background: isDirty ? '#FFFBEB' : undefined }}>
-                  <td style={{ padding: '9px 10px', fontSize: 13, fontWeight: 700, color: '#6366F1', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                    #{shop.shop_number}
+                  <td style={{ padding: '9px 10px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    {/* Both the id and the name open the shop. They already
+                        looked like links; now they are. */}
+                    <Link href={`/admin/shops/${shop.id}`} style={{ color: '#6366F1', textDecoration: 'none' }}>
+                      #{shop.shop_number}
+                    </Link>
                   </td>
                   <td style={{ padding: '9px 10px', fontWeight: 600, fontSize: 14 }}>
-                    {shop.name}
+                    <Link href={`/admin/shops/${shop.id}`} style={{ color: 'inherit', textDecoration: 'none' }} title="Manage this shop">
+                      {shop.name}
+                    </Link>
                     {isDirty && <span style={{ marginLeft: 6, display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }} title="Unsaved changes" />}
                     {shop.is_active && shop.is_claimed !== false && shop.payout_ready === false && (
                       <div title="This shop's owner hasn't entered payout details — you can't pay them yet" style={{
