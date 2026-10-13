@@ -37,7 +37,7 @@ interface Shop {
   sponsor_banner_url?: string | null
   sponsor_expires_at?: string | null
   created_at: string
-  owner: { name: string; email: string } | null
+  owner: { id: string; name: string; email: string; phone: string | null } | null
 }
 
 const EDITABLE_FIELDS = ['commission_pct', 'service_fee_pct', 'tax_rate', 'cash_discount_pct', 'pos_card_fee', 'pos_card_fee_pct', 'pricing_mode', 'card_surcharge_pct', 'card_surcharge_mode', 'delivery_fee', 'min_order', 'is_sponsored', 'sponsor_rank', 'sponsor_headline', 'sponsor_banner_url', 'sponsor_expires_at'] as const
@@ -311,13 +311,26 @@ export default function AdminShops() {
     const q = search.toLowerCase().trim()
     // Allow searching the shop ID with or without a leading "#".
     const idQ = q.replace(/^#/, '')
+    // Digits only, and only when the query HAS digits: '' is a substring of
+    // every string, so an unguarded phone match would return every shop with
+    // an owner the moment anyone typed a letter.
+    const qDigits = idQ.replace(/\D/g, '')
+    const phoneDigits = (s.owner?.phone || '').replace(/\D/g, '')
+    const phoneHit = qDigits.length >= 3 && phoneDigits.includes(qDigits)
     return (
       String(s.shop_number).includes(idQ) ||
       s.name.toLowerCase().includes(q) ||
       s.city.toLowerCase().includes(q) ||
-      (s.owner?.name || '').toLowerCase().includes(q)
+      (s.owner?.name || '').toLowerCase().includes(q) ||
+      (s.owner?.email || '').toLowerCase().includes(q) ||
+      phoneHit
     )
   })
+
+  const ownerLink: React.CSSProperties = {
+    fontSize: 11.5, color: '#6366F1', textDecoration: 'none',
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 190,
+  }
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }
 
@@ -326,7 +339,7 @@ export default function AdminShops() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
         <input
           type="text"
-          placeholder="Search shops by ID (#1001), name, city, or owner..."
+          placeholder="Search shops by ID (#1001), name, city, owner, email, or phone..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{
@@ -469,7 +482,28 @@ export default function AdminShops() {
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: '9px 10px', fontSize: 13, color: '#6B7280' }}>{shop.owner?.name || '-'}</td>
+                  <td style={{ padding: '9px 10px', fontSize: 13, color: '#6B7280' }}>
+                    {shop.owner ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                        <span style={{ color: '#111827', fontWeight: 600 }}>{shop.owner.name || '—'}</span>
+                        {/* The name alone is the one detail an admin can't act
+                            on. Mail and tel links so chasing a shop is a click
+                            rather than a trip to the users table. */}
+                        {shop.owner.email && (
+                          <a href={`mailto:${shop.owner.email}`} style={ownerLink} title={shop.owner.email}>
+                            {shop.owner.email}
+                          </a>
+                        )}
+                        {shop.owner.phone && (
+                          <a href={`tel:${shop.owner.phone}`} style={ownerLink}>{shop.owner.phone}</a>
+                        )}
+                      </div>
+                    ) : (
+                      /* Scraped listings have no owner until someone claims
+                         them — that's a claim to chase, not missing data. */
+                      <span title="Unclaimed — no owner account yet">Unclaimed</span>
+                    )}
+                  </td>
                   <td style={{ padding: '9px 10px', fontSize: 13, color: '#6B7280' }}>{shop.city}</td>
                   <td style={{ padding: '9px 10px', fontSize: 13, whiteSpace: 'nowrap' }}>⭐ {shop.rating} ({shop.review_count})</td>
                   <td style={{ padding: '9px 10px' }}>
