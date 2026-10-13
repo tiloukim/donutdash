@@ -19,7 +19,7 @@ export async function GET() {
 
     const { data: shops, error } = await svc
       .from('dd_shops')
-      .select('*, owner:dd_users!owner_id(name, email, payout_method, bank_account_holder, bank_routing_number, bank_account_number, paypal_email, venmo_handle, cashapp_handle)')
+      .select('*, owner:dd_users!owner_id(id, name, email, phone, payout_method, bank_account_holder, bank_routing_number, bank_account_number, paypal_email, venmo_handle, cashapp_handle)')
       .order('created_at', { ascending: false })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -27,7 +27,7 @@ export async function GET() {
     // A shop is payout-ready when its OWNER has complete payout details (bank
     // info lives on the owner's user record). Compute the flag and strip the raw
     // bank numbers from the owner object so they never reach the shops UI.
-    type Owner = { name?: string; email?: string; payout_method?: string | null; paypal_email?: string | null; venmo_handle?: string | null; cashapp_handle?: string | null; bank_account_holder?: string | null; bank_routing_number?: string | null; bank_account_number?: string | null } | null
+    type Owner = { id?: string; name?: string; email?: string; phone?: string | null; payout_method?: string | null; paypal_email?: string | null; venmo_handle?: string | null; cashapp_handle?: string | null; bank_account_holder?: string | null; bank_routing_number?: string | null; bank_account_number?: string | null } | null
     const ready = (o: Owner) => {
       if (!o) return false
       switch (o.payout_method) {
@@ -46,7 +46,14 @@ export async function GET() {
     const callerIsAdmin = ddUser.role === 'admin'
     const out = (shops || []).map(s => {
       const owner = (Array.isArray(s.owner) ? s.owner[0] : s.owner) as Owner
-      const base = { ...s, payout_ready: ready(owner), owner: owner ? { name: owner.name, email: owner.email } : null }
+      // Contact details, not payout details. An admin chasing a shop needs a
+      // way to reach its owner; the bank numbers stay stripped, which is the
+      // whole reason this mapping exists rather than passing `owner` through.
+      const base = {
+        ...s,
+        payout_ready: ready(owner),
+        owner: owner ? { id: owner.id, name: owner.name, email: owner.email, phone: owner.phone } : null,
+      }
       if (!callerIsAdmin) {
         delete (base as Record<string, unknown>).card_surcharge_pct
         delete (base as Record<string, unknown>).card_surcharge_mode
