@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await a.svc
     .from('dd_shop_staff')
     .select(`
-      id, role, status, hourly_rate, created_at,
+      id, role, status, hourly_rate, created_at, pin_updated_at,
       user:dd_users!user_id(id, name)
     `)
     .eq('shop_id', shopId)
@@ -77,6 +77,9 @@ export async function GET(req: NextRequest) {
     status: string
     hourly_rate: number | null
     created_at: string
+    /** When this cashier's PIN last changed. Sent so a register can discard
+     *  an offline digest it derived from the previous one. Never the hash. */
+    pin_updated_at: string | null
     user: { id: string; name: string | null } | null
   }
   const rows = ((data ?? []) as unknown as Row[]).map((r) => ({
@@ -87,6 +90,7 @@ export async function GET(req: NextRequest) {
     status: r.status,
     hourly_rate: r.hourly_rate,
     created_at: r.created_at,
+    pin_updated_at: r.pin_updated_at,
   }))
   return NextResponse.json({ cashiers: rows })
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assertPosAccess } from '@/lib/pos-shop-auth'
+import { resolveClientTime, normalizeClientKey } from '@/lib/pos-client-time'
 
 // POS drawer session management — open + close cash drawer banking
 // sessions. Same RLS-bypass pattern as /api/pos/shifts.
@@ -27,6 +28,14 @@ interface PostBody {
   shop_id: string
   user_id: string
   opening_count: number
+  /** Idempotency key minted on the register. A replayed offline open must
+   *  return the row it already created, not open a second drawer. */
+  client_key?: string | null
+  /** When the drawer ACTUALLY opened. On replay, now() would be the moment
+   *  the internet returned, and expected_cash is computed from sales since
+   *  opened_at — so a replayed now() would exclude the entire outage's sales
+   *  and report the day as a huge overage. */
+  opened_at?: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -78,6 +87,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const clientKey = normalizeClientKey(body.client_key)
+
+  // Replay check comes FIRST. A flush that already succeeded and then lost
+  // the response must get the same row back rather than a 409 about a drawer
+  // being open — which is what the guard below would otherwise say about this
+  // request's own earlier attempt.
+  if (clientKey) {
+    const { data: prior } = await a.svc
+      .from('dd_drawer_sessions')
+      .select('id, opened_at')
+      .eq('shop_id', body.shop_id)
+      .eq('client_key', clientKey)
+      .maybeSingle()
+    if (prior) return NextResponse.json({ session: prior, replayed: true })
+  }
+
   // Refuse to open a fresh session if one is already open at this shop
   // — otherwise the cash-sales window calc on close becomes meaningless
   // (it would sum sales attributed to the older session too).
@@ -95,17 +120,39 @@ export async function POST(req: NextRequest) {
     }, { status: 409 })
   }
 
+  const openedAt = resolveClientTime(body.opened_at)
+
   const { data, error } = await a.svc
     .from('dd_drawer_sessions')
     .insert({
       shop_id: body.shop_id,
       opened_by: body.user_id,
       opening_count: body.opening_count,
+      client_key: clientKey,
+      opened_at: openedAt.iso,
     })
     .select('id, opened_at')
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ session: data })
+  if (error) {
+    // Lost a race with this device's own concurrent replay: the unique index
+    // on (shop_id, client_key) fired. Return the winner.
+    if (clientKey && error.code === '23505') {
+      const { data: raced } = await a.svc
+        .from('dd_drawer_sessions')
+        .select('id, opened_at')
+        .eq('shop_id', body.shop_id)
+        .eq('client_key', clientKey)
+        .maybeSingle()
+      if (raced) return NextResponse.json({ session: raced, replayed: true })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  return NextResponse.json({
+    session: data,
+    // Surfaced so a register with a bad clock can be spotted rather than
+    // quietly mis-dating its drawers.
+    openedAtRejected: openedAt.accepted ? undefined : (openedAt.reason ?? 'defaulted'),
+  })
 }
 
 // PATCH /api/pos/drawer-sessions — close. Body: { session_id, user_id, closing_count }
@@ -114,6 +161,8 @@ interface PatchBody {
   session_id: string
   user_id: string
   closing_count: number
+  /** When the drawer actually closed, for a replayed offline close. */
+  closed_at?: string | null
 }
 
 export async function PATCH(req: NextRequest) {
@@ -137,10 +186,24 @@ export async function PATCH(req: NextRequest) {
   // was running before — opening + cash sales − refunds.
   const { data: session } = await a.svc
     .from('dd_drawer_sessions')
-    .select('opening_count, opened_at, shop_id')
+    .select('opening_count, opened_at, shop_id, closed_at, expected_cash, over_short')
     .eq('id', body.session_id)
     .maybeSingle()
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+
+  // Already closed: hand back what was stored instead of recomputing. A
+  // replay must not overwrite a close — and recomputing now would use a
+  // different sales window and produce a different over/short for the same
+  // physical count, which is the sort of drift that makes a cash report
+  // impossible to argue with.
+  const closedRow = session as { closed_at: string | null; expected_cash: number | null; over_short: number | null }
+  if (closedRow.closed_at) {
+    return NextResponse.json({
+      expected: Number(closedRow.expected_cash ?? 0),
+      overShort: Number(closedRow.over_short ?? 0),
+      replayed: true,
+    })
+  }
 
   // Cross-shop guard: a shop_owner may only close their own shop's drawer.
   if (a.caller.role === 'shop_owner') {
@@ -169,16 +232,20 @@ export async function PATCH(req: NextRequest) {
   const expected = Math.round((Number((session as { opening_count: number }).opening_count) + cashSales) * 100) / 100
   const overShort = Math.round((body.closing_count - expected) * 100) / 100
 
+  const closedAt = resolveClientTime(body.closed_at)
+
   const { error } = await a.svc
     .from('dd_drawer_sessions')
     .update({
-      closed_at: new Date().toISOString(),
+      closed_at: closedAt.iso,
       closed_by: body.user_id,
       closing_count: body.closing_count,
       expected_cash: expected,
       over_short: overShort,
     })
     .eq('id', body.session_id)
+    // Only if still open, so two concurrent closes cannot both write.
+    .is('closed_at', null)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ expected, overShort })
 }

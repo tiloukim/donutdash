@@ -113,6 +113,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { hash, salt } = hashPin(body.pin)
     staffPatch.pin_hash = hash
     staffPatch.pin_salt = salt
+    // Stamped so a register holding an offline digest for the OLD pin drops
+    // it on the next roster refresh. Without this, changing a PIN would not
+    // take effect on a till that is offline until the cache aged out.
+    staffPatch.pin_updated_at = new Date().toISOString()
     staffPatch.pin_failed_attempts = 0
     staffPatch.pin_locked_until = null
   }
