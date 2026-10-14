@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assertPosAccess } from '@/lib/pos-shop-auth'
+import { resolveClientTime, normalizeClientKey } from '@/lib/pos-client-time'
 
 // POS shift management — clock in / clock out endpoints used by the
 // register's shift bar. POS client can't write to dd_shifts directly
@@ -31,6 +32,13 @@ interface PostBody {
   shop_id: string
   user_id: string
   notes?: string | null
+  /** Idempotency key from the register, so a replayed offline clock-in does
+   *  not start a second shift for one physical one. */
+  client_key?: string | null
+  /** When the person actually clocked in. On replay now() would be the
+   *  moment the internet returned, which mis-states payroll by the length of
+   *  the outage. */
+  clock_in?: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -82,13 +90,37 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const clientKey = normalizeClientKey(body.client_key)
+
+  // Replay first: if this exact clock-in already landed, return it. Checked
+  // before the open-shift cleanup below, because that cleanup would
+  // otherwise clock the person OUT of the very shift this replay created.
+  if (clientKey) {
+    const { data: prior } = await a.svc
+      .from('dd_shifts')
+      .select('id, clock_in')
+      .eq('shop_id', body.shop_id)
+      .eq('client_key', clientKey)
+      .maybeSingle()
+    if (prior) return NextResponse.json({ shift: prior, replayed: true })
+  }
+
+  const clockIn = resolveClientTime(body.clock_in)
+
   // Close any open shift for this user before starting a fresh one.
+  //
+  // Closed AT THE NEW SHIFT'S CLOCK-IN, not at now(). For a replayed offline
+  // clock-in those differ by the length of the outage, and using now() would
+  // both overpay the previous shift and overlap two shifts for one person.
   await a.svc
     .from('dd_shifts')
-    .update({ clock_out: new Date().toISOString() })
+    .update({ clock_out: clockIn.iso })
     .eq('shop_id', body.shop_id)
     .eq('user_id', body.user_id)
     .is('clock_out', null)
+    // Never close a shift that started after the one being opened — out-of-
+    // order replay would otherwise reach forward and truncate a later shift.
+    .lte('clock_in', clockIn.iso)
 
   const { data, error } = await a.svc
     .from('dd_shifts')
@@ -96,17 +128,35 @@ export async function POST(req: NextRequest) {
       shop_id: body.shop_id,
       user_id: body.user_id,
       notes: body.notes ?? null,
+      client_key: clientKey,
+      clock_in: clockIn.iso,
     })
     .select('id, clock_in')
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ shift: data })
+  if (error) {
+    if (clientKey && error.code === '23505') {
+      const { data: raced } = await a.svc
+        .from('dd_shifts')
+        .select('id, clock_in')
+        .eq('shop_id', body.shop_id)
+        .eq('client_key', clientKey)
+        .maybeSingle()
+      if (raced) return NextResponse.json({ shift: raced, replayed: true })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  return NextResponse.json({
+    shift: data,
+    clockInRejected: clockIn.accepted ? undefined : (clockIn.reason ?? 'defaulted'),
+  })
 }
 
 // PATCH /api/pos/shifts — clock out. Body: { shift_id, notes? }
 interface PatchBody {
   shift_id: string
   notes?: string | null
+  /** When the person actually clocked out, for a replayed offline clock-out. */
+  clock_out?: string | null
 }
 
 export async function PATCH(req: NextRequest) {
@@ -124,7 +174,8 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Cross-shop guard: a shop_owner may only edit shifts at their own shop.
-  const { data: shiftRow } = await a.svc.from('dd_shifts').select('shop_id').eq('id', body.shift_id).maybeSingle()
+  const { data: shiftRow } = await a.svc.from('dd_shifts')
+    .select('shop_id, clock_out').eq('id', body.shift_id).maybeSingle()
   if (!shiftRow) return NextResponse.json({ error: 'Shift not found' }, { status: 404 })
   if (a.caller.role === 'shop_owner') {
     const { data: ownedShop } = await a.svc
@@ -136,7 +187,18 @@ export async function PATCH(req: NextRequest) {
     if (!ownedShop) return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
   }
 
-  const patch: Record<string, unknown> = { clock_out: new Date().toISOString() }
+  // Already clocked out: a replay must not move the time. Payroll is paid
+  // from these two timestamps, so re-stamping clock_out on every retry would
+  // silently extend a shift by however long the outage lasted.
+  const existingOut = (shiftRow as { clock_out: string | null }).clock_out
+  if (existingOut && body.notes === undefined) {
+    return NextResponse.json({ ok: true, replayed: true, clock_out: existingOut })
+  }
+
+  const clockOut = resolveClientTime(body.clock_out)
+  const patch: Record<string, unknown> = {}
+  // Don't overwrite an existing clock_out when this call is only about notes.
+  if (!existingOut) patch.clock_out = clockOut.iso
   if (body.notes !== undefined) patch.notes = body.notes
 
   const { error } = await a.svc
@@ -144,5 +206,8 @@ export async function PATCH(req: NextRequest) {
     .update(patch)
     .eq('id', body.shift_id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({
+    ok: true,
+    clockOutRejected: existingOut || clockOut.accepted ? undefined : (clockOut.reason ?? 'defaulted'),
+  })
 }
