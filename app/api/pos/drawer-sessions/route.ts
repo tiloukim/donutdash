@@ -272,6 +272,10 @@ export async function PATCH(req: NextRequest) {
     if (!ownedShop) return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
   }
 
+  // Resolved before the sales query, because the query's upper bound is this
+  // timestamp.
+  const closedAt = resolveClientTime(body.closed_at)
+
   const { data: sales } = await a.svc
     .from('dd_orders')
     .select('total, refund_amount')
@@ -280,6 +284,11 @@ export async function PATCH(req: NextRequest) {
     .eq('payment_method', 'cash')
     .neq('status', 'cancelled')
     .gte('created_at', (session as { opened_at: string }).opened_at)
+    // Upper bound as well as lower. Without it, any sale landing after this
+    // drawer closed - a later sale, or one still queued on another register
+    // - was swept into a drawer it was never in. With client timestamps on
+    // sales this window is now the real trading period of the drawer.
+    .lte('created_at', closedAt.iso)
   const cashSales = (sales ?? []).reduce(
     (sum, r: { total: number; refund_amount: number | null }) =>
       sum + Number(r.total) - Number(r.refund_amount ?? 0),
@@ -287,8 +296,6 @@ export async function PATCH(req: NextRequest) {
   )
   const expected = Math.round((Number((session as { opening_count: number }).opening_count) + cashSales) * 100) / 100
   const overShort = Math.round((body.closing_count - expected) * 100) / 100
-
-  const closedAt = resolveClientTime(body.closed_at)
 
   const { error } = await a.svc
     .from('dd_drawer_sessions')
