@@ -23,6 +23,62 @@ async function authorize() {
   return { svc, caller }
 }
 
+// GET /api/pos/drawer-sessions?shop_id=…&history=1
+//
+// Reads moved here from a direct Supabase query on the device.
+//
+// The WRITES always went through this route (service role, RLS bypassed) but
+// the register READ dd_drawer_sessions straight from the client under the
+// cashier's own JWT. If RLS does not grant that read the query returns no
+// rows and no error, so the screen reports "Closed — tap to open" for a
+// drawer that is open — and then lets a second one be opened. The table
+// holding exactly one row across its whole history is consistent with the
+// read never having worked for anyone.
+//
+// Same auth and the same cross-shop guard as the mutations below, so this is
+// not a wider door — it is the same door the writes already use.
+export async function GET(req: NextRequest) {
+  const a = await authorize()
+  if ('error' in a) return NextResponse.json({ error: a.error }, { status: a.status })
+
+  const shopId = req.nextUrl.searchParams.get('shop_id') ?? ''
+  if (!shopId) return NextResponse.json({ error: 'shop_id required' }, { status: 400 })
+
+  if (a.caller.role === 'shop_owner') {
+    const { data: ownedShop } = await a.svc
+      .from('dd_shops').select('id').eq('id', shopId).eq('owner_id', a.caller.id).maybeSingle()
+    if (!ownedShop) return NextResponse.json({ error: 'You do not own this shop' }, { status: 403 })
+  }
+
+  const wantHistory = req.nextUrl.searchParams.get('history') === '1'
+  const limit = Math.min(Number(req.nextUrl.searchParams.get('limit') ?? 20) || 20, 100)
+
+  let qb = a.svc
+    .from('dd_drawer_sessions')
+    .select('id, shop_id, opened_by, opened_at, opening_count, closed_at, closing_count, expected_cash, over_short, notes')
+    .eq('shop_id', shopId)
+    .order('opened_at', { ascending: false })
+  qb = wantHistory ? qb.not('closed_at', 'is', null).limit(limit) : qb.is('closed_at', null).limit(1)
+
+  const { data, error } = await qb
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Opener names resolved separately rather than as an embedded join. The
+  // embed depends on the foreign-key NAME, and a renamed constraint turns a
+  // working screen into a 500 — a plain lookup has no such dependency.
+  const rows = data ?? []
+  const ids = [...new Set(rows.map((r) => r.opened_by).filter(Boolean))]
+  const names = new Map<string, string | null>()
+  if (ids.length) {
+    const { data: users } = await a.svc.from('dd_users').select('id, name').in('id', ids)
+    for (const u of users ?? []) names.set(u.id, u.name)
+  }
+
+  return NextResponse.json({
+    sessions: rows.map((r) => ({ ...r, opened_by_name: names.get(r.opened_by) ?? null })),
+  })
+}
+
 // POST /api/pos/drawer-sessions — open a session with the starting count.
 interface PostBody {
   shop_id: string
