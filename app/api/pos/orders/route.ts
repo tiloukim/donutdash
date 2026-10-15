@@ -6,6 +6,7 @@ import type { createServiceClient } from '@/lib/supabase/server'
 import { awardLoyaltyPoints, type LoyaltyAward } from '@/lib/loyalty'
 import { notifyAdmins } from '@/lib/sms'
 import { POS_CARD_TRANSACTION_FEE } from '@/lib/constants'
+import { resolveClientTime } from '@/lib/pos-client-time'
 
 // Create a POS walk-in order. Writes go through the service role
 // (matches how customer checkout and driver flows work today).
@@ -24,6 +25,20 @@ interface CartLine {
 
 interface CreateBody {
   shop_id: string
+  /**
+   * When the sale was RUNG, for a sale that queued through an outage.
+   *
+   * created_at otherwise defaults to the insert, which for a replayed sale
+   * is the moment the internet came back. A sale rung at 4am during an
+   * outage and synced at 9am was being recorded as a 9am sale - wrong day
+   * on the sales report, wrong period for tax, and attributed to whichever
+   * drawer and shift happened to be open at 9am rather than the one it
+   * belonged to.
+   *
+   * Caught on hardware: an offline sale landed stamped 50 seconds AFTER the
+   * drawer it was rung in had already closed.
+   */
+  created_at?: string | null
   lines: CartLine[]
   subtotal: number
   tax: number
@@ -354,6 +369,10 @@ export async function POST(req: NextRequest) {
           : undefined,
       reconcile_flag: reconcileFlag,
       reconcile_note: reconcileNote,
+      // Bounded the same way the shift and drawer timestamps are: a device
+      // clock that is wildly wrong falls back to the server's, rather than
+      // rejecting a sale that has already been handed over.
+      created_at: resolveClientTime(body.created_at).iso,
   }
 
   // The reconcile columns ship with supabase/card-sale-reconciliation.sql.
