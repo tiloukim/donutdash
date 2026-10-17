@@ -36,9 +36,11 @@ export async function PUT(req: NextRequest) {
   const body = await req.json()
 
   const updates: Record<string, unknown> = {}
-  if (body.forward_number !== undefined) {
+  if (body.forward_number !== undefined && body.forward_number !== null) {
     const normalized = normalizePhone(String(body.forward_number))
-    if (!normalized) return NextResponse.json({ error: 'Invalid phone number — use 10-digit or E.164 format' }, { status: 400 })
+    // Named, because this message appears under a form with five phone
+    // fields on it and "Invalid phone number" does not say which one.
+    if (!normalized) return NextResponse.json({ error: 'Default forward number is invalid — use 10-digit (9035551234) or E.164 (+19035551234)' }, { status: 400 })
     updates.forward_number = normalized
   }
   // Per-option overrides — empty string clears the override; otherwise normalize.
@@ -46,12 +48,17 @@ export async function PUT(req: NextRequest) {
     const key = `forward_number_${digit}`
     const raw = (body as Record<string, unknown>)[key]
     if (raw !== undefined) {
-      const s = String(raw).trim()
+      // raw === null is how a CLEARED extension comes back: the form posts
+      // the whole settings object, and an unset override is null. String(null)
+      // is "null" — four characters that are not a phone number — so every
+      // save with a blank option was rejected, which is every save, because
+      // blank is the normal state for these. The page could not be used.
+      const s = raw === null ? '' : String(raw).trim()
       if (s === '') {
         updates[key] = null
       } else {
         const normalized = normalizePhone(s)
-        if (!normalized) return NextResponse.json({ error: `Invalid number for option ${digit}` }, { status: 400 })
+        if (!normalized) return NextResponse.json({ error: `Press ${digit} number is invalid — use 10-digit or E.164 format, or leave it blank` }, { status: 400 })
         updates[key] = normalized
       }
     }
@@ -80,7 +87,10 @@ export async function PUT(req: NextRequest) {
   for (const field of ['greeting', 'option_label_0', 'option_label_2', 'option_label_3', 'option_label_4', 'voicemail_prompt'] as const) {
     const raw = (body as Record<string, unknown>)[field]
     if (raw !== undefined) {
-      const s = String(raw).trim()
+      // Same null-stringifying trap, and worse here: this branch SAVES the
+      // value, so an empty greeting would have been stored as the literal
+      // text "null" and then read aloud to every caller.
+      const s = raw === null ? '' : String(raw).trim()
       if (s.length > 500) return NextResponse.json({ error: `${field} must be 500 chars or fewer` }, { status: 400 })
       updates[field] = s === '' ? null : s
     }

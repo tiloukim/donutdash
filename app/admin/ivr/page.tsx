@@ -110,7 +110,7 @@ export default function AdminIVR() {
             style={inputStyle}
             value={settings.forward_number}
             onChange={e => setSettings({ ...settings, forward_number: e.target.value })}
-            placeholder="+19033455599"
+            placeholder="e.g. 9035551234"
           />
           <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
             Rings here if a specific menu option below is left blank. Accepts 10-digit (9033455599) or E.164 (+19033455599).
