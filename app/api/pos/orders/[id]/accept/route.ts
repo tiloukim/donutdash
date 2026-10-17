@@ -119,7 +119,63 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const ratio = oldSubtotal > 0 ? removedSubtotal / oldSubtotal : 0
   const removedTax = round(Number(order.tax || 0) * ratio)
   const removedServiceFee = round(Number(order.service_fee || 0) * ratio)
-  const refundAmount = round(removedSubtotal + removedTax + removedServiceFee)
+  // A cheaper replacement is charged down to its own price.
+  //
+  // "Customer keeps the original charge" is fair for a like-for-like swap, and
+  // generous to them when the stand-in costs MORE — the shop ran out, so the
+  // shop absorbs that. It is not fair the other way. The picker showed no
+  // prices at all, so a $2.10 line could be swapped for a $1.35 one and the
+  // customer still charged $2.10, without anyone choosing that outcome.
+  //
+  // Resolved read-only HERE, above the refund, because the difference is part
+  // of what the customer is owed and the refund has to know about it before
+  // any money moves.
+  let substitutionRefund = 0
+  const cheaperNotes: string[] = []
+  const resolvedSubs: Array<{
+    itemId: string; replacementId: string; replacementName: string
+    newPrice: number; oldPrice: number; cheaperBy: number
+  }> = []
+  for (const c of subs) {
+    const { data: replacement } = await svc
+      .from('dd_menu_items')
+      .select('id, name, price, pos_price, online_price')
+      .eq('id', c.replacement_menu_item_id!)
+      .eq('shop_id', shopId)
+      .maybeSingle()
+    if (!replacement) {
+      return NextResponse.json({ error: "That replacement is not on this shop's menu" }, { status: 400 })
+    }
+    const original = byId.get(c.item_id)!
+    // The ONLINE price is the comparison: it is what the customer paid.
+    const newPrice = Number(replacement.online_price ?? replacement.pos_price ?? replacement.price ?? 0)
+    const oldPrice = Number(original.price)
+    const cheaperBy = newPrice > 0 && newPrice < oldPrice
+      ? round((oldPrice - newPrice) * Number(original.quantity))
+      : 0
+    if (cheaperBy > 0) {
+      substitutionRefund = round(substitutionRefund + cheaperBy)
+      cheaperNotes.push(`${replacement.name} (-$${cheaperBy.toFixed(2)})`)
+    }
+    resolvedSubs.push({
+      itemId: c.item_id, replacementId: replacement.id,
+      replacementName: replacement.name, newPrice, oldPrice, cheaperBy,
+    })
+  }
+
+  // Tax and service fee ride on the difference too — they were charged on a
+  // figure that is coming down.
+  const feeRate = oldSubtotal > 0
+    ? (Number(order.tax || 0) + Number(order.service_fee || 0)) / oldSubtotal
+    : 0
+  const subTax = round(substitutionRefund * (oldSubtotal > 0 ? Number(order.tax || 0) / oldSubtotal : 0))
+  const subServiceFee = round(substitutionRefund * (oldSubtotal > 0 ? Number(order.service_fee || 0) / oldSubtotal : 0))
+  void feeRate
+
+  const refundAmount = round(
+    removedSubtotal + removedTax + removedServiceFee
+    + substitutionRefund + subTax + subServiceFee,
+  )
 
   // ── Money FIRST, when a processor refund is involved ──
   //
@@ -136,7 +192,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         orderId: id,
         paymentId: order.payment_id,
         amountCents: Math.round(refundAmount * 100),
-        reason: `Sold out: ${removedNames.join(', ')}`,
+        reason: [
+          removedNames.length ? `Sold out: ${removedNames.join(', ')}` : '',
+          cheaperNotes.length ? `Cheaper replacement: ${cheaperNotes.join(', ')}` : '',
+        ].filter(Boolean).join(' | ') || 'Order adjusted',
         // Keyed by order AND amount: a retry of this same accept is one
         // refund at Square, while a different adjustment later still goes
         // through rather than being silently swallowed.
@@ -163,22 +222,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // ── Apply the line changes ──
-  for (const c of subs) {
-    const { data: replacement } = await svc
-      .from('dd_menu_items')
-      .select('id, name')
-      .eq('id', c.replacement_menu_item_id!)
-      .eq('shop_id', shopId)
-      .maybeSingle()
-    if (!replacement) {
-      return NextResponse.json({ error: 'That replacement is not on this shop\'s menu' }, { status: 400 })
-    }
-    const original = byId.get(c.item_id)!
+  for (const r of resolvedSubs) {
     await svc.from('dd_order_items').update({
-      menu_item_id: replacement.id,
-      // Price deliberately unchanged — see the header.
-      name: `${replacement.name} (sub for ${original.name})`,
-    }).eq('id', c.item_id)
+      menu_item_id: r.replacementId,
+      price: r.cheaperBy > 0 ? r.newPrice : r.oldPrice,
+      name: `${r.replacementName} (sub for ${byId.get(r.itemId)!.name})`,
+    }).eq('id', r.itemId)
   }
 
   if (removals.length > 0) {
@@ -187,9 +236,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (refundAmount > 0) {
     const patch: Record<string, unknown> = {
-      subtotal: round(oldSubtotal - removedSubtotal),
-      tax: round(Number(order.tax || 0) - removedTax),
-      service_fee: round(Number(order.service_fee || 0) - removedServiceFee),
+      subtotal: round(oldSubtotal - removedSubtotal - substitutionRefund),
+      tax: round(Number(order.tax || 0) - removedTax - subTax),
+      service_fee: round(Number(order.service_fee || 0) - removedServiceFee - subServiceFee),
       total: round(Number(order.total) - refundAmount),
       // The running TOTAL refunded, matching /api/pos/orders/:id/refund
       // rather than adding to it.
@@ -257,6 +306,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ok: true,
     removed: removedNames,
     substituted: subs.length,
+    substitutionRefund: round(substitutionRefund + subTax + subServiceFee),
     refundAmount,
     refunded,
     manualRefundOwed,
