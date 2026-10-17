@@ -1,0 +1,264 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { authorizeForShop } from '@/lib/pos-shop-auth'
+import { refundSquareOrder } from '@/lib/square-refund'
+import { sendSMS, toE164, notifyAdmins } from '@/lib/sms'
+
+/**
+ * POST /api/pos/orders/:id/accept
+ *   { shop_id, changes?: [{ item_id, action: 'remove' | 'substitute',
+ *                           replacement_menu_item_id? }] }
+ *
+ * Accept an online order, applying what the cashier decided about sold-out
+ * lines, and refund anything removed.
+ *
+ * ── Why this exists ──
+ * The register already let a cashier mark a line sold out and pick a
+ * replacement, but that choice went nowhere: substitutions lived in React
+ * state, were read once to draw an icon, and were discarded on accept. The
+ * order rows, the kitchen ticket and the customer all still said the original
+ * item. There was no way at all to drop a line and give the money back — the
+ * only honest option was declining the whole order over one missing donut.
+ *
+ * ── What it does ──
+ * Substitute swaps the line to the new item and KEEPS the original price.
+ * That was the existing stated policy and it is the right one: a shop that
+ * ran out should not profit from the swap, and should not have to chase a
+ * customer for more either.
+ *
+ * Remove deletes the line and refunds it — the item, its share of tax, and
+ * its share of the service fee, which is a percentage of subtotal. The
+ * delivery fee and the tip are untouched: the delivery still happens, and the
+ * tip is the customer's own decision about the person who brings it.
+ */
+
+interface Change {
+  item_id: string
+  action: 'remove' | 'substitute'
+  replacement_menu_item_id?: string | null
+}
+
+const round = (n: number) => Math.round(n * 100) / 100
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const body = await req.json().catch(() => ({}))
+  const shopId: string = body?.shop_id
+  const changes: Change[] = Array.isArray(body?.changes) ? body.changes : []
+  if (!shopId) return NextResponse.json({ error: 'shop_id is required' }, { status: 400 })
+
+  const auth = await authorizeForShop(shopId)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const { svc } = auth
+
+  const { data: order } = await svc
+    .from('dd_orders')
+    .select('id, status, shop_id, subtotal, tax, service_fee, delivery_fee, tip, total, payment_method, payment_id, customer_phone, customer_name, short_code, refund_amount')
+    .eq('id', id)
+    .eq('shop_id', shopId)
+    .maybeSingle()
+  if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+
+  // Idempotent: a second accept with no changes is a no-op rather than an
+  // error, because a register that lost the response will retry.
+  if (order.status !== 'pending') {
+    if (changes.length === 0) return NextResponse.json({ ok: true, alreadyAccepted: true })
+    return NextResponse.json(
+      { error: `This order is already ${order.status.replace(/_/g, ' ')} — line changes can only be made while it is pending.` },
+      { status: 409 },
+    )
+  }
+
+  const { data: items } = await svc
+    .from('dd_order_items')
+    .select('id, menu_item_id, name, price, quantity')
+    .eq('order_id', id)
+  const lines = items ?? []
+  if (lines.length === 0) return NextResponse.json({ error: 'Order has no items' }, { status: 400 })
+
+  // Every change must name a line that is actually on this order. Keyed by
+  // the row id, never the array index: removing a line shifts every index
+  // after it, and an index-keyed change would then hit the wrong item.
+  const byId = new Map(lines.map((l) => [l.id, l]))
+  for (const c of changes) {
+    if (!byId.has(c.item_id)) {
+      return NextResponse.json({ error: `Item ${c.item_id} is not on this order` }, { status: 400 })
+    }
+    if (c.action === 'substitute' && !c.replacement_menu_item_id) {
+      return NextResponse.json({ error: 'A substitution needs replacement_menu_item_id' }, { status: 400 })
+    }
+  }
+
+  const removals = changes.filter((c) => c.action === 'remove')
+  const subs = changes.filter((c) => c.action === 'substitute')
+
+  // Removing everything is a cancellation, and cancelling has its own route
+  // with delivery cleanup and a full refund. Doing it here would leave an
+  // empty confirmed order and a driver still on the way.
+  if (removals.length === lines.length) {
+    return NextResponse.json(
+      { error: 'That removes every item. Decline the order instead so the customer is refunded in full and any delivery is cancelled.' },
+      { status: 400 },
+    )
+  }
+
+  const removedNames: string[] = []
+  let removedSubtotal = 0
+  for (const c of removals) {
+    const l = byId.get(c.item_id)!
+    removedSubtotal += Number(l.price) * Number(l.quantity)
+    removedNames.push(l.quantity > 1 ? `${l.quantity}x ${l.name}` : l.name)
+  }
+  removedSubtotal = round(removedSubtotal)
+
+  // Proportional, NOT recomputed from tax_rate: that column is null on every
+  // real online order (only POS walk-ins set it), so deriving the rate from
+  // the order's own tax is the only thing that works on live data. The
+  // service fee is a percentage of subtotal and moves with it; the delivery
+  // fee and tip do not.
+  const oldSubtotal = Number(order.subtotal) || 0
+  const ratio = oldSubtotal > 0 ? removedSubtotal / oldSubtotal : 0
+  const removedTax = round(Number(order.tax || 0) * ratio)
+  const removedServiceFee = round(Number(order.service_fee || 0) * ratio)
+  const refundAmount = round(removedSubtotal + removedTax + removedServiceFee)
+
+  // ── Money FIRST, when a processor refund is involved ──
+  //
+  // The first version of this deleted the lines and then tried to refund. A
+  // failed refund there leaves the customer short the item AND the money,
+  // with nothing on the order to say so. Refund first; if it fails, nothing
+  // has changed and the cashier is told.
+  let refunded = false
+  let manualRefundOwed = false
+
+  if (refundAmount > 0) {
+    if (order.payment_method === 'square') {
+      const result = await refundSquareOrder({
+        orderId: id,
+        paymentId: order.payment_id,
+        amountCents: Math.round(refundAmount * 100),
+        reason: `Sold out: ${removedNames.join(', ')}`,
+        // Keyed by order AND amount: a retry of this same accept is one
+        // refund at Square, while a different adjustment later still goes
+        // through rather than being silently swallowed.
+        idempotencyKey: `accept-refund-${id}-${Math.round(refundAmount * 100)}`,
+      })
+      if (!result.success) {
+        console.error('[pos/accept] refund failed for', id, result.error)
+        return NextResponse.json(
+          {
+            error: `Could not refund $${refundAmount.toFixed(2)} for ${removedNames.join(', ')}: ${result.error ?? 'refund failed'}. Nothing has been changed — accept without removing that item, or decline the order.`,
+          },
+          { status: 502 },
+        )
+      }
+      refunded = true
+    } else {
+      // Stripe, PayPal and legacy 'card_online' have no automated refund path
+      // here. Proceeding and writing refunded_at would assert a refund that
+      // never happened — the exact flaw in /api/pos/orders/:id/refund, which
+      // records money movement it never performs. Flag it instead so a human
+      // actually sends it.
+      manualRefundOwed = true
+    }
+  }
+
+  // ── Apply the line changes ──
+  for (const c of subs) {
+    const { data: replacement } = await svc
+      .from('dd_menu_items')
+      .select('id, name')
+      .eq('id', c.replacement_menu_item_id!)
+      .eq('shop_id', shopId)
+      .maybeSingle()
+    if (!replacement) {
+      return NextResponse.json({ error: 'That replacement is not on this shop\'s menu' }, { status: 400 })
+    }
+    const original = byId.get(c.item_id)!
+    await svc.from('dd_order_items').update({
+      menu_item_id: replacement.id,
+      // Price deliberately unchanged — see the header.
+      name: `${replacement.name} (sub for ${original.name})`,
+    }).eq('id', c.item_id)
+  }
+
+  if (removals.length > 0) {
+    await svc.from('dd_order_items').delete().in('id', removals.map((c) => c.item_id))
+  }
+
+  if (refundAmount > 0) {
+    const patch: Record<string, unknown> = {
+      subtotal: round(oldSubtotal - removedSubtotal),
+      tax: round(Number(order.tax || 0) - removedTax),
+      service_fee: round(Number(order.service_fee || 0) - removedServiceFee),
+      total: round(Number(order.total) - refundAmount),
+      // The running TOTAL refunded, matching /api/pos/orders/:id/refund
+      // rather than adding to it.
+      refund_amount: round(Number(order.refund_amount || 0) + refundAmount),
+    }
+    if (refunded) {
+      patch.refunded_at = new Date().toISOString()
+      // 'return' — the column records HOW the money went back (void /
+      // return / cash), not which card was used. Writing the payment method
+      // here trips dd_orders_refund_method_check.
+      patch.refund_method = 'return'
+    } else {
+      patch.reconcile_flag = 'refund_owed'
+      patch.reconcile_note = `$${refundAmount.toFixed(2)} owed for sold-out ${removedNames.join(', ')} — paid by ${order.payment_method ?? 'unknown'}, which has no automatic refund here. Refund by hand.`
+    }
+    const { error: moneyErr } = await svc.from('dd_orders').update(patch).eq('id', id)
+    // Checked, not ignored. Silently swallowing this is how the totals came
+    // out unchanged while the response reported a refund.
+    if (moneyErr) {
+      console.error('[pos/accept] money update failed for', id, moneyErr.message)
+      return NextResponse.json(
+        { error: `The refund went through but the order could not be updated: ${moneyErr.message}. Check this order before it leaves.` },
+        { status: 500 },
+      )
+    }
+    if (manualRefundOwed) {
+      try {
+        await notifyAdmins(
+          `REFUND OWED $${refundAmount.toFixed(2)} on #${order.short_code ?? id.slice(0, 8)} — sold out ${removedNames.join(', ')}, paid by ${order.payment_method}. No automatic refund for that method; send it by hand.`,
+          `Manual refund owed: $${refundAmount.toFixed(2)}`,
+        )
+      } catch { /* an alert is not worth failing the sale over */ }
+    }
+  }
+
+  const { error: statusErr } = await svc.from('dd_orders')
+    .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (statusErr) return NextResponse.json({ error: statusErr.message }, { status: 500 })
+
+  // ── Tell the customer ──
+  //
+  // They paid for something they are not getting. Finding that out at the
+  // door, or from a bank statement, is how a shop loses someone over four
+  // dollars. Never the reason an accept fails.
+  if (changes.length > 0) {
+    try {
+      const to = toE164(order.customer_phone)
+      if (to) {
+        const bits: string[] = []
+        if (removedNames.length) {
+          bits.push(`we were out of ${removedNames.join(', ')} so we removed ${removedNames.length === 1 ? 'it' : 'them'} and refunded $${refundAmount.toFixed(2)}`)
+        }
+        if (subs.length) {
+          bits.push(`${subs.length === 1 ? 'one item was' : `${subs.length} items were`} replaced with something else at no extra charge`)
+        }
+        await sendSMS(to, `Your order #${order.short_code ?? ''} is confirmed — ${bits.join(', and ')}. Sorry about that!`)
+      }
+    } catch (e) {
+      console.error('[pos/accept] customer notice failed for', id, e)
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    removed: removedNames,
+    substituted: subs.length,
+    refundAmount,
+    refunded,
+    manualRefundOwed,
+  })
+}
