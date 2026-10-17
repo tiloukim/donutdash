@@ -279,6 +279,48 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .eq('id', id)
   if (statusErr) return NextResponse.json({ error: statusErr.message }, { status: 500 })
 
+  // ── The customer's chance to refuse ──
+  //
+  // The substitution is already applied and the kitchen is already making it:
+  // 12 of 15 online orders are ASAP, so holding one for ten minutes waiting
+  // on a text would stall the counter for an answer that often never comes.
+  // Silence is the yes. This row exists only so a refusal arriving in time
+  // knows what to undo and what it is worth.
+  const OFFER_MINUTES = 10
+  let offeredRefundTotal = 0
+  if (resolvedSubs.length > 0 && order.customer_phone) {
+    const expiresAt = new Date(Date.now() + OFFER_MINUTES * 60_000).toISOString()
+    const feeMultiplier = oldSubtotal > 0
+      ? 1 + (Number(order.tax || 0) + Number(order.service_fee || 0)) / oldSubtotal
+      : 1
+    const rows = resolvedSubs.map((r) => {
+      const linePaid = round((r.cheaperBy > 0 ? r.newPrice : r.oldPrice) * Number(byId.get(r.itemId)!.quantity))
+      const refundIfRefused = round(linePaid * feeMultiplier)
+      offeredRefundTotal = round(offeredRefundTotal + refundIfRefused)
+      return {
+        order_id: id,
+        order_item_id: r.itemId,
+        original_name: byId.get(r.itemId)!.name,
+        replacement_name: r.replacementName,
+        // What refusing is worth NOW, not re-derived later against an order
+        // that has since been changed by something else.
+        refund_amount: refundIfRefused,
+        customer_phone: toE164(order.customer_phone),
+        expires_at: expiresAt,
+      }
+    })
+    const { error: offerErr } = await svc.from('dd_substitution_offers').insert(rows)
+    if (offerErr) {
+      // Not worth failing an accepted order over. But the invitation to
+      // refuse must then NOT go out: promising a ten-minute window that
+      // nothing recorded is worse than never offering one, because the
+      // customer's "no" would vanish into the driver-forwarding path.
+      // (Also the state before supabase/substitution-offers.sql is run.)
+      console.error('[pos/accept] could not record substitution offer for', id, offerErr.message)
+      offeredRefundTotal = 0
+    }
+  }
+
   // ── Tell the customer ──
   //
   // They paid for something they are not getting. Finding that out at the
@@ -292,10 +334,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         if (removedNames.length) {
           bits.push(`we were out of ${removedNames.join(', ')} so we removed ${removedNames.length === 1 ? 'it' : 'them'} and refunded $${refundAmount.toFixed(2)}`)
         }
-        if (subs.length) {
-          bits.push(`${subs.length === 1 ? 'one item was' : `${subs.length} items were`} replaced with something else at no extra charge`)
+        if (resolvedSubs.length) {
+          const what = resolvedSubs
+            .map((r) => `${byId.get(r.itemId)!.name} → ${r.replacementName}`)
+            .join(', ')
+          bits.push(`we were out of ${resolvedSubs.length === 1 ? 'an item' : 'some items'} and sent ${what} instead`)
         }
-        await sendSMS(to, `Your order #${order.short_code ?? ''} is confirmed — ${bits.join(', and ')}. Sorry about that!`)
+        // The refusal line only goes out when there is actually an open offer
+        // to refuse — promising a reply window we did not record would be
+        // worse than not offering one.
+        const canRefuse = resolvedSubs.length > 0 && offeredRefundTotal > 0
+        const tail = canRefuse
+          ? ` If you'd rather not have ${resolvedSubs.length === 1 ? 'it' : 'them'}, reply NO within ${OFFER_MINUTES} minutes and we'll refund $${offeredRefundTotal.toFixed(2)}.`
+          : ''
+        await sendSMS(to, `Your order #${order.short_code ?? ''} is confirmed — ${bits.join(', and ')}.${tail}`)
       }
     } catch (e) {
       console.error('[pos/accept] customer notice failed for', id, e)
