@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { handleSubstitutionReply } from '@/lib/substitution-reply'
 
 // Twilio webhook — called when someone replies to our Twilio number
 // Forwards customer replies to the assigned driver's phone
@@ -16,6 +17,12 @@ export async function POST(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  // A reply to "we were out, we sent X instead" is answered HERE, before the
+  // message is forwarded to a driver. Forwarding a customer's "no" to the
+  // person carrying their order does nothing about the money.
+  const sub = await handleSubstitutionReply(svc, from, body)
+  if (sub.handled) return twimlResponse(sub.reply)
 
   // Find the customer by phone number (try multiple formats)
   const altPhone = from.startsWith('+1') ? from.slice(2) : `+1${from}`

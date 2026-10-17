@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendSMS } from '@/lib/sms'
+import { handleSubstitutionReply } from '@/lib/substitution-reply'
 
 // Telnyx webhook — called when someone texts our Telnyx number
 // Forwards customer replies to the assigned driver's phone
@@ -39,6 +40,18 @@ export async function POST(req: NextRequest) {
 
   if (HELP_KEYWORDS.includes(keyword)) {
     await sendSMS(from, 'DonutDash: Order & delivery notifications. Message frequency varies. Msg & data rates may apply. Reply STOP to unsubscribe. For support visit donutdash.app/support or email help@donutdash.app')
+    return NextResponse.json({ ok: true })
+  }
+
+  // AFTER the compliance keywords above, never before: STOP/START/HELP have
+  // to behave exactly as the carrier expects regardless of any order state.
+  const subSvc = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+  const sub = await handleSubstitutionReply(subSvc, from, body)
+  if (sub.handled) {
+    await sendSMS(from, sub.reply)
     return NextResponse.json({ ok: true })
   }
 
