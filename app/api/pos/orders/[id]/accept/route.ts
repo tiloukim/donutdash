@@ -147,6 +147,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "That replacement is not on this shop's menu" }, { status: 400 })
     }
     const original = byId.get(c.item_id)!
+    // Refuse replacing an item with itself. The register's picker used to
+    // offer the sold-out item as its own replacement, which does nothing to
+    // the order and texts the customer "we were out of X so we sent X
+    // instead". Guarded here as well as in the UI, because the UI is one
+    // client and this is the contract.
+    if (original.menu_item_id && original.menu_item_id === replacement.id) {
+      return NextResponse.json(
+        { error: `${replacement.name} is the item that is sold out — pick a different replacement, or remove and refund it.` },
+        { status: 400 },
+      )
+    }
     // The ONLINE price is the comparison: it is what the customer paid.
     const newPrice = Number(replacement.online_price ?? replacement.pos_price ?? replacement.price ?? 0)
     const oldPrice = Number(original.price)
