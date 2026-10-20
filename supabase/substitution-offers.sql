@@ -44,3 +44,18 @@ alter table public.dd_substitution_offers enable row level security;
 -- No policies on purpose: this is written and read by the service role only
 -- (the accept endpoint and the SMS webhook). A customer never queries it;
 -- they answer a text message.
+
+-- ── Data API grants ──
+--
+-- Required for any table created from 2026-10-30. Supabase stopped
+-- auto-granting Data API access to new tables in "public" on that date, and
+-- without a grant PostgREST answers "permission denied" — including to the
+-- SERVICE ROLE, which is how every server route in this app reads. Service
+-- role bypasses RLS, not table grants; the two are different things and only
+-- one of them is automatic any more.
+--
+-- This table is written and read by the service role only (the accept
+-- endpoint and the SMS webhook), so anon and authenticated get nothing. RLS
+-- is on above with no policies, so even if a grant were added later a
+-- customer still could not read it.
+grant select, insert, update, delete on public.dd_substitution_offers to service_role;
