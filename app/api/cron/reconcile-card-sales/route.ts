@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { notifyAdmins } from '@/lib/sms'
 import { pushAdmins } from '@/lib/push-server'
+import { findDuplicatePairs } from '@/lib/processor-feed'
 
 // Compares what the processor charged against what the POS recorded.
 //
@@ -20,6 +21,11 @@ import { pushAdmins } from '@/lib/push-server'
 // despite a figure it disagreed with are flagged, and get told about here.
 
 const GRACE_MS = 10 * 60 * 1000       // the register's own retry window
+// Two approvals this close, for the same money on the same card at the same
+// terminal, is the shape of a cashier pressing Charge after the screen failed
+// to notice the first one went through.
+const DUPLICATE_WINDOW_MS = 10 * 60 * 1000
+const DUPLICATE_LOOKBACK_MS = 24 * 60 * 60 * 1000
 const LOOKBACK_MS = 3 * 24 * 60 * 60 * 1000
 const AMOUNT_WINDOW_MS = 15 * 60 * 1000
 
@@ -128,8 +134,49 @@ export async function GET(req: NextRequest) {
     flaggedAlerted++
   }
 
+  // ── Double charges ───────────────────────────────────────────────────
+  //
+  // The same lost response that loses a sale also causes the opposite: the
+  // terminal approves, the POS keeps showing Charge, the cashier presses it
+  // and the customer pays twice. Three times so far, each ending in a
+  // refund. Nothing here prevents it — the register has to stop offering
+  // Charge until it has asked /api/pos/charge-status — but this turns
+  // "found at close" into "told within minutes".
+  let duplicatesFound = 0
+  const dupSince = new Date(now - DUPLICATE_LOOKBACK_MS).toISOString()
+  const { data: recent, error: dupErr } = await svc
+    .from('dd_processor_transactions')
+    .select('id, tpn, amount_cents, card_last4, auth_code, occurred_at, duplicate_of, duplicate_alerted_at')
+    .gte('occurred_at', dupSince)
+    .not('amount_cents', 'is', null)
+    .order('occurred_at', { ascending: true })
+
+  // 42703 = supabase/card-sale-duplicate-detection.sql hasn't been applied.
+  // Everything above still works; only this sweep is off.
+  const dupUnmigrated = dupErr && (dupErr as { code?: string }).code === '42703'
+  if (!dupErr) {
+    for (const { first, second, gapMs } of findDuplicatePairs(recent ?? [], DUPLICATE_WINDOW_MS)) {
+      const amount = `$${((second.amount_cents ?? 0) / 100).toFixed(2)}`
+      const minutes = Math.max(1, Math.round(gapMs / 60000))
+      const message =
+        `Possible double charge: ${amount} on card ••${second.card_last4} charged twice ` +
+        `${minutes} minute${minutes === 1 ? '' : 's'} apart at terminal ${second.tpn ?? '—'}. ` +
+        `Approvals ${first.auth_code ?? '—'} and ${second.auth_code ?? '—'}. ` +
+        `If the customer only bought once, refund one of them.`
+      await notifyAdmins(message, 'Possible double charge')
+      await pushAdmins('Possible double charge', message, '/admin/orders')
+      await svc
+        .from('dd_processor_transactions')
+        .update({ duplicate_of: first.id, duplicate_alerted_at: new Date().toISOString() })
+        .eq('id', second.id)
+      duplicatesFound++
+    }
+  }
+
   return NextResponse.json({
     checked: pending?.length ?? 0,
+    duplicates_alerted: duplicatesFound,
+    ...(dupUnmigrated ? { duplicates_skipped: 'card-sale-duplicate-detection.sql not applied' } : {}),
     matched,
     missing: stillMissing.length,
     alerted: (unalerted ?? []).length,
