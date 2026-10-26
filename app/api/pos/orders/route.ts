@@ -491,7 +491,11 @@ export async function POST(req: NextRequest) {
     // amount run on the card, surcharge and tip included — not the subtotal.
     const base = Math.round(recomputedTotal * 100) / 100
     const amount = Math.round((flat + base * (pct / 100)) * 100) / 100
-    await svc.from('dd_pos_card_fees').insert({
+    // Silently dropping a row here reproduces, exactly, the reconciliation
+    // bug the comment above describes: totals that run light on card volume
+    // with nothing to show why. The sale itself is already taken and must
+    // not fail over a ledger row, so this logs rather than throws.
+    const { error: feeError } = await svc.from('dd_pos_card_fees').insert({
       shop_id: body.shop_id,
       order_id: order.id,
       amount,
@@ -500,6 +504,12 @@ export async function POST(req: NextRequest) {
       base_amount: base,
       payment_method: body.payment_method,
     })
+    if (feeError) {
+      console.error(
+        `[pos/orders] card fee NOT recorded for order ${order.id} ` +
+        `(shop ${body.shop_id}, $${amount.toFixed(2)}): ${feeError.message}`,
+      )
+    }
   }
 
   // DonutDash Cash: settle the redemption, then the earning.
@@ -563,13 +573,23 @@ export async function POST(req: NextRequest) {
           // which is what the card was charged and therefore true, and the
           // shortfall is recorded as what it is: a discount the wallet did
           // not fund, absorbed by the shop.
-          await svc.from('dd_orders').update({
+          const { error: flagError } = await svc.from('dd_orders').update({
             reconcile_flag: 'redeem_shortfall',
             reconcile_note:
               `Register applied ${(requestedCents / 100).toFixed(2)} of DonutDash Cash but the ` +
               `wallet only funded ${(actualCents / 100).toFixed(2)}. ` +
               `${shortfall.toFixed(2)} of this sale's discount was not backed by a balance.`,
           }).eq('id', order.id)
+          // The flag IS the record. If this write is lost the shop has
+          // absorbed an unfunded discount and nothing anywhere says so —
+          // the sale looks ordinary and reconciles clean while being short.
+          if (flagError) {
+            console.error(
+              `[pos/orders] redeem_shortfall NOT flagged on order ${order.id}: ` +
+              `$${shortfall.toFixed(2)} of discount was unfunded and is now unrecorded. ` +
+              flagError.message,
+            )
+          }
         }
       }
       await svc.rpc('dd_cash_earn', { p_order_id: order.id })

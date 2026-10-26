@@ -692,10 +692,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to create checkout' }, { status: 500 })
       }
       paymentLinkUrl = paymentLink.url
-      await svc
-        .from('dd_orders')
-        .update({ payment_id: paymentLink.id })
-        .eq('id', order.id)
+      // dd_orders.payment_id is what lib/square-refund.ts refunds against,
+      // and what disputes and payout traces look the order up by. Losing it
+      // does not stop the customer paying — it stops US refunding them
+      // later, through the only path that does not need a human in the
+      // Square dashboard. So it is worth a retry, and worth shouting about
+      // if the retry fails, but never worth withholding a payment link the
+      // customer is waiting on.
+      {
+        let linked = await svc.from('dd_orders').update({ payment_id: paymentLink.id }).eq('id', order.id)
+        if (linked.error) {
+          linked = await svc.from('dd_orders').update({ payment_id: paymentLink.id }).eq('id', order.id)
+        }
+        if (linked.error) {
+          console.error(
+            `[checkout] FAILED to store payment_id for order ${order.id}. ` +
+            `Square payment link ${paymentLink.id}. This order cannot be refunded ` +
+            `through the app until payment_id is set by hand. ${linked.error.message}`,
+          )
+        }
+      }
     }
 
     // Send order confirmation email to customer (fire and forget)

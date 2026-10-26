@@ -233,16 +233,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // ── Apply the line changes ──
+  //
+  // The refund above has already left the account, so a failure here cannot
+  // be undone by bailing out — it can only be reported. These writes were
+  // unchecked, which meant the worst case was silent: money back to the
+  // customer, totals corrected below, and the ITEMS still listing the
+  // sold-out thing. The kitchen then makes an order nobody paid for.
+  //
+  // So: attempt every line, collect what failed, and keep going to the money
+  // patch regardless — the refund is a fact and the totals have to match it
+  // whether or not the lines updated. The error is raised afterwards, once
+  // the money is consistent, and it says exactly what is wrong.
+  const lineErrors: string[] = []
   for (const r of resolvedSubs) {
-    await svc.from('dd_order_items').update({
+    const { error } = await svc.from('dd_order_items').update({
       menu_item_id: r.replacementId,
       price: r.cheaperBy > 0 ? r.newPrice : r.oldPrice,
       name: `${r.replacementName} (sub for ${byId.get(r.itemId)!.name})`,
     }).eq('id', r.itemId)
+    if (error) {
+      lineErrors.push(`could not substitute ${byId.get(r.itemId)?.name ?? r.itemId} with ${r.replacementName}: ${error.message}`)
+    }
   }
 
   if (removals.length > 0) {
-    await svc.from('dd_order_items').delete().in('id', removals.map((c) => c.item_id))
+    const { error } = await svc.from('dd_order_items').delete().in('id', removals.map((c) => c.item_id))
+    if (error) {
+      lineErrors.push(`could not remove ${removedNames.join(', ')}: ${error.message}`)
+    }
   }
 
   if (refundAmount > 0) {
@@ -283,6 +301,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         )
       } catch { /* an alert is not worth failing the sale over */ }
     }
+  }
+
+  // Raised here, after the totals are consistent with the refund, and
+  // BEFORE the order is confirmed — an order whose lines do not say what
+  // the kitchen should make must not be handed to the kitchen.
+  if (lineErrors.length > 0) {
+    console.error('[pos/accept] line changes failed for', id, lineErrors)
+    return NextResponse.json(
+      {
+        error:
+          `${refunded ? `The $${refundAmount.toFixed(2)} refund went through and the totals were corrected, but ` : ''}` +
+          `the order's items could not be updated: ${lineErrors.join('; ')}. ` +
+          `This order has NOT been confirmed — fix the items before it goes to the kitchen.`,
+      },
+      { status: 500 },
+    )
   }
 
   const { error: statusErr } = await svc.from('dd_orders')
