@@ -3,7 +3,7 @@ import { haversineDistance } from './osrm'
 import { sendEmail, sendSMS } from './sms'
 import { sendPushToUser } from './push-server'
 import { getPayConfig } from './pay-config'
-import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS, DRIVER_STALE_MS, BATCH_DROPOFF_RADIUS_MILES, MAX_STACKED_DELIVERIES } from './constants'
+import { MAX_DRIVER_DISTANCE_MILES, OFFER_TIMEOUT_SECONDS, DRIVER_STALE_MS, BATCH_DROPOFF_RADIUS_MILES, MAX_STACKED_DELIVERIES, computeDriverEarnings } from './constants'
 
 export async function findNearestAvailableDrivers(
   shopLat: number,
@@ -229,7 +229,7 @@ export async function createDeliveryAndDispatch(order: {
       ? haversineDistance(order.shopLat, order.shopLng, order.dropLat, order.dropLng) : 0
     const cfg = await getPayConfig()
     const tip = Number(order.tip) || 0
-    const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
+    const earnings = computeDriverEarnings({ basePay: cfg.driverBasePay, perMile: cfg.driverPerMile, freeMiles: cfg.driverFreeMiles, miles: dist, tip })
     const { data: delivery, error } = await svc.from('dd_deliveries').insert({
       order_id: order.id, status: 'pending',
       pickup_lat: order.shopLat, pickup_lng: order.shopLng,

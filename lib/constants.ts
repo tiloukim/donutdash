@@ -154,7 +154,28 @@ export function isHeldScheduled(scheduledFor: string | null | undefined): boolea
   return new Date(scheduledFor).getTime() - Date.now() > SCHEDULE_HOLD_MS
 }
 export const BASE_DELIVERY_PAY = 3.00
+// LEGACY rate: only the fallbacks that recompute pay for old deliveries
+// with no snapshotted driver_earnings use this. Those rows were quoted at
+// $0.75 on every mile, so this stays put — new deliveries price through
+// computeDriverEarnings with the getPayConfig() values below.
 export const PER_MILE_PAY = 0.75
+// Current driver mileage: nothing for the first DRIVER_FREE_MILES (the base
+// pay covers a short run), then DRIVER_PER_MILE_PAY per one-way mile after.
+// Admin-tunable in Settings (driver_free_miles / driver_per_mile).
+export const DRIVER_FREE_MILES = 2
+export const DRIVER_PER_MILE_PAY = 0.50
+
+/** Driver pay for one delivery: base + mileage past the free miles + 100% of tip. */
+export function computeDriverEarnings(input: {
+  basePay: number
+  perMile: number
+  freeMiles: number
+  miles: number
+  tip: number
+}): number {
+  const paidMiles = Math.max(0, input.miles - input.freeMiles)
+  return Math.round((input.basePay + paidMiles * input.perMile + input.tip) * 100) / 100
+}
 export const DRIVER_LOCATION_UPDATE_INTERVAL = 10000
 
 // Surge pricing

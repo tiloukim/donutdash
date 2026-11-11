@@ -7,6 +7,7 @@ import { refundSquareOrder } from '@/lib/square-refund'
 import { getPayConfig } from '@/lib/pay-config'
 import { formatShopDateTime } from '@/lib/time-format'
 import { cancelDeliveryForOrder } from '@/lib/cancel-delivery'
+import { computeDriverEarnings } from './constants'
 
 // The single implementation of "a store moved an online order forward".
 //
@@ -215,7 +216,7 @@ export async function applyOrderTransition({
           ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 0
         const cfg = await getPayConfig()
         const tip = updated.tip || 0
-        const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
+        const earnings = computeDriverEarnings({ basePay: cfg.driverBasePay, perMile: cfg.driverPerMile, freeMiles: cfg.driverFreeMiles, miles: dist, tip })
 
         const { data: delivery, error: deliveryErr } = await svc
           .from('dd_deliveries')

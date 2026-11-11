@@ -15,7 +15,8 @@ const FIELDS: SettingField[] = [
   { key: 'delivery_free_miles', label: 'Free Delivery Miles (base fee covers this radius)', suffix: 'mi', defaultValue: '5' },
   { key: 'delivery_per_extra_mile', label: 'Delivery Fee — Per Extra Mile', suffix: '$', defaultValue: '1.50' },
   { key: 'driver_base_pay', label: 'Driver Base Pay (per delivery)', suffix: '$', defaultValue: '3.00' },
-  { key: 'driver_per_mile', label: 'Driver Per-Mile Rate', suffix: '$', defaultValue: '0.75' },
+  { key: 'driver_free_miles', label: 'Driver Free Miles (base pay covers this distance)', suffix: 'mi', defaultValue: '2' },
+  { key: 'driver_per_mile', label: 'Driver Per-Mile Rate (after free miles)', suffix: '$', defaultValue: '0.50' },
   { key: 'shop_commission_rate', label: 'Shop Commission Rate', suffix: '%', defaultValue: '20' },
   { key: 'min_order_amount', label: 'Minimum Order Amount', suffix: '$', defaultValue: '10' },
 ]

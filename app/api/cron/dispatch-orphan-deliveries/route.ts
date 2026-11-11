@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
 import { getPayConfig } from '@/lib/pay-config'
-import { isHeldScheduled } from '@/lib/constants'
+import { isHeldScheduled, computeDriverEarnings } from '@/lib/constants'
 import { haversineDistance } from '@/lib/osrm'
 
 // Safety net: a delivery order should get a dd_deliveries row + driver dispatch
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     const dropLat = o.delivery_lat || 0, dropLng = o.delivery_lng || 0
     const dist = (shopLat && shopLng && dropLat && dropLng) ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 0
     const tip = Number(o.tip) || 0
-    const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
+    const earnings = computeDriverEarnings({ basePay: cfg.driverBasePay, perMile: cfg.driverPerMile, freeMiles: cfg.driverFreeMiles, miles: dist, tip })
 
     const { data: delivery, error } = await svc.from('dd_deliveries').insert({
       order_id: o.id,

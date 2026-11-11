@@ -5,6 +5,7 @@ import { haversineDistance } from '@/lib/osrm'
 import { getPayConfig } from '@/lib/pay-config'
 import { refundSquareOrder } from '@/lib/square-refund'
 import { cancelDeliveryForOrder } from '@/lib/cancel-delivery'
+import { computeDriverEarnings } from '@/lib/constants'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -228,7 +229,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           ? haversineDistance(shopLat, shopLng, dropLat, dropLng) : 0
         const cfg = await getPayConfig()
         const tip = order.tip || 0
-        const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
+        const earnings = computeDriverEarnings({ basePay: cfg.driverBasePay, perMile: cfg.driverPerMile, freeMiles: cfg.driverFreeMiles, miles: dist, tip })
 
         console.log('[ORDER ACCEPT] Creating delivery - distance:', dist, 'earnings:', earnings)
 

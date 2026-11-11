@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { assignNextDriver } from '@/lib/delivery-assignment'
 import { haversineDistance } from '@/lib/osrm'
-import { MAX_DELIVERY_MILES } from '@/lib/constants'
+import { MAX_DELIVERY_MILES, computeDriverEarnings } from '@/lib/constants'
 import { getPayConfig } from '@/lib/pay-config'
 
 // Called when a new order is confirmed to start the auto-assignment process.
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     const cfg = await getPayConfig()
     const tip = order.tip || 0
-    const earnings = Math.round((cfg.driverBasePay + dist * cfg.driverPerMile + tip) * 100) / 100
+    const earnings = computeDriverEarnings({ basePay: cfg.driverBasePay, perMile: cfg.driverPerMile, freeMiles: cfg.driverFreeMiles, miles: dist, tip })
 
     const { data: delivery, error } = await svc
       .from('dd_deliveries')

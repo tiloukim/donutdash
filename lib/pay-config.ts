@@ -15,16 +15,18 @@ import {
   BASE_DELIVERY_PAY,
   BASE_DELIVERY_RADIUS_MILES,
   DEFAULT_DELIVERY_FEE,
+  DRIVER_FREE_MILES,
+  DRIVER_PER_MILE_PAY,
   MIN_ORDER_AMOUNT,
   PER_EXTRA_MILE_FEE,
-  PER_MILE_PAY,
   SERVICE_FEE_RATE,
   SHOP_COMMISSION_RATE,
 } from './constants'
 
 export interface PayConfig {
   driverBasePay: number       // $ per delivery
-  driverPerMile: number       // $ per mile (one-way)
+  driverPerMile: number       // $ per mile (one-way) past driverFreeMiles
+  driverFreeMiles: number     // miles covered by base pay before per-mile starts
   serviceFeeRate: number      // fraction, e.g. 0.10
   defaultDeliveryFee: number  // $ (base fee, covers the free radius)
   deliveryFreeMiles: number   // miles included in the base delivery fee
@@ -35,7 +37,8 @@ export interface PayConfig {
 
 export const FALLBACK_PAY_CONFIG: PayConfig = {
   driverBasePay:        BASE_DELIVERY_PAY,
-  driverPerMile:        PER_MILE_PAY,
+  driverPerMile:        DRIVER_PER_MILE_PAY,
+  driverFreeMiles:      DRIVER_FREE_MILES,
   serviceFeeRate:       SERVICE_FEE_RATE,
   defaultDeliveryFee:   DEFAULT_DELIVERY_FEE,
   deliveryFreeMiles:    BASE_DELIVERY_RADIUS_MILES,
@@ -60,7 +63,8 @@ function rowsToConfig(rows: { key: string; value: string }[]): PayConfig {
   // Constants are fractions ("0.10", "0.20"). Convert on read.
   return {
     driverBasePay:        num('driver_base_pay',       BASE_DELIVERY_PAY),
-    driverPerMile:        num('driver_per_mile',       PER_MILE_PAY),
+    driverPerMile:        num('driver_per_mile',       DRIVER_PER_MILE_PAY),
+    driverFreeMiles:      num('driver_free_miles',     DRIVER_FREE_MILES),
     serviceFeeRate:       num('service_fee_rate',      SERVICE_FEE_RATE * 100) / 100,
     defaultDeliveryFee:   num('default_delivery_fee',  DEFAULT_DELIVERY_FEE),
     deliveryFreeMiles:    num('delivery_free_miles',   BASE_DELIVERY_RADIUS_MILES),

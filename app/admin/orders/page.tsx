@@ -31,6 +31,7 @@ interface OrderRow {
   service_fee: number
   small_order_fee: number
   promo_discount?: number
+  promo_code?: string | null
   processing_fee?: number
   admin_profit?: number
   commission_pct: number | null
@@ -402,6 +403,11 @@ export default function AdminOrders() {
                                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Sales Tax</span><span>${(order.tax || 0).toFixed(2)}</span></div>
                                 )}
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Tip</span><span>${(order.tip || 0).toFixed(2)}</span></div>
+                                {/* Platform-funded, and already netted out of admin_profit — without
+                                    this row the breakdown didn't add up to the total or the profit. */}
+                                {(order.promo_discount || 0) > 0 && (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Promo{order.promo_code ? ` (${order.promo_code})` : ''}</span><span style={{ color: '#DC2626' }}>-${(order.promo_discount || 0).toFixed(2)}</span></div>
+                                )}
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6B7280' }}>Driver Pay</span>{delivery ? (<span style={{ color: '#DC2626' }}>-${(delivery.driver_earnings || 0).toFixed(2)}</span>) : (<span style={{ color: '#6B7280' }}>pending dispatch</span>)}</div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E5E7EB', paddingTop: 4, marginTop: 4 }}><span style={{ fontWeight: 700 }}>Total</span><span style={{ fontWeight: 700 }}>${(order.total || 0).toFixed(2)}</span></div>
                                 {(order.processing_fee ?? 0) > 0 ? (
