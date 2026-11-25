@@ -41,6 +41,19 @@ const prettyDay = (day: string) => {
     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
   })
 }
+// The span a range covers, inclusive — 1 for a single day. Arrows step the
+// whole range by this, so a week stepped back is the previous week.
+const spanDays = (from: string, to: string) => {
+  const [a, b] = [from, to].map((d) => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd).getTime() })
+  return Math.round((b - a) / 86400000) + 1
+}
+const prettyRange = (from: string, to: string) =>
+  from === to ? prettyDay(from) : `${prettyDay(from)} – ${prettyDay(to)}`
+// A time alone is ambiguous once the list spans more than one day.
+const saleWhen = (iso: string, multiDay: boolean) =>
+  multiDay
+    ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 const prettyTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 
@@ -65,7 +78,10 @@ type SquareState = {
 }
 
 export default function ShopTransactions() {
-  const [day, setDay] = useState(localDay())
+  // A range, not a day. from === to is the old single-day view.
+  const [from, setFrom] = useState(localDay())
+  const [to, setTo] = useState(localDay())
+  const multiDay = from !== to
   const [sales, setSales] = useState<Sale[]>([])
   const [totals, setTotals] = useState<Totals | null>(null)
   const [truncated, setTruncated] = useState(false)
@@ -84,7 +100,10 @@ export default function ShopTransactions() {
       // The server builds the day boundaries from this, so a sale rung at
       // 7am in Tyler lands on the right date rather than the previous one.
       const tz = new Date().getTimezoneOffset()
-      const res = await fetch(`/api/shop/walkin-sales?from=${day}&to=${day}&tz_offset=${tz}`)
+      // The API caps at 500; a month of a busy register needs the lot, and
+      // the truncation notice below covers anything beyond it.
+      const limit = multiDay ? 500 : 100
+      const res = await fetch(`/api/shop/walkin-sales?from=${from}&to=${to}&tz_offset=${tz}&limit=${limit}`)
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || `Error ${res.status}`)
       setSales(d.sales || [])
@@ -95,7 +114,7 @@ export default function ShopTransactions() {
       // registers are independent, and an outage at Square is no reason to
       // hide the shop's own takings.
       setSq(null)
-      fetch(`/api/shop/square-sales?from=${day}&to=${day}&tz_offset=${tz}`)
+      fetch(`/api/shop/square-sales?from=${from}&to=${to}&tz_offset=${tz}`)
         .then((r) => r.json())
         .then((sqd: SquareState) => setSq(sqd))
         .catch(() => setSq({ connected: true, sales: [], totals: null, error: 'Could not reach Square.' }))
@@ -107,7 +126,7 @@ export default function ShopTransactions() {
     } finally {
       setLoading(false)
     }
-  }, [day])
+  }, [from, to, multiDay])
 
   useEffect(() => { load() }, [load])
 
@@ -134,50 +153,103 @@ export default function ShopTransactions() {
     ((totals?.cash ?? 0) + (sq?.connected ? sq.totals?.cash ?? 0 : 0)) * 100,
   ) / 100
 
-  const isToday = day === localDay()
+  const today = localDay()
+  const span = spanDays(from, to)
+  const atEnd = to >= today
+  const setRange = (f: string, t: string) => {
+    // Never let the ends cross — picking a From after To drags To along.
+    if (f > t) [f, t] = [f, f]
+    if (t > today) t = today
+    setFrom(f); setTo(t)
+  }
+  const shift = (dir: -1 | 1) => {
+    const f = shiftDay(from, dir * span)
+    if (f > today) return
+    setRange(f, shiftDay(to, dir * span))
+  }
+  const startOfWeek = () => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay()); return localDay(d)
+  }
+  const startOfMonth = () => { const d = new Date(); return localDay(new Date(d.getFullYear(), d.getMonth(), 1)) }
+  const presets: { label: string; f: string; t: string }[] = [
+    { label: 'Today', f: today, t: today },
+    { label: 'Yesterday', f: shiftDay(today, -1), t: shiftDay(today, -1) },
+    { label: 'This week', f: startOfWeek(), t: today },
+    { label: 'Last 7 days', f: shiftDay(today, -6), t: today },
+    { label: 'This month', f: startOfMonth(), t: today },
+  ]
 
   return (
     <div style={{ padding: '16px 14px 40px', maxWidth: 720, margin: '0 auto' }}>
       <div className="screen-only">
       <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>POS sales</h1>
       <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px' }}>
-        Every sale rung on the shop&apos;s register, by day. Figures are takings —
+        Every sale rung on the shop&apos;s register, for a day or a range of days. Figures are takings —
         what went through the till, including sales tax and the card fee — not revenue.
       </p>
 
-      {/* Day picker. Arrows because on a phone that is the gesture people
-          actually use; the date field is there for jumping further back. */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-        <button onClick={() => setDay(shiftDay(day, -1))} style={navBtn} aria-label="Previous day">‹</button>
-        <input
-          type="date"
-          value={day}
-          max={localDay()}
-          onChange={(e) => e.target.value && setDay(e.target.value)}
-          style={{ ...input, flex: 1, minWidth: 0 }}
-        />
+      {/* Range picker. Arrows step the whole range (a day, or a week at a
+          time), presets cover the common asks, and the two date fields
+          are there for any span further back. */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+        <button onClick={() => shift(-1)} style={navBtn} aria-label="Previous period">‹</button>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={rangeLabel}>
+            <span style={rangeCap}>From</span>
+            <input
+              type="date"
+              value={from}
+              max={today}
+              onChange={(e) => e.target.value && setRange(e.target.value, to)}
+              style={{ ...input, width: '100%', minWidth: 0 }}
+            />
+          </label>
+          <label style={rangeLabel}>
+            <span style={rangeCap}>To</span>
+            <input
+              type="date"
+              value={to}
+              min={from}
+              max={today}
+              onChange={(e) => e.target.value && setRange(from, e.target.value)}
+              style={{ ...input, width: '100%', minWidth: 0 }}
+            />
+          </label>
+        </div>
         <button
-          onClick={() => setDay(shiftDay(day, 1))}
-          disabled={isToday}
-          style={{ ...navBtn, opacity: isToday ? 0.35 : 1 }}
-          aria-label="Next day"
+          onClick={() => shift(1)}
+          disabled={atEnd}
+          style={{ ...navBtn, opacity: atEnd ? 0.35 : 1 }}
+          aria-label="Next period"
         >›</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }} className="no-print">
-        {!isToday && (
-          <button onClick={() => setDay(localDay())} style={ghostBtn}>
-            Jump to today
-          </button>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }} className="no-print">
+        {presets.map((p) => {
+          const active = p.f === from && p.t === to
+          return (
+            <button
+              key={p.label}
+              onClick={() => setRange(p.f, p.t)}
+              style={{ ...chip, ...(active ? chipActive : null) }}
+            >{p.label}</button>
+          )
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }} className="no-print">
+        {multiDay && (
+          <span style={{ fontSize: 13, color: '#666', fontWeight: 600 }}>{span} days</span>
         )}
-        {/* Prints the day that's on screen, not "today" — an owner reconciling
-            a drawer is almost always looking at a day that has closed. */}
+        {/* Prints the range that's on screen, not "today" — an owner
+            reconciling a drawer is almost always looking at days that have
+            closed. */}
         <button
           onClick={() => window.print()}
           disabled={loading || !!error || (sales.length === 0 && !(sq?.sales?.length))}
           style={ghostBtn}
         >
-          🖨 Print {prettyDay(day)}
+          🖨 Print {prettyRange(from, to)}
         </button>
       </div>
 
@@ -299,13 +371,13 @@ export default function ShopTransactions() {
 
           {truncated && (
             <p style={{ fontSize: 12, color: '#B54708', background: '#FFFAEB', border: '1px solid #FEDF89', borderRadius: 8, padding: '8px 10px', margin: '0 0 12px' }}>
-              Showing the most recent {sales.length} sales for this day — the totals above cover only these.
+              Showing the most recent {sales.length} sales for {multiDay ? 'these days' : 'this day'} — the totals above cover only these.
             </p>
           )}
 
           {sales.length === 0 ? (
             <div style={{ ...card, padding: 24, textAlign: 'center' }}>
-              <p style={{ margin: 0, color: '#666', fontSize: 14 }}>No POS sales on this day.</p>
+              <p style={{ margin: 0, color: '#666', fontSize: 14 }}>No POS sales {multiDay ? 'in this range' : 'on this day'}.</p>
             </div>
           ) : (
             <div style={{ ...card, overflow: 'hidden' }}>
@@ -315,6 +387,7 @@ export default function ShopTransactions() {
                   sale={s}
                   first={i === 0}
                   open={openId === s.id}
+                  multiDay={multiDay}
                   onToggle={() => setOpenId(openId === s.id ? null : s.id)}
                 />
               ))}
@@ -355,12 +428,12 @@ export default function ShopTransactions() {
 
               {sq.sales.length === 0 ? (
                 <div style={{ ...card, padding: 24, textAlign: 'center' }}>
-                  <p style={{ margin: 0, color: '#666', fontSize: 14 }}>No Square sales on this day.</p>
+                  <p style={{ margin: 0, color: '#666', fontSize: 14 }}>No Square sales {multiDay ? 'in this range' : 'on this day'}.</p>
                 </div>
               ) : (
                 <div style={{ ...card, overflow: 'hidden' }}>
                   {sq.sales.map((s, i) => (
-                    <SquareRow key={s.id} sale={s} first={i === 0} />
+                    <SquareRow key={s.id} sale={s} first={i === 0} multiDay={multiDay} />
                   ))}
                 </div>
               )}
@@ -399,10 +472,10 @@ export default function ShopTransactions() {
       `}</style>
 
       <div id="pos-print">
-        <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 2px' }}>POS sales — {prettyDay(day)}</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 2px' }}>POS sales — {prettyRange(from, to)}</h2>
         <p style={{ fontSize: 11, color: '#444', margin: '0 0 12px' }}>
           Takings: what went through the till, including sales tax and the card fee. Not revenue.
-          {truncated ? ' Partial day — the list was truncated.' : ''}
+          {truncated ? ' Partial — the list was truncated.' : ''}
         </p>
 
         {totals && (
@@ -455,7 +528,7 @@ export default function ShopTransactions() {
             )}
             <table style={printTable}>
               <colgroup>
-                <col style={{ width: '9%' }} /><col style={{ width: '8%' }} />
+                <col style={{ width: multiDay ? '15%' : '9%' }} /><col style={{ width: '8%' }} />
                 <col style={{ width: '15%' }} /><col />
                 <col style={{ width: '8%' }} /><col style={{ width: '11%' }} />
               </colgroup>
@@ -469,7 +542,7 @@ export default function ShopTransactions() {
               <tbody>
                 {sales.map((row) => (
                   <tr key={row.id}>
-                    <td style={ptTd}>{prettyTime(row.at)}</td>
+                    <td style={ptTd}>{multiDay ? saleWhen(row.at, true) : prettyTime(row.at)}</td>
                     <td style={ptTd}>{row.shortCode ?? '—'}</td>
                     <td style={ptTd}>
                       {row.paymentMethod === 'cash'
@@ -491,7 +564,7 @@ export default function ShopTransactions() {
           <div className="print-page">
             {/* Repeated because this is now its own sheet, and a page of
                 figures with no date on it is useless once it's filed. */}
-            <h3 style={printH3}>Square — {prettyDay(day)} — {sq.sales.length} sale{sq.sales.length === 1 ? '' : 's'}</h3>
+            <h3 style={printH3}>Square — {prettyRange(from, to)} — {sq.sales.length} sale{sq.sales.length === 1 ? '' : 's'}</h3>
             {/* Square reports one fee figure, not the split DonutDash has —
                 showing an empty "flat fee" row here would invent a number. */}
             {sq.totals && (
@@ -522,7 +595,7 @@ export default function ShopTransactions() {
               <tbody>
                 {sq.sales.map((row) => (
                   <tr key={row.id}>
-                    <td style={ptTd}>{prettyTime(row.at)}</td>
+                    <td style={ptTd}>{multiDay ? saleWhen(row.at, true) : prettyTime(row.at)}</td>
                     <td style={ptTd}>
                       {[prettyBrand(row.cardBrand), row.cardLast4].filter(Boolean).join(' ') || row.tender}
                       {row.refundAmount > 0 ? ' · REFUNDED' : ''}
@@ -537,7 +610,7 @@ export default function ShopTransactions() {
         )}
 
         {sales.length === 0 && !(sq?.sales?.length) && (
-          <p style={{ fontSize: 12 }}>No sales on this day.</p>
+          <p style={{ fontSize: 12 }}>No sales {multiDay ? 'in this range' : 'on this day'}.</p>
         )}
       </div>
     </div>
@@ -547,8 +620,8 @@ export default function ShopTransactions() {
 /** Square reports payments, not line items — a basket would need its Orders
  *  API and a second round trip per sale. Time, tender and amount is what a
  *  reconciliation needs anyway. */
-function SquareRow({ sale, first }: { sale: SquareSale; first: boolean }) {
-  const time = new Date(sale.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+function SquareRow({ sale, first, multiDay }: { sale: SquareSale; first: boolean; multiDay: boolean }) {
+  const time = saleWhen(sale.at, multiDay)
   const brand = sale.cardBrand
     ? sale.cardBrand.charAt(0) + sale.cardBrand.slice(1).toLowerCase()
     : null
@@ -599,8 +672,8 @@ function SectionHead({ title, count }: { title: string; count: number }) {
 
 
 
-function SaleRow({ sale, first, open, onToggle }: { sale: Sale; first: boolean; open: boolean; onToggle: () => void }) {
-  const time = new Date(sale.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+function SaleRow({ sale, first, open, onToggle, multiDay }: { sale: Sale; first: boolean; open: boolean; onToggle: () => void; multiDay: boolean }) {
+  const time = saleWhen(sale.at, multiDay)
   const brand = prettyBrand(sale.cardBrand)
   const how = sale.paymentMethod === 'cash'
     ? 'Cash'
@@ -706,3 +779,7 @@ const card: React.CSSProperties = { background: '#fff', borderRadius: 12, border
 const input: React.CSSProperties = { padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 16 }
 const navBtn: React.CSSProperties = { padding: '10px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', lineHeight: 1 }
 const ghostBtn: React.CSSProperties = { padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }
+const rangeLabel: React.CSSProperties = { flex: '1 1 140px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }
+const rangeCap: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: '#777', letterSpacing: 0.3 }
+const chip: React.CSSProperties = { padding: '6px 12px', borderRadius: 999, border: '1px solid #ddd', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }
+const chipActive: React.CSSProperties = { background: '#FF1F8E', borderColor: '#FF1F8E', color: '#fff' }
