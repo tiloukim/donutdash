@@ -53,7 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ online: false }),
       }).catch(() => {})
     }
-    await supabase.auth.signOut()
+    // This browser only. The default scope is 'global', which revokes every
+    // session the account has — so signing out here signed the shop's
+    // registers out too, at their next token refresh.
+    await supabase.auth.signOut({ scope: 'local' })
     // Clear cached role cookie
     document.cookie = 'dd_role=; path=/; max-age=0'
     setUser(null)
